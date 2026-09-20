@@ -683,3 +683,127 @@ test('refusing the position request leaves a usable page', async () => {
 
   await context.close();
 });
+
+/* ============================================ 20 Sep 2026, second pass ======= */
+
+/** The postal answer, in the shape our own proxy normalises it into. */
+function postalStub(route) {
+  const asked = new URL(route.request().url()).pathname.split('/').pop() ?? '';
+  const clean = decodeURIComponent(asked).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (clean === 'L8E' || clean === '[redacted]') {
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true, lookedUp: 'L8E', country: 'Canada', region: 'Ontario',
+        place: 'Hamilton (Riverdale)', lat: 43.2318, lon: -79.7696,
+      }),
+    });
+  }
+  return route.fulfill({
+    status: 400,
+    contentType: 'application/json',
+    body: JSON.stringify({ ok: false, error: 'That is not a Canadian postal code or a five-digit ZIP code.' }),
+  });
+}
+
+test('a postal code orders the airports by distance, without asking the browser for anything', async () => {
+  const { context, page } = await openPage([[[]]]);
+  await page.route('**/api/geo/postal/**', postalStub);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+  await page.waitForSelector('#nearbyList');
+
+  await page.fill('#postalInput', '[redacted]');
+  await page.$eval('#postalForm button[type="submit"]', (element) => element.click());
+  await page.waitForTimeout(500);
+
+  const chips = await page.$$eval('#nearbyList .near-chip', (items) =>
+    items.map((item) => item.textContent.replace(/\s+/g, ' ').trim())
+  );
+  assert.ok(chips.length > 3, `a postal code produced no nearby airports: ${chips.join(' | ')}`);
+  assert.match(chips[0], /CYHM/, `Hamilton should be nearest to a Hamilton postal code, got: ${chips[0]}`);
+
+  // The distances must be ordered, which is the whole point of the panel.
+  const kms = chips.map((text) => Number((text.match(/(\d+) km/) ?? [])[1]));
+  assert.equal(kms.some(Number.isNaN), false, `a chip has no distance: ${chips.join(' | ')}`);
+  for (let i = 1; i < kms.length; i += 1) {
+    assert.ok(kms[i] >= kms[i - 1], `the list is not in distance order: ${kms.join(', ')}`);
+  }
+
+  const note = await page.$eval('#postalNote', (element) => element.textContent);
+  assert.match(note, /Hamilton/);
+
+  await context.close();
+});
+
+test('a postal code that is not one is refused with a sentence, and the page still works', async () => {
+  const { context, page } = await openPage([[[]]]);
+  await page.route('**/api/geo/postal/**', postalStub);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  await page.fill('#postalInput', 'not a code');
+  await page.$eval('#postalForm button[type="submit"]', (element) => element.click());
+  await page.waitForTimeout(400);
+
+  const note = await page.$eval('#postalNote', (element) => element.textContent);
+  assert.match(note, /not a Canadian postal code/i, `the refusal was not explained: ${note}`);
+  assert.equal(/undefined|NaN|\[object/.test(note), false, `the refusal message is broken: ${note}`);
+
+  // Refusing a lookup must not take the rest of the page with it.
+  assert.ok(await page.$$eval('#airportButtons .chip', (items) => items.length) > 0);
+  assert.ok(await page.$$eval('#typeList .typerow', (items) => items.length) > 0);
+
+  await context.close();
+});
+
+test('the Warplanes filter shows the Lancaster, and it is not hidden behind a filter', async () => {
+  const { context, page } = await openPage([[[]]]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  // It is on the list under "everything" without touching a filter.
+  assert.match(await page.$eval('#typeList', (element) => element.textContent), /Lancaster/);
+
+  await page.$$eval('#typeFilter .chip', (items) => {
+    items.find((item) => /Warplanes/i.test(item.textContent))?.click();
+  });
+  await page.waitForTimeout(300);
+
+  const filtered = await page.$eval('#typeList', (element) => element.textContent);
+  assert.match(filtered, /Lancaster/, 'the Lancaster vanished when the warplanes filter was applied');
+  assert.match(filtered, /LANC/, 'the Lancaster row does not show its real type code');
+  assert.equal(/Boeing 737 MAX 8/.test(filtered), false, 'an airliner is showing under the warplanes filter');
+
+  await context.close();
+});
+
+test('the type list is in alphabetical order', async () => {
+  const { context, page } = await openPage([[[]]]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  // 🔴 THE CURATED ROWS ARE EXCLUDED ON PURPOSE, AND THAT IS THE DESIGN. The
+  // Lancaster is pinned to the top rather than sorted among the measured types,
+  // because the whole reason it exists is that sorting by what the feed happened
+  // to see is how it went missing in the first place. The alphabetical rule is
+  // about the MEASURED list; asserting it over the pinned row would be testing a
+  // behaviour nobody asked for.
+  const names = await page.$$eval('#typeList .typerow:not(.typerow-curated) .typerow-main b', (items) =>
+    items.map((item) => item.textContent.trim())
+  );
+  assert.ok(names.length > 5, 'no measured types to sort');
+  const sorted = [...names].sort((a, b) => a.localeCompare(b));
+  assert.deepEqual(names, sorted, `the type list is not alphabetical:\n  ${names.join('\n  ')}`);
+
+  await context.close();
+});

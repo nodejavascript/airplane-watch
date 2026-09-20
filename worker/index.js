@@ -31,6 +31,87 @@
 const UPSTREAM = 'https://api.adsb.lol';
 const CACHE_SECONDS = 5;
 
+/** The postal-code lookup. Free, no key, and it sends `access-control-allow-origin: *`. */
+const GEO = 'https://api.zippopotam.us';
+
+/**
+ * 🔴 EVERY OUTBOUND REQUEST MUST NAME ITSELF — measured 20 Sep 2026. Fetched five
+ * ways from one machine in one second: no user-agent header → 403 Forbidden,
+ * `accept` alone → 403, `curl/8.5.0` → 200, an honest tool name → 200, a browser
+ * user agent → 200. So a request with no user agent is refused, and the failure
+ * looks like the feed being down rather than like the request being turned away.
+ */
+const USER_AGENT = 'aircraft-demo.nodejavascript.com';
+
+/**
+ * 🔴 A CANADIAN POSTAL CODE RESOLVES ON ITS FIRST THREE CHARACTERS. Measured 20
+ * Sep 2026: `/ca/L8E` → 200 with the right place, `/ca/[redacted]` → 404 with `{}`,
+ * `/us/14201` → 200. So a reader who types the whole six characters gets the
+ * right answer, and is never told they typed it wrong.
+ */
+function postalTarget(raw) {
+  const clean = String(raw).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (/^[A-Z]\d[A-Z]\d[A-Z]\d$/.test(clean)) return { country: 'ca', code: clean.slice(0, 3) };
+  if (/^[A-Z]\d[A-Z]$/.test(clean)) return { country: 'ca', code: clean };
+  if (/^\d{5}$/.test(clean)) return { country: 'us', code: clean };
+  return null;
+}
+
+/**
+ * The postal answer is normalised rather than passed through, so the page never
+ * depends on the field names of a service that is free and owes us nothing.
+ */
+async function servePostal(raw) {
+  const target = postalTarget(raw);
+  if (!target) {
+    return json(400, {
+      ok: false,
+      error:
+        'That is not a Canadian postal code or a five-digit ZIP code. A Canadian one looks like [redacted] ' +
+        '(and the first three characters are enough), and an American one is five digits.',
+    });
+  }
+  let upstream;
+  try {
+    upstream = await fetch(`${GEO}/${target.country}/${target.code}`, {
+      headers: { accept: 'application/json', 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch (error) {
+    // 503, never 502 — see the note at the top of this file.
+    return json(503, { ok: false, error: `The postal code lookup could not be reached. ${error.message}` });
+  }
+  if (upstream.status === 404) return json(404, { ok: false, error: `Nothing is listed for ${target.code}.` });
+  if (!upstream.ok) return json(503, { ok: false, error: `The postal code lookup answered ${upstream.status}.` });
+
+  const body = await upstream.json().catch(() => null);
+  const place = body && Array.isArray(body.places) ? body.places[0] : null;
+  if (!place) return json(404, { ok: false, error: `Nothing is listed for ${target.code}.` });
+
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      lookedUp: target.code,
+      country: body.country,
+      region: place.state,
+      place: place['place name'],
+      lat: Number(place.latitude),
+      lon: Number(place.longitude),
+      note:
+        'A postal code covers a whole delivery area, so this is the centre of an area and not a street address. ' +
+        'Airports are then listed by distance from it.',
+    }),
+    {
+      status: 200,
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'public, max-age=86400',
+        'x-proxied-from': 'zippopotam.us',
+      },
+    }
+  );
+}
+
 /** Only these shapes are proxied. Everything else is refused before any fetch. */
 const ALLOWED = [
   /^\/v2\/point\/-?\d+(\.\d+)?\/-?\d+(\.\d+)?\/\d{1,3}$/,
@@ -71,6 +152,14 @@ export default {
     if (request.method !== 'GET') {
       return json(405, { ok: false, error: 'Only GET is proxied.' });
     }
+
+    // The postal lookup is a different upstream with a different answer shape,
+    // so it is handled before the path allow-list — which would otherwise refuse
+    // it, correctly, because it is not a feed path.
+    if (path.startsWith('/geo/postal/')) {
+      return servePostal(decodeURIComponent(path.slice('/geo/postal/'.length)));
+    }
+
     if (!isAllowed(path)) {
       return json(400, {
         ok: false,

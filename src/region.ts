@@ -68,10 +68,22 @@ export interface Resident {
   name: string;
   /**
    * The key used to match it in the feed. Registrations are how a warbird or a
-   * rare airframe is actually watched: there is usually no current ICAO type
-   * designator to match on, and inventing one would mean inventing a fact.
+   * rare airframe is actually watched.
    */
   registration: string;
+  /**
+   * The ICAO type code the aircraft transmits, where one is known.
+   *
+   * 🔴 THIS IS NOT INVENTED, AND THE COMMENT ABOVE USED TO SAY THE OPPOSITE —
+   * that a warbird "usually has no current ICAO type designator to match on".
+   * That is wrong, and it was wrong in the way that matters: it was a claim about
+   * the world made from assumption rather than from a source. Read 20 Sep 2026
+   * out of the aircraft database the feed itself uses (617,361 airframes):
+   * `C07DD7;C-GVRA;LANC;00;AVRO Lancaster`. The Lancaster's designator is `LANC`,
+   * the same one the RAF's PA474 carries. So a type watch on `LANC` works, and a
+   * reader can ask for the aeroplane by name rather than by tail number.
+   */
+  typeCode?: string;
   /** Also matched, when the feed reports any of these. */
   alsoMatch?: string[];
   note: string;
@@ -83,6 +95,7 @@ export const RESIDENTS: Record<string, Resident[]> = {
     {
       name: 'Avro Lancaster Mk. X',
       registration: 'C-GVRA',
+      typeCode: 'LANC',
       // The museum's own page gives the markings, which is what gets painted on
       // the aeroplane and sometimes what a radio operator reads out.
       alsoMatch: ['KB726', 'VR-A'],

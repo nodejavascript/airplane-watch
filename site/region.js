@@ -57,6 +57,7 @@ export const RESIDENTS = {
         {
             name: 'Avro Lancaster Mk. X',
             registration: 'C-GVRA',
+            typeCode: 'LANC',
             // The museum's own page gives the markings, which is what gets painted on
             // the aeroplane and sometimes what a radio operator reads out.
             alsoMatch: ['KB726', 'VR-A'],

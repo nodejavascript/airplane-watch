@@ -49,6 +49,18 @@ const CACHE_SECONDS = 5;
  * working perfectly while the airport lookup answers `{"detail":"Not Found"}`,
  * which is exactly what this file did until the curl below in the README was run.
  */
+/** The postal-code lookup. Free, no key, and it sends `access-control-allow-origin: *`. */
+const GEO = 'https://api.zippopotam.us';
+
+/**
+ * 🔴 EVERY REQUEST TO THE FEED MUST NAME ITSELF — measured 20 Sep 2026, five ways
+ * from one machine in one second: no user-agent header → 403, `accept` alone →
+ * 403, `curl/8.5.0` → 200, an honest tool name → 200, a browser user agent →
+ * 200. Node sends no user agent by default, so a proxy that forgets this gets a
+ * 403 that looks like the feed being down.
+ */
+const USER_AGENT = 'aircraft-demo (local development)';
+
 function upstreamPath(requestUrl) {
   const url = new URL(requestUrl, 'http://localhost');
   const rest = url.pathname.replace(/^\/api/, '');
@@ -119,11 +131,98 @@ async function serveStatic(request, response) {
   }
 }
 
+/**
+ * 🔴 A CANADIAN POSTAL CODE RESOLVES ON ITS FIRST THREE CHARACTERS, AND THAT IS
+ * THE SERVICE'S RULE, NOT A SHORTCUT WE TOOK. Measured 20 Sep 2026:
+ *
+ *   /ca/L8E     → 200, "Hamilton (Confederation Park / Nashdale / East Kentley /
+ *                 Riverdale / Lakely / Grayside / North Stoney Creek)", 43.2318, -79.7696
+ *   /ca/[redacted]  → 404, {}
+ *   /us/14201   → 200, Buffalo, 42.8967, -78.8846
+ *
+ * So a reader who types the whole six characters gets the right place, and is
+ * never told they typed it wrong — the truncation happens here, where the reason
+ * for it can be written down.
+ */
+function postalTarget(raw) {
+  const clean = String(raw).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (/^[A-Z]\d[A-Z]\d[A-Z]\d$/.test(clean)) return { country: 'ca', code: clean.slice(0, 3) };
+  if (/^[A-Z]\d[A-Z]$/.test(clean)) return { country: 'ca', code: clean };
+  if (/^\d{5}$/.test(clean)) return { country: 'us', code: clean };
+  return null;
+}
+
+async function servePostal(raw, response) {
+  const json = (status, body) => {
+    response.writeHead(status, {
+      'content-type': 'application/json; charset=utf-8',
+      'access-control-allow-origin': '*',
+      'cache-control': 'no-store',
+    });
+    response.end(JSON.stringify(body));
+  };
+
+  const target = postalTarget(raw);
+  if (!target) {
+    json(400, {
+      ok: false,
+      error:
+        'That is not a Canadian postal code or a five-digit ZIP code. A Canadian one looks like [redacted] ' +
+        '(and the first three characters are enough), and an American one is five digits.',
+    });
+    return;
+  }
+
+  try {
+    const upstream = await fetch(`${GEO}/${target.country}/${target.code}`, {
+      headers: { accept: 'application/json', 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (upstream.status === 404) {
+      json(404, { ok: false, error: `Nothing is listed for ${target.code}.` });
+      return;
+    }
+    if (!upstream.ok) throw new Error(`${upstream.status}`);
+    const body = await upstream.json();
+    const place = Array.isArray(body.places) ? body.places[0] : null;
+    if (!place) {
+      json(404, { ok: false, error: `Nothing is listed for ${target.code}.` });
+      return;
+    }
+    json(200, {
+      ok: true,
+      lookedUp: target.code,
+      country: body.country,
+      region: place.state,
+      place: place['place name'],
+      lat: Number(place.latitude),
+      lon: Number(place.longitude),
+      note:
+        'A postal code covers a whole delivery area, so this is the centre of an area and not a street address. ' +
+        'Airports are then listed by distance from it.',
+    });
+  } catch (error) {
+    json(503, {
+      ok: false,
+      error: `The postal code lookup could not be reached (${error instanceof Error ? error.message : error}).`,
+    });
+  }
+}
+
 async function serveApi(request, response) {
+  const path = new URL(request.url, 'http://localhost').pathname;
+  // The postal lookup is a DIFFERENT upstream with a different answer shape, so
+  // it is normalised here rather than passed through — the page must not depend
+  // on the field names of a service that is free and owes us nothing.
+  if (path.startsWith('/api/geo/postal/')) {
+    await servePostal(decodeURIComponent(path.slice('/api/geo/postal/'.length)), response);
+    return;
+  }
+
   const target = UPSTREAM + upstreamPath(request.url);
   try {
     const upstream = await fetch(target, {
-      headers: { accept: 'application/json', 'user-agent': 'aircraft-demo (local development)' },
+      headers: { accept: 'application/json', 'user-agent': USER_AGENT },
       signal: AbortSignal.timeout(12_000),
     });
     const text = await upstream.text();

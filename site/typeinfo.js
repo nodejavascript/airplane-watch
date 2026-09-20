@@ -21,6 +21,7 @@ const CLASS_LABEL = {
     business: 'Private & business',
     light: 'Light & training',
     helicopter: 'Helicopter',
+    military: 'Warplanes',
     other: 'Other',
 };
 export function classLabel(klass) {
@@ -33,6 +34,48 @@ export function classLabel(klass) {
  */
 const TABLE = {
     /* ------------------------------------------------------------- airliners --- */
+    /* ------------------------------- military and historic types ("warplanes") ---
+     * 🔴 EVERY CODE BELOW WAS READ OUT OF THE FEED'S OWN AIRCRAFT DATABASE, not
+     * from memory. That is the same file a receiver uses to turn a transponder
+     * address into a type — downloaded 20 Sep 2026 from
+     * `https://raw.githubusercontent.com/wiedehopf/tar1090-db/csv/aircraft.csv.gz`
+     * (617,361 airframes) — and the number in each comment is how many airframes
+     * in it carry that code, so a code nobody uses is visible as such.
+     *
+     * 🔴 WHY THIS IS A SHORT LIST, AND IT SAYS SO. A modern fighter or a transport
+     * on a military task very often does not transmit ADS-B at all, or transmits
+     * without the flag that would mark it military — measured the same day, the
+     * feed's own military feed reported 162 aircraft worldwide. So this class is
+     * NOT "every warplane" and must never be presented as one. It is (a) the
+     * historic types below, which do transmit because they now fly as
+     * civilian-registered aircraft, and (b) whatever the feed itself flags as
+     * military, which the page adds at run time from `military.json`.
+     *
+     * The Lancaster is the reason this class exists: Hamilton is its home, it
+     * flies a handful of times a year, and the Hamilton airframe is registered
+     * **C-GVRA** with type code **LANC**. Verified in that same database:
+     * `C07DD7;C-GVRA;LANC;00;AVRO Lancaster`.
+     */
+    LANC: ['Avro Lancaster', 'military'], //   2 — incl. C-GVRA at Hamilton
+    B25: ['North American B-25 Mitchell', 'military'], //   55
+    SPIT: ['Supermarine Spitfire', 'military'], //   84
+    HURI: ['Hawker Hurricane', 'military'], //   15
+    HAHU: ['Hawker Hurricane (alt code)', 'military'], //    3
+    CORS: ['Vought F4U Corsair', 'military'], //   53
+    P51: ['North American P-51 Mustang', 'military'], //  242
+    P40: ['Curtiss P-40 Warhawk', 'military'], //   48
+    F86: ['North American F-86 Sabre', 'military'], //   28
+    VAMP: ['de Havilland Vampire', 'military'], //   20
+    ME09: ['Messerschmitt Bf 109', 'military'], //   22
+    ME08: ['Messerschmitt Me 262', 'military'], //   14
+    LYSA: ['Westland Lysander', 'military'], //    4
+    WFUR: ['Hawker Sea Fury', 'military'], //    1
+    WCAT: ['Grumman FM-2 Wildcat', 'military'], //    1
+    BLEN: ['Bristol Bolingbroke', 'military'], //    1
+    A1: ['Douglas A-1 Skyraider', 'military'], //    2
+    T6: ['North American T-6 Texan', 'military'], //  808
+    DC3: ['Douglas DC-3 / C-47 Dakota', 'military'], //  221
+    DC3T: ['Douglas DC-3 (turbine)', 'military'], //   17
     B38M: ['Boeing 737 MAX 8', 'airliner'],
     B738: ['Boeing 737-800', 'airliner'],
     B739: ['Boeing 737-900', 'airliner'],
@@ -182,5 +225,6 @@ export const CLASS_ORDER = [
     'business',
     'light',
     'helicopter',
+    'military',
     'other',
 ];

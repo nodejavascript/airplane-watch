@@ -198,6 +198,19 @@
             Asking the browser for a position is the only way to know which airports are actually near you. It is
             optional — the seven named above work without it.
           </p>
+
+          <form id="postalForm" class="watch-form" autocomplete="off">
+            <label class="field">
+              <span class="label">Or give a postal code</span>
+              <input id="postalInput" name="postal" type="text" placeholder="[redacted], or a ZIP such as 14201" spellcheck="false" inputmode="text" />
+            </label>
+            <button class="ghost" type="submit" data-ga="postal">Use this code</button>
+          </form>
+          <p class="small muted" id="postalNote">
+            Typing a code is an alternative to the browser prompt — nothing is remembered, and a Canadian code is looked
+            up on its first three characters, which is how postal areas are actually defined.
+          </p>
+
           <div class="chips" id="nearbyList" role="group" aria-label="Airports near you"></div>
           <p class="small muted" id="nearbyNote">Loading the airport list…</p>
         </div>
@@ -221,8 +234,16 @@
         <p class="sub">
           This list is <b>measured, not remembered</b>: it comes from reading the feed around these airports and
           counting what actually appeared, so it is the aircraft that really come and go rather than a list of famous
-          aeroplanes. Watch a <em>type</em> and you are told about every one of them that leaves — and then, if you
-          want, you can narrow that to particular tail numbers below, or leave it wide open.
+          aeroplanes. It is in alphabetical order, with the sighting count on every row so you can see how common each
+          one is. Watch a <em>type</em> and you are told about every one of them that leaves — and then, if you want,
+          you can narrow that to particular tail numbers, or leave it wide open.
+        </p>
+        <p class="sub">
+          <b>Warplanes</b> is a small and deliberately short list, and it says so: it holds the historic types that now
+          fly as civilian aircraft — the Lancaster, the Mitchell, the Spitfire, the Harvard — plus whatever the feed's
+          own database flags as military. It is <em>not</em> a list of the world's air forces. Most military aircraft
+          never transmit the kind of position data this site reads at all, so a warplane filter can find something and
+          can never promise to find everything.
         </p>
         <div class="chips" id="typeFilter" role="group" aria-label="Filter the type list by kind"></div>
         <div class="typelist" id="typeList"></div>

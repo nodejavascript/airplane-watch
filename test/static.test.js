@@ -532,3 +532,100 @@ test('the new controls have styles, so they do not arrive unstyled', () => {
     assert.ok(css.includes(selector), `${selector} has no style`);
   }
 });
+
+/* ============================================ 20 Sep 2026, second pass ======= */
+
+test('the rate limit is caught by its STATUS, before anything tries to parse the body', () => {
+  const source = readSrc('src/app.ts');
+
+  const poll = source.indexOf('private async poll()');
+  assert.ok(poll > -1);
+  const statusCheck = source.indexOf("response.status === 429", poll);
+  const bodyRead = source.indexOf('readJson(response)', poll);
+  assert.ok(statusCheck > -1, 'the poll has no 429 branch at all');
+  assert.ok(bodyRead > -1);
+  assert.ok(
+    statusCheck < bodyRead,
+    'the body is read BEFORE the status is checked — and the feed answers 429 with an HTML page, so a rate ' +
+      'limit gets reported as a JSON parse error that names the symptom and hides the cause'
+  );
+
+  // And the airport lookup must do the same, or choosing an airport during a
+  // rate limit produces the same useless message.
+  const choose = source.indexOf('private async chooseAirport');
+  const chooseStatus = source.indexOf('response.status === 429', choose);
+  const chooseRead = source.indexOf('readJson(response)', choose);
+  assert.ok(chooseStatus > -1 && chooseStatus < chooseRead, 'the airport lookup reads the body before checking 429');
+});
+
+test('the warplanes class holds the historic codes, read from the feed own database', () => {
+  const source = readSrc('src/typeinfo.ts');
+  assert.match(source, /'military'/, 'there is no military class');
+  assert.match(source, /military: 'Warplanes'/, 'the class is not called Warplanes');
+  assert.match(source, /LANC: \['Avro Lancaster', 'military'\]/, 'the Lancaster is not a warplane type');
+  assert.match(source, /tar1090-db/, 'the codes must cite the database they were read from');
+  assert.match(source, /C07DD7;C-GVRA;LANC/, 'the Lancaster entry must carry the line it was verified from');
+  assert.match(source, /NOT "every warplane"/, 'the class must say out loud that it is not every warplane');
+
+  // The short list must actually be short and honest, not padded with guesses.
+  const military = source.match(/', 'military'\]/g) ?? [];
+  assert.ok(military.length >= 12 && military.length <= 30, `expected a short, deliberate list, found ${military.length}`);
+});
+
+test('the military harvest refuses ground stations but keeps real aircraft', () => {
+  const source = readSrc('tools/survey-military.mjs');
+  assert.match(source, /NOT_AN_AIRCRAFT/, 'the harvest does not exclude things that are not aircraft');
+  assert.match(source, /'TWR'/, 'the tower code is not excluded');
+  // The flag is not a promise, and the tool must say so rather than imply it.
+  assert.match(source, /not the same as every military aircraft/i, 'the harvest must state what the flag does not mean');
+});
+
+test('every outbound request names itself, because the feed refuses Node default', () => {
+  for (const file of ['tools/serve.mjs', 'worker/index.js', 'tools/survey-military.mjs']) {
+    const source = readSrc(file);
+    assert.match(source, /user-agent/i, `${file} sends no user agent — measured: the feed answers 403`);
+    assert.match(source, /403/, `${file} does not record why the user agent is required`);
+  }
+});
+
+test('the postal lookup is proxied and normalised on BOTH sides, not called by the page', () => {
+  const serve = readSrc('tools/serve.mjs');
+  const worker = readSrc('worker/index.js');
+
+  for (const [name, source] of [['tools/serve.mjs', serve], ['worker/index.js', worker]]) {
+    assert.match(source, /geo\/postal/, `${name} has no postal route`);
+    assert.match(source, /zippopotam/i, `${name} does not say who answers the lookup`);
+    assert.match(source, /slice\(0, 3\)/, `${name} does not truncate a Canadian code to three characters`);
+    assert.match(source, /L8E/, `${name} does not record the measurement behind the truncation`);
+    assert.match(source, /ok: true/, `${name} does not normalise the answer into our own shape`);
+  }
+
+  // The page must not call the lookup service directly: the visitor's typed code
+  // would then go straight to a third party from their own address.
+  const app = readSrc('src/app.ts');
+  assert.equal(/zippopotam/i.test(app), false, 'the page calls the postal service directly instead of our proxy');
+  assert.match(app, /\/api\/geo\/postal\//, 'the page does not use the proxied route');
+});
+
+test('the type list is alphabetical by NAME, not by how often it was seen', () => {
+  const source = readSrc('src/app.ts');
+  assert.match(source, /describeType\(a\.code\)\.name\.localeCompare\(describeType\(b\.code\)\.name\)/,
+    'the type list is not sorted by the name a reader actually sees');
+  assert.equal(/sort\(\(a, b\) => b\.seen - a\.seen/.test(source), false,
+    'the list is still sorted by sighting count, so it reshuffles under the reader');
+});
+
+test('military.json says what it is and what it is not, and its codes are shaped like codes', () => {
+  const doc = JSON.parse(read(SITE, 'military.json'));
+  assert.ok(Array.isArray(doc.codes) && doc.codes.length > 10, 'the harvest is too small to be a real one');
+  assert.match(doc.flag, /dbFlags/, 'the file must name the flag it read');
+  assert.match(doc.note, /not the same as every military aircraft/i, 'the file must state the limit of the flag');
+  assert.match(doc.covers, /global/i, 'the file must say the query was worldwide, not local');
+  assert.ok(Array.isArray(doc.dropped) && doc.dropped.includes('TWR'), 'the tower code was not excluded');
+
+  for (const row of doc.codes) {
+    assert.match(row.code, /^[A-Z0-9]{1,4}$/, `${row.code} is not a type code`);
+    assert.ok(row.seen >= 1);
+  }
+  assert.equal(/TWR|GRND/.test(doc.codes.map((r) => r.code).join(',')), false, 'a ground station is in the aircraft list');
+});

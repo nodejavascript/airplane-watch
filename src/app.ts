@@ -252,6 +252,13 @@ class Page {
   private polls = 0;
   private survey: TypesDocument | null = null;
 
+  /**
+   * Type codes the feed itself marks as military, harvested by
+   * `tools/survey-military.mjs`. Empty if that file could not be read, in which
+   * case the historic types in `typeinfo.ts` still carry the class on their own.
+   */
+  private militaryCodes = new Set<string>();
+
   /** The airport list the feed itself confirmed, for the "around you" panel. */
   private listedAirports: AirportsDocument | null = null;
   private nearby: NearbyAirport[] = [];
@@ -282,6 +289,7 @@ class Page {
     const saved = readStore(AIRPORT_KEY, DEFAULT_AIRPORT);
     void this.chooseAirport(saved);
     void this.loadSurvey();
+    void this.loadMilitary();
     void this.loadAirports();
     this.view = readStore(VIEW_KEY, 'select') === 'live' ? 'live' : 'select';
     this.showView(this.view);
@@ -431,6 +439,13 @@ class Page {
       const response = await fetch(`/api/0/airport/${encodeURIComponent(icao)}`, {
         headers: { accept: 'application/json' },
       });
+      // Same order as the poll: a 429 arrives as an HTML page, so it is caught by
+      // its status and never by trying to parse it.
+      if (response.status === 429) {
+        this.airport = null;
+        this.setStatus('The feed asked us to slow down (HTTP 429) while looking that airport up. Try again in a moment.', 'error');
+        return;
+      }
       const payload = await readJson(response);
       if (!response.ok) throw new Error(`The feed answered ${response.status} for ${icao}.`);
       this.airport = parseAirport(icao, payload);
@@ -501,19 +516,26 @@ class Page {
 
     try {
       const response = await fetch(url, { headers: { accept: 'application/json' } });
-      const payload = (await readJson(response)) as FeedResponse;
-      // 🔴 A 429 IS THE FEED ASKING US TO SLOW DOWN, AND THE PAGE SAYS SO.
-      // Measured 20 Sep 2026: seven airports polled back to back had five refused
-      // by the third round. Hiding it behind "0 aircraft" would be a lie about a
-      // rate limit, and the reader would think the sky was empty.
+
+      // 🔴 THE STATUS IS CHECKED *BEFORE* THE BODY IS READ, AND THAT ORDER IS THE
+      // WHOLE FIX. Measured 20 Sep 2026: when the feed rate-limits it answers 429
+      // with an HTML page, not JSON — `<title>429 Too Many Requests</title>` — so
+      // parsing first threw a JSON error and the reader was told *"the feed
+      // answered 429 with text/html instead of JSON, that is a web page"*, which
+      // is true and useless: it names the symptom and hides the cause. A rate
+      // limit is a rate limit whether or not the body parses.
       if (response.status === 429) {
         this.lastError = 'the feed is rate-limiting us';
         this.setStatus(
-          'The feed asked us to slow down (HTTP 429). It is volunteer-funded and answers a limited number of requests; the page will try again on the next poll.',
+          'The feed asked us to slow down (HTTP 429). It is volunteer-funded and answers a limited number of ' +
+            'requests per minute, and this page asks again every ten seconds. Nothing is wrong with the site — ' +
+            'the aircraft table below is simply holding the last reading it managed to get.',
           'error'
         );
         return;
       }
+
+      const payload = (await readJson(response)) as FeedResponse;
       if (!response.ok) throw new Error(`The feed answered ${response.status}.`);
 
       this.engine.setWatchlist(this.watchlist);
@@ -731,7 +753,41 @@ class Page {
       if (existing) existing.seen += seen;
       else rows.set(code, { code, seen, airports: [], operators: [], registrations: [] });
     }
-    return [...rows.values()].sort((a, b) => b.seen - a.seen || a.code.localeCompare(b.code));
+    // 🔴 ALPHABETICAL BY NAME, NOT BY HOW OFTEN IT WAS SEEN. George, 20 Sep 2026:
+    // *"maybe list the airplane types in alpha order"*. The sighting count is
+    // still shown on every row, so nothing is hidden by the change — the list
+    // just stops reshuffling itself as the page watches, which made it
+    // impossible to go back to a type you had seen a moment ago.
+    return [...rows.values()].sort((a, b) =>
+      describeType(a.code).name.localeCompare(describeType(b.code).name) || a.code.localeCompare(b.code)
+    );
+  }
+
+  /**
+   * The class of a type code, with the military set applied.
+   *
+   * `typeinfo.ts` is a static table and stays one, because the historic types do
+   * not change. The military set does — airframes are re-registered, retired and
+   * added — so it is asked of the feed by `tools/survey-military.mjs` and read
+   * from `site/military.json` at run time, and it OVERRIDES the table.
+   */
+  private klassOf(code: string): AircraftClass {
+    if (this.militaryCodes.has(code.trim().toUpperCase())) return 'military';
+    return describeType(code).klass;
+  }
+
+  private async loadMilitary(): Promise<void> {
+    try {
+      const response = await fetch('/military.json', { headers: { accept: 'application/json' } });
+      const doc = (await readJson(response)) as { codes?: { code: string }[]; note?: string };
+      for (const row of doc.codes ?? []) this.militaryCodes.add(String(row.code).toUpperCase());
+    } catch {
+      // Not fatal, and deliberately silent in the page: without the file the
+      // warplanes filter still works for the historic types in the static table,
+      // which is where the Lancaster lives.
+      this.militaryCodes.clear();
+    }
+    this.renderTypeList();
   }
 
   private renderTypeList(): void {
@@ -740,7 +796,7 @@ class Page {
 
     const rows = this.combinedTypes().filter((row) => {
       if (this.typeFilter === 'all') return true;
-      return describeType(row.code).klass === this.typeFilter;
+      return this.klassOf(row.code) === this.typeFilter;
     });
 
     // 🔴 THE AIRCRAFT THAT A SURVEY CAN NEVER SEE. Hamilton's Lancaster flies a
@@ -748,9 +804,14 @@ class Page {
     // will always miss exactly the aircraft a person most wants to watch. These
     // are curated from the operator's own published record and are labelled as
     // curated, never mixed into a measured count.
-    const curated = (RESIDENTS[this.airport?.icao ?? ''] ?? []).filter(
-      () => this.typeFilter === 'all' || this.typeFilter === 'other'
-    );
+    //
+    // They show under "everything" and under "warplanes", because that is what
+    // they are — and NOT under the airliner, regional, business, light or
+    // helicopter filters, where they would be wrong.
+    const curated =
+      this.typeFilter === 'all' || this.typeFilter === 'military' || this.typeFilter === 'other'
+        ? (RESIDENTS[this.airport?.icao ?? ''] ?? [])
+        : [];
 
     if (rows.length === 0 && curated.length === 0) {
       host.innerHTML =
@@ -769,12 +830,15 @@ class Page {
         return (
           `<div class="typerow typerow-curated${already ? ' typerow-on' : ''}">` +
           `<div class="typerow-main">` +
-          `<b>${escapeHtml(resident.name)}</b> <span class="mono muted">${escapeHtml(resident.registration)}</span> ` +
+          `<b>${escapeHtml(resident.name)}</b> ` +
+          `<span class="mono muted">${escapeHtml(resident.typeCode ?? resident.registration)}</span> ` +
+          `<span class="mono muted">${escapeHtml(resident.registration)}</span> ` +
           `<span class="tag tag-curated">based here · listed by hand</span>` +
           '</div>' +
           `<div class="typerow-meta"><span class="small muted">${escapeHtml(resident.note)}</span></div>` +
           `<button type="button" class="ghost ${already ? 'chip-off' : 'chip-on'} resident-toggle" ` +
           `data-reg="${escapeHtml(resident.registration)}" data-also="${escapeHtml(keys.slice(1).join(','))}" ` +
+          `data-type="${escapeHtml(resident.typeCode ?? '')}" ` +
           `data-ga="resident-watch">${already ? 'Watching — stop' : 'Watch this aircraft'}</button>` +
           '</div>'
         );
@@ -816,7 +880,7 @@ class Page {
           `<div class="typerow${already ? ' typerow-on' : ''}">` +
           `<div class="typerow-main">` +
           `<b>${escapeHtml(info.name)}</b> <span class="mono muted">${escapeHtml(row.code)}</span> ` +
-          `<span class="tag">${escapeHtml(classLabel(info.klass))}</span>` +
+          `<span class="tag">${escapeHtml(classLabel(this.klassOf(row.code)))}</span>` +
           '</div>' +
           `<div class="typerow-meta">` +
           `<span class="typerow-bar" aria-hidden="true"><i style="width:${width}%"></i></span>` +
@@ -891,6 +955,7 @@ class Page {
     for (const button of host.querySelectorAll<HTMLButtonElement>('.resident-toggle')) {
       button.addEventListener('click', () => {
         const keys = [button.dataset.reg ?? '', ...(button.dataset.also ?? '').split(',')].filter(Boolean);
+        const code = (button.dataset.type ?? '').trim();
         const watching = keys.some((key) =>
           this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key))
         );
@@ -898,14 +963,26 @@ class Page {
           this.watchlist = this.watchlist.filter(
             (item) => !keys.some((key) => normaliseKey(item) === normaliseKey(key))
           );
+          // The type rule goes too, or "stop watching" would leave half the
+          // watch behind and the button would flip straight back to "watching".
+          if (code) {
+            this.typeRules = this.typeRules.filter((rule) => normaliseKey(rule.type) !== normaliseKey(code));
+            this.saveTypeRules();
+          }
         } else {
-          // A resident has no type code to match on — the registration IS the
-          // key, and the alternate markings are accepted too, because a
-          // Lancaster transmits whichever one it is painted with that week.
+          // 🔴 BOTH KEYS, ON PURPOSE. The registration catches the aeroplane when
+          // it is painted with that registration; the type code catches it
+          // whichever markings it wears that week — and the museum's Lancaster is
+          // painted RCAF KB726, not C-GVRA. Watching only one of the two would
+          // mean watching the aeroplane on some days and not others.
           for (const key of keys) {
             if (!this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key))) this.watchlist.push(key);
           }
-          track('resident_watched', { reg: button.dataset.reg ?? '' });
+          if (code && !this.typeRules.some((rule) => normaliseKey(rule.type) === normaliseKey(code))) {
+            this.typeRules.push({ type: code, tails: [] });
+            this.saveTypeRules();
+          }
+          track('resident_watched', { reg: button.dataset.reg ?? '', type: code });
         }
         this.saveWatchlist();
         this.renderWatchlist();
@@ -1137,7 +1214,62 @@ class Page {
     track('nearby_computed', { count: this.nearby.length });
   }
 
+  /**
+   * A postal code, for anyone who would rather not hand their browser a position.
+   *
+   * 🔴 THIS EXISTS BECAUSE THE POSITION REQUEST IS A REAL ASK. A browser prompt is
+   * a thing people refuse, and a page that only works after a yes is a page that
+   * does not work. A postal code is typed, is not a location the browser knows,
+   * and is looked up by our own server so the lookup service never sees the
+   * visitor directly.
+   */
+  private bindPostal(): void {
+    const form = byId<HTMLFormElement>('postalForm');
+    const input = byId<HTMLInputElement>('postalInput');
+    const note = byId('postalNote');
+    if (!form || !input) return;
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const value = input.value.trim();
+      if (!value) return;
+      if (note) note.textContent = `Looking up ${value.toUpperCase()}…`;
+      try {
+        const response = await fetch(`/api/geo/postal/${encodeURIComponent(value)}`, {
+          headers: { accept: 'application/json' },
+        });
+        const body = (await readJson(response)) as {
+          ok?: boolean;
+          error?: string;
+          place?: string;
+          region?: string;
+          country?: string;
+          lat?: number;
+          lon?: number;
+          note?: string;
+        };
+        if (!body.ok || typeof body.lat !== 'number' || typeof body.lon !== 'number') {
+          if (note) note.textContent = body.error ?? 'That code could not be looked up.';
+          return;
+        }
+        this.computeNearby(body.lat, body.lon);
+        if (note) {
+          note.textContent =
+            `${body.place}, ${body.region} — airports below are listed by distance from there. ${body.note ?? ''}`.trim();
+        }
+        track('postal_located', { count: this.nearby.length });
+      } catch (error) {
+        if (note) {
+          note.textContent =
+            'The postal code could not be looked up. ' +
+            (error instanceof Error ? error.message : '') +
+            ' Pick an airport by name instead — nothing else on the page depends on this.';
+        }
+      }
+    });
+  }
+
   private bindLocate(): void {
+    this.bindPostal();
     const button = byId<HTMLButtonElement>('locateBtn');
     const note = byId('locateNote');
     if (!button) return;

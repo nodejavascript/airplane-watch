@@ -1,0 +1,347 @@
+{
+ "generated": "2026-09-20T16:28:53.610Z",
+ "source": "https://api.adsb.lol/v2/mil",
+ "flag": "dbFlags bit 1",
+ "method": "Aircraft the feed itself marks as military, asked once of its global military feed. A type is listed when at least one aircraft carrying it was flagged.",
+ "covers": "The whole world for one moment. This is a global query — the military feed takes no point or radius — so it can include types that will never come near any single airport.",
+ "note": "This is what the public database FLAGS as military, which is not the same as every military aircraft. Many do not transmit ADS-B at all and some transmit without the flag, so a filter built on this can find something and can never promise to find everything.",
+ "aircraftFlagged": 160,
+ "withType": 125,
+ "withoutType": 35,
+ "dropped": [
+  "TWR",
+  "GRND",
+  "GND",
+  "SERV",
+  "GROUND"
+ ],
+ "codeCount": 42,
+ "codes": [
+  {
+   "code": "TEX2",
+   "seen": 16,
+   "examples": [
+    "CARNL91",
+    "GIZMO11",
+    "GIZMO12"
+   ]
+  },
+  {
+   "code": "C17",
+   "seen": 9,
+   "examples": [
+    "1226",
+    "99-0166",
+    "GRIT58"
+   ]
+  },
+  {
+   "code": "C30J",
+   "seen": 9,
+   "examples": [
+    "CHEAT51",
+    "CHEAT53",
+    "OCEAN56"
+   ]
+  },
+  {
+   "code": "H60",
+   "seen": 8,
+   "examples": [
+    "ASF76",
+    "C6041",
+    "G21303"
+   ]
+  },
+  {
+   "code": "C172",
+   "seen": 6,
+   "examples": [
+    "N1401E",
+    "N6601K",
+    "N7887N"
+   ]
+  },
+  {
+   "code": "BE20",
+   "seen": 5,
+   "examples": [
+    "PAT021",
+    "PAT122",
+    "PAT485"
+   ]
+  },
+  {
+   "code": "A332",
+   "seen": 4,
+   "examples": [
+    "CFC3461",
+    "CTM021",
+    "MMF09"
+   ]
+  },
+  {
+   "code": "A400",
+   "seen": 4,
+   "examples": [
+    "CTM2006",
+    "RRR4201",
+    "RRR4953"
+   ]
+  },
+  {
+   "code": "C295",
+   "seen": 4,
+   "examples": [
+    "2807",
+    "AME3552",
+    "SMGLR72"
+   ]
+  },
+  {
+   "code": "EC45",
+   "seen": 4,
+   "examples": [
+    "DRAG76",
+    "LEGEND4",
+    "R72018"
+   ]
+  },
+  {
+   "code": "HAWK",
+   "seen": 4,
+   "examples": [
+    "BLZR243",
+    "BLZR285",
+    "BLZR298"
+   ]
+  },
+  {
+   "code": "A139",
+   "seen": 3,
+   "examples": [
+    "DRAG153",
+    "IAM1532",
+    "TXLU03"
+   ]
+  },
+  {
+   "code": "A319",
+   "seen": 3,
+   "examples": [
+    "HUF303",
+    "IAM9001",
+    "SSG001"
+   ]
+  },
+  {
+   "code": "AS65",
+   "seen": 3,
+   "examples": [
+    "C6559",
+    "C6569"
+   ]
+  },
+  {
+   "code": "B212",
+   "seen": 3,
+   "examples": [
+    "MUSL"
+   ]
+  },
+  {
+   "code": "B737",
+   "seen": 3,
+   "examples": [
+    "CNV4154",
+    "CNV4264",
+    "CNV6619"
+   ]
+  },
+  {
+   "code": "B762",
+   "seen": 3,
+   "examples": []
+  },
+  {
+   "code": "C130",
+   "seen": 3,
+   "examples": [
+    "93-1457",
+    "VADER07",
+    "YANKE45"
+   ]
+  },
+  {
+   "code": "K35R",
+   "seen": 3,
+   "examples": [
+    "60-0332"
+   ]
+  },
+  {
+   "code": "BE9L",
+   "seen": 2,
+   "examples": [
+    "MNTNA27",
+    "MNTNA64"
+   ]
+  },
+  {
+   "code": "C560",
+   "seen": 2,
+   "examples": [
+    "GRZLY50",
+    "LOST56"
+   ]
+  },
+  {
+   "code": "DH8D",
+   "seen": 2,
+   "examples": [
+    "F-ZBML",
+    "MILAN76"
+   ]
+  },
+  {
+   "code": "H47",
+   "seen": 2,
+   "examples": [
+    "07-08742",
+    "R08805"
+   ]
+  },
+  {
+   "code": "P8",
+   "seen": 2,
+   "examples": [
+    "170477",
+    "170479"
+   ]
+  },
+  {
+   "code": "A169",
+   "seen": 1,
+   "examples": [
+    "VOLPE501"
+   ]
+  },
+  {
+   "code": "A21N",
+   "seen": 1,
+   "examples": [
+    "GAF788"
+   ]
+  },
+  {
+   "code": "A320",
+   "seen": 1,
+   "examples": [
+    "KGC4004"
+   ]
+  },
+  {
+   "code": "B350",
+   "seen": 1,
+   "examples": [
+    "FDO8301"
+   ]
+  },
+  {
+   "code": "C182",
+   "seen": 1,
+   "examples": [
+    "N94986"
+   ]
+  },
+  {
+   "code": "C27J",
+   "seen": 1,
+   "examples": [
+    "C2701"
+   ]
+  },
+  {
+   "code": "CL60",
+   "seen": 1,
+   "examples": [
+    "CFC3197"
+   ]
+  },
+  {
+   "code": "CN35",
+   "seen": 1,
+   "examples": [
+    "CTM2078"
+   ]
+  },
+  {
+   "code": "DH8A",
+   "seen": 1,
+   "examples": [
+    "WIDGET47"
+   ]
+  },
+  {
+   "code": "DH8B",
+   "seen": 1,
+   "examples": [
+    "BAT56"
+   ]
+  },
+  {
+   "code": "E135",
+   "seen": 1,
+   "examples": [
+    "FAG549"
+   ]
+  },
+  {
+   "code": "EC35",
+   "seen": 1,
+   "examples": [
+    "E256"
+   ]
+  },
+  {
+   "code": "F900",
+   "seen": 1,
+   "examples": [
+    "CTM1280"
+   ]
+  },
+  {
+   "code": "FA50",
+   "seen": 1,
+   "examples": [
+    "FNY50F1"
+   ]
+  },
+  {
+   "code": "GLEX",
+   "seen": 1,
+   "examples": [
+    "SVF634"
+   ]
+  },
+  {
+   "code": "PC12",
+   "seen": 1,
+   "examples": [
+    "FNF454"
+   ]
+  },
+  {
+   "code": "T38",
+   "seen": 1,
+   "examples": []
+  },
+  {
+   "code": "V22",
+   "seen": 1,
+   "examples": [
+    "169441"
+   ]
+  }
+ ]
+}
