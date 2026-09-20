@@ -1150,11 +1150,39 @@ class Page {
         const rows = this.survey?.types ?? [];
         if (rows.length > 0) {
             const runs = Math.max(1, ...rows.map((row) => row.runsSeen ?? 1));
-            parts.push(`Last seen: ${runs} survey run${runs === 1 ? '' : 's'} recorded so far. A type that has not been seen ` +
-                'inside the window you choose is hidden rather than offered — an aircraft that does not fly near you is ' +
-                'not a choice worth making.');
+            const times = rows
+                .map((row) => (row.lastSeen ? new Date(row.lastSeen).getTime() : NaN))
+                .filter((value) => Number.isFinite(value));
+            const spanDays = times.length > 0 ? (Math.max(...times) - Math.min(...times)) / 86_400_000 : 0;
+            const window = SEEN_CHOICES.find((candidate) => candidate.key === this.seenFilter) ?? SEEN_CHOICES[2];
+            // 🔴 THE FILTER IS ONLY AS GOOD AS THE HISTORY BEHIND IT, AND THE PAGE SAYS SO.
+            // Two rounds run an hour apart cannot tell "flown in the last day" apart from
+            // "flown in the last month" — every type is inside both windows, so the window
+            // you pick changes nothing. That is a fact about how long this site has been
+            // watching, not a fault in the filter, and the honest thing is to say which of
+            // the two it is rather than let the choice look broken.
+            const tooEarly = window.days < 4000 && spanDays < window.days;
+            parts.push(`Last seen: ${runs} survey run${runs === 1 ? '' : 's'} recorded so far` +
+                (spanDays > 0 ? `, spanning ${this.spanText(spanDays)}.` : '.') +
+                (tooEarly
+                    ? ` That is shorter than "${window.label}", so every type is inside the window and this` +
+                        ' choice cannot tell them apart yet — it starts to bite once rounds have been running for' +
+                        ' longer than the window you pick.'
+                    : '') +
+                ' A type that has not been seen inside the window you choose is hidden rather than offered' +
+                ' — an aircraft that does not fly near you is not a choice worth making.');
         }
         note.textContent = parts.join(' ');
+    }
+    /** "40 minutes" / "7 hours" / "3 days" — the span the survey history covers. */
+    spanText(days) {
+        const minutes = days * 1440;
+        if (minutes < 90)
+            return `${Math.max(1, Math.round(minutes))} minutes`;
+        const hours = minutes / 60;
+        if (hours < 36)
+            return `${Math.round(hours)} hour${Math.round(hours) === 1 ? '' : 's'}`;
+        return `${Math.round(days)} days`;
     }
     /** The sentence behind a year, for the tooltip — the row itself carries only the number. */
     yearTitle(entry) {
@@ -2057,16 +2085,28 @@ class Page {
             minLon = Math.min(minLon, point.lon);
             maxLon = Math.max(maxLon, point.lon);
         }
-        // 🔴 THE FENCE IS DRAWN, NOT FITTED — UNLESS THERE IS NOTHING ELSE TO SHOW.
-        // George, 20 Sep 2026: *"only the required zoom out where airports can be seen"*.
-        // Folding the whole circle into the box meant a 50 km setting zoomed the map out
-        // to 50 km of mostly empty ground and shrank the airports just picked to dots.
-        // The airports are what was asked for, so the zoom is chosen for THEM and the
-        // reader's own point; the circle is drawn at its true size, and a circle running
-        // off the edge of a map is an ordinary thing for a circle to do.
-        if (at && this.airports.length === 0) {
-            // Nothing picked yet, so the circle is the only thing on the map and there is
-            // no such thing as too zoomed out for it.
+        // 🔴 THE FENCE IS FITTED AGAIN, AND THAT IS A CORRECTION RATHER THAN A REVERSAL.
+        //
+        // For an hour this file chose the zoom from the airports alone, on the strength of
+        // *"only the required zoom out where airports can be seen"* — and the map showed a
+        // ring whose edge was off the screen, which George reported as the ring being gone.
+        // Both things he asked for are true at once: the zoom must not be wasteful, and the
+        // circle must be visible. The full-width map is what makes room for both.
+        // 🔴 THE CIRCLE IS ALWAYS WHOLE. George, 20 Sep 2026: *"the map is no longer
+        // showing ther ring"*.
+        //
+        // He was right and it was my doing. I had taken the circle out of the fit to stop
+        // the map zooming out further than the airports needed — and the consequence,
+        // which the screenshot showed plainly, is a map at street level with one airport
+        // on it and an arc crossing the corner: the reader sees part of a circle and
+        // concludes there is no circle. A ring that cannot be seen is not a distance, and
+        // the distance is what this map is FOR.
+        //
+        // The earlier complaint — "only the required zoom out where airports can be seen"
+        // — was made against a 512-pixel map. The map is now 854 pixels wide, so the same
+        // box fits at a noticeably closer zoom than it did, which is the part of that
+        // request the width change answers. The ring is the part that has to be whole.
+        if (at) {
             const dLat = this.radiusKm / 111.32;
             const dLon = this.radiusKm / (111.32 * Math.max(0.2, Math.cos((at.lat * Math.PI) / 180)));
             minLat = Math.min(minLat, at.lat - dLat);
@@ -2200,10 +2240,11 @@ class Page {
                 '</svg></div>' +
                 '<p class="small muted locmap-note">The map is ' +
                 '<a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, free and with no API key. ' +
-                'It is zoomed to fit exactly the airports you picked, no further out than that needs' +
-                (you ? `, and the circle is the ${this.radiusKm} km distance you chose — drawn to scale, so it can run past the edge of the map` : '') +
-                '. The tiles are fetched by this site\'s own server rather than by your browser, so the map service never ' +
-                'sees you — the same way the flight feed is handled.' +
+                (you
+                    ? `It is fitted so the ${this.radiusKm} km gap you chose is inside the frame, together with the airports you picked`
+                    : 'It is fitted to the airports you picked') +
+                ' — a ring you can only see part of is no use as a distance. The tiles are fetched by this site\'s own server rather than by your ' +
+                'browser, so the map service never sees you — the same way the flight feed is handled.' +
                 '</p>';
     }
     /**

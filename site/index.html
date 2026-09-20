@@ -180,7 +180,7 @@
       <section class="card step-gated" id="step-1" data-step="1">
         <h2><span class="step">1</span> Where you are, and how far out</h2>
         <div id="placeAsk">
-          <p class="sub" id="placeSub">A postal code, or let the browser find you — everything below follows from it, and the map is zoomed to fit the airports you pick.</p>
+          <p class="sub" id="placeSub">A postal code, or let the browser find you — everything below follows from it, and the map is fitted so your gap fits whole.</p>
           <form id="postalForm" class="watch-form" autocomplete="off">
             <label class="field">
               <span class="label">Postal code or ZIP</span>
@@ -203,8 +203,9 @@
           thier location and bring it back up"*. So the two versions are one line or the
           other, and the way back is a button on the line that says where you are.
         -->
-        <p class="small muted" id="placeKnown" hidden>
-          Around <b id="placeName"></b>
+        <p class="place-line" id="placeKnown" hidden>
+          <span class="place-label">Your location</span>
+          <b class="place-value" id="placeName"></b>
           <button type="button" class="linkish" id="changePlace" data-ga="change-place">change location</button>
         </p>
 

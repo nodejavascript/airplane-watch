@@ -1507,6 +1507,35 @@ main > #status {
   color: var(--theme);
 }
 
+/* ------------------------------------------------------ where you are --- */
+/* 🔴 ONE LINE THAT SAYS WHAT IT IS, WITH THE WAY TO CHANGE IT BESIDE IT. George,
+ * 20 Sep 2026: *"if i have a location, selected tell me what that is, and the chage
+ * location link and go beside it"*. It used to read "Around Hamilton, Ontario change
+ * location" as one run-on line of small grey text — a label, a value and an action
+ * with nothing between them, so the action read as part of the place name. A flex row
+ * keeps them on one line while separating them, and wraps as a unit on a narrow
+ * screen rather than splitting mid-phrase. */
+.place-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 2px 0 12px;
+  font-size: 14px;
+}
+
+.place-line .place-label {
+  color: var(--muted);
+}
+
+.place-line .place-value {
+  color: var(--ink, #e8f4fc);
+}
+
+.place-line .linkish {
+  margin-left: 2px;
+}
+
 /* ------------------------------------------------------ the photograph --- */
 /* 🔴 A REAL PHOTOGRAPH, FROM A FREE SOURCE, WITH ITS CREDIT ON THE ROW. George,
  * 20 Sep 2026: *"where are the photos. there are free opensource photos online"*.
