@@ -2468,23 +2468,33 @@ class Page {
                 const starRule = this.typeRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
                 const on = starRule !== undefined &&
                     (starRule.tails.length === 0 || starRule.tails.some((item) => normaliseKey(item) === normaliseKey(tail)));
-                // 🔴 THE SAME TAIL TICK NARROWS BOTH LISTS — THE STAR AND THE BELL — AND THAT IS THE
-                // POINT OF BEING ABLE TO SELECT. George, 20 Sep 2026: *"i should be able to select from
-                // the list w3hich ones i want an alert for"*. A reader reading a row decides "this type,
-                // but only these two airframes, and tell me about them" in one gesture. Two controls
-                // here would mean ticking the same tail twice and getting them out of step.
-                //
-                // A type the reader has not starred at all is NOT starred by ticking a tail on it, and
-                // it is not armed for alerts either — the tick only narrows lists that already contain
-                // the type. Ticking a tail to see it in the table is what the star is for.
-                for (const list of [this.typeRules, this.alertRules]) {
-                    const rule = list.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
-                    if (!rule)
-                        continue;
+                // 🔴 A TAIL TICK STARS THE TYPE IF IT WAS NOT STARRED, AND THAT IS THE OLD BEHAVIOUR
+                // DELIBERATELY KEPT. Ticking one tail on a row the reader has not starred is how you say
+                // "not the whole type — just this aeroplane", and it was the only way to reach a narrowed
+                // rule without starring first. Removing it while adding the bell would have quietly
+                // dropped a working gesture, and the test that covers it — *"highlighting one
+                // unfavourites the whole type"* — was already failing for unrelated reasons, so nothing
+                // would have caught it. Measured in the suite output for this very change: the chip
+                // click had become a no-op on an unstarred row.
+                const star = this.typeRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
+                if (star) {
                     if (on)
-                        rule.tails = rule.tails.filter((item) => normaliseKey(item) !== normaliseKey(tail));
+                        star.tails = star.tails.filter((item) => normaliseKey(item) !== normaliseKey(tail));
                     else
-                        rule.tails.push(tail);
+                        star.tails.push(tail);
+                }
+                else {
+                    this.typeRules.push({ type: code, tails: [tail] });
+                }
+                // 🔴 THE BELL IS ONLY NARROWED, NEVER CREATED, BY A TAIL TICK. A reader who has not asked
+                // to be told about a type must not start receiving alerts because they tidied which
+                // airframes the table shows. Arming is the bell's own decision, made by pressing it.
+                const bell = this.alertRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
+                if (bell) {
+                    if (on)
+                        bell.tails = bell.tails.filter((item) => normaliseKey(item) !== normaliseKey(tail));
+                    else
+                        bell.tails.push(tail);
                 }
                 this.saveTypeRules();
                 this.saveAlertRules();

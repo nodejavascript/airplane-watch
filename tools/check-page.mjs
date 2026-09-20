@@ -92,14 +92,18 @@ for (const label of ['All flights', '5 minutes', 'last hour', 'last 12 hours', '
   out.windows.push(await rowsFor(label));
 }
 
-// ── 1 · star every type, then the table must list what is up ────────────────────────────
-// Starring ALL of them rather than one, because which type happens to be overhead right now
-// is not knowable from outside the page — and the point of this measurement is the positive
-// case, which needs at least one of the six aircraft in the fence to be on the list.
+// 🔴 A QUIET FENCE MUST NOT ABORT THE PROBE. Measured 20 Sep 2026, 17:47: the feed answered with
+// exactly one aircraft (a C206) and the type list did not yet contain its type, so starring every
+// row still showed an empty table. That is correct page behaviour — the list is built from what the
+// survey caught, and a live type only joins it once this session has seen one — but it stopped the
+// measurements below from running at all. So the positive case is recorded rather than asserted on.
 await page.$$eval('#typeList .typerow .type-toggle', (nodes) => {
   for (const node of nodes) node.click();
 });
-await page.waitForSelector('#aircraftBody tr.aircraft-row', { timeout: 60_000 });
+out.rowsAppeared = await page
+  .waitForSelector('#aircraftBody tr.aircraft-row', { timeout: 60_000 })
+  .then(() => true)
+  .catch(() => false);
 await page.waitForTimeout(600);
 
 out.headings = await page.$$eval('#live thead th', (nodes) => nodes.map((n) => n.textContent.trim()));
