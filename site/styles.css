@@ -1313,14 +1313,29 @@ main > #status {
 }
 
 /* -------------------------------------------------- the little star --- */
-/* On a highlighted tail number, so "you picked this one" is visible at a glance
- * and not only in the border colour. */
-.tail-chip .tail-star {
+/* 🔴 ONE MARK, AND IT ALWAYS LEADS ITS TEXT. George, 20 Sep 2026: *"when a star is
+ * placed inside anything it should precede the text"*. Shared by the tail numbers
+ * and the airports, because it means the same thing in both: you picked this one.
+ * The margin is on the RIGHT so the star sits before the word rather than after it,
+ * and the tiny lift puts its point on the text's cap height instead of its baseline. */
+.mark-star {
   width: 11px;
   height: 11px;
-  margin-right: 4px;
+  margin-right: 5px;
   fill: currentColor;
   vertical-align: -1px;
+}
+
+/* An airport is a choice too, so it takes the same yellow. Without it the airport
+ * you had picked looked exactly like the thirteen you had not. */
+.near-chip[aria-pressed='true'] {
+  border-color: #f0be5a;
+  background: rgba(240, 190, 90, 0.16);
+  color: #f0be5a;
+}
+
+.near-chip[aria-pressed='true'] .near-km {
+  color: #f0be5a;
 }
 
  * aircraft to be visible until an airport is selected. maybe make it visible just

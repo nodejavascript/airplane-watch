@@ -253,8 +253,15 @@ async function readJson(response: Response): Promise<unknown> {
  */
 const STAR_PATH = 'M12 2.7l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.6l-5.8 3.05L7.3 14.15 2.6 9.55l6.5-.95z';
 
-const TAIL_STAR =
-  '<svg class="tail-star" viewBox="0 0 24 24" aria-hidden="true"><path d="' + STAR_PATH + '"/></svg>';
+/**
+ * 🔴 THE STAR GOES BEFORE THE TEXT, EVERYWHERE IT APPEARS IN SOMETHING.
+ *
+ * George, 20 Sep 2026: *"when a star is placed inside anything it should precede
+ * the text"*. A mark that follows its own label reads as punctuation; one that
+ * leads it reads as a state the thing is in. So this is one drawing, named for the
+ * mark rather than for where it first appeared, and it is always written first.
+ */
+const MARK_STAR = `<svg class="mark-star" viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}"/></svg>`;
 
 function starButton(code: string, wholeType: boolean, narrowed: boolean): string {
   const label = wholeType ? 'Favourited — remove' : narrowed ? 'Favourite the whole type' : 'Favourite this type';
@@ -679,6 +686,9 @@ class Page {
     this.engine.setTypeRules(this.typeRules);
 
     track('airport_chosen', { airport: this.airport.icao, km: this.radiusKm, nm: kmToNm(this.radiusKm) });
+    // The chips and the map are redrawn so the airport just picked is the one
+    // carrying the mark — `renderNearby` draws the map too.
+    this.renderNearby();
     this.setBusy(icao, false);
     await this.poll();
     this.updateSteps();
@@ -1288,15 +1298,12 @@ class Page {
               tails
                 .map((item) => {
                   const on = chosen.has(normaliseKey(item.reg));
-                  // 🔴 A LITTLE STAR ON THE ONES YOU PICKED. George, 20 Sep 2026:
-                  // *"if i select tail number also add a little star in their
-                  // button"* — so the choice is visible as a mark and not only as a
-                  // border colour, which at this size is easy to miss.
+                  // 🔴 THE STAR LEADS THE CHIP. See the note on MARK_STAR.
                   return (
                     `<button type="button" class="tail-chip" data-type="${escapeHtml(row.code)}" ` +
                     `data-tail="${escapeHtml(item.reg)}" aria-pressed="${on}" ` +
                     `title="${on ? 'Watching only this one' : 'Watch only this one'}" ` +
-                    `data-ga="tail-chip">${on ? TAIL_STAR : ''}${escapeHtml(item.reg)}</button>`
+                    `data-ga="tail-chip">${on ? MARK_STAR : ''}${escapeHtml(item.reg)}</button>`
                   );
                 })
                 .join('') +
@@ -1720,10 +1727,22 @@ class Page {
     host.innerHTML = this.nearby
       .slice(0, 14)
       .map(
-        ({ airport, km }) =>
-          `<button type="button" class="ghost chip near-chip" data-icao="${escapeHtml(airport.icao)}" data-ga="airport-near">` +
-          `<span class="mono">${escapeHtml(airport.icao)}</span> ${escapeHtml(airport.location || airport.name)}` +
-          `<span class="near-km">${Math.round(km)} km</span></button>`
+        ({ airport, km }) => {
+          // 🔴 AN AIRPORT IS A CHOICE, SO IT CARRIES THE SAME MARK. George, 20 Sep
+          // 2026: *"selecting an airport should hava star and yellow hue"*. Before
+          // this, the airport you had picked looked exactly like the thirteen you
+          // had not — the only difference was which one the page happened to be
+          // watching, which a reader has no way to see.
+          const chosenAirport = airport.icao === this.airport?.icao;
+          return (
+            `<button type="button" class="ghost chip near-chip" data-icao="${escapeHtml(airport.icao)}" ` +
+            `aria-pressed="${chosenAirport}" title="${chosenAirport ? 'Watching this airport' : `Watch ${airport.icao}`}" ` +
+            `data-ga="airport-near">` +
+            `${chosenAirport ? MARK_STAR : ''}` +
+            `<span class="mono">${escapeHtml(airport.icao)}</span> ${escapeHtml(airport.location || airport.name)}` +
+            `<span class="near-km">${Math.round(km)} km</span></button>`
+          );
+        }
       )
       .join('');
     for (const button of host.querySelectorAll<HTMLButtonElement>('.near-chip')) {
