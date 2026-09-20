@@ -545,3 +545,141 @@ test('narrowing to a tail number is UNDONE by removing it, back to the whole typ
 
   await context.close();
 });
+
+/* ============================================ the second round, 20 Sep 2026 ==
+ * The brief: see the airports around you, pick whole types, reach the tail
+ * numbers inside a type, then chart what is in the air now.
+ */
+
+test('the live view hides the choosing flow and charts only what matches', async () => {
+  const { context, page } = await openPage([
+    [
+      { hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 9000, baro_rate: 1800, gs: 240, lat: 43.19, lon: -79.93 },
+      { hex: 'abcdef', flight: 'NOTMINE', r: 'N00001', t: 'C172', alt_baro: 4000, baro_rate: 300, gs: 90, lat: 43.21, lon: -79.9 },
+    ],
+  ]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  // Watch one type only, so an aircraft of any other type must not be drawn.
+  await page.$$eval('#typeList .typerow', (items) => {
+    items.find((item) => /Boeing 737 MAX 8/.test(item.textContent))?.querySelector('.type-toggle').click();
+  });
+  await page.waitForTimeout(300);
+
+  await page.$eval('.view-switch[data-view="live"]', (element) => element.click());
+  await page.waitForTimeout(400);
+
+  assert.equal(await page.$eval('#liveView', (element) => element.hidden), false, 'the live view did not open');
+  assert.equal(await page.$eval('#selectView', (element) => element.hidden), true, 'the choosing flow is still showing');
+
+  const dots = await page.$$eval('#liveChart circle.radar-dot title', (nodes) => nodes.map((n) => n.textContent));
+  assert.equal(dots.length, 1, `expected exactly one charted aircraft, drew ${dots.length}: ${dots.join(' | ')}`);
+  assert.match(dots[0], /ACA123/);
+  assert.equal(/NOTMINE/.test(dots.join(' ')), false, 'an aircraft matching nothing was drawn anyway');
+
+  const table = await page.$eval('#liveBody', (element) => element.textContent);
+  assert.match(table, /ACA123/);
+  assert.match(table, /km/, 'the table must give a distance in kilometres');
+  assert.equal(/NOTMINE/.test(table), false);
+
+  await context.close();
+});
+
+test('the live view survives a switch back and forth', async () => {
+  const { context, page } = await openPage([
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 9000, lat: 43.19, lon: -79.93 }],
+  ]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+  await page.$$eval('#typeList .typerow', (items) => {
+    items.find((item) => /Boeing 737 MAX 8/.test(item.textContent))?.querySelector('.type-toggle').click();
+  });
+  await page.waitForTimeout(250);
+
+  await page.$eval('.view-switch[data-view="live"]', (element) => element.click());
+  await page.waitForTimeout(200);
+  await page.$eval('#liveView .view-switch[data-view="select"]', (element) => element.click());
+  await page.waitForTimeout(200);
+  assert.equal(await page.$eval('#selectView', (element) => element.hidden), false, 'going back did not restore the choosing flow');
+
+  await context.close();
+});
+
+test('ticking a tail number inside a type narrows the rule, and unticking widens it again', async () => {
+  const { context, page } = await openPage([
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 9000, lat: 43.19, lon: -79.93 }],
+  ]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  // The measurement for this type lists a tail number, because the survey saw
+  // one transmit itself. Open the type and tick it.
+  await page.$$eval('#typeList .typerow', (items) => {
+    items.find((item) => /Boeing 737 MAX 8/.test(item.textContent))?.querySelector('.type-expand').click();
+  });
+  await page.waitForTimeout(200);
+
+  const boxes = await page.$$('#typeList .tail-box input');
+  assert.ok(boxes.length > 0, 'opening a type revealed no tail numbers to tick');
+  await boxes[0].click();
+  await page.waitForTimeout(250);
+
+  const watch = await page.$eval('#watchList', (element) => element.textContent);
+  assert.match(watch, /1 tail number/, `ticking a box did not narrow the rule: ${watch.slice(0, 200)}`);
+
+  await page.$$eval('#typeList .tail-box input', (inputs) => inputs[0].click());
+  await page.waitForTimeout(250);
+  const widened = await page.$eval('#watchList', (element) => element.textContent);
+  assert.match(widened, /every one of them/, 'unticking the last tail did not widen the rule again');
+
+  await context.close();
+});
+
+test('a curated aircraft can be watched even though it has no type code to match', async () => {
+  const { context, page } = await openPage([[[]]]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  const curated = await page.$eval('#typeList', (element) => element.textContent);
+  assert.match(curated, /Lancaster/, 'the one aircraft this site was asked for is not on the list');
+  assert.match(curated, /C-GVRA/);
+
+  await page.$eval('#typeList .resident-toggle', (element) => element.click());
+  await page.waitForTimeout(250);
+
+  const watch = await page.$eval('#watchList', (element) => element.textContent);
+  assert.match(watch, /C-GVRA/, 'watching the curated aircraft did not add its registration');
+  assert.match(watch, /KB726/, 'the alternate marking it is painted with was not watched too');
+
+  await context.close();
+});
+
+test('refusing the position request leaves a usable page', async () => {
+  const { context, page } = await openPage([[[]]]);
+  await context.grantPermissions([]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  await page.$eval('#locateBtn', (element) => element.click());
+  await page.waitForTimeout(400);
+
+  const note = await page.$eval('#locateNote', (element) => element.textContent);
+  assert.ok(note.length > 0, 'a refusal said nothing at all');
+  assert.equal(/undefined|NaN/.test(note), false, `the refusal message is broken: ${note}`);
+
+  // And the page still works: an airport can still be chosen by name.
+  assert.ok(await page.$$eval('#airportButtons .chip', (items) => items.length) > 0);
+
+  await context.close();
+});

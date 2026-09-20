@@ -432,3 +432,105 @@ test('the type codes the feed actually sends are the shape the table expects', (
     []
   );
 });
+
+/* ============================================ the second round, 20 Sep 2026 ==
+ * These read the artefacts the round actually changed. Written, not run, until
+ * the deploy — the house rule for this family.
+ */
+
+const strip = (text) => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+const read = (relative) => readFileSync(join(SITE, relative), 'utf8');
+const readSrc = (relative) => strip(readFileSync(join(ROOT, relative), 'utf8'));
+
+test('every airport in the list was placed by the feed, and none of them by hand', () => {
+  assert.ok(existsSync(join(SITE, 'airports.json')), 'site/airports.json is missing — run tools/verify-airports.mjs');
+  const doc = JSON.parse(read('airports.json'));
+
+  assert.ok(Array.isArray(doc.airports) && doc.airports.length > 20, 'the airport list is too short to be useful');
+  assert.equal(doc.kept, doc.airports.length, 'kept does not match the number of airports actually written');
+  assert.ok(Array.isArray(doc.dropped), 'dropped must be a list, even when it is empty');
+  assert.match(doc.method, /feed/i, 'the file must say where the positions came from');
+
+  for (const airport of doc.airports) {
+    assert.match(airport.icao, /^[A-Z0-9]{4}$/, `${airport.icao} is not a four-character identifier`);
+    assert.equal(typeof airport.name, 'string');
+    assert.ok(Number.isFinite(airport.lat) && Math.abs(airport.lat) <= 90, `${airport.icao} has no usable latitude`);
+    assert.ok(Number.isFinite(airport.lon) && Math.abs(airport.lon) <= 180, `${airport.icao} has no usable longitude`);
+  }
+
+  // A dropped identifier that is still in the file means the tool ran against an
+  // older source than the one on disk, which is the kind of drift worth failing.
+  const source = readSrc('src/region.ts');
+  for (const code of doc.dropped) {
+    assert.equal(
+      new RegExp(`'${code}'`).test(source),
+      false,
+      `${code} was dropped by the feed and is still listed in src/region.ts`
+    );
+  }
+});
+
+test('the type list says out loud that its tail numbers are a sample', () => {
+  const doc = JSON.parse(read('types.json'));
+  assert.ok(Array.isArray(doc.types) && doc.types.length > 10);
+  assert.ok(
+    typeof doc.registrationsNote === 'string' && /not a fleet list|sample/i.test(doc.registrationsNote),
+    'a page offering tail numbers must say they are what identified itself, not a fleet list'
+  );
+
+  for (const type of doc.types) {
+    assert.ok(Array.isArray(type.registrations), `${type.code} has no registrations array`);
+    for (const entry of type.registrations) {
+      assert.match(entry.reg, /^[A-Z0-9-]{4,10}$/, `${type.code} carries a registration that is not one: ${entry.reg}`);
+      assert.ok(Array.isArray(entry.airports));
+    }
+  }
+});
+
+test('the page has two views and the header still has no nav', () => {
+  const html = read('index.html');
+
+  assert.match(html, /id="selectView"/, 'the choosing flow has no container to hide');
+  assert.match(html, /id="liveView"[^>]*hidden/, 'the live view must start hidden');
+  assert.match(html, /id="liveChart"/, 'the chart has nowhere to draw');
+  assert.match(html, /id="liveBody"/, 'the chart has no table under it');
+  assert.match(html, /id="nearbyList"/, 'there is nowhere to list nearby airports');
+  assert.match(html, /id="locateBtn"/, 'there is no control to ask for a position');
+
+  const switches = html.match(/class="ghost view-switch" data-view="(select|live)"/g) ?? [];
+  assert.equal(switches.length, 3, 'expected two switches at the top and one back-link inside the live view');
+  assert.equal((html.match(/data-view="live"/g) ?? []).length, 1);
+  assert.equal((html.match(/data-view="select"/g) ?? []).length, 2);
+
+  // The status line had to move OUT of the departures card, or a feed error
+  // would be invisible to a reader who is on the other view.
+  const statusIndex = html.indexOf('id="status"');
+  assert.ok(statusIndex > -1);
+  assert.ok(statusIndex < html.indexOf('id="selectView"'), 'the status line must sit outside both views');
+});
+
+test('the live view draws matches from the last reading, never everything', () => {
+  const source = readSrc('src/app.ts');
+
+  assert.match(source, /matchedAirborne\(\)/, 'there is no method that picks the aircraft to chart');
+  assert.match(source, /this\.engine\.matchOf\(reading\)/, 'the chart must be filtered by the reader\'s own rules');
+  assert.match(source, /if \(!match\) continue;/, 'an aircraft that matches nothing would still be drawn');
+  assert.match(source, /this\.lastReadings = readings;/, 'the live view must read from the same poll as the board');
+  assert.match(source, /alt_baro === 'ground'\) continue;/, 'an aircraft on the ground is not in the air');
+  assert.match(source, /row\.km <= 400/, 'there must be a distance filter, with its reason written down');
+});
+
+test('the Lancaster is listed as a curated aircraft, with a source that is not Wikipedia', () => {
+  const source = readSrc('src/region.ts');
+  assert.match(source, /C-GVRA/, 'the resident list has lost the one aircraft this was built for');
+  assert.match(source, /KB726/, 'the alternate marking it is painted with must be watched too');
+  assert.match(source, /warplane\.com/, 'the source must be the museum\'s own record');
+  assert.equal(/wikipedia/i.test(source), false, 'a curated fact must cite the operator, not an encyclopaedia');
+});
+
+test('the new controls have styles, so they do not arrive unstyled', () => {
+  const css = readFileSync(join(SITE, 'styles.css'), 'utf8');
+  for (const selector of ['.viewbar', '.nearby', '.near-chip', '.typerow-actions', '.tail-panel', '.tail-grid', '.tail-box', '.radar', '.radar-dot', '.sr-only']) {
+    assert.ok(css.includes(selector), `${selector} has no style`);
+  }
+});

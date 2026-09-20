@@ -54,7 +54,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /** How many aircraft we managed to look at, so the sample size is stated. */
 let inspected = 0;
 
-/** type code -> { count, airports:Set, callsigns:Set, categories:Set } */
+/** type code -> { count, airports:Set, callsigns:Set, categories:Set, regs:Map } */
 const tally = new Map();
 
 async function json(path) {
@@ -128,11 +128,27 @@ async function main() {
         if (NOT_AN_AIRCRAFT_TYPE.has(type) || type.length > 6) continue;
         types += 1;
         if (!tally.has(type)) {
-          tally.set(type, { count: 0, airports: new Set(), callsigns: new Set(), categories: new Set() });
+          tally.set(type, {
+            count: 0,
+            airports: new Set(),
+            callsigns: new Set(),
+            categories: new Set(),
+            // 🔴 TAIL NUMBERS, WHICH THE PAGE CAN THEN OFFER. George, 20 Sep 2026:
+            // *"inside the type, maybe list the tail numbers and i can select
+            // those too"*. A registration is only recorded when the feed actually
+            // sent one — an aircraft that never transmits its registration is not
+            // given a made-up one.
+            regs: new Map(),
+          });
         }
         const entry = tally.get(type);
         entry.count += 1;
         entry.airports.add(airport.icao);
+        const registration = String(row.r || '').trim().toUpperCase();
+        if (/^[A-Z0-9-]{4,10}$/.test(registration)) {
+          if (!entry.regs.has(registration)) entry.regs.set(registration, new Set());
+          entry.regs.get(registration).add(airport.icao);
+        }
         const callsign = String(row.flight || '').trim().toUpperCase();
         // Only a three-letter airline prefix. Some callsigns are registrations or
         // addresses, and "@@@" is not an operator.
@@ -152,6 +168,12 @@ async function main() {
       airports: [...entry.airports].sort(),
       operators: [...entry.callsigns].sort().slice(0, 12),
       categories: [...entry.categories].sort(),
+      // Most-seen first, so the page can show the handful that matter and keep
+      // the long tail behind a count rather than in a wall of buttons.
+      registrations: [...entry.regs.entries()]
+        .map(([reg, airports]) => ({ reg, airports: [...airports].sort() }))
+        .sort((a, b) => b.airports.length - a.airports.length || a.reg.localeCompare(b.reg))
+        .slice(0, 40),
     }))
     .sort((a, b) => b.seen - a.seen || a.code.localeCompare(b.code));
 
@@ -167,6 +189,10 @@ async function main() {
     // shown, or the number means something it should not.
     counted: 'sightings (one per aircraft per round)',
     roundsRefusedByRateLimit: refused,
+    // Said out loud, because a page that showed eight tail numbers and implied
+    // they were all of them would be wrong in a way nobody could see.
+    registrationsNote:
+      'Up to 40 registrations per type, from aircraft that actually transmitted one. Many transponders never send a registration, so this is a sample of what identifies itself, not a fleet list.',
     airports: airports.map((airport) => ({ icao: airport.icao, name: airport.name })),
     types,
   };

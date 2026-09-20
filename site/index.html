@@ -171,6 +171,15 @@
         </ul>
       </section>
 
+      <div class="viewbar">
+        <button type="button" class="ghost view-switch" data-view="select" aria-pressed="true" data-ga="view-select">Choose what to watch</button>
+        <button type="button" class="ghost view-switch" data-view="live" aria-pressed="false" data-ga="view-live">Chart what is in the air now</button>
+      </div>
+
+      <p class="small muted" id="status" data-kind="working">Starting…</p>
+
+      <div id="selectView">
+
       <section class="card" id="step-1">
         <h2><span class="step">1</span> Choose the airport</h2>
         <p class="sub">
@@ -179,6 +188,19 @@
         </p>
         <div class="chips" id="airportButtons" role="group" aria-label="Choose an airport"></div>
         <p class="small muted" id="airportWhere"></p>
+
+        <div class="nearby">
+          <div class="nearby-head">
+            <b>Airports around you</b>
+            <button type="button" class="ghost chip-small" id="locateBtn" data-ga="locate">Find airports near me</button>
+          </div>
+          <p class="small muted" id="locateNote">
+            Asking the browser for a position is the only way to know which airports are actually near you. It is
+            optional — the seven named above work without it.
+          </p>
+          <div class="chips" id="nearbyList" role="group" aria-label="Airports near you"></div>
+          <p class="small muted" id="nearbyNote">Loading the airport list…</p>
+        </div>
       </section>
 
       <section class="card" id="step-2">
@@ -247,7 +269,6 @@
           Nothing yet. A departure appears here the moment an aircraft inside the fence is first seen airborne.
         </p>
         <ol class="departures" id="departures"></ol>
-        <p class="small muted" id="status" data-kind="working">Starting…</p>
       </section>
 
       <section class="card" id="live">
@@ -273,6 +294,38 @@
             </tbody>
           </table>
         </div>
+      </section>
+
+      </div>
+
+      <section class="card" id="liveView" hidden>
+        <h2>In the air right now</h2>
+        <p class="sub">
+          Everything matching what you chose that is airborne at this moment — not what has already left. Drawn by
+          <b>direction and distance</b> from the airport, because distance alone says an aircraft is eight kilometres
+          away and distance with a direction says it is eight kilometres to the south-west, which is where you would
+          look. A higher aircraft is drawn bigger, so altitude is visible without reading a number.
+        </p>
+        <p class="small muted" id="liveSummary">Waiting for the first reading…</p>
+        <div class="radar-wrap" id="liveChart"></div>
+        <p class="empty" id="liveEmpty" hidden>
+          Nothing matching your selection is in the air inside the fence at this moment. Aircraft appear and disappear
+          as they pass, so this changes minute by minute.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Aircraft in the air matching the selection</caption>
+            <thead>
+              <tr><th>Aircraft</th><th>Type</th><th>Altitude</th><th>Climbing</th><th>Where</th><th>Caught by</th></tr>
+            </thead>
+            <tbody id="liveBody"></tbody>
+          </table>
+        </div>
+        <p class="small muted">
+          Altitude is the pressure altitude the aircraft itself reports, which is why it can read a little differently
+          from the height above the ground. "Climbing" is a rate in feet per minute.
+        </p>
+        <p><button type="button" class="ghost view-switch" data-view="select" data-ga="view-back">Back to choosing what to watch</button></p>
       </section>
 
       <section class="card" id="honesty">

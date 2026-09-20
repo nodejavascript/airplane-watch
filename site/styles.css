@@ -882,3 +882,190 @@ main {
     scroll-behavior: auto;
   }
 }
+
+/* ====================================================== choosing, expanded ==
+ * Added 20 Sep 2026 for the second round of the brief: airports around the
+ * reader, tail numbers inside a type, and a second view that charts what is up
+ * there now. Everything below is new; nothing above was changed.
+ */
+
+/* Screen-reader-only text. The chart's table needs a caption and a sighted
+ * reader does not need to be told what the columns already say. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------- the two views --- */
+.viewbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 20px 0 8px;
+}
+
+.viewbar .view-switch {
+  font-size: 14px;
+  padding: 9px 15px;
+}
+
+.viewbar .view-switch[aria-pressed='true'] {
+  border-color: var(--theme);
+  background: rgba(56, 189, 248, 0.16);
+  color: var(--ink);
+}
+
+/* The status line sits outside every card now, because it is the one thing that
+ * must be readable from BOTH views — a feed error hidden behind a tab is a
+ * silent failure, which is the kind this site is written against. */
+main > #status {
+  margin: 0 0 18px;
+}
+
+/* ------------------------------------------------- airports around you --- */
+.nearby {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.nearby-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+#nearbyList {
+  margin-top: 10px;
+}
+
+.near-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.near-km {
+  color: var(--accent, var(--theme));
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+/* ------------------------------------------- tail numbers inside a type --- */
+.typerow .typerow-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+/* The button is no longer a direct grid child, so the placement rule written for
+ * it earlier no longer applies and must be undone explicitly. */
+.typerow .typerow-actions .type-toggle {
+  grid-column: auto;
+  grid-row: auto;
+}
+
+.tail-panel {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.tail-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 8px;
+}
+
+.tail-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tail-box:hover {
+  border-color: var(--theme);
+}
+
+.tail-box input {
+  accent-color: var(--theme);
+}
+
+/* A curated aircraft is not a measured one, and the styling says so: gold
+ * rather than the site blue, so it never reads as another row of statistics. */
+.typerow-curated {
+  border-color: rgba(240, 190, 90, 0.55);
+  background: rgba(240, 190, 90, 0.07);
+}
+
+.tag-curated {
+  border-color: rgba(240, 190, 90, 0.5);
+  color: #f0be5a;
+}
+
+/* ------------------------------------------------------ the live chart --- */
+.radar-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+.radar {
+  width: 100%;
+  max-width: 380px;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.radar-edge {
+  fill: none;
+  stroke: rgba(56, 189, 248, 0.5);
+  stroke-width: 1.4;
+}
+
+.radar-ring {
+  fill: none;
+  stroke: rgba(56, 189, 248, 0.2);
+  stroke-width: 1;
+}
+
+.radar-label,
+.radar-compass {
+  fill: var(--muted, #8aa6b8);
+  font-size: 10px;
+  font-family: var(--mono, ui-monospace, monospace);
+}
+
+.radar-compass {
+  font-size: 12px;
+}
+
+.radar-field {
+  fill: var(--theme);
+}
+
+.radar-dot {
+  fill: rgba(56, 189, 248, 0.85);
+  stroke: rgba(4, 16, 26, 0.9);
+  stroke-width: 1.2;
+}

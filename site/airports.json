@@ -1,0 +1,775 @@
+{
+  "generated": "2026-09-20T16:13:23.316Z",
+  "covers": "Southern Ontario, Québec, and the American states within reach of the border. Somebody outside this region sees no airports and is told so.",
+  "method": "Each identifier in src/region.ts looked up at /api/0/airport/{icao}; names and positions come from the feed, never from this repository.",
+  "checked": 77,
+  "kept": 76,
+  "dropped": [
+    {
+      "icao": "CYTJ",
+      "why": "no usable position in the answer"
+    }
+  ],
+  "airports": [
+    {
+      "icao": "CNC3",
+      "iata": "",
+      "name": "Brampton Airport",
+      "location": "Brampton",
+      "country": "CA",
+      "lat": 43.7603,
+      "lon": -79.875,
+      "elevationFt": 935
+    },
+    {
+      "icao": "CNF4",
+      "iata": "",
+      "name": "Lindsay Airport",
+      "location": "Lindsay",
+      "country": "CA",
+      "lat": 44.3647,
+      "lon": -78.783897,
+      "elevationFt": 882
+    },
+    {
+      "icao": "CPB8",
+      "iata": "",
+      "name": "Paramount Bistcho Airport",
+      "location": "Paramount Bistcho",
+      "country": "CA",
+      "lat": 59.6381,
+      "lon": -118.333,
+      "elevationFt": 1969
+    },
+    {
+      "icao": "CYBG",
+      "iata": "YBG",
+      "name": "CFB Bagotville",
+      "location": "Bagotville",
+      "country": "CA",
+      "lat": 48.330601,
+      "lon": -70.996399,
+      "elevationFt": 522
+    },
+    {
+      "icao": "CYBN",
+      "iata": "YBN",
+      "name": "CFB Borden",
+      "location": "Borden",
+      "country": "CA",
+      "lat": 44.271702,
+      "lon": -79.912498,
+      "elevationFt": 729
+    },
+    {
+      "icao": "CYCC",
+      "iata": "YCC",
+      "name": "Cornwall Regional Airport",
+      "location": "Cornwall",
+      "country": "CA",
+      "lat": 45.0928,
+      "lon": -74.563301,
+      "elevationFt": 175
+    },
+    {
+      "icao": "CYCK",
+      "iata": "XCM",
+      "name": "Chatham Kent Airport",
+      "location": "Chatham-Kent",
+      "country": "CA",
+      "lat": 42.3064,
+      "lon": -82.081902,
+      "elevationFt": 650
+    },
+    {
+      "icao": "CYEG",
+      "iata": "YEG",
+      "name": "Edmonton International Airport",
+      "location": "Edmonton",
+      "country": "CA",
+      "lat": 53.3097,
+      "lon": -113.580002,
+      "elevationFt": 2373
+    },
+    {
+      "icao": "CYEL",
+      "iata": "YEL",
+      "name": "Elliot Lake Municipal Airport",
+      "location": "Elliot Lake",
+      "country": "CA",
+      "lat": 46.351398,
+      "lon": -82.561401,
+      "elevationFt": 1087
+    },
+    {
+      "icao": "CYFB",
+      "iata": "YFB",
+      "name": "Iqaluit Airport",
+      "location": "Iqaluit",
+      "country": "CA",
+      "lat": 63.756401,
+      "lon": -68.555801,
+      "elevationFt": 110
+    },
+    {
+      "icao": "CYGD",
+      "iata": "",
+      "name": "Goderich Airport",
+      "location": "Goderich",
+      "country": "CA",
+      "lat": 43.766899,
+      "lon": -81.710602,
+      "elevationFt": 712
+    },
+    {
+      "icao": "CYGK",
+      "iata": "YGK",
+      "name": "Kingston Norman Rogers Airport",
+      "location": "Kingston",
+      "country": "CA",
+      "lat": 44.2253,
+      "lon": -76.596901,
+      "elevationFt": 305
+    },
+    {
+      "icao": "CYGP",
+      "iata": "YGP",
+      "name": "Gaspé (Michel-Pouliot) Airport",
+      "location": "Gaspé",
+      "country": "CA",
+      "lat": 48.775299,
+      "lon": -64.4786,
+      "elevationFt": 112
+    },
+    {
+      "icao": "CYHF",
+      "iata": "YHF",
+      "name": "Hearst René Fontaine Municipal Airport",
+      "location": "Hearst",
+      "country": "CA",
+      "lat": 49.714199,
+      "lon": -83.686096,
+      "elevationFt": 827
+    },
+    {
+      "icao": "CYHM",
+      "iata": "YHM",
+      "name": "John C. Munro Hamilton International Airport",
+      "location": "Hamilton",
+      "country": "CA",
+      "lat": 43.173599,
+      "lon": -79.934998,
+      "elevationFt": 780
+    },
+    {
+      "icao": "CYHU",
+      "iata": "YHU",
+      "name": "Montréal / Saint-Hubert Airport",
+      "location": "Montréal",
+      "country": "CA",
+      "lat": 45.517502,
+      "lon": -73.416901,
+      "elevationFt": 90
+    },
+    {
+      "icao": "CYHZ",
+      "iata": "YHZ",
+      "name": "Halifax / Stanfield International Airport",
+      "location": "Halifax",
+      "country": "CA",
+      "lat": 44.880798,
+      "lon": -63.508598,
+      "elevationFt": 477
+    },
+    {
+      "icao": "CYJN",
+      "iata": "YJN",
+      "name": "St Jean Airport",
+      "location": "St Jean",
+      "country": "CA",
+      "lat": 45.294399,
+      "lon": -73.281097,
+      "elevationFt": 136
+    },
+    {
+      "icao": "CYKF",
+      "iata": "YKF",
+      "name": "Waterloo Airport",
+      "location": "Kitchener",
+      "country": "CA",
+      "lat": 43.4608,
+      "lon": -80.378601,
+      "elevationFt": 1055
+    },
+    {
+      "icao": "CYKZ",
+      "iata": "YKZ",
+      "name": "Buttonville Municipal Airport",
+      "location": "Toronto",
+      "country": "CA",
+      "lat": 43.862202,
+      "lon": -79.370003,
+      "elevationFt": 650
+    },
+    {
+      "icao": "CYLD",
+      "iata": "YLD",
+      "name": "Chapleau Airport",
+      "location": "Chapleau",
+      "country": "CA",
+      "lat": 47.82,
+      "lon": -83.346703,
+      "elevationFt": 1470
+    },
+    {
+      "icao": "CYLS",
+      "iata": "YLK",
+      "name": "Barrie-Orillia (Lake Simcoe Regional Airport)",
+      "location": "Barrie-Orillia",
+      "country": "CA",
+      "lat": 44.485298,
+      "lon": -79.555603,
+      "elevationFt": 972
+    },
+    {
+      "icao": "CYMO",
+      "iata": "YMO",
+      "name": "Moosonee Airport",
+      "location": "Moosonee",
+      "country": "CA",
+      "lat": 51.2911,
+      "lon": -80.607803,
+      "elevationFt": 30
+    },
+    {
+      "icao": "CYMX",
+      "iata": "YMX",
+      "name": "Montreal International (Mirabel) Airport",
+      "location": "Montréal",
+      "country": "CA",
+      "lat": 45.679501,
+      "lon": -74.038696,
+      "elevationFt": 270
+    },
+    {
+      "icao": "CYOO",
+      "iata": "YOO",
+      "name": "Oshawa Airport",
+      "location": "Oshawa",
+      "country": "CA",
+      "lat": 43.922798,
+      "lon": -78.894997,
+      "elevationFt": 460
+    },
+    {
+      "icao": "CYOW",
+      "iata": "YOW",
+      "name": "Ottawa Macdonald-Cartier International Airport",
+      "location": "Ottawa",
+      "country": "CA",
+      "lat": 45.322498,
+      "lon": -75.669197,
+      "elevationFt": 374
+    },
+    {
+      "icao": "CYQA",
+      "iata": "YQA",
+      "name": "Muskoka Airport",
+      "location": "Muskoka",
+      "country": "CA",
+      "lat": 44.974701,
+      "lon": -79.303299,
+      "elevationFt": 925
+    },
+    {
+      "icao": "CYQB",
+      "iata": "YQB",
+      "name": "Quebec Jean Lesage International Airport",
+      "location": "Quebec",
+      "country": "CA",
+      "lat": 46.7911,
+      "lon": -71.393303,
+      "elevationFt": 244
+    },
+    {
+      "icao": "CYQG",
+      "iata": "YQG",
+      "name": "Windsor Airport",
+      "location": "Windsor",
+      "country": "CA",
+      "lat": 42.2756,
+      "lon": -82.955597,
+      "elevationFt": 622
+    },
+    {
+      "icao": "CYRP",
+      "iata": "",
+      "name": "Ottawa / Carp Airport",
+      "location": "Ottawa",
+      "country": "CA",
+      "lat": 45.319199,
+      "lon": -76.022202,
+      "elevationFt": 382
+    },
+    {
+      "icao": "CYSB",
+      "iata": "YSB",
+      "name": "Sudbury Airport",
+      "location": "Sudbury",
+      "country": "CA",
+      "lat": 46.625,
+      "lon": -80.798897,
+      "elevationFt": 1141
+    },
+    {
+      "icao": "CYSC",
+      "iata": "YSC",
+      "name": "Sherbrooke Airport",
+      "location": "Sherbrooke",
+      "country": "CA",
+      "lat": 45.438599,
+      "lon": -71.691399,
+      "elevationFt": 792
+    },
+    {
+      "icao": "CYSH",
+      "iata": "YSH",
+      "name": "Smiths Falls-Montague (Russ Beach) Airport",
+      "location": "Smiths Falls",
+      "country": "CA",
+      "lat": 44.945801,
+      "lon": -75.940598,
+      "elevationFt": 416
+    },
+    {
+      "icao": "CYSN",
+      "iata": "YCM",
+      "name": "Niagara District Airport",
+      "location": "St Catharines",
+      "country": "CA",
+      "lat": 43.1917,
+      "lon": -79.1717,
+      "elevationFt": 321
+    },
+    {
+      "icao": "CYTA",
+      "iata": "YTA",
+      "name": "Pembroke Airport",
+      "location": "Pembroke",
+      "country": "CA",
+      "lat": 45.864399,
+      "lon": -77.251701,
+      "elevationFt": 529
+    },
+    {
+      "icao": "CYTR",
+      "iata": "YTR",
+      "name": "CFB Trenton",
+      "location": "Trenton",
+      "country": "CA",
+      "lat": 44.1189,
+      "lon": -77.528099,
+      "elevationFt": 283
+    },
+    {
+      "icao": "CYTS",
+      "iata": "YTS",
+      "name": "Timmins/Victor M. Power",
+      "location": "Timmins",
+      "country": "CA",
+      "lat": 48.569698,
+      "lon": -81.376701,
+      "elevationFt": 967
+    },
+    {
+      "icao": "CYTZ",
+      "iata": "YTZ",
+      "name": "Billy Bishop Toronto City Centre Airport",
+      "location": "Toronto",
+      "country": "CA",
+      "lat": 43.627499,
+      "lon": -79.396202,
+      "elevationFt": 252
+    },
+    {
+      "icao": "CYUL",
+      "iata": "YUL",
+      "name": "Montreal / Pierre Elliott Trudeau International Airport",
+      "location": "Montréal",
+      "country": "CA",
+      "lat": 45.4706,
+      "lon": -73.740799,
+      "elevationFt": 118
+    },
+    {
+      "icao": "CYVR",
+      "iata": "YVR",
+      "name": "Vancouver International Airport",
+      "location": "Vancouver",
+      "country": "CA",
+      "lat": 49.193901,
+      "lon": -123.183998,
+      "elevationFt": 14
+    },
+    {
+      "icao": "CYWA",
+      "iata": "YWA",
+      "name": "Petawawa Airport",
+      "location": "Petawawa",
+      "country": "CA",
+      "lat": 45.952202,
+      "lon": -77.319199,
+      "elevationFt": 427
+    },
+    {
+      "icao": "CYWG",
+      "iata": "YWG",
+      "name": "Winnipeg / James Armstrong Richardson International Airport",
+      "location": "Winnipeg",
+      "country": "CA",
+      "lat": 49.91,
+      "lon": -97.239899,
+      "elevationFt": 783
+    },
+    {
+      "icao": "CYXU",
+      "iata": "YXU",
+      "name": "London Airport",
+      "location": "London",
+      "country": "CA",
+      "lat": 43.035599,
+      "lon": -81.1539,
+      "elevationFt": 912
+    },
+    {
+      "icao": "CYXY",
+      "iata": "YXY",
+      "name": "Whitehorse / Erik Nielsen International Airport",
+      "location": "Whitehorse",
+      "country": "CA",
+      "lat": 60.709599,
+      "lon": -135.067001,
+      "elevationFt": 2317
+    },
+    {
+      "icao": "CYYB",
+      "iata": "YYB",
+      "name": "North Bay Airport",
+      "location": "North Bay",
+      "country": "CA",
+      "lat": 46.363602,
+      "lon": -79.422798,
+      "elevationFt": 1215
+    },
+    {
+      "icao": "CYYC",
+      "iata": "YYC",
+      "name": "Calgary International Airport",
+      "location": "Calgary",
+      "country": "CA",
+      "lat": 51.113899,
+      "lon": -114.019997,
+      "elevationFt": 3557
+    },
+    {
+      "icao": "CYYT",
+      "iata": "YYT",
+      "name": "St. John's International Airport",
+      "location": "St. John's",
+      "country": "CA",
+      "lat": 47.618599,
+      "lon": -52.7519,
+      "elevationFt": 461
+    },
+    {
+      "icao": "CYYU",
+      "iata": "YYU",
+      "name": "Kapuskasing Airport",
+      "location": "Kapuskasing",
+      "country": "CA",
+      "lat": 49.413898,
+      "lon": -82.467499,
+      "elevationFt": 743
+    },
+    {
+      "icao": "CYYZ",
+      "iata": "YYZ",
+      "name": "Lester B. Pearson International Airport",
+      "location": "Toronto",
+      "country": "CA",
+      "lat": 43.6772,
+      "lon": -79.6306,
+      "elevationFt": 569
+    },
+    {
+      "icao": "CYZD",
+      "iata": "YZD",
+      "name": "Downsview Airport",
+      "location": "Toronto",
+      "country": "CA",
+      "lat": 43.7425,
+      "lon": -79.465599,
+      "elevationFt": 652
+    },
+    {
+      "icao": "CYZE",
+      "iata": "YZE",
+      "name": "Gore Bay Manitoulin Airport",
+      "location": "Gore Bay",
+      "country": "CA",
+      "lat": 45.8853,
+      "lon": -82.567802,
+      "elevationFt": 635
+    },
+    {
+      "icao": "KALB",
+      "iata": "ALB",
+      "name": "Albany International Airport",
+      "location": "Albany",
+      "country": "US",
+      "lat": 42.748299,
+      "lon": -73.801697,
+      "elevationFt": 285
+    },
+    {
+      "icao": "KAPN",
+      "iata": "APN",
+      "name": "Alpena County Regional Airport",
+      "location": "Alpena",
+      "country": "US",
+      "lat": 45.078098,
+      "lon": -83.560303,
+      "elevationFt": 690
+    },
+    {
+      "icao": "KARB",
+      "iata": "ARB",
+      "name": "Ann Arbor Municipal Airport",
+      "location": "Ann Arbor",
+      "country": "US",
+      "lat": 42.223,
+      "lon": -83.745598,
+      "elevationFt": 839
+    },
+    {
+      "icao": "KART",
+      "iata": "ART",
+      "name": "Watertown International Airport",
+      "location": "Watertown",
+      "country": "US",
+      "lat": 43.991901,
+      "lon": -76.021698,
+      "elevationFt": 325
+    },
+    {
+      "icao": "KAVP",
+      "iata": "AVP",
+      "name": "Wilkes Barre Scranton International Airport",
+      "location": "Wilkes-Barre/Scranton",
+      "country": "US",
+      "lat": 41.338501,
+      "lon": -75.723396,
+      "elevationFt": 962
+    },
+    {
+      "icao": "KBUF",
+      "iata": "BUF",
+      "name": "Buffalo Niagara International Airport",
+      "location": "Buffalo",
+      "country": "US",
+      "lat": 42.940498,
+      "lon": -78.732201,
+      "elevationFt": 728
+    },
+    {
+      "icao": "KCLE",
+      "iata": "CLE",
+      "name": "Cleveland Hopkins International Airport",
+      "location": "Cleveland",
+      "country": "US",
+      "lat": 41.411701,
+      "lon": -81.8498,
+      "elevationFt": 791
+    },
+    {
+      "icao": "KDTW",
+      "iata": "DTW",
+      "name": "Detroit Metropolitan Wayne County Airport",
+      "location": "Detroit",
+      "country": "US",
+      "lat": 42.212399,
+      "lon": -83.353401,
+      "elevationFt": 645
+    },
+    {
+      "icao": "KERI",
+      "iata": "ERI",
+      "name": "Erie International Tom Ridge Field",
+      "location": "Erie",
+      "country": "US",
+      "lat": 42.083127,
+      "lon": -80.173867,
+      "elevationFt": 732
+    },
+    {
+      "icao": "KFNT",
+      "iata": "FNT",
+      "name": "Bishop International Airport",
+      "location": "Flint",
+      "country": "US",
+      "lat": 42.965401,
+      "lon": -83.743599,
+      "elevationFt": 782
+    },
+    {
+      "icao": "KGRR",
+      "iata": "GRR",
+      "name": "Gerald R. Ford International Airport",
+      "location": "Grand Rapids",
+      "country": "US",
+      "lat": 42.880798,
+      "lon": -85.522797,
+      "elevationFt": 794
+    },
+    {
+      "icao": "KITH",
+      "iata": "ITH",
+      "name": "Ithaca Tompkins Regional Airport",
+      "location": "Ithaca",
+      "country": "US",
+      "lat": 42.491001,
+      "lon": -76.458397,
+      "elevationFt": 1099
+    },
+    {
+      "icao": "KLAN",
+      "iata": "LAN",
+      "name": "Capital City Airport",
+      "location": "Lansing",
+      "country": "US",
+      "lat": 42.778702,
+      "lon": -84.587402,
+      "elevationFt": 861
+    },
+    {
+      "icao": "KMBS",
+      "iata": "MBS",
+      "name": "MBS International Airport",
+      "location": "Saginaw",
+      "country": "US",
+      "lat": 43.532902,
+      "lon": -84.079597,
+      "elevationFt": 668
+    },
+    {
+      "icao": "KMDT",
+      "iata": "MDT",
+      "name": "Harrisburg International Airport",
+      "location": "Harrisburg",
+      "country": "US",
+      "lat": 40.193501,
+      "lon": -76.763397,
+      "elevationFt": 310
+    },
+    {
+      "icao": "KMSS",
+      "iata": "MSS",
+      "name": "Massena International Richards Field",
+      "location": "Massena",
+      "country": "US",
+      "lat": 44.935799,
+      "lon": -74.845596,
+      "elevationFt": 215
+    },
+    {
+      "icao": "KOGS",
+      "iata": "OGS",
+      "name": "Ogdensburg International Airport",
+      "location": "Ogdensburg",
+      "country": "US",
+      "lat": 44.6819,
+      "lon": -75.4655,
+      "elevationFt": 297
+    },
+    {
+      "icao": "KORD",
+      "iata": "ORD",
+      "name": "Chicago O'Hare International Airport",
+      "location": "Chicago",
+      "country": "US",
+      "lat": 41.9786,
+      "lon": -87.9048,
+      "elevationFt": 672
+    },
+    {
+      "icao": "KPBG",
+      "iata": "PBG",
+      "name": "Plattsburgh International Airport",
+      "location": "Plattsburgh",
+      "country": "US",
+      "lat": 44.650902,
+      "lon": -73.468102,
+      "elevationFt": 234
+    },
+    {
+      "icao": "KPIT",
+      "iata": "PIT",
+      "name": "Pittsburgh International Airport",
+      "location": "Pittsburgh",
+      "country": "US",
+      "lat": 40.491501,
+      "lon": -80.232903,
+      "elevationFt": 1203
+    },
+    {
+      "icao": "KROC",
+      "iata": "ROC",
+      "name": "Greater Rochester International Airport",
+      "location": "Rochester",
+      "country": "US",
+      "lat": 43.1189,
+      "lon": -77.672401,
+      "elevationFt": 559
+    },
+    {
+      "icao": "KSEA",
+      "iata": "SEA",
+      "name": "Seattle Tacoma International Airport",
+      "location": "Seattle",
+      "country": "US",
+      "lat": 47.449001,
+      "lon": -122.308998,
+      "elevationFt": 433
+    },
+    {
+      "icao": "KSYR",
+      "iata": "SYR",
+      "name": "Syracuse Hancock International Airport",
+      "location": "Syracuse",
+      "country": "US",
+      "lat": 43.111198,
+      "lon": -76.1063,
+      "elevationFt": 421
+    },
+    {
+      "icao": "KTOL",
+      "iata": "TOL",
+      "name": "Toledo Express Airport",
+      "location": "Toledo",
+      "country": "US",
+      "lat": 41.5868,
+      "lon": -83.8078,
+      "elevationFt": 683
+    },
+    {
+      "icao": "KYIP",
+      "iata": "YIP",
+      "name": "Willow Run Airport",
+      "location": "Detroit",
+      "country": "US",
+      "lat": 42.2379,
+      "lon": -83.530403,
+      "elevationFt": 716
+    }
+  ]
+}

@@ -21,12 +21,14 @@
  * Cloudflare Worker. Both do the same small job.
  */
 import { AIRPORTS, DEFAULT_AIRPORT, parseAirport, } from './airports.js';
-import { DEFAULTS, DetectionEngine, kmToNm, nmToKm, normaliseKey, } from './detect.js';
+import { DEFAULTS, DetectionEngine, distanceNm, kmToNm, nmToKm, normaliseKey, } from './detect.js';
 import { CLASS_ORDER, classLabel, describeType, knownTypeCount, } from './typeinfo.js';
+import { RESIDENTS } from './region.js';
 const WATCH_KEY = 'aircraft_watchlist';
 const TYPES_KEY = 'aircraft_types';
 const BOARD_KEY = 'aircraft_departures';
 const AIRPORT_KEY = 'aircraft_airport';
+const VIEW_KEY = 'aircraft_view';
 const POLL_MS = 10_000;
 /**
  * 🔴 KILOMETRES, NOT NAUTICAL MILES. George, 20 Sep 2026: *"nobody understand
@@ -41,6 +43,27 @@ const DISTANCES = [
     { km: 20, label: 'The airport and the city', blurb: 'climb-out and approach' },
     { km: 50, label: 'The whole region', blurb: 'everything passing over' },
 ];
+/**
+ * How far round the compass one point is from another, in degrees from north.
+ *
+ * This is what makes the live view a picture rather than a list: distance alone
+ * says an aircraft is 8 km away, and distance with a bearing says it is 8 km to
+ * the south-west, which is the direction an aircraft leaves Hamilton for Toronto.
+ */
+function bearingDeg(lat1, lon1, lat2, lon2) {
+    const toRad = Math.PI / 180;
+    const p1 = lat1 * toRad;
+    const p2 = lat2 * toRad;
+    const dl = (lon2 - lon1) * toRad;
+    const y = Math.sin(dl) * Math.cos(p2);
+    const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+    return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+/** 16-point compass, because "204°" is a number and "south-south-west" is a place. */
+const COMPASS = ['north', 'north-north-east', 'north-east', 'east-north-east', 'east', 'east-south-east', 'south-east', 'south-south-east', 'south', 'south-south-west', 'south-west', 'west-south-west', 'west', 'west-north-west', 'north-west', 'north-north-west'];
+function compassPoint(degrees) {
+    return COMPASS[Math.round(degrees / 22.5) % 16];
+}
 /**
  * 🔴 READ EVERY RESPONSE AS TEXT, THEN PARSE IT DELIBERATELY.
  *
@@ -126,6 +149,14 @@ class Page {
     lastError = '';
     polls = 0;
     survey = null;
+    /** The airport list the feed itself confirmed, for the "around you" panel. */
+    listedAirports = null;
+    nearby = [];
+    /** Which types the reader has opened to reach the tail numbers inside them. */
+    expandedTypes = new Set();
+    /** The raw readings from the last poll — the live view is drawn from these. */
+    lastReadings = [];
+    view = 'select';
     /** Types the feed showed in THIS session, which may be newer than the survey. */
     liveTypes = new Map();
     typeFilter = 'all';
@@ -141,9 +172,14 @@ class Page {
         this.bindWatchForm();
         this.bindNotify();
         this.renderWatchButton();
+        this.bindView();
+        this.bindLocate();
         const saved = readStore(AIRPORT_KEY, DEFAULT_AIRPORT);
         void this.chooseAirport(saved);
         void this.loadSurvey();
+        void this.loadAirports();
+        this.view = readStore(VIEW_KEY, 'select') === 'live' ? 'live' : 'select';
+        this.showView(this.view);
         const notice = byId('notifyNote');
         if (notice && !('Notification' in window)) {
             notice.textContent =
@@ -362,6 +398,10 @@ class Page {
             this.engine.setWatchlist(this.watchlist);
             this.engine.setTypeRules(this.typeRules);
             const readings = Array.isArray(payload.ac) ? payload.ac : [];
+            // Held for the live view, which draws what is in the air NOW rather than
+            // what has already left. Both come off the same reading of the feed, so
+            // the picture and the table can never disagree about the same aircraft.
+            this.lastReadings = readings;
             // Count what this session is actually seeing, so the type list is never
             // empty even if the measured file cannot be read — and so a type the
             // survey never caught still becomes watchable rather than invisible.
@@ -381,6 +421,7 @@ class Page {
             if (departures.length > 0)
                 this.recordDepartures(departures);
             this.renderAircraft();
+            this.renderLive();
             this.setStatus(`${readings.length} aircraft in the fence · poll ${this.polls} · last ${formatClock(this.lastPollAt)}`, 'ok');
         }
         catch (error) {
@@ -532,14 +573,22 @@ class Page {
     combinedTypes() {
         const rows = new Map();
         for (const row of this.survey?.types ?? []) {
-            rows.set(row.code, { code: row.code, seen: row.seen, airports: [...(row.airports ?? [])], operators: [...(row.operators ?? [])] });
+            rows.set(row.code, {
+                code: row.code,
+                seen: row.seen,
+                airports: [...(row.airports ?? [])],
+                operators: [...(row.operators ?? [])],
+                registrations: [...(row.registrations ?? [])],
+            });
         }
         for (const [code, seen] of this.liveTypes) {
             const existing = rows.get(code);
+            // A type this session saw but the survey never did has no measured tail
+            // numbers, and is given none rather than an invented list.
             if (existing)
                 existing.seen += seen;
             else
-                rows.set(code, { code, seen, airports: [], operators: [] });
+                rows.set(code, { code, seen, airports: [], operators: [], registrations: [] });
         }
         return [...rows.values()].sort((a, b) => b.seen - a.seen || a.code.localeCompare(b.code));
     }
@@ -552,35 +601,83 @@ class Page {
                 return true;
             return describeType(row.code).klass === this.typeFilter;
         });
-        if (rows.length === 0) {
+        // 🔴 THE AIRCRAFT THAT A SURVEY CAN NEVER SEE. Hamilton's Lancaster flies a
+        // handful of times a year, so a list built from one afternoon of sightings
+        // will always miss exactly the aircraft a person most wants to watch. These
+        // are curated from the operator's own published record and are labelled as
+        // curated, never mixed into a measured count.
+        const curated = (RESIDENTS[this.airport?.icao ?? ''] ?? []).filter(() => this.typeFilter === 'all' || this.typeFilter === 'other');
+        if (rows.length === 0 && curated.length === 0) {
             host.innerHTML =
                 '<p class="muted small">Nothing in this group yet. Change the filter, or wait for the page to see something.</p>';
             return;
         }
         const maxima = Math.max(...rows.map((row) => row.seen), 1);
-        host.innerHTML = rows
+        const curatedHtml = curated
+            .map((resident) => {
+            const keys = [resident.registration, ...(resident.alsoMatch ?? [])];
+            const already = keys.some((key) => this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key)));
+            return (`<div class="typerow typerow-curated${already ? ' typerow-on' : ''}">` +
+                `<div class="typerow-main">` +
+                `<b>${escapeHtml(resident.name)}</b> <span class="mono muted">${escapeHtml(resident.registration)}</span> ` +
+                `<span class="tag tag-curated">based here · listed by hand</span>` +
+                '</div>' +
+                `<div class="typerow-meta"><span class="small muted">${escapeHtml(resident.note)}</span></div>` +
+                `<button type="button" class="ghost ${already ? 'chip-off' : 'chip-on'} resident-toggle" ` +
+                `data-reg="${escapeHtml(resident.registration)}" data-also="${escapeHtml(keys.slice(1).join(','))}" ` +
+                `data-ga="resident-watch">${already ? 'Watching — stop' : 'Watch this aircraft'}</button>` +
+                '</div>');
+        })
+            .join('');
+        const measuredHtml = rows
             .map((row) => {
             const info = describeType(row.code);
-            const already = this.typeRules.some((rule) => normaliseKey(rule.type) === normaliseKey(row.code));
+            const rule = this.typeRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(row.code));
+            const already = rule !== undefined;
             // A bar, because "136 sightings" and "1 sighting" are the same shape to
             // the eye until the numbers are drawn against each other.
             const width = Math.max(2, Math.round((row.seen / maxima) * 100));
+            const tails = (row.registrations ?? []).slice(0, 24);
+            const open = this.expandedTypes.has(row.code.toUpperCase());
+            const chosen = new Set((rule?.tails ?? []).map((tail) => normaliseKey(tail)));
+            const tailPanel = open
+                ? '<div class="tail-panel">' +
+                    (tails.length === 0
+                        ? '<p class="muted small">No tail number for this type has been seen transmitting one, so the whole type is what can be watched.</p>'
+                        : '<p class="muted small">Tick any that matter, or leave every box clear to watch the whole type. ' +
+                            'A tail number is only listed when the aircraft actually sent one.</p>' +
+                            '<div class="tail-grid">' +
+                            tails
+                                .map((item) => `<label class="tail-box"><input type="checkbox" data-type="${escapeHtml(row.code)}" ` +
+                                `data-tail="${escapeHtml(item.reg)}"${chosen.has(normaliseKey(item.reg)) ? ' checked' : ''} /> ` +
+                                `<span class="mono">${escapeHtml(item.reg)}</span></label>`)
+                                .join('') +
+                            '</div>')
+                    + '</div>'
+                : '';
             return (`<div class="typerow${already ? ' typerow-on' : ''}">` +
                 `<div class="typerow-main">` +
                 `<b>${escapeHtml(info.name)}</b> <span class="mono muted">${escapeHtml(row.code)}</span> ` +
                 `<span class="tag">${escapeHtml(classLabel(info.klass))}</span>` +
-                `</div>` +
+                '</div>' +
                 `<div class="typerow-meta">` +
                 `<span class="typerow-bar" aria-hidden="true"><i style="width:${width}%"></i></span>` +
                 `<span class="small muted">${row.seen} sighting${row.seen === 1 ? '' : 's'}` +
                 (row.operators.length > 0 ? ` · ${escapeHtml(row.operators.slice(0, 4).join(' '))}` : '') +
                 (row.airports.length > 1 ? ` · ${row.airports.length} airports` : row.airports.length === 1 ? ` · ${escapeHtml(row.airports[0])}` : '') +
+                (tails.length > 0 ? ` · ${tails.length} tail number${tails.length === 1 ? '' : 's'}` : '') +
                 `</span></div>` +
+                `<div class="typerow-actions">` +
+                `<button type="button" class="ghost chip-small type-expand" data-type="${escapeHtml(row.code)}" ` +
+                `aria-expanded="${open}" data-ga="type-expand">${open ? 'Hide tail numbers' : 'Choose tail numbers'}</button>` +
                 `<button type="button" class="ghost ${already ? 'chip-off' : 'chip-on'} type-toggle" data-type="${escapeHtml(row.code)}" data-ga="type-watch">` +
                 `${already ? 'Watching — stop' : 'Watch this type'}</button>` +
+                '</div>' +
+                tailPanel +
                 '</div>');
         })
             .join('');
+        host.innerHTML = curatedHtml + measuredHtml;
         for (const button of host.querySelectorAll('.type-toggle')) {
             button.addEventListener('click', () => {
                 const code = button.dataset.type ?? '';
@@ -593,6 +690,63 @@ class Page {
                     track('type_watched', { code, total: this.typeRules.length });
                 }
                 this.saveTypeRules();
+                this.renderWatchlist();
+                this.renderTypeList();
+            });
+        }
+        for (const button of host.querySelectorAll('.type-expand')) {
+            button.addEventListener('click', () => {
+                const code = (button.dataset.type ?? '').toUpperCase();
+                if (this.expandedTypes.has(code))
+                    this.expandedTypes.delete(code);
+                else
+                    this.expandedTypes.add(code);
+                track('type_expanded', { code, open: this.expandedTypes.has(code) });
+                this.renderTypeList();
+            });
+        }
+        for (const box of host.querySelectorAll('.tail-box input')) {
+            box.addEventListener('change', () => {
+                const code = box.dataset.type ?? '';
+                const tail = box.dataset.tail ?? '';
+                let rule = this.typeRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
+                if (!rule) {
+                    // Ticking a tail inside an unwatched type is a decision to watch it, so
+                    // the rule is created rather than the tick being quietly discarded.
+                    rule = { type: code, tails: [] };
+                    this.typeRules.push(rule);
+                }
+                if (box.checked) {
+                    if (!rule.tails.some((item) => normaliseKey(item) === normaliseKey(tail)))
+                        rule.tails.push(tail);
+                }
+                else {
+                    rule.tails = rule.tails.filter((item) => normaliseKey(item) !== normaliseKey(tail));
+                }
+                this.saveTypeRules();
+                this.renderWatchlist();
+                this.renderTypeList();
+                track('tail_toggled', { code, on: box.checked, tails: rule.tails.length });
+            });
+        }
+        for (const button of host.querySelectorAll('.resident-toggle')) {
+            button.addEventListener('click', () => {
+                const keys = [button.dataset.reg ?? '', ...(button.dataset.also ?? '').split(',')].filter(Boolean);
+                const watching = keys.some((key) => this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key)));
+                if (watching) {
+                    this.watchlist = this.watchlist.filter((item) => !keys.some((key) => normaliseKey(item) === normaliseKey(key)));
+                }
+                else {
+                    // A resident has no type code to match on — the registration IS the
+                    // key, and the alternate markings are accepted too, because a
+                    // Lancaster transmits whichever one it is painted with that week.
+                    for (const key of keys) {
+                        if (!this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key)))
+                            this.watchlist.push(key);
+                    }
+                    track('resident_watched', { reg: button.dataset.reg ?? '' });
+                }
+                this.saveWatchlist();
                 this.renderWatchlist();
                 this.renderTypeList();
             });
@@ -727,7 +881,7 @@ class Page {
         try {
             new Notification(`${label} has left ${this.airport?.icao ?? 'the airport'}`, {
                 body: `${departure.verdict === 'confirmed' ? 'It was on the ground and it is not now' : 'It was first seen already climbing'}` +
-                    ` — ${departure.altitudeFt ?? '?'} ft${climb}, ${departure.distanceNm} nm out.`,
+                    ` — ${departure.altitudeFt ?? '?'} ft${climb}, ${Math.round(nmToKm(departure.distanceNm))} km out.`,
                 tag: departure.hex,
             });
         }
@@ -735,6 +889,250 @@ class Page {
             /* Some browsers refuse to build a notification from a page that is not
                itself in the foreground. The board is the record either way. */
         }
+    }
+    /* ------------------------------------------------- airports around you */
+    /**
+     * The airport list, built by asking the feed about every identifier.
+     *
+     * 🔴 POSITIONS ARE FETCHED, NEVER TYPED. `tools/verify-airports.mjs` asks
+     * `/api/0/airport/{icao}` for each one and throws away any identifier the feed
+     * cannot place — which is the only way to be sure the list is a list of real
+     * airports rather than a list of strings that look like airports. It dropped
+     * one on 20 Sep 2026: `CYTJ` (Terrace Bay) answered with no usable position.
+     */
+    async loadAirports() {
+        const note = byId('nearbyNote');
+        try {
+            const response = await fetch('/airports.json', { headers: { accept: 'application/json' } });
+            this.listedAirports = (await readJson(response));
+        }
+        catch (error) {
+            this.listedAirports = null;
+            if (note) {
+                note.textContent =
+                    'The wider airport list could not be read, so the seven main airports are offered instead. ' +
+                        (error instanceof Error ? error.message : '');
+            }
+            return;
+        }
+        if (note && this.listedAirports) {
+            const dropped = this.listedAirports.dropped ?? [];
+            note.textContent =
+                `${this.listedAirports.kept} airports, every one of them confirmed by asking the feed where it is. ` +
+                    (dropped.length > 0
+                        ? `${dropped.length} identifier was dropped because the feed could not place it: ${dropped.join(', ')}.`
+                        : 'Nothing was dropped.');
+        }
+        this.renderNearby();
+    }
+    renderNearby() {
+        const host = byId('nearbyList');
+        if (!host || !this.listedAirports)
+            return;
+        if (this.nearby.length === 0) {
+            host.innerHTML =
+                '<p class="muted small">Press <b>find airports near me</b> and this list is ordered by how far each one is ' +
+                    'from where you are.</p>';
+            return;
+        }
+        host.innerHTML = this.nearby
+            .slice(0, 14)
+            .map(({ airport, km }) => `<button type="button" class="ghost chip near-chip" data-icao="${escapeHtml(airport.icao)}" data-ga="airport-near">` +
+            `<span class="mono">${escapeHtml(airport.icao)}</span> ${escapeHtml(airport.location || airport.name)}` +
+            `<span class="near-km">${Math.round(km)} km</span></button>`)
+            .join('');
+        for (const button of host.querySelectorAll('.near-chip')) {
+            button.addEventListener('click', () => void this.chooseAirport(button.dataset.icao ?? ''));
+        }
+    }
+    computeNearby(lat, lon) {
+        const list = this.listedAirports?.airports ?? [];
+        if (list.length === 0)
+            return;
+        // 400 km, because that is roughly the reach of the list as it stands. The
+        // filter is not decoration: three of the identifiers in the source region
+        // file are far outside it — Brampton's CNC3 is fine, but a mistyped code
+        // resolved to Paramount Bistcho in northern Alberta, and a list that
+        // offered that as an airport "near you" would be worse than a shorter list.
+        this.nearby = list
+            .map((airport) => ({ airport, km: nmToKm(distanceNm(lat, lon, airport.lat, airport.lon)) }))
+            .filter((row) => row.km <= 400)
+            .sort((a, b) => a.km - b.km);
+        this.renderNearby();
+        track('nearby_computed', { count: this.nearby.length });
+    }
+    bindLocate() {
+        const button = byId('locateBtn');
+        const note = byId('locateNote');
+        if (!button)
+            return;
+        button.addEventListener('click', () => {
+            if (!('geolocation' in navigator)) {
+                if (note)
+                    note.textContent = 'This browser cannot report a position. Pick an airport by name instead.';
+                return;
+            }
+            button.disabled = true;
+            if (note)
+                note.textContent = 'Asking your browser where you are…';
+            track('locate_asked', {});
+            navigator.geolocation.getCurrentPosition((position) => {
+                button.disabled = false;
+                this.computeNearby(position.coords.latitude, position.coords.longitude);
+                if (note) {
+                    note.textContent =
+                        'Ordered by distance from your position. Your coordinates are used inside this page and are not sent ' +
+                            'anywhere — the feed is only ever told which airport you chose.';
+                }
+            }, (error) => {
+                button.disabled = false;
+                if (note) {
+                    note.textContent =
+                        `Your browser did not give a position (${error.message}). Pick an airport by name below instead — ` +
+                            'nothing else on the page depends on knowing where you are.';
+                }
+            }, { timeout: 10_000, maximumAge: 300_000 });
+        });
+    }
+    /* --------------------------------------------------------- the live view */
+    bindView() {
+        for (const button of document.querySelectorAll('.view-switch')) {
+            button.addEventListener('click', () => {
+                this.showView(button.dataset.view === 'live' ? 'live' : 'select');
+                track('view_switched', { view: this.view });
+            });
+        }
+    }
+    showView(view) {
+        this.view = view;
+        writeStore(VIEW_KEY, view);
+        const select = byId('selectView');
+        const live = byId('liveView');
+        if (select)
+            select.hidden = view !== 'select';
+        if (live)
+            live.hidden = view !== 'live';
+        for (const button of document.querySelectorAll('.view-switch')) {
+            button.setAttribute('aria-pressed', String(button.dataset.view === view));
+        }
+        if (view === 'live')
+            this.renderLive();
+    }
+    /**
+     * Aircraft matching the selection that are in the air at this moment.
+     *
+     * This is deliberately NOT the departures board. The board is a record of what
+     * has already left; this is a picture of what is up there now, so a person can
+     * look up at a contrail and find it. Both are read from the same poll, so the
+     * chart and the table can never disagree about the same aircraft.
+     */
+    matchedAirborne() {
+        if (!this.engine || !this.airport)
+            return [];
+        const out = [];
+        for (const reading of this.lastReadings) {
+            if (typeof reading.lat !== 'number' || typeof reading.lon !== 'number')
+                continue;
+            // On the ground is not in the air. The string 'ground' is how the feed
+            // says it, and it is a string rather than a number — see detect.ts.
+            if (reading.alt_baro === 'ground')
+                continue;
+            const match = this.engine.matchOf(reading);
+            if (!match)
+                continue;
+            out.push({
+                label: String(reading.flight || reading.r || reading.hex).trim(),
+                tail: String(reading.r || '').trim(),
+                type: String(reading.t || '').trim().toUpperCase(),
+                hex: reading.hex,
+                altitudeFt: typeof reading.alt_baro === 'number' ? reading.alt_baro : null,
+                climbFpm: typeof reading.baro_rate === 'number' ? reading.baro_rate : null,
+                speedKt: typeof reading.gs === 'number' ? reading.gs : null,
+                km: nmToKm(distanceNm(this.airport.lat, this.airport.lon, reading.lat, reading.lon)),
+                bearingDeg: bearingDeg(this.airport.lat, this.airport.lon, reading.lat, reading.lon),
+                matchedBy: match.label,
+                watched: true,
+            });
+        }
+        return out.sort((a, b) => a.km - b.km);
+    }
+    renderLive() {
+        const chart = byId('liveChart');
+        const body = byId('liveBody');
+        const empty = byId('liveEmpty');
+        const summary = byId('liveSummary');
+        if (!chart || !body || !empty)
+            return;
+        const rows = this.matchedAirborne();
+        empty.hidden = rows.length > 0;
+        if (rows.length === 0) {
+            chart.innerHTML = '';
+            body.innerHTML = '';
+            if (summary) {
+                summary.textContent =
+                    this.watchlist.length === 0 && this.typeRules.length === 0
+                        ? 'Nothing is selected yet, so there is nothing to chart. Pick an aircraft type on the first view.'
+                        : 'Nothing matching your selection is in the air inside the fence at this moment.';
+            }
+            return;
+        }
+        if (summary) {
+            summary.textContent =
+                `${rows.length} matching aircraft in the air right now · drawn from the reading taken at ${formatClock(this.lastPollAt)}`;
+        }
+        // 🔴 A TOP-DOWN PICTURE, NOT A BAR CHART. Distance alone says "8 km away";
+        // distance WITH a bearing says "8 km to the south-west", which is where an
+        // aircraft leaving Hamilton for Toronto actually is. The circle is the fence
+        // the feed was asked for, so the picture and the query are the same shape.
+        const size = 340;
+        const centre = size / 2;
+        const radius = centre - 28;
+        const maxKm = Math.max(this.radiusKm, ...rows.map((row) => row.km));
+        const toPx = (km) => (km / maxKm) * radius;
+        let svg = `<svg viewBox="0 0 ${size} ${size}" class="radar" role="img" aria-label="Aircraft in the air, drawn by direction and distance from ${escapeHtml(this.airport?.icao ?? 'the airport')}">`;
+        svg += `<circle cx="${centre}" cy="${centre}" r="${radius.toFixed(1)}" class="radar-edge" />`;
+        for (const ring of [maxKm / 3, (maxKm * 2) / 3, maxKm]) {
+            svg += `<circle cx="${centre}" cy="${centre}" r="${toPx(ring).toFixed(1)}" class="radar-ring" />`;
+            svg += `<text x="${(centre + 4).toFixed(1)}" y="${(centre - toPx(ring) + 12).toFixed(1)}" class="radar-label">${Math.round(ring)} km</text>`;
+        }
+        for (const [deg, name] of [
+            [0, 'N'],
+            [90, 'E'],
+            [180, 'S'],
+            [270, 'W'],
+        ]) {
+            const rad = (deg * Math.PI) / 180;
+            svg += `<text x="${(centre + Math.sin(rad) * (radius + 12)).toFixed(1)}" y="${(centre - Math.cos(rad) * (radius + 12) + 4).toFixed(1)}" class="radar-compass" text-anchor="middle">${name}</text>`;
+        }
+        svg += `<circle cx="${centre}" cy="${centre}" r="3" class="radar-field" />`;
+        svg += `<text x="${centre}" y="${centre + 16}" class="radar-label" text-anchor="middle">${escapeHtml(this.airport?.icao ?? '')}</text>`;
+        for (const row of rows) {
+            const rad = (row.bearingDeg * Math.PI) / 180;
+            const x = centre + Math.sin(rad) * toPx(row.km);
+            const y = centre - Math.cos(rad) * toPx(row.km);
+            // A higher aircraft is drawn larger, so altitude is visible at a glance
+            // without reading a number off a list.
+            const dot = 3.2 + Math.min(6, (row.altitudeFt ?? 0) / 6500);
+            svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${dot.toFixed(1)}" class="radar-dot"><title>${escapeHtml(row.label)} · ${escapeHtml(row.type)} · ${row.altitudeFt ?? '?'} ft · ${Math.round(row.km)} km ${compassPoint(row.bearingDeg)}</title></circle>`;
+        }
+        svg += '</svg>';
+        chart.innerHTML = svg;
+        body.innerHTML = rows
+            .map((row) => {
+            const info = describeType(row.type);
+            const climb = row.climbFpm === null
+                ? '—'
+                : `${row.climbFpm > 0 ? '+' : ''}${row.climbFpm} ft/min`;
+            return ('<tr>' +
+                `<td><b>${escapeHtml(row.label)}</b>${row.tail && row.tail !== row.label ? ` <span class="mono muted small">${escapeHtml(row.tail)}</span>` : ''}</td>` +
+                `<td title="${escapeHtml(info.name)}">${escapeHtml(info.name)}</td>` +
+                `<td class="mono">${row.altitudeFt === null ? '—' : `${row.altitudeFt.toLocaleString()} ft`}</td>` +
+                `<td class="mono">${escapeHtml(climb)}</td>` +
+                `<td class="mono">${Math.round(row.km)} km ${compassPoint(row.bearingDeg)}</td>` +
+                `<td class="small muted">${escapeHtml(row.matchedBy)}</td>` +
+                '</tr>');
+        })
+            .join('');
     }
     /* ------------------------------------------------------------- watchlist */
     bindWatchForm() {
