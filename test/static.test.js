@@ -358,3 +358,77 @@ test('detect.js ships as plain JavaScript the browser can run', () => {
   assert.match(detectJs, /export function phaseOf/);
   assert.match(detectJs, /export class DetectionEngine/);
 });
+
+/* ------------------------------------------------- kilometres, not nm --- */
+
+test('the reader is offered KILOMETRES, and never the word "nm"', () => {
+  // "nobody understand nm" — George, 20 Sep 2026. A nautical mile is an aviation
+  // unit and a visitor arriving here is not obliged to know one, so distances the
+  // READER MEETS are in km. The word may appear in a comment explaining the
+  // conversion, which is why the comments are stripped first.
+  const visible = htmlCode + css.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.equal(/\bnm\b/.test(htmlCode), false, 'the page shows "nm" to the reader');
+  assert.match(htmlCode, /\bkm\b/, 'no distance in kilometres anywhere on the page');
+  assert.match(htmlCode, /kilometres/, 'the page never says the distances are kilometres');
+  assert.ok(visible.length > 0);
+});
+
+test('the type section exists and says the list is measured, not remembered', () => {
+  assert.match(htmlCode, /<section class="card" id="step-3">/);
+  assert.match(htmlCode, /id="typeList"/);
+  assert.match(htmlCode, /id="typeFilter"/);
+  assert.match(htmlCode, /measured, not remembered/i);
+});
+
+test('what you are watching is its own section, and tail numbers are optional', () => {
+  assert.match(htmlCode, /<section class="card" id="step-4">/);
+  assert.match(htmlCode, /<ul class="watchlist" id="watchList"><\/ul>/);
+  assert.match(htmlCode, /Narrow to a tail number/);
+});
+
+test('the range limiter is on the page, not hidden behind a wrong number', () => {
+  // Measured 20 Sep 2026: seven airports polled back to back had five refused by
+  // the third round. Hiding that behind "0 aircraft" would be a lie about a rate
+  // limit, and the reader would think the sky was empty.
+  assert.match(htmlCode, /429/);
+  assert.match(appJs, /status === 429/);
+  assert.match(appJs, /slow down/);
+});
+
+/* ------------------------------------------- the measured type list --- */
+
+test('types.json exists, is honest about its method, and is not empty', () => {
+  const path = join(SITE, 'types.json');
+  assert.ok(existsSync(path), 'site/types.json is missing — run: node tools/survey-types.mjs');
+  const survey = JSON.parse(readFileSync(path, 'utf8'));
+  assert.ok(survey.types.length >= 10, `only ${survey.types.length} types were measured`);
+  assert.ok(survey.aircraftInspected > 100, 'the sample is too small to call a list');
+  // The page shows these words, so they have to be there and they have to be true.
+  assert.match(survey.method, /rounds? of \d+ nm/);
+  assert.match(String(survey.counted), /sighting/i);
+  assert.ok(typeof survey.generated === 'string' && survey.generated.length >= 10);
+});
+
+test('every type the survey measured can be NAMED, or is marked unknown on purpose', () => {
+  // The page shows a name and a class for each row. A code the table has never
+  // heard of must still render — as itself, in the "other" class — rather than
+  // being dropped or invented.
+  const survey = JSON.parse(readFileSync(join(SITE, 'types.json'), 'utf8'));
+  const info = stripJs(readFileSync(join(SITE, 'typeinfo.js'), 'utf8'));
+  const unknown = [];
+  for (const type of survey.types) {
+    if (!new RegExp(`\\b${type.code}:`).test(info)) unknown.push(type.code);
+  }
+  assert.deepEqual(unknown, [], `these measured types have no name in typeinfo.ts: ${unknown.join(', ')}`);
+});
+
+test('the type codes the feed actually sends are the shape the table expects', () => {
+  const survey = JSON.parse(readFileSync(join(SITE, 'types.json'), 'utf8'));
+  const bad = survey.types.filter((type) => !/^[A-Z0-9]{2,6}$/.test(type.code));
+  assert.deepEqual(bad.map((type) => type.code), [], 'a type code is not a plausible ICAO designator');
+  // The survey must not have counted a surface vehicle as an aeroplane.
+  assert.deepEqual(
+    survey.types.filter((type) => ['SERV', 'GRND', 'TWR'].includes(type.code)).map((type) => type.code),
+    []
+  );
+});

@@ -17,6 +17,8 @@ import {
   insideFence,
   isStale,
   judgeTakeoff,
+  kmToNm,
+  nmToKm,
   phaseOf,
 } from '../site/detect.js';
 
@@ -222,4 +224,119 @@ test('the state a poll writes keeps the callsign after a reading that omits it',
 test('DEFAULTS are the values the page actually uses', () => {
   assert.equal(DEFAULTS.radiusNm, 10);
   assert.ok(DEFAULTS.cooldownMs >= 5 * 60 * 1000);
+});
+
+/* -------------------------------------------------------------- the units --- */
+
+test('the reader picks kilometres and the feed is asked in nautical miles', () => {
+  // "nobody understand nm" — so the unit the reader meets is km and the unit the
+  // API takes is nm, and the conversion between them is exact: one nautical mile
+  // is 1852 m by definition, not roughly.
+  assert.equal(kmToNm(10), 5);
+  assert.equal(kmToNm(20), 11);
+  assert.equal(kmToNm(50), 27);
+  assert.equal(nmToKm(5), 9);
+  assert.equal(nmToKm(11), 20);
+  assert.equal(nmToKm(27), 50);
+});
+
+test('the distance can never round down to zero, which would watch nothing', () => {
+  // The feed's radius is an integer, so a very small choice rounds to 0 — and 0
+  // nautical miles returns an empty sky that looks like a working page.
+  assert.equal(kmToNm(0.4), 1);
+  assert.equal(kmToNm(0), 1);
+  assert.equal(kmToNm(-5), 1);
+});
+
+/* ------------------------------------------------------- watching a TYPE --- */
+
+test('a type rule with NO tails watches every aircraft of that type', () => {
+  // This is the whole feature: an empty filter means no filter. Reading an empty
+  // tails list as "match nothing" would make the main control do the opposite of
+  // what it says.
+  const engine = new DetectionEngine(options);
+  engine.setTypeRules([{ type: 'B38M', tails: [] }]);
+  assert.equal(engine.isWatched({ hex: 'aaa111', t: 'B38M' }), true);
+  assert.equal(engine.isWatched({ hex: 'bbb222', t: 'B38M' }), true);
+  assert.equal(engine.isWatched({ hex: 'ccc333', t: 'A321' }), false);
+});
+
+test('a type rule WITH tails watches only those aircraft', () => {
+  const engine = new DetectionEngine(options);
+  engine.setTypeRules([{ type: 'B38M', tails: ['C-GXXX'] }]);
+  assert.equal(engine.isWatched({ hex: 'aaa111', t: 'B38M', r: 'C-GXXX' }), true);
+  // Hyphens and case do not matter — a registration is written with a hyphen and
+  // transmitted without one.
+  assert.equal(engine.isWatched({ hex: 'aaa111', t: 'B38M', r: 'cgxxx' }), true);
+  assert.equal(engine.isWatched({ hex: 'bbb222', t: 'B38M', r: 'C-FABC' }), false);
+  // …and narrowing to a tail must also stop watching the OTHER types.
+  assert.equal(engine.isWatched({ hex: 'ccc333', t: 'A321', r: 'C-GXXX' }), false);
+});
+
+test('one type rule with tails does not silence another type wide open', () => {
+  const engine = new DetectionEngine(options);
+  engine.setTypeRules([
+    { type: 'B38M', tails: ['C-GXXX'] },
+    { type: 'C172', tails: [] },
+  ]);
+  assert.equal(engine.isWatched({ hex: 'a', t: 'C172', r: 'C-FZZZ' }), true, 'the wide rule was swallowed');
+  assert.equal(engine.isWatched({ hex: 'b', t: 'B38M', r: 'C-FZZZ' }), false);
+});
+
+test('the most specific rule wins, so the board can say the truest thing', () => {
+  // A tail number named on its own is reported as a tail number, not as "a type",
+  // even when a type rule would also have caught it.
+  const engine = new DetectionEngine(options, ['C-GXXX']);
+  engine.setTypeRules([{ type: 'B38M', tails: [] }]);
+
+  const named = engine.matchOf({ hex: 'aaa111', t: 'B38M', r: 'C-GXXX' });
+  assert.equal(named.kind, 'aircraft');
+
+  const byType = engine.matchOf({ hex: 'bbb222', t: 'B38M', r: 'C-FABC' });
+  assert.equal(byType.kind, 'type');
+
+  engine.setTypeRules([{ type: 'B38M', tails: ['C-FABC'] }]);
+  assert.equal(engine.matchOf({ hex: 'bbb222', t: 'B38M', r: 'C-FABC' }).kind, 'type+tail');
+});
+
+test('an aircraft with no type code matches no type rule, whatever the rule says', () => {
+  // `t` is a string and often empty. A rule for "" would silently match every
+  // aircraft the feed could not identify.
+  const engine = new DetectionEngine(options);
+  engine.setTypeRules([{ type: '', tails: [] }]);
+  assert.equal(engine.isWatched({ hex: 'aaa111' }), false);
+  assert.equal(engine.isWatched({ hex: 'aaa111', t: '' }), false);
+});
+
+test('a departure remembers WHICH rule caught it', () => {
+  const engine = new DetectionEngine(options, ['C-GXXX']);
+  engine.setTypeRules([{ type: 'C172', tails: [] }]);
+
+  const byType = engine.ingest(
+    [{ hex: 'a1b2c3', t: 'C172', alt_baro: 2600, baro_rate: 1100, lat: 43.18, lon: -79.93 }],
+    1_000_000
+  );
+  assert.equal(byType.length, 1);
+  assert.equal(byType[0].watched, true);
+  assert.equal(byType[0].matchedBy, 'type');
+  assert.match(byType[0].matchedLabel, /C172/);
+
+  const byName = engine.ingest(
+    [{ hex: 'd4e5f6', t: 'B38M', r: 'C-GXXX', alt_baro: 3100, baro_rate: 2400, lat: 43.18, lon: -79.93 }],
+    1_000_010
+  );
+  assert.equal(byName[0].matchedBy, 'aircraft');
+});
+
+test('an unwatched departure still lands on the board, marked as unwatched', () => {
+  // The board is a record of what happened, not only of what was asked for —
+  // otherwise the page looks broken whenever the reader watches nothing.
+  const engine = new DetectionEngine(options);
+  const found = engine.ingest(
+    [{ hex: 'a1b2c3', t: 'C172', alt_baro: 2600, baro_rate: 1100, lat: 43.18, lon: -79.93 }],
+    1_000_000
+  );
+  assert.equal(found.length, 1);
+  assert.equal(found[0].watched, false);
+  assert.equal(found[0].matchedBy, null);
 });

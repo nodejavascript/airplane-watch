@@ -11,6 +11,7 @@
     "test:e2e": "npm run build && node --test test/e2e.test.js",
     "test:all": "npm run build && node --test test/*.test.js",
     "test:live": "node tools/live-check.mjs",
+    "survey": "node tools/survey-types.mjs",
     "icons": "python3 tools/make-icons.py",
     "deploy": "bash tools/deploy.sh"
   },

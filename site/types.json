@@ -1,0 +1,841 @@
+{
+  "generated": "2026-09-20T16:01:56.397Z",
+  "method": "3 rounds of 40 nm around 7 airports, 15s apart",
+  "aircraftInspected": 720,
+  "counted": "sightings (one per aircraft per round)",
+  "roundsRefusedByRateLimit": 0,
+  "airports": [
+    {
+      "icao": "CYHM",
+      "name": "John C. Munro Hamilton International Airport"
+    },
+    {
+      "icao": "CYKF",
+      "name": "Waterloo Airport"
+    },
+    {
+      "icao": "CYYZ",
+      "name": "Lester B. Pearson International Airport"
+    },
+    {
+      "icao": "CYTZ",
+      "name": "Billy Bishop Toronto City Centre Airport"
+    },
+    {
+      "icao": "KBUF",
+      "name": "Buffalo Niagara International Airport"
+    },
+    {
+      "icao": "CYUL",
+      "name": "Montreal / Pierre Elliott Trudeau International Airport"
+    },
+    {
+      "icao": "CYVR",
+      "name": "Vancouver International Airport"
+    }
+  ],
+  "types": [
+    {
+      "code": "C172",
+      "seen": 136,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYUL",
+        "CYVR",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFA",
+        "CFB",
+        "CFE",
+        "CFF",
+        "CFS",
+        "CFW",
+        "CGA",
+        "CGB",
+        "CGC",
+        "CGE",
+        "CGF",
+        "CGH"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "B38M",
+      "seen": 52,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYUL",
+        "CYVR",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "ACA",
+        "FLE",
+        "ROU",
+        "UAL",
+        "WJA"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "C152",
+      "seen": 30,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFG",
+        "CGG",
+        "CGY",
+        "CGZ"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "CRJ7",
+      "seen": 27,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYUL",
+        "CYYZ"
+      ],
+      "operators": [
+        "EDV",
+        "JIA"
+      ],
+      "categories": [
+        "A2",
+        "A3"
+      ]
+    },
+    {
+      "code": "E55P",
+      "seen": 24,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "EJA",
+        "LXJ",
+        "WUP"
+      ],
+      "categories": [
+        "A1",
+        "A2"
+      ]
+    },
+    {
+      "code": "B789",
+      "seen": 15,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYUL",
+        "CYYZ"
+      ],
+      "operators": [
+        "ACA",
+        "AFR"
+      ],
+      "categories": [
+        "A5"
+      ]
+    },
+    {
+      "code": "CRJ9",
+      "seen": 15,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "JIA",
+        "JZA"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "E75L",
+      "seen": 15,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "ENY",
+        "RPA"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "DH8D",
+      "seen": 13,
+      "airports": [
+        "CYHM",
+        "CYTZ",
+        "CYUL",
+        "CYVR",
+        "CYYZ"
+      ],
+      "operators": [
+        "JZA",
+        "PTR",
+        "WEN"
+      ],
+      "categories": [
+        "A2"
+      ]
+    },
+    {
+      "code": "A321",
+      "seen": 12,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "ROU"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "C68A",
+      "seen": 12,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "EJA"
+      ],
+      "categories": [
+        "A2"
+      ]
+    },
+    {
+      "code": "H500",
+      "seen": 12,
+      "airports": [
+        "CYHM",
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "CGS"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "LA4",
+      "seen": 12,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "CGH"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "TB20",
+      "seen": 12,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "CGT"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "A332",
+      "seen": 11,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "DAL"
+      ],
+      "categories": [
+        "A5"
+      ]
+    },
+    {
+      "code": "BCS3",
+      "seen": 11,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYUL",
+        "CYYZ"
+      ],
+      "operators": [
+        "ACA"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "B190",
+      "seen": 9,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "CGP",
+        "CGS",
+        "GLR"
+      ],
+      "categories": [
+        "A2"
+      ]
+    },
+    {
+      "code": "C550",
+      "seen": 9,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYVR"
+      ],
+      "operators": [],
+      "categories": [
+        "A1",
+        "A6"
+      ]
+    },
+    {
+      "code": "P28R",
+      "seen": 9,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFA"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "BCS1",
+      "seen": 8,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "ACA"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "C182",
+      "seen": 8,
+      "airports": [
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "CGZ"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "DH3T",
+      "seen": 7,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "CFH",
+        "CGE",
+        "CGL"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "C501",
+      "seen": 6,
+      "airports": [
+        "CYHM",
+        "KBUF"
+      ],
+      "operators": [],
+      "categories": []
+    },
+    {
+      "code": "GLEX",
+      "seen": 6,
+      "airports": [
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "CGM"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "GLID",
+      "seen": 6,
+      "airports": [
+        "CYKF",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFY"
+      ],
+      "categories": [
+        "B1"
+      ]
+    },
+    {
+      "code": "S22T",
+      "seen": 6,
+      "airports": [
+        "CYHM",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "B738",
+      "seen": 5,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "ASA",
+        "WJA"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "A319",
+      "seen": 4,
+      "airports": [
+        "CYKF",
+        "CYUL"
+      ],
+      "operators": [
+        "DAL",
+        "UAL"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "A359",
+      "seen": 4,
+      "airports": [
+        "CYHM",
+        "CYKF"
+      ],
+      "operators": [
+        "DAL"
+      ],
+      "categories": [
+        "A5"
+      ]
+    },
+    {
+      "code": "ASTR",
+      "seen": 4,
+      "airports": [
+        "CYHM",
+        "CYTZ",
+        "KBUF"
+      ],
+      "operators": [
+        "PHX"
+      ],
+      "categories": [
+        "A2"
+      ]
+    },
+    {
+      "code": "B739",
+      "seen": 4,
+      "airports": [
+        "CYHM",
+        "CYKF"
+      ],
+      "operators": [
+        "DAL"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "B77W",
+      "seen": 4,
+      "airports": [
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "AFR",
+        "CPA"
+      ],
+      "categories": [
+        "A5"
+      ]
+    },
+    {
+      "code": "E295",
+      "seen": 4,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [
+        "POE"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "BE20",
+      "seen": 3,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "PBR"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "C150",
+      "seen": 3,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [
+        "CFB"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "C185",
+      "seen": 3,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [
+        "CGM"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "C25B",
+      "seen": 3,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "CL60",
+      "seen": 3,
+      "airports": [
+        "KBUF"
+      ],
+      "operators": [],
+      "categories": [
+        "A2"
+      ]
+    },
+    {
+      "code": "DHC6",
+      "seen": 3,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "CFD"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "E170",
+      "seen": 3,
+      "airports": [
+        "KBUF"
+      ],
+      "operators": [
+        "RPA"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "E75S",
+      "seen": 3,
+      "airports": [
+        "KBUF"
+      ],
+      "operators": [
+        "JZA"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "LJ45",
+      "seen": 3,
+      "airports": [
+        "CYHM"
+      ],
+      "operators": [],
+      "categories": [
+        "A2"
+      ]
+    },
+    {
+      "code": "PA44",
+      "seen": 3,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [
+        "CGM"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "PC12",
+      "seen": 3,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [
+        "PNO"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "SF34",
+      "seen": 3,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "CFP"
+      ],
+      "categories": [
+        "A2"
+      ]
+    },
+    {
+      "code": "A21N",
+      "seen": 2,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [
+        "SAS"
+      ],
+      "categories": [
+        "A3"
+      ]
+    },
+    {
+      "code": "B763",
+      "seen": 2,
+      "airports": [
+        "CYHM",
+        "KBUF"
+      ],
+      "operators": [
+        "UPS"
+      ],
+      "categories": [
+        "A5"
+      ]
+    },
+    {
+      "code": "B77L",
+      "seen": 2,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "ACA"
+      ],
+      "categories": [
+        "A5"
+      ]
+    },
+    {
+      "code": "C208",
+      "seen": 2,
+      "airports": [
+        "CYYZ"
+      ],
+      "operators": [
+        "CGZ"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "CL35",
+      "seen": 2,
+      "airports": [
+        "CYHM",
+        "CYKF"
+      ],
+      "operators": [],
+      "categories": [
+        "A2"
+      ]
+    },
+    {
+      "code": "DHC2",
+      "seen": 2,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "CGO"
+      ],
+      "categories": [
+        "A1"
+      ]
+    },
+    {
+      "code": "E145",
+      "seen": 2,
+      "airports": [
+        "KBUF"
+      ],
+      "operators": [
+        "PDT"
+      ],
+      "categories": [
+        "A2"
+      ]
+    },
+    {
+      "code": "C680",
+      "seen": 1,
+      "airports": [
+        "CYKF"
+      ],
+      "operators": [
+        "CGF"
+      ],
+      "categories": [
+        "A2"
+      ]
+    },
+    {
+      "code": "F2TH",
+      "seen": 1,
+      "airports": [
+        "KBUF"
+      ],
+      "operators": [],
+      "categories": [
+        "A2"
+      ]
+    }
+  ]
+}

@@ -184,20 +184,44 @@
       <section class="card" id="step-2">
         <h2><span class="step">2</span> Choose how far out to look</h2>
         <p class="sub">
-          This is a real trade and there is no right answer. A tight fence is the best chance of catching an aircraft
-          while it is still on the ground — which is what makes a departure certain rather than probable — and the
-          worst chance of seeing anything else. A wide fence sees more aircraft and sees fewer of them on the ground.
+          Distances are in kilometres, because nautical miles are an aviation unit and nobody arriving here is
+          obliged to know one. This is a real trade and there is no right answer: a short distance is the best chance
+          of catching an aircraft <em>while it is still on the ground</em> — which is what makes a departure a fact
+          rather than a good guess — and the worst chance of seeing anything else. A long one sees more aircraft and
+          sees fewer of them on the ground.
         </p>
-        <div class="chips" id="radiusButtons" role="group" aria-label="Choose the radius of the fence"></div>
+        <div class="chips" id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
         <p class="small muted" id="fenceNote"></p>
       </section>
 
       <section class="card" id="step-3">
-        <h2><span class="step">3</span> Name what you are watching</h2>
+        <h2><span class="step">3</span> Pick an aircraft type</h2>
+        <p class="sub">
+          This list is <b>measured, not remembered</b>: it comes from reading the feed around these airports and
+          counting what actually appeared, so it is the aircraft that really come and go rather than a list of famous
+          aeroplanes. Watch a <em>type</em> and you are told about every one of them that leaves — and then, if you
+          want, you can narrow that to particular tail numbers below, or leave it wide open.
+        </p>
+        <div class="chips" id="typeFilter" role="group" aria-label="Filter the type list by kind"></div>
+        <div class="typelist" id="typeList"></div>
+        <p class="small muted" id="typeNote">Loading what the feed has been showing…</p>
+      </section>
+
+      <section class="card" id="step-4">
+        <h2><span class="step">4</span> What you are watching</h2>
+        <p class="sub">
+          A type is watched whole until you narrow it. A tail number on its own still works, for when you know the
+          aeroplane rather than the model — and pressing <b>watch</b> on a row in the live list is the same thing.
+        </p>
+        <ul class="watchlist" id="watchList"></ul>
+      </section>
+
+      <section class="card" id="step-5">
+        <h2><span class="step">5</span> Or name one aircraft</h2>
         <p class="sub">
           A tail number such as <span class="mono">C-GXXX</span>, a callsign such as <span class="mono">ACA123</span>,
           or a transponder address such as <span class="mono">c011e4</span>. Case, spaces and hyphens do not matter.
-          You can also press <b>watch</b> on any aircraft in the live list below.
+          This is kept in your browser and never sent anywhere.
         </p>
         <form id="watchForm" class="watch-form" autocomplete="off">
           <label class="field">
@@ -206,7 +230,6 @@
           </label>
           <button class="ghost" type="submit" data-ga="watch-add">Watch it</button>
         </form>
-        <ul class="watchlist" id="watchList"></ul>
 
         <div class="notify">
           <button id="notifyBtn" class="ghost" type="button" data-ga="notify">Tell me when they leave</button>
@@ -217,8 +240,8 @@
       <section class="card" id="departures">
         <h2>Departures seen in this session</h2>
         <p class="sub">
-          Kept in this browser, so closing the tab and coming back keeps the board you had. A watched aircraft also
-          raises a notification, if you allowed one.
+          Kept in this browser, so closing the tab and coming back keeps the board you had. Each line says which of
+          your rules caught it. A watched aircraft also raises a notification, if you allowed one.
         </p>
         <p class="empty" id="departuresEmpty">
           Nothing yet. A departure appears here the moment an aircraft inside the fence is first seen airborne.
@@ -278,7 +301,14 @@
           <li>
             <b>The fence is a circle, and reception is not.</b> A receiver's range depends on the aircraft's altitude,
             the terrain and the weather, so what the page shows you is what one network could hear, not what is up
-            there.
+            there. Distances you choose are in kilometres; the feed itself works in nautical miles, which is 1.852 km,
+            and the conversion is exact rather than approximate.
+          </li>
+          <li>
+            <b>The free feed rate-limits, and it says so.</b> Asking too often is answered with <span class="mono">HTTP
+            429</span>, which the page reports rather than hiding. The proxy in front of it caches for a few seconds so
+            a crowd does not multiply the load. Measured 20 Sep 2026: seven airports polled back to back had five
+            refused by the third round.
           </li>
           <li>
             <b>Positions are approximate and delayed.</b> The feed updates in seconds, and the map-precision of a
@@ -303,10 +333,11 @@
             proxy passes it on and adds the header the browser needs.
           </li>
           <li>
-            <b>How a departure is decided.</b> Once every ten seconds the page asks for every aircraft inside the
-            fence. Each reading is classified as on the ground, airborne, or unknown, and compared with the same
-            aircraft's previous reading. Ground to airborne inside the fence is a departure; seen only after it is
-            already climbing is a probable one; already airborne is ignored; a stale reading proves nothing.
+            <b>How a departure is decided.</b> Once every ten seconds the page asks for every aircraft within the
+            distance you chose. Each reading is classified as on the ground, airborne, or unknown, and compared with
+            the same aircraft's previous reading. Ground to airborne inside the distance is a departure; seen only
+            after it is already climbing is a probable one; already airborne is ignored; a stale reading proves
+            nothing. A match against one of your rules is what puts it on your board.
           </li>
           <li>
             <b>Where it is kept.</b> Nowhere on a server. The watchlist, the chosen airport and the board live in this

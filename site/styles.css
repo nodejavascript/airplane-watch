@@ -320,6 +320,136 @@ main {
   background: rgba(56, 189, 248, 0.14);
 }
 
+/* The two states of a type button have to be told apart at a glance, because the
+ * button is also the only way to stop watching something. */
+.chip-on {
+  padding: 7px 13px;
+  font-size: 13px;
+}
+
+.chip-off {
+  padding: 7px 13px;
+  font-size: 13px;
+  border-color: var(--muted);
+  color: var(--muted);
+}
+
+/* --------------------------------------------------------- the type list --- */
+.typelist {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.typerow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 14px;
+  align-items: center;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: rgba(4, 16, 26, 0.55);
+}
+
+.typerow-on {
+  border-color: var(--theme);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.typerow-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 15px;
+}
+
+/* The bar is not decoration: "136 sightings" and "1 sighting" are the same shape
+ * to the eye until the two are drawn against each other. */
+.typerow-meta {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.typerow-bar {
+  display: inline-block;
+  width: 90px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(56, 189, 248, 0.14);
+  overflow: hidden;
+  flex: none;
+}
+
+.typerow-bar i {
+  display: block;
+  height: 100%;
+  background: var(--theme);
+}
+
+.typerow .type-toggle {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+/* ------------------------------------------------------ what you watch --- */
+.watch-type {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 11px 13px;
+  background: rgba(4, 16, 26, 0.55);
+  display: grid;
+  gap: 8px;
+}
+
+.watch-type-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.watch-type-tails {
+  font-size: 14px;
+}
+
+.tail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  margin-right: 6px;
+}
+
+.tail-remove {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.tail-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tail-form input {
+  flex: 1 1 220px;
+  padding: 7px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: rgba(2, 10, 16, 0.7);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+
 .ghost {
   padding: 9px 16px;
   border-radius: 9px;
@@ -444,6 +574,10 @@ main {
 .departure-why {
   font-size: 13px;
   color: var(--muted);
+}
+
+.departure-type {
+  font-size: 13.5px;
 }
 
 .departure-verdict {
@@ -732,6 +866,14 @@ main {
   }
   .consentRow {
     flex-direction: column;
+  }
+  .typerow {
+    grid-template-columns: 1fr;
+  }
+  .typerow .type-toggle {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
   }
 }
 

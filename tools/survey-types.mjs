@@ -1,0 +1,189 @@
+/**
+ * survey-types.mjs — find out which AIRCRAFT TYPES actually come and go at these
+ * airports, instead of guessing.
+ *
+ * George, 20 Sep 2026: *"can you gather a list of airplanes that frequestly come
+ * and go? airpplane type, not tail numbers"*. The honest answer is not a list
+ * anybody remembers — it is a list this script measured. It polls a 40 nautical
+ * mile circle around each airport (wide enough to catch aircraft on approach and
+ * on climb-out, which is what coming and going looks like), tallies the feed's own
+ * `t` field, and writes site/types.json.
+ *
+ * A 40 nm circle rather than the fence the page watches, on purpose: an aircraft
+ * on the ground is nearly invisible, so a survey of what is ON the ground would
+ * under-count everything. What is overhead, arriving and departing, is the honest
+ * proxy for what uses the airport.
+ *
+ * 🔴 NOTHING HERE IS HARD-CODED, INCLUDING THE AIRPORT POSITIONS. They are fetched
+ * from the feed's own airport endpoint, the same way the page does it — a typed
+ * latitude is a fact that goes wrong silently.
+ *
+ * Usage:  node tools/survey-types.mjs [rounds] [radiusNm]
+ *         node tools/survey-types.mjs 4 40
+ */
+
+import { writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const UPSTREAM = 'https://api.adsb.lol';
+
+/** Same seven the page offers. Only the identifier is written down. */
+const AIRPORTS = ['CYHM', 'CYKF', 'CYYZ', 'CYTZ', 'KBUF', 'CYUL', 'CYVR'];
+
+const ROUNDS = Number(process.argv[2] || 3);
+const RADIUS_NM = Number(process.argv[3] || 40);
+const PAUSE_MS = 15_000;
+
+/**
+ * 🔴 THE FREE ENDPOINT RATE-LIMITS, AND IT SAYS SO WITH HTTP 429. The first run of
+ * this survey fired seven airports back to back and had **five of seven refused** in
+ * round 3 and **six of seven** in round 4 — measured 20 Sep 2026. A volunteer-funded
+ * service is entitled to say no, so the survey now waits between requests and backs
+ * off when asked. The page needs the same manners, and the same 429 message.
+ */
+const BETWEEN_REQUESTS_MS = 1_600;
+
+/** A surface vehicle is not an aeroplane. The feed uses category 16/17 for them. */
+const SURFACE_CATEGORIES = new Set(['16', '17']);
+const NOT_AN_AIRCRAFT_TYPE = new Set(['SERV', 'GRND', 'TWR', '']);
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** How many aircraft we managed to look at, so the sample size is stated. */
+let inspected = 0;
+
+/** type code -> { count, airports:Set, callsigns:Set, categories:Set } */
+const tally = new Map();
+
+async function json(path) {
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    const response = await fetch(UPSTREAM + path, {
+      headers: { accept: 'application/json', 'user-agent': 'aircraft-demo type survey' },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (response.status === 429) {
+      // Asked to slow down. Wait, and say so rather than silently dropping the
+      // airport — a survey that quietly samples less than it claims is a survey
+      // nobody can rely on.
+      const wait = 4_000 * attempt;
+      console.log(`    429 from the feed, waiting ${wait / 1000}s (attempt ${attempt})`);
+      await sleep(wait);
+      continue;
+    }
+    if (!response.ok) throw new Error(`${path} → HTTP ${response.status}`);
+    return response.json();
+  }
+  throw new Error(`${path} → still rate-limited after 4 attempts`);
+}
+
+async function locate(icao) {
+  const payload = await json(`/api/0/airport/${icao}`);
+  const lat = Number(payload.lat);
+  const lon = Number(payload.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error(`${icao}: no position`);
+  return { icao, lat, lon, name: payload.name };
+}
+
+async function main() {
+  console.log(`surveying ${AIRPORTS.length} airports, ${ROUNDS} rounds, ${RADIUS_NM} nm, ${PAUSE_MS / 1000}s apart\n`);
+
+  const airports = [];
+  for (const icao of AIRPORTS) {
+    try {
+      const airport = await locate(icao);
+      airports.push(airport);
+      console.log(`  located ${airport.icao}  ${airport.name}`);
+    } catch (error) {
+      console.log(`  SKIPPED ${icao}: ${error.message}`);
+    }
+    await sleep(BETWEEN_REQUESTS_MS);
+  }
+  if (airports.length === 0) throw new Error('no airports could be located');
+
+  let refused = 0;
+
+  for (let round = 1; round <= ROUNDS; round += 1) {
+    for (const airport of airports) {
+      let payload;
+      try {
+        payload = await json(`/v2/point/${airport.lat}/${airport.lon}/${RADIUS_NM}`);
+      } catch (error) {
+        refused += 1;
+        console.log(`  round ${round} ${airport.icao}: ${error.message}`);
+        continue;
+      }
+      const rows = Array.isArray(payload.ac) ? payload.ac : [];
+      let types = 0;
+      for (const row of rows) {
+        inspected += 1;
+        // A vehicle on the apron is not an aeroplane, and neither is a tower.
+        // Counting them would put "SERV" near the top of a list of aircraft.
+        if (SURFACE_CATEGORIES.has(String(row.category ?? ''))) continue;
+        const type = String(row.t || '').trim().toUpperCase();
+        // 🔴 An aircraft with no type code is NOT counted as the type "-". A
+        // survey that invents a type out of missing data is worse than a survey
+        // that reports what it could not identify.
+        if (NOT_AN_AIRCRAFT_TYPE.has(type) || type.length > 6) continue;
+        types += 1;
+        if (!tally.has(type)) {
+          tally.set(type, { count: 0, airports: new Set(), callsigns: new Set(), categories: new Set() });
+        }
+        const entry = tally.get(type);
+        entry.count += 1;
+        entry.airports.add(airport.icao);
+        const callsign = String(row.flight || '').trim().toUpperCase();
+        // Only a three-letter airline prefix. Some callsigns are registrations or
+        // addresses, and "@@@" is not an operator.
+        if (/^[A-Z]{3}/.test(callsign)) entry.callsigns.add(callsign.slice(0, 3));
+        if (row.category) entry.categories.add(String(row.category));
+      }
+      console.log(`  round ${round} ${airport.icao}: ${rows.length} aircraft, ${types} with a type code`);
+      await sleep(BETWEEN_REQUESTS_MS);
+    }
+    if (round < ROUNDS) await sleep(PAUSE_MS);
+  }
+
+  const types = [...tally.entries()]
+    .map(([code, entry]) => ({
+      code,
+      seen: entry.count,
+      airports: [...entry.airports].sort(),
+      operators: [...entry.callsigns].sort().slice(0, 12),
+      categories: [...entry.categories].sort(),
+    }))
+    .sort((a, b) => b.seen - a.seen || a.code.localeCompare(b.code));
+
+  const document = {
+    generated: new Date().toISOString(),
+    // Stated so nobody has to guess how much weight the list carries: this is a
+    // sample of what the feed showed over a few minutes, not a schedule.
+    method: `${ROUNDS} rounds of ${RADIUS_NM} nm around ${airports.length} airports, ${PAUSE_MS / 1000}s apart`,
+    aircraftInspected: inspected,
+    // A reading counted once per round it appeared in, so a busy airliner seen in
+    // every round scores four. This is a FREQUENCY of sightings over a short
+    // sample, not a count of airframes and not a timetable — say so where it is
+    // shown, or the number means something it should not.
+    counted: 'sightings (one per aircraft per round)',
+    roundsRefusedByRateLimit: refused,
+    airports: airports.map((airport) => ({ icao: airport.icao, name: airport.name })),
+    types,
+  };
+
+  writeFileSync(join(ROOT, 'site', 'types.json'), JSON.stringify(document, null, 2) + '\n', 'utf8');
+
+  console.log(`\ninspected ${inspected} aircraft readings, ${types.length} distinct types\n`);
+  console.log('  seen  type   airports                         operators');
+  for (const entry of types.slice(0, 30)) {
+    console.log(
+      `  ${String(entry.seen).padStart(4)}  ${entry.code.padEnd(6)} ${entry.airports.join(',').padEnd(32)} ${entry.operators.slice(0, 5).join(' ')}`
+    );
+  }
+  console.log(`\nwrote site/types.json`);
+}
+
+main().catch((error) => {
+  console.error(`survey failed: ${error.message}`);
+  process.exit(1);
+});

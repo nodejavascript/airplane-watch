@@ -40,6 +40,25 @@ export const DEFAULTS = {
     staleAfterSec: 60,
     cooldownMs: 20 * 60 * 1000,
 };
+/* ------------------------------------------------------------- the units --- */
+/**
+ * 🔴 "NOBODY UNDERSTANDS nm" — George, 20 Sep 2026, and he is right.
+ *
+ * The reader picks a distance in KILOMETRES, and the feed is asked in NAUTICAL
+ * MILES, because that is the unit the API takes — its own endpoint summary reads
+ * *"Aircrafts surrounding a point (lat, lon) up to 250nm"*. One nautical mile is
+ * exactly 1852 metres, so the conversion is exact rather than approximate, and it
+ * lives here rather than inside the page so a test can check it.
+ */
+export const KM_PER_NM = 1.852;
+/** Kilometres the reader chose → whole nautical miles the feed takes. */
+export function kmToNm(km) {
+    return Math.max(1, Math.round(km / KM_PER_NM));
+}
+/** Nautical miles the feed works in → kilometres the reader reads. */
+export function nmToKm(nm) {
+    return Math.round(nm * KM_PER_NM);
+}
 /**
  * Read the phase out of one reading.
  *
@@ -148,6 +167,7 @@ export class DetectionEngine {
     firedAt = new Map();
     options;
     watchlist;
+    typeRules = [];
     constructor(options, watchlist = []) {
         this.options = options;
         this.watchlist = new Set([...watchlist].map(normaliseKey));
@@ -156,13 +176,53 @@ export class DetectionEngine {
     setWatchlist(keys) {
         this.watchlist = new Set([...keys].map(normaliseKey));
     }
+    /** The types the reader asked about, each optionally narrowed to tail numbers. */
+    setTypeRules(rules) {
+        this.typeRules = [...rules]
+            .filter((rule) => String(rule?.type ?? '').trim() !== '')
+            .map((rule) => ({
+            type: normaliseKey(rule.type),
+            tails: [...(rule.tails ?? [])].map(normaliseKey).filter((tail) => tail !== ''),
+        }));
+    }
+    /**
+     * Which rule, if any, this aircraft matches — or null.
+     *
+     * Order matters and is deliberate: a tail number the reader named is reported as
+     * a tail number, not as "a type", even when a type rule would also have caught
+     * it. The board should say the most specific true thing it can. When more than
+     * one rule matches, the narrowest wins.
+     */
+    matchOf(reading) {
+        const hex = normaliseKey(reading.hex);
+        const registration = reading.r ? normaliseKey(reading.r) : '';
+        const callsign = reading.flight ? normaliseKey(reading.flight) : '';
+        const named = this.watchlist.has(hex) || (registration !== '' && this.watchlist.has(registration)) || (callsign !== '' && this.watchlist.has(callsign));
+        if (named) {
+            const shown = (reading.r || reading.flight || reading.hex || '').trim();
+            return { kind: 'aircraft', label: `${shown} — watched by name` };
+        }
+        const type = reading.t ? normaliseKey(reading.t) : '';
+        if (type === '')
+            return null;
+        const byTail = [];
+        for (const rule of this.typeRules) {
+            if (rule.type !== type)
+                continue;
+            if (rule.tails.length === 0)
+                return { kind: 'type', label: `any ${rule.type}` };
+            if (rule.tails.includes(registration) || rule.tails.includes(hex) || rule.tails.includes(callsign)) {
+                byTail.push(rule);
+            }
+        }
+        if (byTail.length > 0) {
+            return { kind: 'type+tail', label: `${byTail[0].type}, tail ${(reading.r || reading.hex || '').trim()}` };
+        }
+        return null;
+    }
     /** Does this aircraft match anything the reader is watching? */
     isWatched(reading) {
-        if (this.watchlist.size === 0)
-            return false;
-        return (this.watchlist.has(normaliseKey(reading.hex)) ||
-            (!!reading.flight && this.watchlist.has(normaliseKey(reading.flight))) ||
-            (!!reading.r && this.watchlist.has(normaliseKey(reading.r))));
+        return this.matchOf(reading) !== null;
     }
     stateOf(hex) {
         return this.tracks.get(hex);
@@ -186,7 +246,8 @@ export class DetectionEngine {
             const hex = reading.hex.toLowerCase();
             const previous = this.tracks.get(hex);
             const decision = judgeTakeoff(previous, reading, { ...this.options, now });
-            const watched = this.isWatched(reading);
+            const match = this.matchOf(reading);
+            const watched = match !== null;
             if (decision.verdict !== 'none') {
                 const last = this.firedAt.get(hex);
                 const cooling = last !== undefined && now - last < this.options.cooldownMs;
@@ -212,6 +273,8 @@ export class DetectionEngine {
                         climbFpm,
                         distanceNm: distanceToAirport,
                         watched,
+                        matchedBy: match ? match.kind : null,
+                        matchedLabel: match ? match.label : '',
                     });
                     this.firedAt.set(hex, now);
                 }

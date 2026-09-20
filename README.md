@@ -47,6 +47,7 @@ anybody's browser to spend the feed's bandwidth through.
 ```bash
 npm run build      # tsc: src/*.ts → site/*.js   (never edit site/*.js by hand)
 npm run serve      # build, then serve on 4340 and proxy /api
+npm run survey     # re-measure which aircraft types really come and go → site/types.json
 npm run icons      # regenerate the icon set
 npm test           # unit: the detector, and the site standard
 npm run test:e2e   # real Chrome, stubbed feed, no network needed
@@ -55,6 +56,23 @@ npm run deploy     # build → test → rsync → wrangler → live check
 ```
 
 `site/*.js` is generated. Edit `src/`.
+
+## Distances are kilometres, and the type list is measured
+
+Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
+
+- **No more nautical miles.** *"nobody understand nm"* — so the reader picks 10, 20 or 50 km with a plain-word
+  label beside each (*"Just the airport"*, *"the airport and the city"*, *"the whole region"*). The feed still
+  takes nautical miles, because its own endpoint summary says *"up to 250nm"*, so the conversion is exact
+  (1 nm = 1852 m) and lives in `kmToNm` / `nmToKm` where a test can check it.
+- **Watch a type, then narrow it if you want.** `npm run survey` reads the feed around all seven airports and
+  writes `site/types.json` — the aircraft that *actually* come and go, counted, with the date and the method
+  beside them. A type is watched **whole** until you add tail numbers to it; removing the last tail widens it
+  back to the whole type. The page never invents a type: an unknown code is shown as itself.
+
+**`site/types.json` is data, not code** — refresh it by re-running one script rather than by editing the site.
+The survey is polite about the feed's rate limit and reports any round it could not get (measured: seven
+airports polled back to back had five refused by the third round).
 
 ## Not deployed yet, and what that means
 

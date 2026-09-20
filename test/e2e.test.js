@@ -415,3 +415,133 @@ test('the abstract layer is painted, not merely declared', async () => {
 
   await context.close();
 });
+
+/* ------------------------------------------------- kilometres, not nm --- */
+
+test('the reader is shown kilometres, and the feed is still asked in nautical miles', async () => {
+  const { context, page } = await openPage([
+    [{ hex: 'c011e4', flight: 'ACA123', t: 'B738', alt_baro: 5000, lat: 43.19, lon: -79.93 }],
+  ]);
+  const polled = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/v2/point/')) polled.push(request.url());
+  });
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+
+  // The buttons read in km, with words beside the number.
+  const chips = await page.$$eval('#radiusButtons .chip', (items) =>
+    items.map((item) => item.textContent.replace(/\s+/g, ' ').trim())
+  );
+  assert.ok(chips.length >= 3, `expected three distances, got ${chips.length}`);
+  assert.match(chips[0], /km/);
+  assert.match(chips[0], /Just the airport/i);
+
+  // Nothing the reader can read says "nm".
+  const visibleText = await page.evaluate(() => document.body.innerText);
+  assert.equal(/\bnm\b/.test(visibleText), false, 'the page shows the reader "nm"');
+  assert.match(visibleText, /20 km/);
+
+  await page.waitForFunction(() => true, null, { timeout: 1000 });
+  assert.ok(polled.length > 0, 'no poll reached the feed');
+  // …but the FEED still gets nautical miles, because that is the unit it takes:
+  // its own endpoint summary says "up to 250nm". Default 20 km is 11 nm.
+  assert.match(polled[0], /\/11$/, `the poll did not ask in nautical miles: ${polled[0]}`);
+
+  await context.close();
+});
+
+/* ------------------------------------------------------- watching a type --- */
+
+test('a type can be watched whole, and then narrowed to tail numbers', async () => {
+  const polls = [
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 'ground', gs: 0, lat: 43.18, lon: -79.94 }],
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 1700, baro_rate: 2300, lat: 43.19, lon: -79.93 }],
+  ];
+  const { context, page } = await openPage(polls);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+
+  // The list arrives from the measured survey, and every row says what the code
+  // means rather than only the code.
+  await page.waitForSelector('#typeList .typerow');
+  const listText = await page.$eval('#typeList', (element) => element.textContent);
+  assert.match(listText, /Boeing 737 MAX 8/);
+  assert.match(listText, /Cessna 172/);
+
+  const rows = await page.$$eval('#typeList .typerow', (items) => items.length);
+  assert.ok(rows >= 10, `only ${rows} types rendered`);
+
+  // Filtering by kind is a real filter, not decoration.
+  await page.$$eval('#typeFilter .chip', (items) => {
+    const helicopters = items.find((item) => /Helicopter/.test(item.textContent));
+    helicopters.click();
+  });
+  await page.waitForTimeout(150);
+  const filtered = await page.$$eval('#typeList .typerow-main', (items) => items.map((item) => item.textContent));
+  assert.ok(filtered.length > 0, 'the helicopter filter hid everything');
+  assert.ok(
+    filtered.every((text) => /Helicopter/.test(text)),
+    `a non-helicopter survived the helicopter filter: ${filtered.find((t) => !/Helicopter/.test(t))}`
+  );
+
+  // Back to everything, and watch a whole type.
+  await page.$$eval('#typeFilter .chip', (items) => items[0].click());
+  await page.waitForTimeout(150);
+  await page.$$eval('#typeList .typerow', (items) => {
+    const row = items.find((item) => /Boeing 737 MAX 8/.test(item.textContent));
+    row.querySelector('.type-toggle').click();
+  });
+  await page.waitForTimeout(150);
+
+  let watchlist = await page.$eval('#watchList', (element) => element.textContent);
+  assert.match(watchlist, /Boeing 737 MAX 8/);
+  assert.match(watchlist, /every one of them/, 'a new type rule must start WIDE');
+
+  // The departure it catches says which rule caught it.
+  await page.waitForFunction(
+    () => document.querySelectorAll('#departures .departure').length > 0,
+    null,
+    { timeout: 30_000 }
+  );
+  let board = await page.$eval('#departures .departure', (element) => element.textContent);
+  assert.match(board, /caught by: any B38M/);
+
+  // Now narrow it, and the same aircraft stops counting for that rule.
+  await page.fill('#watchList .tail-form input', 'C-OTHER');
+  await page.$eval('#watchList .tail-form button[type="submit"]', (element) => element.click());
+  await page.waitForTimeout(200);
+  watchlist = await page.$eval('#watchList', (element) => element.textContent);
+  assert.match(watchlist, /1 tail number/);
+  assert.match(watchlist, /C-OTHER/);
+
+  await context.close();
+});
+
+test('narrowing to a tail number is UNDONE by removing it, back to the whole type', async () => {
+  const { context, page } = await openPage([
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 5000, lat: 43.19, lon: -79.93 }],
+  ]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  await page.$$eval('#typeList .typerow', (items) => {
+    items.find((item) => /Boeing 737 MAX 8/.test(item.textContent)).querySelector('.type-toggle').click();
+  });
+  await page.fill('#watchList .tail-form input', 'C-GXXX');
+  await page.$eval('#watchList .tail-form button[type="submit"]', (element) => element.click());
+  await page.waitForTimeout(200);
+  assert.match(await page.$eval('#watchList', (element) => element.textContent), /1 tail number/);
+
+  await page.$eval('#watchList .tail-remove', (element) => element.click());
+  await page.waitForTimeout(200);
+  const after = await page.$eval('#watchList', (element) => element.textContent);
+  assert.match(after, /every one of them/, 'removing the last tail did not widen the rule again');
+  assert.equal(/tail number/.test(after), false);
+
+  await context.close();
+});
