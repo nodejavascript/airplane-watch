@@ -35,7 +35,30 @@ const ROOT = resolve(fileURLToPath(new URL('../site', import.meta.url)));
 const PORT = Number(process.env.PORT || 4340);
 const UPSTREAM = 'https://api.adsb.lol';
 /** The feed is run on donations. A dozen visitors polling at once is enough. */
-const CACHE_SECONDS = 5;
+/**
+ * 🔴 ONE REQUEST TO THE FEED PER WINDOW, NO MATTER HOW MANY TABS.
+ *
+ * Measured 20 Sep 2026, against the live feed with a named user agent: ten requests
+ * three seconds apart, ten one second apart, and eight two seconds apart were ALL
+ * refused with 429 from the third or fourth request onward. The allowance is small
+ * and the recovery is slow, so the page must stop treating the feed as free.
+ *
+ * This cache is the structural half of that. The page may ask every twenty seconds
+ * and a reader may have three tabs open, and every one of those asks arrives here —
+ * but only ONE of them reaches the feed per window. In local development there is no
+ * CDN in front of this server, so without it each tab is its own request.
+ */
+const FEED_CACHE_MS = 25_000;
+/** How long a last-good answer may still be served once the feed starts refusing. */
+const FEED_STALE_MS = 15 * 60 * 1000;
+/** Bounded, because the key is a latitude and a radius and a reader can roam. */
+const FEED_CACHE_MAX = 24;
+const feedCache = new Map();
+
+function rememberFeed(target, entry) {
+  feedCache.set(target, entry);
+  while (feedCache.size > FEED_CACHE_MAX) feedCache.delete(feedCache.keys().next().value);
+}
 
 /**
  * 🔴 THE FEED'S OWN PATHS ARE INCONSISTENT, AND THAT IS NOT OURS TO FIX.
@@ -351,17 +374,69 @@ async function serveApi(request, response) {
   }
 
   const target = UPSTREAM + upstreamPath(request.url);
+  const now = Date.now();
+  const cached = feedCache.get(target);
+
+  if (cached && now - cached.at < FEED_CACHE_MS) {
+    response.writeHead(200, {
+      'content-type': cached.type,
+      'access-control-allow-origin': '*',
+      // Not cached by the browser on purpose: the page polls this, and a browser
+      // holding its own copy makes the page's idea of "when was this read" wrong.
+      'cache-control': 'no-store',
+      'x-feed-cache': 'fresh',
+      'x-feed-age-ms': String(now - cached.at),
+    });
+    response.end(cached.body);
+    return;
+  }
+
   try {
     const upstream = await fetch(target, {
       headers: { accept: 'application/json', 'user-agent': USER_AGENT },
       signal: AbortSignal.timeout(12_000),
     });
     const text = await upstream.text();
+
+    if (upstream.ok) {
+      const type = upstream.headers.get('content-type') || 'application/json; charset=utf-8';
+      rememberFeed(target, { at: now, body: text, type });
+      response.writeHead(200, {
+        'content-type': type,
+        // The header the feed does not send, and the only reason this proxy exists.
+        'access-control-allow-origin': '*',
+        'cache-control': 'no-store',
+        'x-feed-cache': 'miss',
+        'x-feed-age-ms': '0',
+      });
+      response.end(text);
+      return;
+    }
+
+    // 🔴 REFUSED — SO SERVE THE LAST THING WE HEARD, AND SAY HOW OLD IT IS. George,
+    // 20 Sep 2026, was shown the 429 message over a table that had data in it, which
+    // is the worst of both: the page told him it had failed and then showed him a
+    // reading with no indication it was old. The upstream status travels in
+    // `x-feed-status` instead, so the page keeps its data, can still back off, and
+    // can date what it is showing.
+    if (cached && now - cached.at < FEED_STALE_MS) {
+      response.writeHead(200, {
+        'content-type': cached.type,
+        'access-control-allow-origin': '*',
+        'cache-control': 'no-store',
+        'x-feed-cache': 'stale',
+        'x-feed-age-ms': String(now - cached.at),
+        'x-feed-status': String(upstream.status),
+      });
+      response.end(cached.body);
+      return;
+    }
+
     response.writeHead(upstream.status, {
       'content-type': upstream.headers.get('content-type') || 'application/json; charset=utf-8',
-      // The header the feed does not send, and the only reason this proxy exists.
       'access-control-allow-origin': '*',
-      'cache-control': `public, max-age=${CACHE_SECONDS}`,
+      'cache-control': 'no-store',
+      'x-feed-status': String(upstream.status),
     });
     response.end(text);
   } catch (error) {

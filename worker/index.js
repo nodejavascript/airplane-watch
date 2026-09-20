@@ -29,7 +29,28 @@
  */
 
 const UPSTREAM = 'https://api.adsb.lol';
-const CACHE_SECONDS = 5;
+const CACHE_SECONDS = 25;
+
+/**
+ * 🔴 ONE REQUEST TO THE FEED PER WINDOW, PER ISOLATE.
+ *
+ * Measured 20 Sep 2026 against the live feed, with a named user agent: ten requests
+ * three seconds apart, ten one second apart, and eight two seconds apart were ALL
+ * refused with 429 from the third or fourth request onward. The `cache-control`
+ * header below is what shares an answer between readers across the Cloudflare cache —
+ * that is the real fix at the edge — and this map covers the case where the Worker is
+ * invoked anyway. It is per isolate, so it is best-effort by nature, and the header
+ * is not.
+ */
+const FEED_CACHE_MS = 25_000;
+const FEED_STALE_MS = 15 * 60 * 1000;
+const FEED_CACHE_MAX = 24;
+const feedCache = new Map();
+
+function rememberFeed(target, entry) {
+  feedCache.set(target, entry);
+  while (feedCache.size > FEED_CACHE_MAX) feedCache.delete(feedCache.keys().next().value);
+}
 
 /** The postal-code lookup. Free, no key, and it sends `access-control-allow-origin: *`. */
 const GEO = 'https://api.zippopotam.us';
@@ -265,6 +286,23 @@ export default {
     }
 
     const target = UPSTREAM + upstreamPath(url);
+    const now = Date.now();
+    const cached = feedCache.get(target);
+
+    if (cached && now - cached.at < FEED_CACHE_MS) {
+      return new Response(cached.body, {
+        status: 200,
+        headers: {
+          'content-type': cached.type,
+          'cache-control': `public, max-age=${CACHE_SECONDS}`,
+          'cdn-cache-control': `max-age=${CACHE_SECONDS}`,
+          'x-proxied-from': 'adsb.lol',
+          'x-feed-cache': 'fresh',
+          'x-feed-age-ms': String(now - cached.at),
+        },
+      });
+    }
+
     let upstream;
     try {
       upstream = await fetch(target, {
@@ -280,18 +318,52 @@ export default {
     }
 
     const text = await upstream.text();
+    const type = upstream.headers.get('content-type') || 'application/json; charset=utf-8';
+
+    if (upstream.ok) {
+      rememberFeed(target, { at: now, body: text, type });
+      // Pass 200 through with the reading, so the page can say when it was taken.
+      return new Response(text, {
+        status: 200,
+        headers: {
+          'content-type': type,
+          // A shared cache in front of a dozen readers polling every twenty seconds is
+          // the whole reason a volunteer-funded feed stays usable.
+          'cache-control': `public, max-age=${CACHE_SECONDS}`,
+          'cdn-cache-control': `max-age=${CACHE_SECONDS}`,
+          'x-proxied-from': 'adsb.lol',
+          'x-feed-cache': 'miss',
+          'x-feed-age-ms': '0',
+        },
+      });
+    }
+
+    // 🔴 REFUSED — SO SERVE THE LAST THING WE HEARD, AND SAY HOW OLD IT IS. The
+    // upstream status travels in `x-feed-status` instead of as the status, so the
+    // page keeps its data, can still back off, and can date what it is showing.
+    if (cached && now - cached.at < FEED_STALE_MS) {
+      return new Response(cached.body, {
+        status: 200,
+        headers: {
+          'content-type': cached.type,
+          'cache-control': 'no-store',
+          'x-proxied-from': 'adsb.lol',
+          'x-feed-cache': 'stale',
+          'x-feed-age-ms': String(now - cached.at),
+          'x-feed-status': String(upstream.status),
+        },
+      });
+    }
 
     // Pass the feed's own status through unchanged, so the page can say what
     // actually happened rather than what this proxy guessed.
     return new Response(text, {
       status: upstream.status,
       headers: {
-        'content-type': upstream.headers.get('content-type') || 'application/json; charset=utf-8',
-        // A shared cache in front of a dozen readers polling every ten seconds is
-        // the whole reason a volunteer-funded feed stays usable.
-        'cache-control': `public, max-age=${CACHE_SECONDS}`,
-        'cdn-cache-control': `max-age=${CACHE_SECONDS}`,
+        'content-type': type,
+        'cache-control': 'no-store',
         'x-proxied-from': 'adsb.lol',
+        'x-feed-status': String(upstream.status),
       },
     });
   },

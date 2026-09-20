@@ -43,7 +43,34 @@ const AIRPORT_KEY = 'aircraft_airport';
  */
 const CENTRE_KEY = 'aircraft_centre';
 const RADIUS_KEY = 'aircraft_radius';
-const POLL_MS = 10_000;
+/**
+ * 🔴 THE PAGE ASKS A VOLUNTEER FEED, SO IT ASKS AS LITTLE AS IT CAN.
+ *
+ * George was shown this on 20 Sep 2026:
+ *
+ *   "The feed asked us to slow down (HTTP 429). It is volunteer-funded and answers
+ *    a limited number of requests per minute, and this page asks again every ten
+ *    seconds."
+ *
+ * That sentence was honest and the behaviour behind it was not. Measured against
+ * api.adsb.lol the same day, with a named user agent: **ten requests three seconds
+ * apart, ten one second apart, and eight two seconds apart were refused with 429
+ * from the third or fourth request on** — so ten seconds was far too fast, and a
+ * page that keeps asking is a page that keeps itself refused.
+ *
+ * So the cadence is ADAPTIVE now, and it starts slower than it used to:
+ *
+ *   · it begins at 20 seconds, not 10;
+ *   · a success buys back speed, but never below 15;
+ *   · a 429 doubles it, up to three minutes, and it recovers on its own;
+ *   · and it STOPS ENTIRELY while the tab is in the background.
+ *
+ * That last one matters most: a tab nobody is looking at was spending the whole
+ * allowance, and the reader who came back to it found a rate limit.
+ */
+const POLL_START_MS = 20_000;
+const POLL_MIN_MS = 15_000;
+const POLL_MAX_MS = 180_000;
 /**
  * 🔴 KILOMETRES, NOT NAUTICAL MILES. George, 20 Sep 2026: *"nobody understand
  * nm"*. The feed takes nautical miles and says so in its own endpoint summary
@@ -227,6 +254,17 @@ class Page {
     isChosen(icao) {
         return this.airports.some((one) => one.icao === icao);
     }
+    /**
+     * An airport the page already holds, from the map's own list or the one beside it.
+     * Nothing here costs a request to the feed.
+     */
+    findListed(icao) {
+        const code = icao.toUpperCase();
+        const near = this.nearby.find((row) => row.airport.icao === code)?.airport;
+        if (near)
+            return near;
+        return (this.listedAirports?.airports ?? []).find((one) => one.icao === code) ?? null;
+    }
     chosenIcaos() {
         return this.airports.map((one) => one.icao);
     }
@@ -253,6 +291,12 @@ class Page {
     typeRules = [];
     board = [];
     timer = null;
+    /** How long until the next look at the feed. Moves — see the note on POLL_START_MS. */
+    pollMs = POLL_START_MS;
+    /** True while airports are being restored, when the fence is re-aimed only once. */
+    restoring = false;
+    /** A pending immediate poll, so three re-aims in one moment are one request. */
+    pollSoon = null;
     radiusKm = 20;
     lastPollAt = 0;
     lastError = '';
@@ -330,6 +374,7 @@ class Page {
         this.bindStepToggles();
         this.bindStartOver();
         this.bindLocate();
+        this.bindVisibility();
         // 🔴 A COMMA-SEPARATED LIST, BECAUSE SEVERAL CAN BE PICKED NOW. A value written
         // before this change is a single identifier, which splits to a list of one — so
         // a session saved by the older page comes back rather than being discarded.
@@ -524,8 +569,8 @@ class Page {
     feedTrouble(response) {
         if (response.status === 429) {
             return ('The feed asked us to slow down (HTTP 429). It is volunteer-funded and answers a limited number of ' +
-                'requests per minute, and this page asks again every ten seconds. Nothing is wrong with the site — ' +
-                'the table below is holding the last reading it managed to get.');
+                'requests, and this page had been asking every ten seconds. It has slowed itself down to give the feed ' +
+                'room, and it will speed back up on its own — the table below keeps the last reading it managed to get.');
         }
         if (response.status >= 500) {
             return (`The feed's own server is having trouble (HTTP ${response.status}). That is at their end, not yours and ` +
@@ -557,11 +602,12 @@ class Page {
             track('airport_unpicked', { airport: icao, count: this.airports.length });
             return;
         }
-        // 🔴 AN AIRPORT FROM THE LIST BESIDE THE MAP COSTS NO REQUEST AT ALL. That list
-        // came from the feed's own airport file, so its position is already on the page;
-        // asking the feed again for something we are holding would be a wasted request
-        // against a service that rate-limits.
-        const listed = this.nearby.find((row) => row.airport.icao === icao)?.airport;
+        // 🔴 AN AIRPORT WE ALREADY HOLD IS NEVER ASKED FOR AGAIN. The page carries 76
+        // airports and their positions from the feed's own airport file, so a saved or
+        // pressed airport can be resolved from memory — and it used to ask the feed once
+        // per airport on every visit, which is most of the burst that got the page
+        // rate-limited on 20 Sep 2026.
+        const listed = this.findListed(icao);
         let resolved;
         if (listed) {
             resolved = {
@@ -621,6 +667,12 @@ class Page {
      * place is dropped rather than listed as if it were real.
      */
     async loadChosenAirports(list) {
+        // 🔴 ONE RE-AIM FOR THE WHOLE RESTORE, NOT ONE PER AIRPORT. Every change to the
+        // set re-aims the fence, and re-aiming polls immediately — so restoring eight
+        // airports asked the feed eight times in a couple of seconds on every visit,
+        // before the page had drawn anything. That burst is exactly the shape a rate
+        // limiter is built to refuse, and it happened on every single load.
+        this.restoring = true;
         // Capped, because this is one feed request each and the feed rate-limits. A
         // stored list never grows past this, so the cap is a guard rather than a limit
         // anybody will meet.
@@ -628,6 +680,8 @@ class Page {
             if (!this.isChosen(icao))
                 await this.toggleAirport(icao);
         }
+        this.restoring = false;
+        this.afterAirportChange();
         this.updateSteps();
     }
     /**
@@ -643,6 +697,9 @@ class Page {
         // Redraws the chips AND the map — `renderNearby` draws the map too — so the
         // stars and the map agree with the list in the same frame.
         this.renderNearby();
+        // A restore re-aims once, at the end — see loadChosenAirports().
+        if (this.restoring)
+            return;
         this.rearm();
         this.updateSteps();
     }
@@ -704,6 +761,59 @@ class Page {
             this.timer = null;
         }
     }
+    /** Restart the clock on the CURRENT cadence, which moves as the feed answers. */
+    startTimer() {
+        this.stop();
+        this.timer = window.setInterval(() => void this.poll(), this.pollMs);
+    }
+    /**
+     * 🔴 ONE IMMEDIATE LOOK, EVEN WHEN THREE THINGS CHANGE IN THE SAME MOMENT.
+     *
+     * A page load re-aims the fence three times over — the restored airports, the
+     * place worked out from the postal code, and the distance the reader presses — and
+     * every re-aim called `poll()` straight away. Measured on 20 Sep 2026 by counting
+     * the requests the page made: **three feed requests inside one second on every
+     * single load**, before the page had drawn anything. That burst is exactly the
+     * shape a rate limiter exists to refuse, and it happened on every visit.
+     *
+     * So an immediate look is now COALESCED: the first re-aim schedules it, the next
+     * two replace the pending one, and the feed sees a single request.
+     */
+    schedulePoll() {
+        if (this.pollSoon !== null)
+            window.clearTimeout(this.pollSoon);
+        this.pollSoon = window.setTimeout(() => {
+            this.pollSoon = null;
+            void this.poll();
+        }, 150);
+    }
+    /**
+     * 🔴 A TAB NOBODY IS LOOKING AT MUST NOT SPEND THE ALLOWANCE. The page asked the
+     * feed every ten seconds whether or not anyone could see it, so a tab left open
+     * behind another window could hold the whole budget down for the tab that was
+     * actually being read. Hidden means stopped; coming back polls once and carries on.
+     */
+    bindVisibility() {
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.stop();
+                return;
+            }
+            if (this.engine) {
+                void this.poll();
+                this.startTimer();
+            }
+        });
+    }
+    /**
+     * Say the cadence out loud once it has slowed, so a reader who wonders why the
+     * numbers are moving slowly is told rather than guessing.
+     */
+    cadenceNote() {
+        return this.pollMs > POLL_START_MS
+            ? ` · the feed asked us to slow down, so the next look is in ${Math.round(this.pollMs / 1000)}s`
+            : '';
+    }
     /* -------------------------------------------------------------- the polls */
     async poll() {
         const at = this.point();
@@ -727,6 +837,14 @@ class Page {
             const trouble = this.feedTrouble(response);
             if (trouble) {
                 this.lastError = `the feed answered ${response.status}`;
+                // 🔴 BEING REFUSED IS A REASON TO ASK LESS OFTEN, NOT TO KEEP ASKING. Ten
+                // seconds was too fast even before a limit was hit; doubling on the refusal
+                // and creeping back on every success is what lets the page recover by
+                // itself instead of sitting in a rate limit until somebody reloads.
+                if (response.status === 429) {
+                    this.pollMs = Math.min(POLL_MAX_MS, Math.max(POLL_START_MS, this.pollMs * 2));
+                    this.startTimer();
+                }
                 this.setStatus(trouble, 'error');
                 return;
             }
@@ -753,6 +871,23 @@ class Page {
             if (this.liveTypes.size !== before)
                 this.renderTypeList();
             const departures = this.engine.ingest(readings, Date.now());
+            // 🔴 A SUCCESS BUYS BACK SPEED, SLOWLY AND WITH A FLOOR. Creeping straight
+            // back to the fastest cadence would put the page into a sawtooth against the
+            // limit — refused, back off, allowed, refused — and the floor is what stops it.
+            if (this.pollMs > POLL_MIN_MS) {
+                this.pollMs = Math.max(POLL_MIN_MS, this.pollMs - 5_000);
+                this.startTimer();
+            }
+            // 🔴 A READING THE PROXY HAD TO CACHE IS STILL A READING, AND IT IS DATED.
+            // The proxy serves the last good answer when the feed refuses, and says how
+            // old it is, so the page can be honest rather than either showing an error
+            // over data it has, or showing that data as though it were live.
+            const feedStatus = response.headers.get('x-feed-status');
+            const feedAge = Number(response.headers.get('x-feed-age-ms') ?? '0');
+            if (feedStatus === '429') {
+                this.pollMs = Math.min(POLL_MAX_MS, Math.max(POLL_START_MS, this.pollMs * 2));
+                this.startTimer();
+            }
             this.polls += 1;
             this.lastPollAt = Date.now();
             this.lastError = '';
@@ -763,7 +898,10 @@ class Page {
             // Plain words. George, 20 Sep 2026: *"i dont like ... 2 aircraft in the fence
             // · poll 3 · last 01:15:00 PM"* — "poll" is how it works, not what the reader
             // asked, and the count is what they came for.
-            this.setStatus(`${readings.length} aircraft around you · updated ${formatClock(this.lastPollAt)}`, 'ok');
+            const age = feedStatus === '429' && feedAge > 0 ? Math.round(feedAge / 1000) : 0;
+            this.setStatus(`${readings.length} aircraft around you · updated ${formatClock(this.lastPollAt)}` +
+                (age > 0 ? ` · the feed is refusing requests, so this is the reading from ${age}s ago` : '') +
+                this.cadenceNote(), 'ok');
         }
         catch (error) {
             // The page keeps the last good picture and says what went wrong, rather
@@ -1098,8 +1236,8 @@ class Page {
         }, this.watchlist);
         this.engine.setTypeRules(this.typeRules);
         this.stop();
-        void this.poll();
-        this.timer = window.setInterval(() => void this.poll(), POLL_MS);
+        this.schedulePoll();
+        this.startTimer();
     }
     /**
      * 🔴 ONE STEP AT A TIME. George, 20 Sep 2026: *"i dont want other steps to be
