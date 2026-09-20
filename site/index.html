@@ -180,17 +180,15 @@
       <section class="card step-gated" id="step-1" data-step="1">
         <h2><span class="step">1</span> Where you are, and how far out</h2>
         <div id="placeAsk">
-          <p class="sub" id="placeSub">Where you are, named one of three ways — a place, a postal code, or your browser's own position. Everything below follows from it, and the map is fitted so your gap fits whole.</p>
+          <p class="sub" id="placeSub">Where you are — search for a place by name, or let the browser find you. Everything below follows from it, and the map is fitted so your gap fits whole. A place name or a position is sent to this site's own server to be looked up, and is not stored.</p>
 
           <!--
-            🔴 THE PLACE SEARCH LEADS, BECAUSE IT IS THE ONE THAT ALWAYS WORKS. George, 20 Sep
-            2026: *"i want to search for location by name, similiar to what inputresponse.com
-            does"* — type a name, get a short list, pick one, and the choice is explicit. The
-            postal code only works where postal codes are known and the browser's position waits
-            behind a permission prompt; a name needs neither.
-
-            It searches on submit rather than on every keystroke, which is a limit of the free
-            service behind it rather than a design choice — see the note in tools/serve.mjs.
+            🔴 THERE WAS A THIRD DOOR HERE AND GEORGE TOOK IT OUT. George, 20 Sep 2026, pasting
+            the whole block back: *"i dont want any of this anymore"* — the postal code field, its
+            button, the note explaining that a Canadian code is looked up on three characters, and
+            the paragraph under the position button that explained why a coordinate cannot name a
+            community and pointed at the postal code as the way to get one. Two ways in is the
+            offer now: a place name, which always works, and the browser's own position.
           -->
           <form id="placeSearchForm" class="watch-form" autocomplete="off">
             <label class="field">
@@ -202,19 +200,6 @@
           </form>
           <div class="chips" id="placeResults" role="group" aria-label="Places matching what you typed" hidden></div>
           <p class="small muted" id="placeSearchNote"></p>
-
-          <form id="postalForm" class="watch-form" autocomplete="off">
-            <label class="field">
-              <span class="label">Or a postal code / ZIP</span>
-              <input id="postalInput" name="postal" type="text" placeholder="[redacted], or a ZIP such as 14201" spellcheck="false" inputmode="text" />
-            </label>
-            <button class="ghost" type="submit" data-ga="postal">Use this code</button>
-          </form>
-          <p class="small muted" id="postalNote">
-            A Canadian code is looked up on its first three characters, because that is how postal areas are actually
-            defined — <span class="mono">L8E</span> is enough. A postal code is also the only one of the three that can
-            offer the communities inside it.
-          </p>
           <p class="small muted" id="locateNote"></p>
         </div>
         <!--
@@ -229,7 +214,7 @@
           <b class="place-value" id="placeName"></b>
           <button type="button" class="linkish" id="changePlace" data-ga="change-place">change location</button>
         </p>
-        <div class="chips" id="areaPicker" role="group" aria-label="Which community in this postal area" hidden></div>
+        <div class="chips" id="areaPicker" role="group" aria-label="Which community in this area" hidden></div>
 
         <h3 class="subhead" id="nearbyHead">Airports around you</h3>
         <div class="chips" id="nearbyList" role="group" aria-label="Airports near you"></div>

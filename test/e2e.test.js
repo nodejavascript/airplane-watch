@@ -914,55 +914,89 @@ test('refusing the position request leaves a usable page', async () => {
 
   // And the page still works. The manual airport picker was removed on
   // 20 Sep 2026, so the path to an airport is the code or the position — and
-  // after a refusal the form must still be there and still usable.
-  assert.equal(await page.$eval('#postalInput', (element) => element.disabled), false,
-    'the postal code field is unusable after a position refusal');
+  // after a refusal the place search must still be there and still usable.
+  assert.equal(await page.$eval('#placeSearchInput', (element) => element.disabled), false,
+    'the place search is unusable after a position refusal');
+  assert.ok(await page.$$eval('#typeList .typerow', (items) => items.length) > 0);
 
   await context.close();
 });
 
 /* ============================================ 20 Sep 2026, second pass ======= */
 
-/** The postal answer, in the shape our own proxy normalises it into. */
-function postalStub(route) {
-  const asked = new URL(route.request().url()).pathname.split('/').pop() ?? '';
-  const clean = decodeURIComponent(asked).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (clean === 'L8E' || clean === '[redacted]') {
+/**
+ * The place search's answer, in the shape our own proxy normalises it into.
+ *
+ * 🔴 The reader picks one of these; nothing is applied until they do. The first row is a real
+ * community inside Hamilton, so the label has something to say beyond the town.
+ */
+function placeStub(route) {
+  const asked = new URL(route.request().url()).searchParams.get('q') ?? '';
+  if (asked.trim().length < 2) {
     return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        ok: true, lookedUp: 'L8E', country: 'Canada', region: 'Ontario',
-        place: 'Hamilton (Riverdale)', lat: 43.2318, lon: -79.7696,
-      }),
+      status: 400, contentType: 'application/json',
+      body: JSON.stringify({ ok: false, error: 'Type at least two characters of a place name.' }),
     });
   }
   return route.fulfill({
-    status: 400,
+    status: 200,
     contentType: 'application/json',
-    body: JSON.stringify({ ok: false, error: 'That is not a Canadian postal code or a five-digit ZIP code.' }),
+    body: JSON.stringify({
+      ok: true,
+      places: [
+        { label: 'Stoney Creek, Hamilton, Ontario, Canada', name: 'Hamilton', area: 'Stoney Creek', region: 'Ontario', lat: 43.2318, lon: -79.7696 },
+        { label: 'Hamilton, Ontario, Canada', name: 'Hamilton', area: 'Hamilton', region: 'Ontario', lat: 43.2557, lon: -79.8711 },
+      ],
+    }),
   });
 }
 
-test('a postal code orders the airports by distance, without asking the browser for anything', async () => {
+/** Search for a place and pick the first row. The one way in the page has left. */
+async function pickPlace(page, query = 'Stoney Creek Ontario') {
+  await page.fill('#placeSearchInput', query);
+  await page.$eval('#placeSearchForm button[type="submit"]', (element) => element.click());
+  await page.waitForSelector('#placeResults .place-result');
+  await page.$eval('#placeResults .place-result', (element) => element.click());
+  await page.waitForTimeout(300);
+}
+
+test('a place searched by name orders the airports by distance, without asking the browser', async () => {
   const { context, page } = await openPage([[[]]]);
-  await page.route('**/api/geo/postal/**', postalStub);
+  await page.route('**/api/geo/search**', placeStub);
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
   await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
-  await page.waitForSelector('#nearbyList');
 
-  await page.fill('#postalInput', '[redacted]');
-  await page.$eval('#postalForm button[type="submit"]', (element) => element.click());
-  await page.waitForTimeout(500);
+  // 🔴 Nothing is applied until a row is pressed. The results are a question, not an answer.
+  // Measured as "the place did not move", not as "the list is empty" — the step-one answer
+  // already leaves the panel in some state, and asserting emptiness would be testing the
+  // fixture rather than the promise.
+  const signature = async () =>
+    JSON.stringify([
+      await page.$eval('#nearbyHead', (element) => element.textContent),
+      await page.$$eval('#nearbyList .near-chip', (items) => items.map((i) => i.textContent)),
+    ]);
+  const beforeSearch = await signature();
+
+  await page.fill('#placeSearchInput', 'Stoney Creek Ontario');
+  await page.$eval('#placeSearchForm button[type="submit"]', (element) => element.click());
+  await page.waitForSelector('#placeResults .place-result');
+  await page.waitForTimeout(400);
+  assert.equal(await signature(), beforeSearch,
+    'the search moved the reader before the reader picked anything from it');
+
+  await page.$eval('#placeResults .place-result', (element) => element.click());
+  await page.waitForTimeout(400);
+  assert.notEqual(await signature(), beforeSearch,
+    'picking a place from the results changed nothing on the page');
 
   const chips = await page.$$eval('#nearbyList .near-chip', (items) =>
     items.map((item) => item.textContent.replace(/\s+/g, ' ').trim())
   );
-  assert.ok(chips.length > 3, `a postal code produced no nearby airports: ${chips.join(' | ')}`);
-  assert.match(chips[0], /CYHM/, `Hamilton should be nearest to a Hamilton postal code, got: ${chips[0]}`);
+  assert.ok(chips.length > 3, `a place name produced no nearby airports: ${chips.join(' | ')}`);
+  assert.match(chips[0], /CYHM/, `Hamilton should be nearest to Stoney Creek, got: ${chips[0]}`);
 
   // The distances must be ordered, which is the whole point of the panel.
   const kms = chips.map((text) => Number((text.match(/(\d+) km/) ?? [])[1]));
@@ -971,32 +1005,40 @@ test('a postal code orders the airports by distance, without asking the browser 
     assert.ok(kms[i] >= kms[i - 1], `the list is not in distance order: ${kms.join(', ')}`);
   }
 
-  const note = await page.$eval('#postalNote', (element) => element.textContent);
-  assert.match(note, /Hamilton/);
+  // The community the reader picked leads the heading, not the town it sits in.
+  const heading = await page.$eval('#nearbyHead', (element) => element.textContent);
+  assert.match(heading, /Stoney Creek/, `the community was dropped from the heading: ${heading}`);
 
   await context.close();
 });
 
-test('a postal code that is not one is refused with a sentence, and the page still works', async () => {
+test('a place that matches nothing is refused with a sentence, and the page still works', async () => {
   const { context, page } = await openPage([[[]]]);
-  await page.route('**/api/geo/postal/**', postalStub);
+  await page.route('**/api/geo/search**', (route) =>
+    route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ ok: true, places: [] }),
+    })
+  );
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
   await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
-  await page.fill('#postalInput', 'not a code');
-  await page.$eval('#postalForm button[type="submit"]', (element) => element.click());
+  await page.fill('#placeSearchInput', 'zzzzzzzz');
+  await page.$eval('#placeSearchForm button[type="submit"]', (element) => element.click());
   await page.waitForTimeout(400);
 
-  const note = await page.$eval('#postalNote', (element) => element.textContent);
-  assert.match(note, /not a Canadian postal code/i, `the refusal was not explained: ${note}`);
-  assert.equal(/undefined|NaN|\[object/.test(note), false, `the refusal message is broken: ${note}`);
+  const state = await page.$eval('#placeSearchNote', (element) => element.textContent);
+  assert.ok(state.length > 0, 'an empty result said nothing at all');
+  assert.equal(/undefined|NaN|\[object/.test(state), false, `the note is broken: ${state}`);
+  assert.equal(await page.$eval('#placeResults', (element) => element.hidden), true,
+    'the result list was opened with nothing in it');
 
   // Refusing a lookup must not take the rest of the page with it.
-  assert.equal(await page.$eval('#postalInput', (element) => element.disabled), false,
-    'the postal code field is unusable after a refused lookup');
+  assert.equal(await page.$eval('#placeSearchInput', (element) => element.disabled), false,
+    'the place search is unusable after an empty result');
   assert.ok(await page.$$eval('#typeList .typerow', (items) => items.length) > 0);
 
   await context.close();
@@ -1207,9 +1249,7 @@ test('the star says what the row actually watches', async () => {
 
 test('the map draws the reader, the circle and the airport codes', async () => {
   const { context, page } = await openPage([[[]]]);
-  await page.route('**/api/geo/postal/**', (r) =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, lookedUp: 'L8E', place: 'Hamilton', region: 'Ontario', lat: 43.2318, lon: -79.7696 }) })
-  );
+  await page.route('**/api/geo/search**', placeStub);
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
@@ -1218,8 +1258,7 @@ test('the map draws the reader, the circle and the airport codes', async () => {
 
   assert.equal(await page.$$eval('#locMap svg', (items) => items.length), 0, 'a map is drawn before the reader says where they are');
 
-  await page.fill('#postalInput', 'L8E');
-  await page.$eval('#postalForm button[type="submit"]', (element) => element.click());
+  await pickPlace(page);
   await page.waitForSelector('#locMap svg', { timeout: 10000 });
 
   assert.ok(await page.$$eval('#locMap .locmap-you', (items) => items.length) >= 1, 'the reader is not on the map');

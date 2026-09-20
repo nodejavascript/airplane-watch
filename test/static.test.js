@@ -590,23 +590,55 @@ test('every outbound request names itself, because the feed refuses Node default
   }
 });
 
-test('the postal lookup is proxied and normalised on BOTH sides, not called by the page', () => {
+test('the place search is proxied and normalised on BOTH sides, and the postal door is gone', () => {
   const serve = readSrc('tools/serve.mjs');
   const worker = readSrc('worker/index.js');
 
   for (const [name, source] of [['tools/serve.mjs', serve], ['worker/index.js', worker]]) {
-    assert.match(source, /geo\/postal/, `${name} has no postal route`);
-    assert.match(source, /zippopotam/i, `${name} does not say who answers the lookup`);
-    assert.match(source, /slice\(0, 3\)/, `${name} does not truncate a Canadian code to three characters`);
-    assert.match(source, /L8E/, `${name} does not record the measurement behind the truncation`);
+    assert.match(source, /geo\/search/, `${name} has no place-search route`);
+    assert.match(source, /nominatim/i, `${name} does not say who answers the search`);
     assert.match(source, /ok: true/, `${name} does not normalise the answer into our own shape`);
+    assert.match(source, /places/, `${name} does not return a list to choose from`);
   }
 
-  // The page must not call the lookup service directly: the visitor's typed code
-  // would then go straight to a third party from their own address.
+  // 🔴 THE POSTAL DOOR IS GONE FROM BOTH SIDES, NOT JUST FROM THE PAGE. George, 20 Sep 2026,
+  // pasting the paragraph back: *"i dont want any of this anymore"*. A route left in the
+  // proxy is a door still on offer even when nothing on the page points at it — and the
+  // Worker is the copy that answers in production.
+  for (const [name, source] of [['tools/serve.mjs', serve], ['worker/index.js', worker]]) {
+    assert.equal(/geo\/postal/.test(source), false, `${name} still serves the postal route`);
+    assert.equal(/zippopotam/i.test(source), false, `${name} still names the postal service`);
+  }
+
+  // The page must not call a lookup service directly: what the visitor types would then go
+  // straight to a third party from their own address.
   const app = readSrc('src/app.ts');
-  assert.equal(/zippopotam/i.test(app), false, 'the page calls the postal service directly instead of our proxy');
-  assert.match(app, /\/api\/geo\/postal\//, 'the page does not use the proxied route');
+  assert.equal(/zippopotam/i.test(app), false, 'the page calls a lookup service directly');
+  assert.equal(/geocod/i.test(app), false, 'the page calls the geocoder directly instead of our proxy');
+  assert.match(app, /\/api\/geo\/search\?q=/, 'the page does not use the proxied place-search route');
+});
+
+test('no postal door survives anywhere — not in the page, not in the tests, not in the worker', () => {
+  // The removal touched four files. A leftover in any one of them is a route, a field or a
+  // claim that contradicts the others — which is exactly the shape George kept having to
+  // report back to me.
+  const html = read(SITE, 'index.html');
+  assert.equal(/id="postal/i.test(html), false, 'the page still has a postal element');
+  assert.equal(/postalForm|postalInput|postalNote/.test(html), false, 'the page still names a postal field');
+
+  const app = readSrc('src/app.ts');
+  assert.equal(/bindPostal|postalTarget|postalForm|postalInput|postalNote/.test(app), false,
+    'the page still binds or reads a postal field');
+  assert.equal(/\/api\/geo\/postal\//.test(app), false, 'the page still asks the postal route');
+
+  const e2e = readSrc('test/e2e.test.js');
+  assert.equal(/postalInput|postalForm|postalNote|geo\/postal/.test(e2e), false,
+    'a test still drives a postal field that no longer exists');
+
+  // And the paragraph George pasted back is gone from the copy too, including the two claims
+  // that only made sense while the door was there.
+  assert.equal(/[redacted]/.test(html), false, 'the page still quotes a postal code at the reader');
+  assert.equal(/ZIP such as/i.test(html), false, 'the page still offers a ZIP code as a way in');
 });
 
 test('the type list is alphabetical by NAME, not by how often it was seen', () => {

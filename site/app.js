@@ -48,7 +48,7 @@ const AIRPORT_KEY = 'aircraft_airport';
  */
 const CENTRE_KEY = 'aircraft_centre';
 const RADIUS_KEY = 'aircraft_radius';
-/** The community the reader picked inside their postal area — see renderAreaPicker. */
+/** The community the reader picked inside this place — see renderAreaPicker. */
 const AREA_KEY = 'aircraft_place_area';
 /**
  * 🔴 THE PAGE ASKS A VOLUNTEER FEED, SO IT ASKS AS LITTLE AS IT CAN.
@@ -158,7 +158,7 @@ const SEEN_CHOICES = [
  */
 const SEEN_DEFAULT = 'all';
 /**
- * One place name, with the postal area's list of communities cut off.
+ * One place name, with the list of communities in brackets cut off.
  *
  * `"Hamilton (Confederation Park / … / North Stoney Creek)"` becomes `"Hamilton"`, and a
  * name without brackets is returned unchanged. George, 20 Sep 2026: *"Your location just
@@ -565,7 +565,7 @@ class Page {
      *
      * Three parts, because they are three different facts:
      *   placeLabel — what the reader is called, or 'your position'
-     *   placeTown  — the town the postal area belongs to
+     *   placeTown  — the town the place belongs to
      *   placeArea  — WHICH community inside that area, once the reader says so
      *
      * The postcode cannot tell us the third; it lists them. So the third is the reader's
@@ -1011,7 +1011,7 @@ class Page {
      * 🔴 ONE IMMEDIATE LOOK, EVEN WHEN THREE THINGS CHANGE IN THE SAME MOMENT.
      *
      * A page load re-aims the fence three times over — the restored airports, the
-     * place worked out from the postal code, and the distance the reader presses — and
+     * place worked out from what they searched for, and the distance they press — and
      * every re-aim called `poll()` straight away. Measured on 20 Sep 2026 by counting
      * the requests the page made: **three feed requests inside one second on every
      * single load**, before the page had drawn anything. That burst is exactly the
@@ -1750,11 +1750,11 @@ class Page {
         this.renderAreaPicker();
     }
     /**
-     * The communities this postal area covers — as chips, because there is exactly one of
+     * The community names this place carries — as chips, because there is exactly one of
      * them the reader is in and the page cannot work out which.
      *
      * Hidden for a browser position, where there is no postcode list to offer, and hidden
-     * when the postal service named only one place, because a picker with one option is not
+     * when the geocoder named only one place, because a picker with one option is not
      * a question.
      */
     renderAreaPicker() {
@@ -1762,7 +1762,7 @@ class Page {
         if (!host)
             return;
         // 🔴 ONE COMMUNITY IS ENOUGH TO BE WORTH OFFERING, WHEN IT IS A REAL CHOICE. This asked for
-        // two, which is right for a postal area — the service lists several and one of them is the
+        // two, which used to be right for a postal area — the service listed several, one of them the
         // town itself. But a place SEARCH names one community and a town, and with the guard at two
         // the row vanished: the reader got "Hamilton" and no way to say the "Stoney Creek" they had
         // just typed. So the test is not how many there are, it is whether there is anything to
@@ -1784,9 +1784,9 @@ class Page {
         for (const button of host.querySelectorAll('.area-chip')) {
             button.addEventListener('click', () => {
                 // 🔴 THE CHOICE DOES NOT MOVE THE FENCE. Naming the community is a better label
-                // for the same place, not a new place — the coordinates are the postal area's and
-                // they do not change. Re-aiming here would silently re-ask the feed for an answer
-                // nobody asked for.
+                // for the same place, not a new place — the coordinates are the ones the search
+                // returned and they do not change. Re-aiming here would silently re-ask the feed
+                // for an answer nobody asked for.
                 this.placeArea = button.dataset.area === this.placeArea ? '' : button.dataset.area ?? '';
                 writeStore(AREA_KEY, this.placeArea);
                 this.renderPlace();
@@ -3161,7 +3161,7 @@ class Page {
         this.placeTown = town;
         this.placeAreas = areas;
         // A community only counts while it belongs to the area being looked at, so a new
-        // postal code clears the old one rather than carrying a name from another town. And the name
+        // place clears the old one rather than carrying a name from another town. And the name
         // the reader just picked beats the one remembered from last time.
         const remembered = readStore(AREA_KEY, '');
         this.placeArea = areas.includes(preferredArea)
@@ -3180,55 +3180,6 @@ class Page {
         this.rearm();
         this.updateSteps();
         track('nearby_computed', { count: this.nearby.length });
-    }
-    /**
-     * A postal code, for anyone who would rather not hand their browser a position.
-     *
-     * 🔴 THIS EXISTS BECAUSE THE POSITION REQUEST IS A REAL ASK. A browser prompt is
-     * a thing people refuse, and a page that only works after a yes is a page that
-     * does not work. A postal code is typed, is not a location the browser knows,
-     * and is looked up by our own server so the lookup service never sees the
-     * visitor directly.
-     */
-    bindPostal() {
-        const form = byId('postalForm');
-        const input = byId('postalInput');
-        const note = byId('postalNote');
-        if (!form || !input)
-            return;
-        form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const value = input.value.trim();
-            if (!value)
-                return;
-            if (note)
-                note.textContent = `Looking up ${value.toUpperCase()}…`;
-            try {
-                const response = await fetch(`/api/geo/postal/${encodeURIComponent(value)}`, {
-                    headers: { accept: 'application/json' },
-                });
-                const body = (await readJson(response));
-                if (!body.ok || typeof body.lat !== 'number' || typeof body.lon !== 'number') {
-                    if (note)
-                        note.textContent = body.error ?? 'That code could not be looked up.';
-                    return;
-                }
-                this.computeNearby(body.lat, body.lon, `${body.town ?? body.place ?? ''}${body.region ? `, ${body.region}` : ''}`, body.town ?? body.place ?? '', Array.isArray(body.areas) ? body.areas : []);
-                if (note) {
-                    note.textContent =
-                        `${body.place}, ${body.region} — airports below are listed by distance from there. ${body.note ?? ''}`.trim();
-                }
-                track('postal_located', { count: this.nearby.length });
-            }
-            catch (error) {
-                if (note) {
-                    note.textContent =
-                        'The postal code could not be looked up. ' +
-                            (error instanceof Error ? error.message : '') +
-                            ' Pick an airport by name instead — nothing else on the page depends on this.';
-                }
-            }
-        });
     }
     /**
      * Search for a place by NAME, then let the reader pick from the matches.
@@ -3278,7 +3229,7 @@ class Page {
                 const places = (body.places ?? []).filter((place) => typeof place.lat === 'number' && typeof place.lon === 'number');
                 if (!body.ok || places.length === 0) {
                     if (note)
-                        note.textContent = body.error ?? `Nothing matched “${value}”. Try a town and its province, or the postal code.`;
+                        note.textContent = body.error ?? `Nothing matched “${value}”. Try a town and its province or state.`;
                     return;
                 }
                 results.hidden = false;
@@ -3293,7 +3244,7 @@ class Page {
                         if (!picked || typeof picked.lat !== 'number' || typeof picked.lon !== 'number')
                             return;
                         const town = picked.name ?? picked.label ?? 'that place';
-                        // The community is carried when the geocoder named one — the same field the postal
+                        // The community is carried when the geocoder named one — the same field the
                         // path puts in its chips — so the label can say "Stoney Creek" rather than the town
                         // it sits in. When it is empty the town leads, which is the same rule as everywhere
                         // else on this card.
@@ -3318,13 +3269,12 @@ class Page {
                     note.textContent =
                         'The place search could not be reached. ' +
                             (error instanceof Error ? error.message : '') +
-                            ' A postal code still works, and so does picking an airport by name.';
+                            ' Finding you by position still works.';
                 }
             }
         });
     }
     bindLocate() {
-        this.bindPostal();
         this.bindPlaceSearch();
         const button = byId('locateBtn');
         const note = byId('locateNote');
@@ -3365,7 +3315,7 @@ class Page {
      * the town they fall in. Two things follow from that and both are said on the page: the
      * coordinates leave the browser (to this server, not to a third party and never to the
      * feed), and the answer is a TOWN — the community inside it is not in the free map data,
-     * which is why the postal code is still the way to get the community chips.
+     * which is why the reader is offered the community the geocoder names, when it names one.
      *
      * If the naming fails the page prints the coordinates it was actually given, rather than
      * falling back to the empty phrase. A pair of numbers is a worse answer than a name and a
@@ -3381,12 +3331,15 @@ class Page {
             if (!body.ok || !body.town)
                 throw new Error(body.place ?? 'no name');
             this.computeNearby(lat, lon, body.town, body.town, Array.isArray(body.areas) ? body.areas : []);
+            // 🔴 ONE CLAUSE, AND GEORGE ASKED FOR IT THAT WAY. His words, 20 Sep 2026, pasting the
+            // paragraph back: *"i dont want any of this anymore"*. It had grown into three sentences —
+            // that a coordinate names the town it falls in, that a community name is not in the free
+            // map data, that the postal code is what carries one, and then a disclosure about what
+            // happens to the coordinates. The first three explained a limitation that no longer has
+            // anything to do with the reader (the postal route is gone), and the disclosure has moved
+            // to the top of the card, said once, where it covers every way in rather than one.
             if (note) {
-                note.textContent =
-                    `Ordered by distance from ${body.town}${body.region ? `, ${body.region}` : ''}. ` +
-                        (body.note ?? '') +
-                        ' Your coordinates are sent to this site’s own server to be named, and are not stored and not given ' +
-                        'to the feed — the feed is only ever told which airport you chose.';
+                note.textContent = `Ordered by distance from ${body.town}${body.region ? `, ${body.region}` : ''}.`;
             }
             track('locate_named', { named: true });
         }
@@ -3395,10 +3348,7 @@ class Page {
             // reader can see for themselves that the page is not pretending to know more.
             this.computeNearby(lat, lon, fallback);
             if (note) {
-                note.textContent =
-                    `Ordered by distance from ${fallback} — the position your browser gave, which could not be turned into ` +
-                        'a place name just now. Your coordinates are sent to this site’s own server to be named, and are not ' +
-                        'stored. Typing a postal code will name the area and offer the communities inside it.';
+                note.textContent = `Ordered by distance from ${fallback} — the position your browser gave.`;
             }
             track('locate_named', { named: false });
         }

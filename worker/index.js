@@ -52,9 +52,6 @@ function rememberFeed(target, entry) {
   while (feedCache.size > FEED_CACHE_MAX) feedCache.delete(feedCache.keys().next().value);
 }
 
-/** The postal-code lookup. Free, no key, and it sends `access-control-allow-origin: *`. */
-const GEO = 'https://api.zippopotam.us';
-
 /** 🔴 THE FREE MAP, ASKED FOR BY US AND NEVER BY THE VISITOR. See the note in
  * tools/serve.mjs — same decision, same reasons. A tile at a given z/x/y never
  * changes, so it is cached at the edge for a month, which is what the tile
@@ -112,20 +109,6 @@ async function servePhoto(raw) {
  * looks like the feed being down rather than like the request being turned away.
  */
 const USER_AGENT = 'aircraft-demo.nodejavascript.com';
-
-/**
- * 🔴 A CANADIAN POSTAL CODE RESOLVES ON ITS FIRST THREE CHARACTERS. Measured 20
- * Sep 2026: `/ca/L8E` → 200 with the right place, `/ca/[redacted]` → 404 with `{}`,
- * `/us/14201` → 200. So a reader who types the whole six characters gets the
- * right answer, and is never told they typed it wrong.
- */
-function postalTarget(raw) {
-  const clean = String(raw).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (/^[A-Z]\d[A-Z]\d[A-Z]\d$/.test(clean)) return { country: 'ca', code: clean.slice(0, 3) };
-  if (/^[A-Z]\d[A-Z]$/.test(clean)) return { country: 'ca', code: clean };
-  if (/^\d{5}$/.test(clean)) return { country: 'us', code: clean };
-  return null;
-}
 
 /**
  * A place, searched by NAME.
@@ -210,7 +193,7 @@ async function servePlaceSearch(raw) {
  * measured that ever named a real neighbourhood — see the longer note in tools/serve.mjs,
  * which carries the five measurements behind that choice.
  *
- * It answers the same shape as the postal lookup: `town` for the label, `areas` empty on
+ * It answers the same shape as the place search: `town` for the label, `areas` empty on
  * purpose, because a street named `district` must never arrive where a community is
  * expected.
  */
@@ -251,7 +234,7 @@ async function serveReverse(rawLat, rawLon) {
       lon,
       note:
         'A coordinate names the town it falls in. The community name inside a town is not in the free map data — ' +
-        'the postal code is what carries that, which is why typing one also offers the communities it covers.',
+        'searching for the community by name is what names it.',
     }),
     {
       status: 200,
@@ -260,69 +243,6 @@ async function serveReverse(rawLat, rawLon) {
         // A coordinate names the same town forever, so this one is worth keeping.
         'cache-control': 'public, max-age=86400',
         'x-proxied-from': 'photon.komoot.io',
-      },
-    }
-  );
-}
-
-/**
- * The postal answer is normalised rather than passed through, so the page never
- * depends on the field names of a service that is free and owes us nothing.
- */
-async function servePostal(raw) {
-  const target = postalTarget(raw);
-  if (!target) {
-    return json(400, {
-      ok: false,
-      error:
-        'That is not a Canadian postal code or a five-digit ZIP code. A Canadian one looks like [redacted] ' +
-        '(and the first three characters are enough), and an American one is five digits.',
-    });
-  }
-  let upstream;
-  try {
-    upstream = await fetch(`${GEO}/${target.country}/${target.code}`, {
-      headers: { accept: 'application/json', 'user-agent': USER_AGENT },
-      signal: AbortSignal.timeout(12_000),
-    });
-  } catch (error) {
-    // 503, never 502 — see the note at the top of this file.
-    return json(503, { ok: false, error: `The postal code lookup could not be reached. ${error.message}` });
-  }
-  if (upstream.status === 404) return json(404, { ok: false, error: `Nothing is listed for ${target.code}.` });
-  if (!upstream.ok) return json(503, { ok: false, error: `The postal code lookup answered ${upstream.status}.` });
-
-  const body = await upstream.json().catch(() => null);
-  const place = body && Array.isArray(body.places) ? body.places[0] : null;
-  if (!place) return json(404, { ok: false, error: `Nothing is listed for ${target.code}.` });
-
-  return new Response(
-    JSON.stringify({
-      ok: true,
-      lookedUp: target.code,
-      country: body.country,
-      region: place.state,
-      place: String(place['place name'] ?? '').replace(/\s*\([^)]*\)\s*$/, '').trim(),
-      // 🔴 The Worker has to answer the same shape as tools/serve.mjs, or production and
-      // development disagree about what the page receives — the same contract kept in two
-      // places on purpose, and the one place a divergence shows up silently.
-      town: String(place['place name'] ?? '').replace(/\s*\([^)]*\)\s*$/, '').trim(),
-      areas: (/\((.*)\)\s*$/.exec(String(place['place name'] ?? ''))?.[1] ?? '')
-        .split('/')
-        .map((part) => part.trim())
-        .filter((part) => part !== ''),
-      lat: Number(place.latitude),
-      lon: Number(place.longitude),
-      note:
-        'A postal code covers a whole delivery area, so this is the centre of an area and not a street address. ' +
-        'Airports are then listed by distance from it.',
-    }),
-    {
-      status: 200,
-      headers: {
-        'content-type': 'application/json; charset=utf-8',
-        'cache-control': 'public, max-age=86400',
-        'x-proxied-from': 'zippopotam.us',
       },
     }
   );
@@ -408,7 +328,7 @@ export default {
       return json(405, { ok: false, error: 'Only GET is proxied.' });
     }
 
-    // The postal lookup is a different upstream with a different answer shape,
+    // The photo lookup is a different upstream with a different answer shape,
     // so it is handled before the path allow-list — which would otherwise refuse
     // it, correctly, because it is not a feed path.
     if (path.startsWith('/photo')) {
@@ -419,9 +339,6 @@ export default {
       return serveTile(path);
     }
 
-    if (path.startsWith('/geo/postal/')) {
-      return servePostal(decodeURIComponent(path.slice('/geo/postal/'.length)));
-    }
     if (path.startsWith('/geo/reverse')) {
       return serveReverse(url.searchParams.get('lat'), url.searchParams.get('lon'));
     }

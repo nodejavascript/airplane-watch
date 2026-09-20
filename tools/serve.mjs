@@ -73,8 +73,6 @@ function rememberFeed(target, entry) {
  * working perfectly while the airport lookup answers `{"detail":"Not Found"}`,
  * which is exactly what this file did until the curl below in the README was run.
  */
-/** The postal-code lookup. Free, no key, and it sends `access-control-allow-origin: *`. */
-const GEO = 'https://api.zippopotam.us';
 
 /**
  * 🔴 EVERY REQUEST TO THE FEED MUST NAME ITSELF — measured 20 Sep 2026, five ways
@@ -435,108 +433,6 @@ async function serveStatic(request, response) {
 }
 
 /**
- * 🔴 A CANADIAN POSTAL CODE RESOLVES ON ITS FIRST THREE CHARACTERS, AND THAT IS
- * THE SERVICE'S RULE, NOT A SHORTCUT WE TOOK. Measured 20 Sep 2026:
- *
- *   /ca/L8E     → 200, "Hamilton (Confederation Park / Nashdale / East Kentley /
- *                 Riverdale / Lakely / Grayside / North Stoney Creek)", 43.2318, -79.7696
- *   /ca/[redacted]  → 404, {}
- *   /us/14201   → 200, Buffalo, 42.8967, -78.8846
- *
- * So a reader who types the whole six characters gets the right place, and is
- * never told they typed it wrong — the truncation happens here, where the reason
- * for it can be written down.
- */
-function postalTarget(raw) {
-  const clean = String(raw).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (/^[A-Z]\d[A-Z]\d[A-Z]\d$/.test(clean)) return { country: 'ca', code: clean.slice(0, 3) };
-  if (/^[A-Z]\d[A-Z]$/.test(clean)) return { country: 'ca', code: clean };
-  if (/^\d{5}$/.test(clean)) return { country: 'us', code: clean };
-  return null;
-}
-
-async function servePostal(raw, response) {
-  const json = (status, body) => {
-    response.writeHead(status, {
-      'content-type': 'application/json; charset=utf-8',
-      'access-control-allow-origin': '*',
-      'cache-control': 'no-store',
-    });
-    response.end(JSON.stringify(body));
-  };
-
-  const target = postalTarget(raw);
-  if (!target) {
-    json(400, {
-      ok: false,
-      error:
-        'That is not a Canadian postal code or a five-digit ZIP code. A Canadian one looks like [redacted] ' +
-        '(and the first three characters are enough), and an American one is five digits.',
-    });
-    return;
-  }
-
-  try {
-    const upstream = await fetch(`${GEO}/${target.country}/${target.code}`, {
-      headers: { accept: 'application/json', 'user-agent': USER_AGENT },
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (upstream.status === 404) {
-      json(404, { ok: false, error: `Nothing is listed for ${target.code}.` });
-      return;
-    }
-    if (!upstream.ok) throw new Error(`${upstream.status}`);
-    const body = await upstream.json();
-    const place = Array.isArray(body.places) ? body.places[0] : null;
-    if (!place) {
-      json(404, { ok: false, error: `Nothing is listed for ${target.code}.` });
-      return;
-    }
-    // 🔴 A POSTAL AREA IS NAMED FOR A TOWN AND A LIST OF COMMUNITIES, AND THE LIST IS THE
-    // USEFUL PART. George, 20 Sep 2026: *"you should be able to pinpoint their location a
-    // bit better, im in stoney fcreek for example"*. The postal service names L8E as
-    // *"Hamilton (Confederation Park / Nashdale / East Kentley / Riverdale / Lakely /
-    // Grayside / North Stoney Creek)"* — seven communities, one of which is his.
-    //
-    // Anyone can be pinned to one of those communities; nobody can be pinned to which
-    // one from the postcode alone, because the postcode covers all seven. Two other
-    // routes were tried and measured before settling on this: Nominatim's reverse lookup
-    // returns `suburb: "Kentley Drive"` — a street — for this exact point, and Photon
-    // returns the same street plus `city: Hamilton`. OpenStreetMap simply does not carry
-    // the community name at these coordinates. So the reader is offered the list instead
-    // of being handed a guess.
-    const raw = String(place['place name'] ?? '').trim();
-    const split = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(raw);
-    const town = (split ? split[1] : raw).trim();
-    const areas = split
-      ? split[2]
-          .split('/')
-          .map((part) => part.trim())
-          .filter((part) => part !== '')
-      : [];
-    json(200, {
-      ok: true,
-      lookedUp: target.code,
-      country: body.country,
-      region: place.state,
-      place: town,
-      town,
-      areas,
-      lat: Number(place.latitude),
-      lon: Number(place.longitude),
-      note:
-        'A postal code covers a whole delivery area, so this is the centre of an area and not a street address. ' +
-        'Airports are then listed by distance from it.',
-    });
-  } catch (error) {
-    json(503, {
-      ok: false,
-      error: `The postal code lookup could not be reached (${error instanceof Error ? error.message : error}).`,
-    });
-  }
-}
-
-/**
  * A place, searched by NAME — the same shape of interaction the quiz site uses.
  *
  * 🔴 GEORGE ASKED FOR THIS BY COMPARISON. George, 20 Sep 2026: *"i want to search for location by
@@ -613,9 +509,9 @@ async function servePlaceSearch(raw, response) {
       //
       // So the administrative town comes from the address, and the community is the object's own
       // name WHEN IT DIFFERS FROM THAT TOWN — which is precisely the "Stoney Creek · Hamilton"
-      // shape the postal path produces from the postal service's bracketed list. When the name
-      // and the town are the same word there is no community to report, and the page prints the
-      // town once rather than twice.
+      // shape the reader's own place name takes once anything bracketed is cut from it. When the
+      // name and the town are the same word there is no community to report, and the page prints
+      // the town once rather than twice.
       const own = String(row.name ?? '').trim();
       const town = String(address.city ?? address.town ?? address.village ?? '').trim() || own;
       const area =
@@ -661,8 +557,9 @@ async function servePlaceSearch(raw, response) {
  * He had already asked the same question about the postal path (*"you should be able to
  * pinpoint their location a bit better"*), and the answer there was the community chips.
  *
- * 🔴 AND WHY IT CANNOT PRINT A COMMUNITY. The chip list comes from the postal service, which
- * knows a code covers those seven names; a bare coordinate has no code in it, and every free
+ * 🔴 AND WHY IT CANNOT PRINT A COMMUNITY. The chip list comes from a place search, which
+ * named those seven names for the place that was typed; a bare coordinate names none of
+ * them, and every free
  * route was measured before choosing:
  *
  *   Nominatim reverse, zoom=10 → "Hamilton"                            (city, correct)
@@ -729,8 +626,8 @@ async function serveReverse(rawLat, rawLon, response) {
       lat,
       lon,
       note:
-        'A coordinate names the town it falls in. The community name inside a town is not in the free map data — ' +
-        'the postal code is what carries that, which is why typing one also offers the communities it covers.',
+        'A coordinate names the town it falls in. The community name inside a town is not in the free map data, so ' +
+        'searching for the community by name is what names it.',
     });
   } catch (error) {
     json(503, {
@@ -865,7 +762,10 @@ async function serveTile(path, response) {
 
 async function serveApi(request, response) {
   const path = new URL(request.url, 'http://localhost').pathname;
-  // The postal lookup is a DIFFERENT upstream with a different answer shape, so
+  // 🔴 THE PLACE LOOKUPS ARE DIFFERENT UPSTREAMS WITH DIFFERENT ANSWER SHAPES, so they are
+  // normalised here rather than passed through — the page must not depend on the field names of
+  // services that are free and owe us nothing. There were three of them until 20 Sep 2026; the
+  // postal one went when George removed that door from the page.
   // it is normalised here rather than passed through — the page must not depend
   // on the field names of a service that is free and owes us nothing.
   if (path.startsWith('/api/photo')) {
@@ -874,10 +774,6 @@ async function serveApi(request, response) {
   }
   if (path.startsWith('/api/tiles/')) {
     await serveTile(path, response);
-    return;
-  }
-  if (path.startsWith('/api/geo/postal/')) {
-    await servePostal(decodeURIComponent(path.slice('/api/geo/postal/'.length)), response);
     return;
   }
   if (path.startsWith('/api/geo/reverse')) {
