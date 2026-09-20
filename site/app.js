@@ -28,7 +28,6 @@ const WATCH_KEY = 'aircraft_watchlist';
 const TYPES_KEY = 'aircraft_types';
 const BOARD_KEY = 'aircraft_departures';
 const AIRPORT_KEY = 'aircraft_airport';
-const VIEW_KEY = 'aircraft_view';
 const POLL_MS = 10_000;
 /**
  * 🔴 KILOMETRES, NOT NAUTICAL MILES. George, 20 Sep 2026: *"nobody understand
@@ -204,7 +203,6 @@ class Page {
     nearby = [];
     /** The raw readings from the last poll — the live view is drawn from these. */
     lastReadings = [];
-    view = 'select';
     /** Types the feed showed in THIS session, which may be newer than the survey. */
     liveTypes = new Map();
     typeFilter = 'all';
@@ -219,7 +217,6 @@ class Page {
         this.bindWatchForm();
         this.bindNotify();
         this.renderWatchButton();
-        this.bindView();
         this.bindLocate();
         const saved = readStore(AIRPORT_KEY, DEFAULT_AIRPORT);
         void this.chooseAirport(saved);
@@ -227,8 +224,6 @@ class Page {
         void this.loadMilitary();
         void this.loadPhotos();
         void this.loadAirports();
-        this.view = readStore(VIEW_KEY, 'select') === 'live' ? 'live' : 'select';
-        this.showView(this.view);
         this.updateSteps();
         const notice = byId('notifyNote');
         if (notice && !('Notification' in window)) {
@@ -761,29 +756,42 @@ class Page {
         const place = this.airport !== null || this.centre !== null;
         const picked = this.typeRules.length > 0 || this.watchlist.length > 0;
         for (const section of document.querySelectorAll('.step-gated')) {
-            const step = section.dataset.step ?? '';
-            // 🔴 NOTHING APPEARS UNTIL STEP 1 IS ANSWERED. George, 20 Sep 2026: *"step
-            // one must be done before step 2, 3 etc, so collapse those steps until we
-            // have enough data to proceed"*. So the later steps are genuinely absent —
-            // not dimmed, not explained, not there. (He asked for the opposite earlier
-            // the same day; this is the newer instruction and it is the better one: a
-            // list of aeroplanes is not information until the page knows where you are.)
+            const step = Number(section.dataset.step ?? '0');
+            // 🔴 ONE STEP AT A TIME, IN ORDER. George, 20 Sep 2026: *"step 2 and 3 and 4,
+            // etc should be collapsed if previous steps are not completed. as soon as
+            // step 1 is done, gently expand step two"*.
             //
-            // 2, 3 and 5 need a PLACE. 4 and 6 need something PICKED, because a watchlist
-            // and a departures board are both empty until then.
-            const show = step === '4' || step === '6' ? place && picked : place;
+            // Nothing is on the page until the step before it has an answer:
+            //   1  where you are      → unlocks 2
+            //   2  how far out        → answered the moment it lands, because a distance is
+            //                           always selected, so it unlocks 3 on arrival
+            //   3  the aircraft types → unlocks 4 and the chart once something is starred
+            //   5  name one aircraft  → the alternative to 3, so it arrives with it
+            //   4, 6, 7               → a watchlist, a board and a chart are all empty
+            //                           until something has actually been picked
+            const wantsPlace = step <= 5;
+            const show = wantsPlace ? place : place && picked;
+            // 🔴 THE STAGGER IS WHAT MAKES IT READ AS ONE AFTER ANOTHER. Steps 3 and 5
+            // land a beat after 2 rather than in the same frame, so the reader sees the
+            // page answering them in sequence instead of redrawing all at once. The delay
+            // is only ever applied to a step that is actually arriving — a re-render on
+            // the next poll must not make the page flinch.
+            const delay = step === 3 || step === 5 ? 420 : 0;
             if (show && section.hidden) {
-                section.hidden = false;
-                section.classList.add('step-arrive');
-                window.setTimeout(() => section.classList.remove('step-arrive'), 900);
+                window.setTimeout(() => {
+                    section.hidden = false;
+                    section.classList.add('step-arrive');
+                    window.setTimeout(() => section.classList.remove('step-arrive'), 900);
+                    // The chart is drawn when it arrives rather than when it was last polled,
+                    // or it would show whatever was in the air a moment before it appeared.
+                    if (step === 7)
+                        this.renderLive();
+                }, delay);
             }
             else if (!show && !section.hidden) {
                 section.hidden = true;
             }
         }
-        const bar = document.querySelector('.viewbar');
-        if (bar instanceof HTMLElement)
-            bar.hidden = !place;
     }
     async loadMilitary() {
         try {
@@ -1469,29 +1477,16 @@ class Page {
         });
     }
     /* --------------------------------------------------------- the live view */
-    bindView() {
-        for (const button of document.querySelectorAll('.view-switch')) {
-            button.addEventListener('click', () => {
-                this.showView(button.dataset.view === 'live' ? 'live' : 'select');
-                track('view_switched', { view: this.view });
-            });
-        }
-    }
-    showView(view) {
-        this.view = view;
-        writeStore(VIEW_KEY, view);
-        const select = byId('selectView');
-        const live = byId('liveView');
-        if (select)
-            select.hidden = view !== 'select';
-        if (live)
-            live.hidden = view !== 'live';
-        for (const button of document.querySelectorAll('.view-switch')) {
-            button.setAttribute('aria-pressed', String(button.dataset.view === view));
-        }
-        if (view === 'live')
-            this.renderLive();
-    }
+    /**
+     * 🔴 THERE IS NO VIEW SWITCH ANY MORE. George, 20 Sep 2026: *"i only want the user
+     * to pick so remove Pick what to watch / In the air now"*. Two buttons offering
+     * "choose" and "look" put a mode in front of the thing the page is actually for.
+     * So there is one flow: pick, and the chart arrives as the step AFTER the picking
+     * — the same way the departures board does, because it is the same kind of thing.
+     *
+     * The chart is drawn when its step arrives (see updateSteps), not when it was last
+     * polled, or it would show whatever was in the air a moment before it appeared.
+     */
     /**
      * Aircraft matching the selection that are in the air at this moment.
      *

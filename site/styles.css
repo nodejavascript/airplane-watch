@@ -910,25 +910,6 @@ main {
   border: 0;
 }
 
-/* ---------------------------------------------------------- the two views --- */
-.viewbar {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 20px 0 8px;
-}
-
-.viewbar .view-switch {
-  font-size: 14px;
-  padding: 9px 15px;
-}
-
-.viewbar .view-switch[aria-pressed='true'] {
-  border-color: var(--theme);
-  background: rgba(56, 189, 248, 0.16);
-  color: var(--ink);
-}
-
 /* The status line sits outside every card now, because it is the one thing that
  * must be readable from BOTH views — a feed error hidden behind a tab is a
  * silent failure, which is the kind this site is written against. */
@@ -1237,8 +1218,8 @@ main > #status {
 /* A highlighted tail is a rule of its own, and it is drawn in the same colour as
  * a favourited type so the two read as the same kind of thing. */
 .tail-chip[aria-pressed='true'] {
-  border-color: var(--theme);
-  background: rgba(56, 189, 248, 0.2);
+  border-color: #f0be5a;
+  background: rgba(240, 190, 90, 0.16);
   color: var(--ink);
 }
 
@@ -1267,6 +1248,16 @@ main > #status {
  * whole type is not favourited; a filled one means it is. A type narrowed to
  * particular tail numbers is NOT the whole type, so it shows outlined — which is
  * the same thing the reader was told in words before, said in a glance. */
+/* 🔴 THE STAR IS YELLOW, NOT THE SITE BLUE. George, 20 Sep 2026: *"if a star is used,
+ * mayeb yellow hue look letter"*. A yellow star is the mark the whole world already
+ * reads as "this one is mine" — the browser's own bookmark bar, every review form,
+ * every favourites list. Painting it in the site's own blue made it look like one
+ * more control beside the row rather than a choice the reader had made.
+ *
+ * It is also already the colour this site uses for the things it marks as special:
+ * the airport marker on the map and the hand-listed rows, before those went.
+ * 🔴 THE OUTLINE, THE HOVER AND THE PRESSED FILL ARE ALL A YELLOW HUE, because a
+ * yellow fill inside a blue border reads as two unrelated states fighting. */
 .star {
   display: inline-flex;
   align-items: center;
@@ -1277,7 +1268,7 @@ main > #status {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: rgba(4, 16, 26, 0.5);
-  color: var(--muted, #8aa6b8);
+  color: #b08b3f;
   cursor: pointer;
 }
 
@@ -1291,34 +1282,34 @@ main > #status {
 }
 
 .star:hover {
-  border-color: var(--theme);
-  color: var(--theme);
+  border-color: #f0be5a;
+  color: #f0be5a;
 }
 
 .star[aria-pressed='true'] {
-  border-color: var(--theme);
-  background: rgba(56, 189, 248, 0.16);
-  color: var(--theme);
+  border-color: #f0be5a;
+  background: rgba(240, 190, 90, 0.16);
+  color: #f0be5a;
 }
 
 .star[aria-pressed='true'] svg {
   fill: currentColor;
 }
 
-/* A narrowed type: the row is watched, but not as a whole — so the button is
- * outlined and carries a dot, rather than claiming to be filled. */
+/* A narrowed type: watched, but not as a whole — so it is outlined, with a dot,
+ * rather than claiming to be filled. */
+.star-part {
+  position: relative;
+}
+
 .star-part::after {
   content: '';
   position: absolute;
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--theme);
+  background: #f0be5a;
   transform: translate(11px, 11px);
-}
-
-.star-part {
-  position: relative;
 }
 
 /* -------------------------------------------------- the little star --- */
@@ -1513,7 +1504,7 @@ main > #status {
  * without scrolling back.
  * ══════════════════════════════════════════════════════════════════════════ */
 .typelist {
-  max-height: 340px;
+  max-height: 680px;
   overflow-y: auto;
   overscroll-behavior: contain;
   /* Reserved, so the rows do not shift sideways when the bar appears. */
@@ -1527,6 +1518,6 @@ main > #status {
 
 @media (max-height: 700px) {
   .typelist {
-    max-height: 260px;
+    max-height: 520px;
   }
 }

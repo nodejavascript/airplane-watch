@@ -171,10 +171,7 @@
         </ul>
       </section>
 
-      <div class="viewbar">
-        <button type="button" class="ghost view-switch" data-view="select" aria-pressed="true" data-ga="view-select">Pick what to watch</button>
-        <button type="button" class="ghost view-switch" data-view="live" aria-pressed="false" data-ga="view-live">In the air now</button>
-      </div>
+      <div id="selectView">
 
       <p class="small muted" id="status" data-kind="working">Starting…</p>
 
@@ -280,7 +277,7 @@
 
       </div>
 
-      <section class="card" id="liveView" hidden>
+      <section class="card step-gated" id="liveView" data-step="7" hidden>
         <h2>In the air right now</h2>
         <p class="sub">What is in the air around you now, matching what you picked.</p>
         <p class="small muted" id="liveSummary">Waiting for the first reading…</p>
@@ -302,7 +299,6 @@
           Altitude is the pressure altitude the aircraft itself reports, which is why it can read a little differently
           from the height above the ground. "Climbing" is a rate in feet per minute.
         </p>
-        <p><button type="button" class="ghost view-switch" data-view="select" data-ga="view-back">Back</button></p>
       </section>
 
       <section class="card" id="honesty">
