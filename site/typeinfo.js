@@ -21,7 +21,7 @@ const CLASS_LABEL = {
     business: 'Private & business',
     light: 'Light & training',
     helicopter: 'Helicopter',
-    military: 'Warplanes',
+    military: 'Heritage & war planes',
     other: 'Other',
 };
 export function classLabel(klass) {

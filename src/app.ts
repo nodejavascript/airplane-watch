@@ -469,11 +469,11 @@ class Page {
     // to change, and this is what he asked for now.)
     const options: { key: AircraftClass | 'all'; label: string }[] = [
       { key: 'all', label: 'Everything' },
+      { key: 'military', label: classLabel('military') },
       ...CLASS_ORDER.filter((klass) => klass !== 'other' && klass !== 'military').map((klass) => ({
         key: klass,
         label: classLabel(klass),
       })),
-      { key: 'military', label: classLabel('military') },
     ];
     for (const option of options) {
       const button = document.createElement('button');
@@ -646,8 +646,11 @@ class Page {
       if (departures.length > 0) this.recordDepartures(departures);
       this.renderAircraft();
       this.renderLive();
+      // Plain words. George, 20 Sep 2026: *"i dont like ... 2 aircraft in the fence
+      // · poll 3 · last 01:15:00 PM"* — "poll" is how it works, not what the reader
+      // asked, and the count is what they came for.
       this.setStatus(
-        `${readings.length} aircraft in the fence · poll ${this.polls} · last ${formatClock(this.lastPollAt)}`,
+        `${readings.length} aircraft around you · updated ${formatClock(this.lastPollAt)}`,
         'ok'
       );
     } catch (error) {
@@ -897,24 +900,16 @@ class Page {
     for (const section of document.querySelectorAll<HTMLElement>('.step-gated')) {
       const step = section.dataset.step ?? '';
 
-      // 🔴 SHOWN, EXPLAINED, INERT — NOT HIDDEN. George, 20 Sep 2026: *"maybe make
-      // it visible just put note to select airport first"*. A page that hides what
-      // is coming reads as broken; a page that shows it with the reason reads as
-      // waiting. So these stay on the page, dimmed, with their note, and every
-      // control inside them disabled until the page knows where the reader is.
-      if (step === '2' || step === '3' || step === '5') {
-        section.hidden = false;
-        section.dataset.waiting = String(!place);
-        const why = section.querySelector<HTMLElement>('.step-why');
-        if (why) why.hidden = place;
-        for (const control of section.querySelectorAll<HTMLButtonElement | HTMLInputElement>('button, input')) {
-          control.disabled = !place;
-        }
-        continue;
-      }
-
-      // The two that would be empty shells still arrive with the glide.
-      const show = step === '4' || step === '6' ? picked : place;
+      // 🔴 NOTHING APPEARS UNTIL STEP 1 IS ANSWERED. George, 20 Sep 2026: *"step
+      // one must be done before step 2, 3 etc, so collapse those steps until we
+      // have enough data to proceed"*. So the later steps are genuinely absent —
+      // not dimmed, not explained, not there. (He asked for the opposite earlier
+      // the same day; this is the newer instruction and it is the better one: a
+      // list of aeroplanes is not information until the page knows where you are.)
+      //
+      // 2, 3 and 5 need a PLACE. 4 and 6 need something PICKED, because a watchlist
+      // and a departures board are both empty until then.
+      const show = step === '4' || step === '6' ? place && picked : place;
       if (show && section.hidden) {
         section.hidden = false;
         section.classList.add('step-arrive');

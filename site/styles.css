@@ -1506,3 +1506,33 @@ main > #status {
   grid-row: 1;
   line-height: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * THE TYPE LIST IS HEIGHT-RESTRICTED. George, 20 Sep 2026: *"Pick an aircraft
+ * type needs to be hight restricted, i hate scrolling that far down"*. Sixty-two
+ * rows of aeroplanes is a very long page, and everything after them — what you
+ * are watching, the board, the live view — was pushed past the fold by a list the
+ * reader had not finished reading.
+ *
+ * So the list scrolls inside its own box and the page stays a page. The filter
+ * chips sit ABOVE it and never move, so the reader can always change their mind
+ * without scrolling back.
+ * ══════════════════════════════════════════════════════════════════════════ */
+.typelist {
+  max-height: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Reserved, so the rows do not shift sideways when the bar appears. */
+  scrollbar-gutter: stable;
+  padding-right: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px;
+  background: rgba(4, 16, 26, 0.3);
+}
+
+@media (max-height: 700px) {
+  .typelist {
+    max-height: 260px;
+  }
+}

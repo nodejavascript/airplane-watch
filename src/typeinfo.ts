@@ -37,7 +37,7 @@ const CLASS_LABEL: Record<AircraftClass, string> = {
   business: 'Private & business',
   light: 'Light & training',
   helicopter: 'Helicopter',
-  military: 'Warplanes',
+  military: 'Heritage & war planes',
   other: 'Other',
 };
 

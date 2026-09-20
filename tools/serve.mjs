@@ -376,21 +376,44 @@ async function serveApi(request, response) {
       'cache-control': 'no-store',
     });
     response.end(
+      // 🔴 NO `upstream` HERE. It is declared inside the `try` above, so naming it
+      // in the `catch` throws a ReferenceError from the error handler itself — the
+      // one place that must never throw. That is not a hypothetical: it killed this
+      // server on 20 Sep 2026, and the page could only report "Failed to fetch"
+      // because by then nothing was listening.
       JSON.stringify({
         ok: false,
         error: `The feed could not be reached. ${error.message}`,
-        upstream,
       })
     );
   }
 }
 
 const server = createServer((request, response) => {
+  // 🔴 A NET UNDER EVERY ROUTE, because a server that dies is worse than a route
+  // that fails: a dead server answers nothing at all, so the page cannot even say
+  // what went wrong. Whatever a handler throws, the reader gets a sentence.
+  const guard = (work) => {
+    Promise.resolve(work).catch((error) => {
+      console.error(`${request.url} → ${error.stack ?? error}`);
+      if (response.headersSent) {
+        response.end();
+        return;
+      }
+      response.writeHead(503, {
+        'content-type': 'application/json; charset=utf-8',
+        'access-control-allow-origin': '*',
+        'cache-control': 'no-store',
+      });
+      response.end(JSON.stringify({ ok: false, error: `This route failed. ${error.message}` }));
+    });
+  };
+
   if ((request.url || '').startsWith('/api/')) {
-    void serveApi(request, response);
+    guard(serveApi(request, response));
     return;
   }
-  void serveStatic(request, response);
+  guard(serveStatic(request, response));
 });
 
 server.listen(PORT, '127.0.0.1', () => {

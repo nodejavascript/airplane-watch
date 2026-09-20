@@ -789,3 +789,79 @@ test('the map is DRAWN, not embedded, and says why', () => {
   assert.equal(/maps\.google|googleapis\.com\/maps|gtag\(|googletagmanager/.test(readSrc('src/app.ts')), false,
     'something in the page now calls Google directly');
 });
+
+/* ============================================ 20 Sep 2026, fifth pass ======= */
+
+test('the error handler cannot throw — the crash that read as "Failed to fetch"', () => {
+  const source = readSrc('tools/serve.mjs');
+
+  // 🔴 `upstream` is declared inside `serveApi`'s try and was named inside its
+  // catch, where it does not exist. The ReferenceError came from the error
+  // handler itself, killed the process, and the page could only report "Failed to
+  // fetch" — because by then nothing was listening. Reproduced on 20 Sep 2026:
+  // `ReferenceError: upstream is not defined at serveApi (serve.mjs:382:9)`.
+  const api = source.slice(source.indexOf('async function serveApi'), source.indexOf('const server = createServer'));
+  const catchAt = api.indexOf('} catch (error) {');
+  assert.ok(catchAt > -1, 'serveApi has no catch');
+  const handler = api.slice(catchAt);
+  assert.equal(/\bupstream\b/.test(handler), false,
+    'the catch block names `upstream`, which only exists inside the try — the error handler will throw and kill the server');
+
+  // And every route has a net under it, so a future mistake in one cannot take
+  // the whole process down again.
+  assert.match(source, /const guard = \(work\) =>/, 'no route is guarded');
+  assert.match(source, /guard\(serveApi\(request, response\)\)/, 'the api route is unguarded');
+  assert.match(source, /guard\(serveStatic\(request, response\)\)/, 'the static route is unguarded');
+});
+
+test('the page says what it means and keeps the type list short', () => {
+  const html = read('index.html');
+  const source = readSrc('src/app.ts');
+  const css = read(SITE, 'styles.css');
+
+  // Plain words, not plumbing.
+  assert.match(source, /aircraft around you · updated/, 'the status line does not say what the reader asked');
+  assert.equal(/poll \$\{this\.polls\}/.test(source), false, 'the status line still counts polls');
+  assert.equal(/in the fence · poll/.test(source), false, 'the status line still uses jargon');
+
+  // Short view buttons.
+  assert.equal(/Choose what to watch/.test(html), false, 'the old view button wording is still there');
+  assert.equal(/Chart what is in the air now/.test(html), false, 'the old view button wording is still there');
+  assert.match(html, /Pick what to watch/, 'the first view has no plain name');
+
+  // Heritage and war planes sit between Everything and Airliner.
+  const start = source.indexOf('const options: { key: AircraftClass');
+  const block = source.slice(start, start + 400);
+  const everything = block.indexOf("label: 'Everything'");
+  const military = block.indexOf("classLabel('military')");
+  const airliner = block.indexOf('...CLASS_ORDER');
+  assert.ok(everything < military && military < airliner,
+    'heritage and war planes is not between Everything and Airliner');
+
+  // Height restricted, or the page runs away again.
+  const rule = css.slice(css.indexOf('\n.typelist {'), css.indexOf('}', css.indexOf('\n.typelist {')));
+  assert.match(rule, /max-height:\s*\d+px/, 'the type list has no height limit');
+  assert.match(rule, /overflow-y:\s*auto/, 'the type list cannot scroll');
+
+  // The descriptions are one or two lines, not paragraphs.
+  for (const match of html.matchAll(/<p class="sub">([\s\S]*?)<\/p>/g)) {
+    const text = match[1].replace(/<[^>]*>/g, '').trim();
+    assert.ok(text.length <= 220, `a description is ${text.length} characters: ${text.slice(0, 60)}…`);
+  }
+});
+
+test('the later steps do not exist until the first is answered', () => {
+  const html = read('index.html');
+  for (const n of [2, 3, 4, 5]) {
+    assert.match(html, new RegExp(`id="step-${n}"[^>]*hidden`), `step ${n} is on the page before step 1 is answered`);
+  }
+  assert.match(html, /id="departures"[^>]*hidden/, 'the board is on the page before anything is picked');
+  assert.match(html, /id="step-1" data-step="1"/, 'step 1 must be visible — it is the one that asks');
+
+  const source = readSrc('src/app.ts');
+  assert.match(source, /step === '4' \|\| step === '6' \? place && picked : place/,
+    'the gate does not require a place before anything else appears');
+  // The dimmed-but-present approach is gone; so is the note it needed.
+  assert.equal(/data-waiting/.test(source), false, 'the waiting mechanism is still in the app');
+  assert.equal(/step-why/.test(html), false, 'a waiting note is still on the page');
+});
