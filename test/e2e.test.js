@@ -353,19 +353,35 @@ test('the page names the airport it looked up, and lists what the feed can see',
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
 
+  // 🔴 THE AIRPORT CARD'S OLD ELEMENTS ARE GONE AND THE TEST HAS TO SAY WHAT IT CAN NOW.
+  // This read `#airportTitle` and `#airportWhere`, and it asserted the fetched coordinates
+  // appeared on screen — which was a good proof that the lookup happened rather than a
+  // constant being echoed. Both elements have since been removed in a redesign, and the page
+  // no longer prints an airport's coordinates to the reader at all. So the coordinate claim
+  // is DROPPED rather than faked, and what is left is checked against the elements that do
+  // exist: the airport is named in the nearby list, and the feed answered.
   await page.waitForFunction(
-    () => /John C\. Munro Hamilton/.test(document.getElementById('airportTitle').textContent),
+    () => /CYHM/.test(document.getElementById('nearbyList')?.textContent ?? ''),
     null,
-    { timeout: 10_000 }
+    { timeout: 20_000 }
   );
+  const nearby = await page.$eval('#nearbyList', (element) => element.textContent);
+  assert.match(nearby, /CYHM/, 'the airport the feed named is not on the page');
 
-  // The position is fetched, never typed into the page — so the coordinates on
-  // screen prove the lookup happened rather than a constant being echoed.
-  const where = await page.$eval('#airportWhere', (element) => element.textContent);
-  assert.match(where, /43\.1736, -79\.9350/);
+  // 🔴 THE TABLE LISTS ONLY WHAT WAS PICKED, SO SOMETHING HAS TO BE PICKED FIRST.
+  // George, 20 Sep 2026: *"this should only list the selected flights and or tail"*. This
+  // test used to read the two scripted aircraft straight off the card, which stopped being
+  // true the moment the card started filtering — the failure said "the table does not name
+  // the aircraft" when the table was working exactly as asked.
+  await chooseDistance(page);
+  await starEveryType(page);
 
+  await page.waitForFunction(
+    () => /ACA123/.test(document.getElementById('aircraftBody')?.textContent ?? ''),
+    null,
+    { timeout: 45_000 }
+  );
   const body = await page.$eval('#aircraftBody', (element) => element.textContent);
-  assert.match(body, /ACA123/);
   assert.match(body, /BBA535/);
   // The two phases must be told apart, because telling them apart is the feature.
   assert.match(body, /airborne/);
