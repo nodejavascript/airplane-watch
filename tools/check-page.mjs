@@ -28,7 +28,13 @@ const text = (sel) => page.$eval(sel, (el) => el.textContent.replace(/\s+/g, ' '
 // Nothing starred yet, so nothing may be listed — and the empty state has to say which
 // empty it is, because the feed is busy right now.
 out.emptyTable = await text('#aircraftBody');
-out.watchButtonsWhenEmpty = await page.$$eval('.watch-toggle', (n) => n.length);
+out.watchButtons = await page.$$eval('.watch-toggle', (n) => n.length);
+
+// ── the bell, and the place search ─────────────────────────────────────────────────────
+// The bell is a separate list from the star, so with the page fresh there are no bells armed.
+out.bellsBefore = await page.$$eval('.bell[aria-pressed="true"]', (n) => n.length);
+out.starsBefore = await page.$$eval('.star[aria-pressed="true"]', (n) => n.length);
+out.notifyNoteBefore = await text('#notifyNote');
 
 // ── the seen chips ──────────────────────────────────────────────────────────────────────
 await page.fill('#postalInput', '[redacted]');
@@ -47,6 +53,44 @@ await page.waitForSelector('#typeList .typerow', { timeout: 30_000 });
 out.seenChips = await page.$$eval('#seenFilter button', (nodes) => nodes.map((n) => n.textContent.trim()));
 out.seenPressed = await page.$$eval('#seenFilter button[aria-pressed="true"]', (nodes) => nodes.map((n) => n.textContent.trim()));
 out.typeRowsAll = await page.$$eval('#typeList .typerow', (n) => n.length);
+
+// ── the row labels, and whether they are wired to their groups ──────────────────────────
+out.rowLabels = await page.$$eval('.chip-label', (nodes) => nodes.map((n) => n.textContent.trim()));
+out.groupLabels = await page.evaluate(() =>
+  ['typeFilter', 'yearFilter', 'seenFilter'].map((id) => {
+    const host = document.getElementById(id);
+    const labelled = host?.getAttribute('aria-labelledby');
+    return {
+      id,
+      labelledby: labelled ?? null,
+      pointedAt: labelled ? document.getElementById(labelled)?.textContent.trim() ?? null : null,
+    };
+  })
+);
+out.yearChips = await page.$$eval('#yearFilter button', (nodes) => nodes.map((n) => n.textContent.trim()));
+
+// ── the two kinds of window, measured against each other ────────────────────────────────
+const rowsFor = async (label) => {
+  await page.$$eval(
+    '#seenFilter button',
+    (nodes, wanted) => {
+      const hit = nodes.find((n) => n.textContent.trim() === wanted);
+      if (hit) hit.click();
+    },
+    label
+  );
+  await page.waitForTimeout(300);
+  return {
+    label,
+    rows: await page.$$eval('#typeList .typerow', (n) => n.length),
+    bite: (await page.$eval('#filterNote', (n) => n.textContent)).match(/Nothing is hidden[^.]*\.|This window is hiding \d+ types[^.]*\./)?.[0] ?? null,
+    how: (await page.$eval('#filterNote', (n) => n.textContent)).match(/A type is shown when[^.]*\./)?.[0]?.slice(0, 150) ?? null,
+  };
+};
+out.windows = [];
+for (const label of ['All flights', '5 minutes', 'last hour', 'last 12 hours', 'today', 'this year']) {
+  out.windows.push(await rowsFor(label));
+}
 
 // ── 1 · star every type, then the table must list what is up ────────────────────────────
 // Starring ALL of them rather than one, because which type happens to be overhead right now
@@ -79,6 +123,50 @@ out.ageTicked = out.ageAtFirstPaint !== out.ageTwoSecondsLater;
 out.locationLabel = await text('#placeName');
 out.step2Sub = await text('#live .sub');
 out.filterNote = await text('#filterNote');
+
+// ── the bell arms alerts WITHOUT starring, and the search finds a place by name ────────
+// Reload for a clean slate, then arm the bell on one type and check the star stayed off.
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(1800);
+await page.$eval('#consentDecline', (el) => el.click()).catch(() => {});
+await page.$eval('#radiusSlider', (el) => {
+  el.value = '6';
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+});
+await page.waitForSelector('#typeList .typerow', { timeout: 30_000, state: 'attached' });
+// 🔴 THE STAR COUNT BEFORE THE BELL, BECAUSE THE SECTION ABOVE STARRED EVERYTHING AND
+// localStorage SURVIVES THE RELOAD. Measured the first time: 59 stars pressed after a bell
+// click, which reads as "the bell starred everything" and was this probe's own dirty state.
+const starsBeforeBell = await page.$$eval('.star[aria-pressed="true"]', (n) => n.length);
+await page.$eval('#typeList .typerow .alert-toggle', (el) => el.click());
+await page.waitForTimeout(400);
+out.bellsAfterOneClick = await page.$$eval('.bell[aria-pressed="true"]', (n) => n.length);
+out.starsBeforeBell = starsBeforeBell;
+out.starsAfterBellClick = await page.$$eval('.star[aria-pressed="true"]', (n) => n.length);
+out.notifyNoteAfter = await text('#notifyNote');
+// And the table must NOT have gained a row from arming an alert: the bell is not a selection.
+out.rowsAfterBellOnly = await page.$$eval('#aircraftBody tr.aircraft-row', (n) => n.length);
+// A second press widens a narrowed bell, a third turns it off.
+await page.$eval('#typeList .typerow .alert-toggle', (el) => el.click());
+await page.waitForTimeout(300);
+out.bellsAfterSecondClick = await page.$$eval('.bell[aria-pressed="true"]', (n) => n.length);
+
+// The place search, driven the way a reader drives it. "Change location" first, because the
+// page deliberately hides the whole ask once it knows where you are — measured: filling the box
+// straight after the reload times out on "element is not visible".
+await page.$eval('#changePlace', (el) => el.click());
+await page.waitForTimeout(400);
+await page.fill('#placeSearchInput', 'Stoney Creek Ontario');
+await page.press('#placeSearchInput', 'Enter');
+await page.waitForSelector('#placeResults .place-result', { timeout: 30_000 });
+out.searchResults = await page.$$eval('#placeResults .place-result', (nodes) => nodes.map((n) => n.textContent.trim()));
+out.searchNote = await text('#placeSearchNote');
+await page.$eval('#placeResults .place-result', (el) => el.click());
+await page.waitForTimeout(1500);
+out.locationAfterSearch = await text('#placeName');
+out.nearbyAfterSearch = await text('#nearbyHead');
+out.rowsInSearchResult = await page.$$eval('#placeResults .place-result', (n) => n.length);
 
 // ── 1 (previous message) · find me names the place ──────────────────────────────────────
 await page.$eval('#changePlace', (el) => el.click()).catch(() => {});

@@ -128,6 +128,80 @@ function postalTarget(raw) {
 }
 
 /**
+ * A place, searched by NAME.
+ *
+ * The counterpart of the dev server's route, so production and development answer the same
+ * shape — George asked for the interaction he knows from inputresponse.com: type a place, get a
+ * list, pick one.
+ */
+async function servePlaceSearch(raw) {
+  const query = String(raw ?? '').trim();
+  if (query.length < 2) {
+    return json(400, { ok: false, error: 'Type at least two characters of a place name.' });
+  }
+
+  const params = new URLSearchParams({
+    q: query,
+    format: 'jsonv2',
+    limit: '6',
+    // Canada and the United States: the fence is drawn round the reader, so a match on another
+    // continent is never the one being asked for.
+    countrycodes: 'ca,us',
+    addressdetails: '1',
+  });
+
+  let upstream;
+  try {
+    upstream = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+      headers: { accept: 'application/json', 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch (error) {
+    // 503, never 502 — the edge replaces a 502 body with its own page and destroys the message.
+    return json(503, { ok: false, error: `The place search could not be reached. ${error.message}` });
+  }
+  if (!upstream.ok) return json(503, { ok: false, error: `The place search answered ${upstream.status}.` });
+
+  const rows = await upstream.json().catch(() => null);
+  const places = (Array.isArray(rows) ? rows : []).slice(0, 6).map((row) => {
+    const address = row.address ?? {};
+    // The object's own name is the COMMUNITY when it differs from the administrative town —
+    // see the longer note on the same rule in tools/serve.mjs.
+    const own = String(row.name ?? '').trim();
+    const town = String(address.city ?? address.town ?? address.village ?? '').trim() || own;
+    const area =
+      String(address.suburb ?? address.neighbourhood ?? '').trim() || (own !== '' && own !== town ? own : '');
+    return {
+      label: String(row.display_name ?? town).split(',').slice(0, 3).join(',').trim(),
+      name: town,
+      area,
+      region: String(address.state ?? '').trim(),
+      lat: Number(row.lat),
+      lon: Number(row.lon),
+    };
+  });
+
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      query,
+      places,
+      note: 'Pick one, and the airports below are ordered by distance from it.',
+    }),
+    {
+      status: 200,
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        // A place name does not move, and the cache also keeps the free service at one request
+        // per place rather than one per reader.
+        'cache-control': 'public, max-age=300',
+        'x-proxied-from': 'nominatim.openstreetmap.org',
+      },
+    }
+  );
+}
+
+/**
  * 🔴 A COORDINATE, TURNED INTO THE NAME OF THE PLACE IT FALLS IN.
  *
  * "Find me" used to print the words "your position" under the numbers the browser gave it,
@@ -350,6 +424,9 @@ export default {
     }
     if (path.startsWith('/geo/reverse')) {
       return serveReverse(url.searchParams.get('lat'), url.searchParams.get('lon'));
+    }
+    if (path.startsWith('/geo/search')) {
+      return servePlaceSearch(url.searchParams.get('q'));
     }
 
     if (!isAllowed(path)) {

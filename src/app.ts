@@ -50,6 +50,12 @@ import {
 
 const WATCH_KEY = 'aircraft_watchlist';
 const TYPES_KEY = 'aircraft_types';
+/**
+ * 🔴 THE ALERT LIST IS ITS OWN, AND IT IS KEPT SEPARATELY. George, 20 Sep 2026: *"i should be
+ * able to select from the list w3hich ones i want an alert for"*. Sharing `TYPES_KEY` would
+ * put the star and the bell back in one list, which is the thing he is asking to separate.
+ */
+const ALERTS_KEY = 'aircraft_alerts';
 const AIRPORT_KEY = 'aircraft_airport';
 /**
  * 🔴 THE READER'S PLACE AND THEIR DISTANCE ARE KEPT TOO. George, 20 Sep 2026:
@@ -144,10 +150,14 @@ const RADIUS_LADDER = [
 type EraKey = 'all' | 'before1970' | '1970to1999' | 'since2000';
 
 const ERAS: { key: EraKey; label: string; from: number; to: number }[] = [
+  // 🔴 SHORT TOO, UNDER ITS OWN LABEL. The row is labelled "First flown", so a chip reading
+  // "first flown before 1970" beside it would be the phrase the label just removed. George
+  // asked for this on the last-seen row (*"a label instead of saying last seen mnay times"*)
+  // and the same reasoning applies here word for word.
   { key: 'all', label: 'Any year', from: 0, to: 9999 },
-  { key: 'before1970', label: 'first flown before 1970', from: 0, to: 1969 },
-  { key: '1970to1999', label: 'first flown 1970–1999', from: 1970, to: 1999 },
-  { key: 'since2000', label: 'first flown 2000 or later', from: 2000, to: 9999 },
+  { key: 'before1970', label: 'before 1970', from: 0, to: 1969 },
+  { key: '1970to1999', label: '1970–1999', from: 1970, to: 1999 },
+  { key: 'since2000', label: '2000 or later', from: 2000, to: 9999 },
 ];
 
 /**
@@ -164,48 +174,78 @@ const ERAS: { key: EraKey; label: string; from: number; to: number }[] = [
  * time it is re-run — and the list opens NARROWED, because a filter nobody presses
  * does not stop anybody picking something dead.
  */
-type SeenKey = 'all' | 'today' | 'week' | 'month' | 'quarter' | 'year';
+type SeenKey = 'all' | 'fiveMin' | 'hour' | 'halfDay' | 'today' | 'week' | 'month' | 'quarter' | 'year' | 'noData';
+
+/**
+ * What a window asks, which is not the same as how wide it is.
+ *
+ * 🔴 `noData` IS THE ONE THAT IS NOT A WINDOW AT ALL, AND IT IS THE OPPOSITE OF ONE. George,
+ * 20 Sep 2026: *"for last seen, add option for not data"*. Every other choice keeps types that
+ * HAVE a sighting on record; this one keeps the types that have none. It is the answer to
+ * "what is this site unable to say anything about", which no date filter can express — a type
+ * with no date is dropped by all of them, including "All flights" on a `lastSeen` basis, and
+ * before this it could only be seen by accident.
+ */
+type SeenMode = 'all' | 'rolling' | 'calendar' | 'noData';
 
 interface SeenChoice {
   key: SeenKey;
+  /** 🔴 SHORT, BECAUSE THE ROW SAYS "Last seen" ONCE — see the note on SEEN_CHOICES. */
   label: string;
+  /**
+   * The window in a sentence, when the chip's own words do not read there.
+   *
+   * 🔴 MEASURED, NOT GUESSED. The first cut put the chip label straight into the sentence and
+   * it printed *"within last hour of right now"* and *"within last 12 hours of right now"* —
+   * the label is written for a chip, where "last hour" sits under the words "Last seen", and
+   * it needs its article the moment it stands alone. `5 minutes` needed the same: "within 5
+   * minutes of right now" is a different claim from "within THE last 5 minutes".
+   */
+  phrase?: string;
+  mode: SeenMode;
   /**
    * The earliest moment this window includes, given a "now".
    *
-   * Null means there is no floor at all — "all flights" is not a window, it is the absence
-   * of one.
-   *
-   * 🔴 THESE ARE CALENDAR WINDOWS, NOT ROLLING ONES, AND THE DIFFERENCE IS THE WHOLE POINT.
-   * "Last seen today" means today — since midnight — and not "within the last 24 hours". A
-   * reader asking whether something has been up today is asking about the day they are
-   * living in, and a rolling 24-hour window answers a question nobody asked. The note under
-   * the chips prints the exact moment each window starts, so there is nothing to infer.
+   * Null for `all`, which has no floor, and for `noData`, which is not measured in time at
+   * all.
    */
   since: ((now: Date) => Date) | null;
 }
 
 /**
- * 🔴 THE SIX CHOICES GEORGE ASKED FOR, IN HIS ORDER. George, 20 Sep 2026: *"all flight, then
- * last seen today, week, month, quarter, year, and make sure to apply that filter"*.
+ * 🔴 THE NINE CHOICES, SHORT, UNDER ONE LABEL. George, 20 Sep 2026: *"i want a label instead
+ * of saying last seen mnay times, and i want 5 minutes, last hour, last 12 hours"*.
  *
- * This replaced a set of four I had invented — "flies here often", "in the last look", "seen
- * in the last day", "seen at any time" — built to work around the fact that three rounds of
- * surveying inside three hours put every type inside every calendar window. I hid the
- * windows that could not change the list, which is defensible in isolation and was the wrong
- * call: it meant the reader could not see the filter they were going to want in a month, and
- * a control that appears one day is a control nobody trusts.
+ * Every chip used to carry the phrase itself — "Last seen today", "Last seen this week" —
+ * so the row said "last seen" six times and the words the reader actually needs to tell apart
+ * were buried at the end of each. The row is labelled **Last seen** once now, and each chip is
+ * just the window. The same treatment went to the year row, which repeated "first flown" on
+ * every chip: with a label saying so, *"first flown before 1970"* beside a label reading
+ * *"First flown"* would be the repetition back again.
  *
- * So all six are always drawn. When a window currently covers everything — which today's
- * six are — the note says so in as many words, and names the date the recorded history
- * begins, rather than leaving the reader to conclude the filter is broken.
+ * The three short windows are counted IN MINUTES FROM NOW rather than from a calendar
+ * boundary — "5 minutes" means the last five minutes, and there is no way to read that as
+ * anything else. `today`, `this week` and the rest are the opposite: they are the period the
+ * reader is living in, and the sentence under the chips prints the exact moment each one
+ * starts so the difference is never left to inference.
+ *
+ * The order runs narrow to wide, after "All flights" — which is the absence of a window and
+ * belongs first, where the default sits.
  */
 const SEEN_CHOICES: SeenChoice[] = [
-  { key: 'all', label: 'All flights', since: null },
-  { key: 'today', label: 'Last seen today', since: (now) => startOfDay(now) },
-  { key: 'week', label: 'Last seen this week', since: (now) => startOfWeek(now) },
-  { key: 'month', label: 'Last seen this month', since: (now) => startOfMonth(now) },
-  { key: 'quarter', label: 'Last seen this quarter', since: (now) => startOfQuarter(now) },
-  { key: 'year', label: 'Last seen this year', since: (now) => startOfYear(now) },
+  { key: 'all', label: 'All flights', mode: 'all', since: null },
+  { key: 'fiveMin', label: '5 minutes', phrase: 'the last 5 minutes', mode: 'rolling', since: (now) => rolling(now, 5 * 60_000) },
+  { key: 'hour', label: 'last hour', phrase: 'the last hour', mode: 'rolling', since: (now) => rolling(now, 60 * 60_000) },
+  { key: 'halfDay', label: 'last 12 hours', phrase: 'the last 12 hours', mode: 'rolling', since: (now) => rolling(now, 12 * 60 * 60_000) },
+  { key: 'today', label: 'today', mode: 'calendar', since: (now) => startOfDay(now) },
+  { key: 'week', label: 'this week', mode: 'calendar', since: (now) => startOfWeek(now) },
+  { key: 'month', label: 'this month', mode: 'calendar', since: (now) => startOfMonth(now) },
+  { key: 'quarter', label: 'this quarter', mode: 'calendar', since: (now) => startOfQuarter(now) },
+  { key: 'year', label: 'this year', mode: 'calendar', since: (now) => startOfYear(now) },
+  // 🔴 LAST, BECAUSE IT IS NOT PART OF THE SCALE. The other nine run narrow to wide; this one
+  // is a different question — which types the record is SILENT about — and putting it at the
+  // end keeps the time scale unbroken while still making the option reachable.
+  { key: 'noData', label: 'no data', mode: 'noData', since: null },
 ];
 
 /**
@@ -471,6 +511,62 @@ function starButton(code: string, wholeType: boolean, narrowed: boolean): string
   );
 }
 
+/** A bell, drawn in the same 24-unit box as the star so they line up on a row. */
+const BELL_PATH =
+  'M12 2.6a5.6 5.6 0 0 0-5.6 5.6v3.2l-1.5 2.6a1 1 0 0 0 .87 1.5h12.46a1 1 0 0 0 .87-1.5l-1.5-2.6V8.2A5.6 5.6 0 0 0 12 2.6Zm0 18.8a2.6 2.6 0 0 0 2.45-1.8h-4.9A2.6 2.6 0 0 0 12 21.4Z';
+
+/**
+ * 🔴 THE BELL IS A SECOND QUESTION, NOT A LOUDER ANSWER TO THE FIRST. George, 20 Sep 2026:
+ * *"i should be able to select from the list w3hich ones i want an alert for"*.
+ *
+ * The star says *show me this*; the bell says *tell me when this one goes*. Starring a type to
+ * watch it in the table used to arm a phone notification as a side effect, so a reader who
+ * starred a dozen things got a dozen alerts they never asked for, and a reader who wanted to
+ * be told about exactly one aircraft had no way to say so. Two marks, two lists.
+ *
+ * The wording is deliberate on every state, because this is the control that decides whether a
+ * phone makes a noise:
+ *   - never armed → "Alert me about this type"
+ *   - armed for the whole type → "Alerting — turn off"
+ *   - armed for some tails only → "Alerting for the tail numbers you picked"
+ */
+function bellButton(code: string, wholeType: boolean, narrowed: boolean): string {
+  const label = wholeType
+    ? 'Alerting for this type — turn off'
+    : narrowed
+      ? 'Alerting for the tail numbers you picked — press to alert for the whole type'
+      : 'Alert me about this type';
+  return (
+    `<button type="button" class="bell alert-toggle${narrowed ? ' bell-part' : ''}" ` +
+    `data-type="${escapeHtml(code)}" aria-pressed="${wholeType || narrowed}" ` +
+    `title="${label}" aria-label="${label}" data-ga="type-alert">` +
+    `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${BELL_PATH}"/></svg></button>`
+  );
+}
+
+/**
+ * Read one rule list out of storage.
+ *
+ * 🔴 ONE READER FOR BOTH LISTS, FOR THE SAME REASON THERE IS ONE MATCHER. The star and the
+ * bell hold the same shape, and two copies of the parser is how a tail number survives a
+ * reload in one list and not the other — which would look like the alert forgetting what it was
+ * told, intermittently and only after a refresh.
+ */
+function readRules(key: string): TypeRule[] {
+  try {
+    const raw = JSON.parse(readStore(key, '[]'));
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((rule) => rule && typeof rule.type === 'string' && rule.type.trim() !== '')
+      .map((rule) => ({
+        type: String(rule.type).trim().toUpperCase(),
+        tails: Array.isArray(rule.tails) ? rule.tails.filter((tail: unknown) => typeof tail === 'string') : [],
+      }));
+  } catch {
+    return [];
+  }
+}
+
 function byId<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
@@ -522,6 +618,17 @@ function startOfQuarter(now: Date): Date {
 
 function startOfYear(now: Date): Date {
   return new Date(now.getFullYear(), 0, 1);
+}
+
+/**
+ * A window counted back from this moment, rather than from a calendar boundary.
+ *
+ * `rolling(now, 5 * 60_000)` is "the last five minutes". It is a different kind of answer
+ * from `startOfDay` — that one is the day the reader is living in, this one is a stopwatch —
+ * and the sentence under the chips says which is running.
+ */
+function rolling(now: Date, ms: number): Date {
+  return new Date(now.getTime() - ms);
 }
 
 /** "Fri 18 Sep, 00:00" — the moment a window opens, for the sentence under the chips. */
@@ -655,6 +762,14 @@ class Page {
   private engine: DetectionEngine | null = null;
   private watchlist: string[] = [];
   private typeRules: TypeRule[] = [];
+  /**
+   * The types the reader wants an ALERT about — the bell, kept apart from the star's list.
+   *
+   * George, 20 Sep 2026: *"i should be able to select from the list w3hich ones i want an alert
+   * for"*. It used to be that anything starred raised a notification, so the two wishes could
+   * not be told apart.
+   */
+  private alertRules: TypeRule[] = [];
   private timer: number | null = null;
   /**
    * The once-a-second repaint of "· 12s ago" beside each reading.
@@ -756,6 +871,7 @@ class Page {
   start(): void {
     this.watchlist = this.loadList(WATCH_KEY);
     this.typeRules = this.loadTypeRules();
+    this.alertRules = this.loadAlertRules();
 
     // 🔴 WHAT WAS KEPT COMES BACK BEFORE ANYTHING IS BUILT FROM IT. The distance
     // buttons read their pressed state from `this.radiusKm`, so restoring after
@@ -832,23 +948,23 @@ class Page {
    * no rule at all, which is the safe direction to fail in.
    */
   private loadTypeRules(): TypeRule[] {
-    try {
-      const raw = JSON.parse(readStore(TYPES_KEY, '[]'));
-      if (!Array.isArray(raw)) return [];
-      return raw
-        .filter((rule) => rule && typeof rule.type === 'string' && rule.type.trim() !== '')
-        .map((rule) => ({
-          type: String(rule.type).trim().toUpperCase(),
-          tails: Array.isArray(rule.tails) ? rule.tails.filter((tail: unknown) => typeof tail === 'string') : [],
-        }));
-    } catch {
-      return [];
-    }
+    return readRules(TYPES_KEY);
+  }
+
+  private loadAlertRules(): TypeRule[] {
+    return readRules(ALERTS_KEY);
   }
 
   private saveTypeRules(): void {
     writeStore(TYPES_KEY, JSON.stringify(this.typeRules));
     this.engine?.setTypeRules(this.typeRules);
+  }
+
+  private saveAlertRules(): void {
+    writeStore(ALERTS_KEY, JSON.stringify(this.alertRules));
+    this.engine?.setAlertRules(this.alertRules);
+    // The button's note counts what is armed, so it has to be redrawn with it.
+    this.renderWatchButton();
   }
 
   private saveWatchlist(): void {
@@ -943,6 +1059,7 @@ class Page {
     const host = byId('typeFilter');
     if (!host) return;
     host.innerHTML = '';
+    this.labelChips(host, 'Kind', 'typeFilterLabel');
     // 🔴 WARPLANES FIRST. George, 20 Sep 2026: *"war plans should be first
     // option"*. It is the one filter somebody arriving at this page is most
     // likely to be looking for — it is the whole reason the class was asked for —
@@ -1276,6 +1393,9 @@ class Page {
 
       this.engine.setWatchlist(this.watchlist);
       this.engine.setTypeRules(this.typeRules);
+      // 🔴 THE BELL'S LIST IS HANDED OVER TOO, OR A RELOAD SILENTLY DISARMS EVERY ALERT while
+      // the bell still shows as pressed on the row — an alert that looks armed and is not.
+      this.engine.setAlertRules(this.alertRules);
       const readings = Array.isArray(payload.ac) ? payload.ac : [];
       // Held for the live view, which draws what is in the air NOW rather than
       // what has already left. Both come off the same reading of the feed, so
@@ -1357,10 +1477,13 @@ class Page {
    */
   private alertOnDepartures(departures: Departure[]): void {
     for (const departure of departures) {
-      if (departure.watched) this.notify(departure);
+      // 🔴 THE BELL DECIDES, NOT THE STAR. See the note on `bellButton`. A departure the reader
+      // asked to see is not automatically one they asked to be woken for.
+      if (departure.alert) this.notify(departure);
       track('departure_detected', {
         verdict: departure.verdict,
         watched: departure.watched,
+        alert: departure.alert,
         airport: this.airport?.icao ?? '',
         aircraft_type: departure.type,
       });
@@ -1664,10 +1787,81 @@ class Page {
    * a type that never flies near you is not a choice worth offering, and a filter
    * nobody presses does not stop anybody picking one.
    */
+  /**
+   * Why the type list is shorter than the record, in one clause per reason — or `''`.
+   *
+   * 🔴 ONE BUILDER, TWO CALL SITES, SO THE REASONS CANNOT DISAGREE. This sentence is printed
+   * under the list AND used as the explanation when a filter has emptied it, and the old code
+   * built it twice with slightly different wording — "left out while a year filter is on" in
+   * one place and "left out of a year filter rather than guessed at" in the other. Two
+   * descriptions of one fact is two chances to describe it wrongly.
+   *
+   * Every counter it reads is incremented once per dropped type, so the parts add up to
+   * exactly the number missing — which is what makes the count on the page checkable rather
+   * than decorative.
+   */
+  private droppedReasons(counts: {
+    rows: unknown[];
+    total: number;
+    droppedByAirport: number;
+    droppedByKind: number;
+    droppedByYear: number;
+    droppedForNoYear: number;
+    droppedBySeen: number;
+  }): string {
+    const parts: string[] = [];
+    if (counts.droppedByAirport > 0) {
+      parts.push(
+        `${counts.droppedByAirport} ${counts.droppedByAirport === 1 ? 'type has' : 'types have'} been seen around ` +
+          'here, but not at the airports you picked'
+      );
+    }
+    if (counts.droppedByKind > 0) {
+      parts.push(
+        `${counts.droppedByKind} ${counts.droppedByKind === 1 ? 'is not the' : 'are not the'} kind you chose`
+      );
+    }
+    if (counts.droppedByYear > 0) {
+      parts.push(`${counts.droppedByYear} first flew outside the years you chose`);
+    }
+    if (counts.droppedForNoYear > 0) {
+      parts.push(
+        `${counts.droppedForNoYear} ${counts.droppedForNoYear === 1 ? 'has' : 'have'} no first-flown year, ` +
+          'so a year filter cannot judge them'
+      );
+    }
+    if (counts.droppedBySeen > 0) {
+      parts.push(
+        `${counts.droppedBySeen} ${counts.droppedBySeen === 1 ? 'is' : 'are'} outside the last-seen choice you made`
+      );
+    }
+    return parts.join('; ');
+  }
+
+  /**
+   * One visible label at the start of a chip row.
+   *
+   * 🔴 THE LABEL IS THE ROW'S NAME, AND IT IS WIRED TO THE GROUP. George, 20 Sep 2026: *"i
+   * want a label instead of saying last seen mnay times"*. Three rows of chips each said their
+   * own subject on every chip, so the row read as a list of near-identical phrases and the one
+   * word that differed was at the end of each. The subject is said once now, and `aria-labelledby`
+   * points at it — which is also better for a screen reader than the invisible `aria-label` it
+   * replaces, because what is announced is now the text the reader can see.
+   */
+  private labelChips(host: HTMLElement, text: string, id: string): void {
+    const label = document.createElement('span');
+    label.className = 'chip-label';
+    label.id = id;
+    label.textContent = text;
+    host.appendChild(label);
+    host.setAttribute('aria-labelledby', id);
+  }
+
   private buildSeenFilter(): void {
     const host = byId('seenFilter');
     if (!host) return;
     host.innerHTML = '';
+    this.labelChips(host, 'Last seen', 'seenFilterLabel');
     // 🔴 EVERY CHOICE IS DRAWN, ALWAYS, AND THERE IS NO CONDITION HERE ANY MORE. This used
     // to skip a window while the recorded history was shorter than it, on the argument that
     // a chip which cannot change the list teaches the reader the filter is broken. The
@@ -1737,10 +1931,23 @@ class Page {
       // instead of arguing about it — and it is the same convention the chips filter by, so
       // the sentence cannot drift from the behaviour.
       const start = window.since ? window.since(new Date()) : null;
-      const how = start === null
+      // 🔴 THREE KINDS OF CHOICE, AND THE SENTENCE SAYS WHICH ONE IS RUNNING. "5 minutes" is
+      // counted back from this moment — a stopwatch, whose cut-off moves every second. "this
+      // week" is the period the reader is living in — a calendar boundary, which does not
+      // move. "no data" is neither: it is the list of types the record says NOTHING about.
+      // They are different questions and a reader is entitled to know which they just asked.
+      // Every one prints its own cut-off or its own count, so none of them is left to
+      // inference.
+      const how = window.mode === 'all'
         ? 'Every type this site has ever recorded is shown, with no window at all.'
-        : `A type is shown when the last sighting here was at or after ${formatWindowStart(start)} — ` +
-          `${window.label.replace(/^Last seen /, '').toLowerCase()} by the clock on this machine, not the last twenty-four hours.`;
+        : window.mode === 'noData'
+          ? 'A type is shown when NOTHING on record says when it was last seen here — a type this site can name and ' +
+            'has never actually caught. Every other choice on this row hides these, because they have no date to compare.'
+          : window.mode === 'rolling'
+            ? `A type is shown when the last sighting here was within ${window.phrase ?? window.label} of right now — counted back ` +
+              `from this moment, not from midnight, so the cut-off moves (it is ${formatWindowStart(start ?? new Date())} as you read this).`
+            : `A type is shown when the last sighting here was at or after ${formatWindowStart(start ?? new Date())} — ` +
+              `${window.label} by the clock on this machine, not a rolling count of days.`;
       // 🔴 HOW MANY IT IS ACTUALLY HIDING, COUNTED RATHER THAN ARGUED. The first version of
       // this sentence INFERRED the answer — it compared the date the record starts against
       // the date the window starts, and concluded that the window "currently includes
@@ -1750,14 +1957,20 @@ class Page {
       // that built the list how many rows it dropped, so the sentence cannot contradict the
       // page. Measured against a fixture with known ages, the inference was wrong the moment
       // the fixture disagreed with it — which is exactly how a false reassurance ships.
-      const hidden = this.typeRows().stale;
-      const bite = start === null
+      const counts = this.typeRows();
+      const hidden = counts.droppedBySeen;
+      const bite = window.mode === 'all'
         ? ''
-        : hidden === 0
-          ? ' Nothing is hidden by it at the moment: every sighting on record falls inside this window.'
-          : ` This window is hiding ${hidden} type${hidden === 1 ? '' : 's'} from the list below.`;
+        : window.mode === 'noData'
+          ? hidden === 0
+            ? ' Nothing is in this state at the moment: every type this site can name has at least one recorded sighting.'
+            : ` ${hidden} type${hidden === 1 ? ' is' : 's are'} in this state and shown below.`
+          : hidden === 0
+            ? ' Nothing is hidden by it at the moment: every sighting on record falls inside this window.'
+            : ` This window is hiding ${hidden} type${hidden === 1 ? '' : 's'} from the list below.`;
       parts.push(
-        `Last seen: ${runs} look${runs === 1 ? '' : 's'} at the sky recorded so far` +
+        `Showing ${counts.rows.length} of ${counts.total} type${counts.total === 1 ? '' : 's'}. ` +
+          `Last seen: ${runs} look${runs === 1 ? '' : 's'} at the sky recorded so far` +
           (span > 0 ? `, spanning ${this.spanText(span)}.` : '.') +
           ` ${how}${bite}` +
           ' A type that does not qualify is hidden rather than offered — an aircraft that does not fly near' +
@@ -1791,6 +2004,7 @@ class Page {
     const host = byId('yearFilter');
     if (!host) return;
     host.innerHTML = '';
+    this.labelChips(host, 'First flown', 'yearFilterLabel');
     for (const era of ERAS) {
       const button = document.createElement('button');
       button.type = 'button';
@@ -1882,7 +2096,15 @@ class Page {
   private renderAreaPicker(): void {
     const host = byId('areaPicker');
     if (!host) return;
-    if (this.placeAreas.length < 2) {
+    // 🔴 ONE COMMUNITY IS ENOUGH TO BE WORTH OFFERING, WHEN IT IS A REAL CHOICE. This asked for
+    // two, which is right for a postal area — the service lists several and one of them is the
+    // town itself. But a place SEARCH names one community and a town, and with the guard at two
+    // the row vanished: the reader got "Hamilton" and no way to say the "Stoney Creek" they had
+    // just typed. So the test is not how many there are, it is whether there is anything to
+    // choose between — one name that differs from the town is a choice.
+    const town = stripBrackets(this.placeTown);
+    const worthOffering = this.placeAreas.length >= 2 || (this.placeAreas.length === 1 && this.placeAreas[0] !== town);
+    if (!worthOffering) {
       host.innerHTML = '';
       host.hidden = true;
       return;
@@ -1957,17 +2179,31 @@ class Page {
    */
   private typeRows(): {
     rows: ReturnType<Page['combinedTypes']>;
-    undated: number;
-    stale: number;
-    elsewhere: number;
+    /** 🔴 EVERY TYPE THIS PAGE CAN NAME, SHOWN OR NOT — the denominator of the count. */
+    total: number;
+    droppedByAirport: number;
+    droppedByKind: number;
+    droppedByYear: number;
+    droppedForNoYear: number;
+    droppedBySeen: number;
   } {
     const era = ERAS.find((candidate) => candidate.key === this.eraFilter) ?? ERAS[0];
     const seen = SEEN_CHOICES.find((candidate) => candidate.key === this.seenFilter) ?? SEEN_CHOICES[0];
     const picked = new Set(this.chosenIcaos());
-    let undated = 0;
-    let stale = 0;
-    let elsewhere = 0;
-    const rows = this.combinedTypes().filter((row) => {
+    const all = this.combinedTypes();
+    // 🔴 EVERY REASON IS COUNTED, BECAUSE THE PAGE NOW PRINTS THE COUNT. George, 20 Sep 2026:
+    // *"when i updated the filter, i want the count of airplan types"*. A count is only worth
+    // showing if it can be accounted for, so each branch below increments its own reason and
+    // the note lists them. That also fixes a smaller lie the old counters told: `undated`
+    // counted only the types a YEAR filter rejected for having no year, and said nothing about
+    // the ones it rejected for having the wrong one, so the reasons never added up to the
+    // difference.
+    let droppedByAirport = 0;
+    let droppedByKind = 0;
+    let droppedByYear = 0;
+    let droppedForNoYear = 0;
+    let droppedBySeen = 0;
+    const rows = all.filter((row) => {
       // 🔴 ALWAYS FILTERED BY THE AIRPORTS YOU PICKED. George, 20 Sep 2026: *"the
       // selections will always be filtered by their selected airports"*. A type is
       // offered only when the feed has actually been seen showing it at one of them.
@@ -1977,17 +2213,23 @@ class Page {
       // somewhere it could not place — and hiding what is flying past would be the
       // wrong kind of tidy.
       if (picked.size > 0 && row.airports.length > 0 && !row.airports.some((icao) => picked.has(icao))) {
-        elsewhere += 1;
+        droppedByAirport += 1;
         return false;
       }
-      if (this.typeFilter !== 'all' && this.klassOf(row.code) !== this.typeFilter) return false;
+      if (this.typeFilter !== 'all' && this.klassOf(row.code) !== this.typeFilter) {
+        droppedByKind += 1;
+        return false;
+      }
       if (era.key !== 'all') {
         const entry = this.yearOf(row.code);
         if (entry === null) {
-          undated += 1;
+          droppedForNoYear += 1;
           return false;
         }
-        if (entry.year < era.from || entry.year > era.to) return false;
+        if (entry.year < era.from || entry.year > era.to) {
+          droppedByYear += 1;
+          return false;
+        }
       }
       // 🔴 HOW RECENTLY, AGAINST A WINDOW THAT STARTS AT A KNOWN MOMENT. There used to be
       // three branches here — a round-based "often", a round-based "now", and a rolling day
@@ -1996,20 +2238,30 @@ class Page {
       // is now one comparison against one floor: was the last sighting at or after the
       // moment the chosen period begins.
       //
-      // A type in the air right now passes every window, including "today", because
+      // A type in the air right now passes every time window, including "today", because
       // `lastSeenOf` answers `now` for anything in `liveTypes` — the reader can see it, and
       // no filter should hide what is flying past.
+      const at = this.lastSeenOf(row.code);
+      if (seen.mode === 'noData') {
+        // 🔴 THE ONE CHOICE THAT KEEPS WHAT THE OTHERS THROW AWAY. A type with no sighting on
+        // record is dropped by every window above, because there is no date to compare — so
+        // this is the only way to see what the record is silent about.
+        if (at !== null) {
+          droppedBySeen += 1;
+          return false;
+        }
+        return true;
+      }
       const floor = seen.since ? seen.since(new Date()).getTime() : null;
       if (floor !== null) {
-        const at = this.lastSeenOf(row.code);
         if (at === null || at.getTime() < floor) {
-          stale += 1;
+          droppedBySeen += 1;
           return false;
         }
       }
       return true;
     });
-    return { rows, undated, stale, elsewhere };
+    return { rows, total: all.length, droppedByAirport, droppedByKind, droppedByYear, droppedForNoYear, droppedBySeen };
   }
 
   /** The survey's types, with anything newer that this session saw merged in. */
@@ -2394,19 +2646,16 @@ class Page {
     const host = byId('typeList');
     if (!host) return;
 
-    const { rows, undated, stale, elsewhere } = this.typeRows();
+    const counts = this.typeRows();
+    const { rows } = counts;
 
     if (rows.length === 0) {
       // 🔴 A FILTER THAT HIDES TYPES SAYS HOW MANY IT HID, AND WHY. Otherwise an era
       // filter over a list where a third of the codes have no year looks as though
-      // the types have gone, rather than as though the years are missing.
-      const hidden =
-        undated > 0
-          ? ` ${undated} type${undated === 1 ? '' : 's'} in this view ${
-              undated === 1 ? 'has' : 'have'
-            } no first-flown year, so ${undated === 1 ? 'it is' : 'they are'} left out of a year filter rather than guessed at.`
-          : '';
-      host.innerHTML = `<p class="muted small">${escapeHtml(this.emptyMessage() + hidden)}</p>`;
+      // the types have gone, rather than as though the years are missing. The reasons are
+      // built by one method and printed here and under the list, so the two cannot disagree.
+      const why = this.droppedReasons(counts);
+      host.innerHTML = `<p class="muted small">${escapeHtml(this.emptyMessage() + (why ? ` ${why}.` : ''))}</p>`;
       return;
     }
 
@@ -2432,6 +2681,11 @@ class Page {
         // whole type back, and the row stops claiming to watch all of them.
         const wholeType = already && rule.tails.length === 0;
         const chosen = new Set((rule?.tails ?? []).map((tail) => normaliseKey(tail)));
+        // 🔴 THE BELL'S OWN RULE, FOUND THE SAME WAY. Nothing is shared with the star beyond
+        // the lookup — no fallback to the starred list, because a reader who starred something
+        // did not thereby ask to be woken for it, and that inference is the bug being fixed.
+        const alertRule = this.alertRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(row.code));
+        const alerting = alertRule !== undefined;
         const width = Math.max(2, Math.round((row.seen / maxima) * 100));
         const tails = (row.registrations ?? []).slice(0, 24);
         const entry = this.yearOf(row.code);
@@ -2476,17 +2730,22 @@ class Page {
                 .join('') +
               '</div>';
 
-        const tailNote =
-          tails.length === 0
-            ? ''
-            : `<p class="small muted tail-note">${
-                wholeType
-                  ? 'The whole type is starred, so every one of these is watched. Press one to watch only that aeroplane instead.'
-                  : chosen.size > 0
-                    ? 'Only the starred ones are watched — starring a tail number <b>un-favourites the whole type</b>. Press a starred one again, or press the star on the row, to go back to all of them.'
-                    : 'Press any of these to watch that aeroplane instead of the whole type. Every tail number here is one that actually transmitted its registration — many transponders never send one, so this is a sample of what identifies itself and not a fleet list.'
-              }</p>`;
-
+        // 🔴 THE PER-ROW INSTRUCTION IS GONE. George, 20 Sep 2026, pasting them back: *"these
+        // can be removed"* — "The whole type is starred, so every one of these is watched.
+        // Press one to watch only that aeroplane instead." and "Only the starred ones are
+        // watched — starring a tail number un-favourites the whole type. Press a starred one
+        // again, or press the star on the row, to go back to all of them."
+        //
+        // He is right, and it was the wrong place for it twice over: the sentence appeared on
+        // EVERY row, so a list of forty types carried forty paragraphs explaining the same two
+        // buttons — and the star's own tooltip already says which state it is in, on the one
+        // control the reader is looking at.
+        //
+        // ⚠️ ONE CLAUSE FROM THE THIRD BRANCH WAS NOT IN WHAT HE QUOTED, AND IT IS NOT PROSE:
+        // *"many transponders never send one, so this is a sample of what identifies itself and
+        // not a fleet list"*. That is a caveat about what the data MEANS — the kind this
+        // project keeps — so it moved to the one note under the list rather than being deleted
+        // with the instructions. See `registrationsNote` in the note beside `#typeList`.
         return (
           `<div class="typerow${already ? ' typerow-on' : ''}">` +
           `<div class="typerow-thumb">${this.thumbHtml(row.code, klass)}</div>` +
@@ -2502,6 +2761,11 @@ class Page {
           '</div>' +
           `<div class="typerow-actions">` +
           starButton(row.code, wholeType, already && !wholeType) +
+          bellButton(
+            row.code,
+            alerting && alertRule.tails.length === 0,
+            alerting && alertRule.tails.length > 0
+          ) +
           '</div>' +
           `<div class="typerow-meta">` +
           `<span class="typerow-bar" aria-hidden="true"><i style="width:${width}%"></i></span>` +
@@ -2517,33 +2781,22 @@ class Page {
           (row.airports.length > 1 ? ` · ${row.airports.length} airports` : row.airports.length === 1 ? ` · ${escapeHtml(row.airports[0])}` : '') +
           `${escapeHtml(this.creditOf(row.code))}</span></div>` +
           tailChips +
-          tailNote +
           '</div>'
         );
       })
       .join('');
 
+    // 🔴 THE COUNT, AND WHERE THE REST WENT. George, 20 Sep 2026: *"when i updated the
+    // filter, i want the count of airplan types"*. The count is not just the number shown — a
+    // reader who sees 57 wants to know what happened to the other 72, and a number with no
+    // account of the difference is a number they cannot check. `droppedReasons` sums to
+    // exactly `total - rows.length`, because every dropped type increments exactly one
+    // counter and stops.
+    const why = this.droppedReasons(counts);
     host.innerHTML =
       measuredHtml +
-      (undated > 0 || stale > 0 || elsewhere > 0
-        ? `<p class="small muted">${
-            [
-              elsewhere > 0
-                ? `${elsewhere} more ${elsewhere === 1 ? 'type has' : 'types have'} been seen around here, but not at the airports you picked.`
-                : '',
-              undated > 0
-                ? `${undated} type${undated === 1 ? '' : 's'} here ${
-                    undated === 1 ? 'has' : 'have'
-                  } no first-flown year, so ${undated === 1 ? 'it is' : 'they are'} left out while a year filter is on.`
-                : '',
-              stale > 0
-                ? `${stale} more ${stale === 1 ? 'type was' : 'types were'} seen here, but not inside the window you chose.`
-                : '',
-            ]
-              .filter(Boolean)
-              .join(' ')
-          }</p>`
-        : '');
+      `<p class="small muted">Showing <b>${rows.length}</b> of ${counts.total} type${counts.total === 1 ? '' : 's'}` +
+      `${why ? ` — ${escapeHtml(why)}` : ''}.</p>`;
 
     for (const button of host.querySelectorAll<HTMLButtonElement>('.type-toggle')) {
       button.addEventListener('click', () => {
@@ -2567,6 +2820,31 @@ class Page {
       });
     }
 
+    // 🔴 THE BELL, WHICH IS A DIFFERENT QUESTION FROM THE STAR. It keeps its own list, so
+    // pressing it does not change what the table lists and starring a type does not arm an
+    // alert. George, 20 Sep 2026: *"i should be able to select from the list w3hich ones i
+    // want an alert for"*.
+    for (const button of host.querySelectorAll<HTMLButtonElement>('.alert-toggle')) {
+      button.addEventListener('click', () => {
+        const code = button.dataset.type ?? '';
+        const current = this.alertRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
+        if (!current) {
+          this.alertRules.push({ type: code, tails: [] });
+          track('type_alert_on', { code, total: this.alertRules.length });
+        } else if (current.tails.length > 0) {
+          // A narrowed bell widens back to the whole type, exactly as the star does — the
+          // second press is "all of them", not "off", because that is what the shading says.
+          current.tails = [];
+          track('type_alert_widened', { code });
+        } else {
+          this.alertRules = this.alertRules.filter((candidate) => normaliseKey(candidate.type) !== normaliseKey(code));
+          track('type_alert_off', { code });
+        }
+        this.saveAlertRules();
+        this.renderTypeList();
+      });
+    }
+
     // 🔴 HIGHLIGHTING A TAIL UN-FAVOURITES THE WHOLE TYPE, by construction: the
     // first tick on an un-narrowed rule fills `tails`, and a rule with tails is
     // by definition not the whole type. No separate step, nothing to forget.
@@ -2574,18 +2852,34 @@ class Page {
       chip.addEventListener('click', () => {
         const code = chip.dataset.type ?? '';
         const tail = chip.dataset.tail ?? '';
-        let rule = this.typeRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
-        if (!rule) {
-          rule = { type: code, tails: [] };
-          this.typeRules.push(rule);
+        // The same predicate the chip was drawn from: lit when the whole type is on, or when
+        // this tail is one of the ones picked. Read from the STAR's list, because that is the
+        // list the row's marks are about — the bell follows it rather than driving it.
+        const starRule = this.typeRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
+        const on =
+          starRule !== undefined &&
+          (starRule.tails.length === 0 || starRule.tails.some((item) => normaliseKey(item) === normaliseKey(tail)));
+
+        // 🔴 THE SAME TAIL TICK NARROWS BOTH LISTS — THE STAR AND THE BELL — AND THAT IS THE
+        // POINT OF BEING ABLE TO SELECT. George, 20 Sep 2026: *"i should be able to select from
+        // the list w3hich ones i want an alert for"*. A reader reading a row decides "this type,
+        // but only these two airframes, and tell me about them" in one gesture. Two controls
+        // here would mean ticking the same tail twice and getting them out of step.
+        //
+        // A type the reader has not starred at all is NOT starred by ticking a tail on it, and
+        // it is not armed for alerts either — the tick only narrows lists that already contain
+        // the type. Ticking a tail to see it in the table is what the star is for.
+        for (const list of [this.typeRules, this.alertRules]) {
+          const rule = list.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
+          if (!rule) continue;
+          if (on) rule.tails = rule.tails.filter((item) => normaliseKey(item) !== normaliseKey(tail));
+          else rule.tails.push(tail);
         }
-        const on = rule.tails.some((item) => normaliseKey(item) === normaliseKey(tail));
-        if (on) rule.tails = rule.tails.filter((item) => normaliseKey(item) !== normaliseKey(tail));
-        else rule.tails.push(tail);
         this.saveTypeRules();
+        this.saveAlertRules();
         this.renderWatchlist();
         this.renderTypeList();
-        track('tail_highlighted', { code, highlighted: !on, tails: rule.tails.length });
+        track('tail_highlighted', { code, highlighted: !on });
       });
     }
 
@@ -2678,24 +2972,31 @@ class Page {
     if (!button || !note) return;
     if (!('Notification' in window)) {
       button.hidden = true;
+      note.textContent = 'This browser cannot show notifications, so the bell beside each type cannot reach you.';
       return;
     }
+
+    // 🔴 HOW MANY ARE ARMED, AND WHETHER THAT MATTERS YET. Two silences look identical to a
+    // reader: "nothing has left" and "nothing is armed". Since the bell became a separate
+    // choice, the common way to get no alerts is to have granted permission and picked
+    // nothing — so the note counts the armed types and says which silence this is.
+    const armed = this.alertRules.length;
+    const what = armed === 0
+      ? 'No type is armed for alerts, so nothing will reach you yet — press the bell beside a type in step 3.'
+      : `${armed} type${armed === 1 ? '' : 's'} armed for alerts (the bell beside a type in step 3).`;
+
     if (Notification.permission === 'granted') {
       button.hidden = true;
-      note.textContent = 'Notifications are on for this site. You will be told when a watched aircraft leaves.';
+      note.textContent = `Notifications are on for this site. ${what}`;
       return;
     }
     button.hidden = false;
     button.textContent = Notification.permission === 'denied' ? 'Notifications are blocked' : 'Tell me when they leave';
-    // 🔴 THE BOARD IS GONE, SO NOTHING MAY POINT AT IT. George, 20 Sep 2026, pasting the
-    // board: *"remove all of this"* — and the sentence telling the reader what the
-    // notifications are for was still describing a card that is no longer on the page.
-    // What is left to point at is the table, which is where a column changes when an
-    // aircraft leaves the ground.
     note.textContent =
       Notification.permission === 'denied'
-        ? 'This browser has blocked notifications for this site. The table below still updates as aircraft leave.'
-        : 'Notifications are off. The table below works either way.';
+        ? `This browser has blocked notifications for this site, so nothing can reach you here. ${what} ` +
+          'The table below still updates as aircraft leave.'
+        : `Notifications are off. ${what} The table below works either way.`;
   }
 
   private bindNotify(): void {
@@ -3230,7 +3531,27 @@ class Page {
     this.renderMap();
   }
 
-  private computeNearby(lat: number, lon: number, label = '', town = '', areas: string[] = []): void {
+  private computeNearby(
+    lat: number,
+    lon: number,
+    label = '',
+    town = '',
+    areas: string[] = [],
+    /**
+     * A community the reader has ALREADY CHOSEN. Only the place search passes one.
+     *
+     * 🔴 SOMETHING THE READER TYPED MUST NOT BE ASKED BACK. George, 20 Sep 2026: *"i want to
+     * search for location by name, similiar to what inputresponse.com does"* — and a reader who
+     * typed "Stoney Creek", read a list, and pressed *"Stoney Creek, Hamilton, Golden
+     * Horseshoe"* has answered the community question. The first cut dropped it: the search
+     * returned `area: "Stoney Creek"`, the page set the label from the town only, printed
+     * "Hamilton", and offered the community as a chip — asking again what it had just been told.
+     *
+     * It is matched against `areas` rather than trusted blindly, so a name that is not one of
+     * this place's communities cannot become the label.
+     */
+    preferredArea = ''
+  ): void {
     const list = this.listedAirports?.airports ?? [];
     if (list.length === 0) return;
     // 400 km, because that is roughly the reach of the list as it stands. The
@@ -3253,9 +3574,14 @@ class Page {
     this.placeTown = town;
     this.placeAreas = areas;
     // A community only counts while it belongs to the area being looked at, so a new
-    // postal code clears the old one rather than carrying a name from another town.
-    const keptArea = areas.includes(readStore(AREA_KEY, '')) ? readStore(AREA_KEY, '') : '';
-    this.placeArea = keptArea;
+    // postal code clears the old one rather than carrying a name from another town. And the name
+    // the reader just picked beats the one remembered from last time.
+    const remembered = readStore(AREA_KEY, '');
+    this.placeArea = areas.includes(preferredArea)
+      ? preferredArea
+      : areas.includes(remembered)
+        ? remembered
+        : '';
     writeStore(CENTRE_KEY, JSON.stringify({ lat, lon, label }));
     this.renderPlace();
     this.renderNearby();
@@ -3327,8 +3653,109 @@ class Page {
     });
   }
 
+  /**
+   * Search for a place by NAME, then let the reader pick from the matches.
+   *
+   * 🔴 THE INTERACTION GEORGE ASKED FOR BY NAME. George, 20 Sep 2026: *"i want to search for
+   * location by name, similiar to what inputresponse.com does"*. That site takes a typed city
+   * and hands back a short list for the player to pick from, so the choice is explicit rather
+   * than inferred. This does the same: the results appear as chips, and nothing is applied to
+   * the page until one of them is pressed.
+   *
+   * 🔴 NOTHING IS CHOSEN AUTOMATICALLY, AND THAT IS THE POINT OF THE LIST. "Hamilton" is a city
+   * in Ontario, a city in Ohio, and a dozen other places; a search box that silently took the
+   * first match would move the reader's fences to another country without saying so. The list is
+   * short (six), each entry carries the province or state, and the reader decides.
+   *
+   * It searches on submit rather than on every keystroke — see the note on the route in
+   * tools/serve.mjs: the free geocoder behind it allows about one request a second, and a page
+   * that leaned on it would be abusing a service it does not pay for.
+   */
+  private bindPlaceSearch(): void {
+    const form = byId<HTMLFormElement>('placeSearchForm');
+    const input = byId<HTMLInputElement>('placeSearchInput');
+    const results = byId('placeResults');
+    const note = byId('placeSearchNote');
+    if (!form || !input || !results) return;
+
+    const clearResults = (): void => {
+      results.innerHTML = '';
+      results.hidden = true;
+    };
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const value = input.value.trim();
+      if (value.length < 2) {
+        if (note) note.textContent = 'Type at least two characters of a place name.';
+        return;
+      }
+      clearResults();
+      if (note) note.textContent = `Looking for ${value}…`;
+      try {
+        const response = await fetch(`/api/geo/search?q=${encodeURIComponent(value)}`, {
+          headers: { accept: 'application/json' },
+        });
+        const body = (await readJson(response)) as {
+          ok?: boolean;
+          error?: string;
+          places?: { label?: string; name?: string; area?: string; region?: string; lat?: number; lon?: number }[];
+          note?: string;
+        };
+        const places = (body.places ?? []).filter(
+          (place) => typeof place.lat === 'number' && typeof place.lon === 'number'
+        );
+        if (!body.ok || places.length === 0) {
+          if (note) note.textContent = body.error ?? `Nothing matched “${value}”. Try a town and its province, or the postal code.`;
+          return;
+        }
+
+        results.hidden = false;
+        results.innerHTML = places
+          .map(
+            (place, index) =>
+              `<button type="button" class="chip chip-small place-result" ` +
+              `data-index="${index}" data-ga="place-result">` +
+              `${escapeHtml(place.label ?? place.name ?? '')}</button>`
+          )
+          .join('');
+        for (const button of results.querySelectorAll<HTMLButtonElement>('.place-result')) {
+          button.addEventListener('click', () => {
+            const picked = places[Number(button.dataset.index)];
+            if (!picked || typeof picked.lat !== 'number' || typeof picked.lon !== 'number') return;
+            const town = picked.name ?? picked.label ?? 'that place';
+            // The community is carried when the geocoder named one — the same field the postal
+            // path puts in its chips — so the label can say "Stoney Creek" rather than the town
+            // it sits in. When it is empty the town leads, which is the same rule as everywhere
+            // else on this card.
+            // 🔴 THE COMMUNITY IS CARRIED, BECAUSE THE READER JUST CHOSE IT. The geocoder returns
+            // the object's own name separately from the administrative town — "Stoney Creek" and
+            // "Hamilton" — and this row in the list said both, so the reader has already picked
+            // the community by picking the row. It goes in as the preferred area rather than as a
+            // chip to press afterwards.
+            this.computeNearby(picked.lat, picked.lon, town, town, picked.area ? [picked.area] : [], picked.area ?? '');
+            if (note) {
+              note.textContent = `${picked.label ?? town} — airports below are ordered by distance from there. ${body.note ?? ''}`.trim();
+            }
+            clearResults();
+            track('place_picked', { by: 'search', count: this.nearby.length });
+          });
+        }
+        if (note) note.textContent = `${places.length} place${places.length === 1 ? '' : 's'} matched “${value}”. Pick the right one:`;
+      } catch (error) {
+        if (note) {
+          note.textContent =
+            'The place search could not be reached. ' +
+            (error instanceof Error ? error.message : '') +
+            ' A postal code still works, and so does picking an airport by name.';
+        }
+      }
+    });
+  }
+
   private bindLocate(): void {
     this.bindPostal();
+    this.bindPlaceSearch();
     const button = byId<HTMLButtonElement>('locateBtn');
     const note = byId('locateNote');
     if (!button) return;

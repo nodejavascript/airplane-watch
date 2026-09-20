@@ -180,19 +180,40 @@
       <section class="card step-gated" id="step-1" data-step="1">
         <h2><span class="step">1</span> Where you are, and how far out</h2>
         <div id="placeAsk">
-          <p class="sub" id="placeSub">A postal code, or let the browser find you — everything below follows from it, and the map is fitted so your gap fits whole.</p>
+          <p class="sub" id="placeSub">Where you are, named one of three ways — a place, a postal code, or your browser's own position. Everything below follows from it, and the map is fitted so your gap fits whole.</p>
+
+          <!--
+            🔴 THE PLACE SEARCH LEADS, BECAUSE IT IS THE ONE THAT ALWAYS WORKS. George, 20 Sep
+            2026: *"i want to search for location by name, similiar to what inputresponse.com
+            does"* — type a name, get a short list, pick one, and the choice is explicit. The
+            postal code only works where postal codes are known and the browser's position waits
+            behind a permission prompt; a name needs neither.
+
+            It searches on submit rather than on every keystroke, which is a limit of the free
+            service behind it rather than a design choice — see the note in tools/serve.mjs.
+          -->
+          <form id="placeSearchForm" class="watch-form" autocomplete="off">
+            <label class="field">
+              <span class="label">Search for a place</span>
+              <input id="placeSearchInput" name="place" type="text" placeholder="Stoney Creek, Hamilton, Buffalo…" spellcheck="false" inputmode="search" />
+            </label>
+            <button class="ghost" type="submit" data-ga="place-search">Find this place</button>
+            <button type="button" class="ghost" id="locateBtn" data-ga="locate">Or find me</button>
+          </form>
+          <div class="chips" id="placeResults" role="group" aria-label="Places matching what you typed" hidden></div>
+          <p class="small muted" id="placeSearchNote"></p>
+
           <form id="postalForm" class="watch-form" autocomplete="off">
             <label class="field">
-              <span class="label">Postal code or ZIP</span>
+              <span class="label">Or a postal code / ZIP</span>
               <input id="postalInput" name="postal" type="text" placeholder="[redacted], or a ZIP such as 14201" spellcheck="false" inputmode="text" />
             </label>
             <button class="ghost" type="submit" data-ga="postal">Use this code</button>
-            <button type="button" class="ghost" id="locateBtn" data-ga="locate">Or find me</button>
           </form>
           <p class="small muted" id="postalNote">
             A Canadian code is looked up on its first three characters, because that is how postal areas are actually
-            defined — <span class="mono">L8E</span> is enough. Both buttons do the same job; neither is required, and the
-            airports below always work.
+            defined — <span class="mono">L8E</span> is enough. A postal code is also the only one of the three that can
+            offer the communities inside it.
           </p>
           <p class="small muted" id="locateNote"></p>
         </div>

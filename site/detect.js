@@ -168,6 +168,17 @@ export class DetectionEngine {
     options;
     watchlist;
     typeRules = [];
+    /**
+     * 🔴 A SECOND RULE SET, FOR A DIFFERENT QUESTION. George, 20 Sep 2026: *"i should be able
+     * to select from the list w3hich ones i want an alert for"*.
+     *
+     * "Show me this in the table" and "wake my phone for this" are not the same wish, and until
+     * now the page could not tell them apart: anything matching a star raised a notification.
+     * A reader who stars everything they find interesting gets a phone full of alerts; a reader
+     * who stars one thing to watch it go by wants NO notification. So the bell is its own list,
+     * in the same shape as the star's, and the alert fires only for what is on it.
+     */
+    alertRules = [];
     constructor(options, watchlist = []) {
         this.options = options;
         this.watchlist = new Set([...watchlist].map(normaliseKey));
@@ -178,12 +189,11 @@ export class DetectionEngine {
     }
     /** The types the reader asked about, each optionally narrowed to tail numbers. */
     setTypeRules(rules) {
-        this.typeRules = [...rules]
-            .filter((rule) => String(rule?.type ?? '').trim() !== '')
-            .map((rule) => ({
-            type: normaliseKey(rule.type),
-            tails: [...(rule.tails ?? [])].map(normaliseKey).filter((tail) => tail !== ''),
-        }));
+        this.typeRules = normaliseRules(rules);
+    }
+    /** The types the reader asked to be ALERTED about — the bell, not the star. */
+    setAlertRules(rules) {
+        this.alertRules = normaliseRules(rules);
     }
     /**
      * Which rule, if any, this aircraft matches — or null.
@@ -194,31 +204,27 @@ export class DetectionEngine {
      * one rule matches, the narrowest wins.
      */
     matchOf(reading) {
-        const hex = normaliseKey(reading.hex);
-        const registration = reading.r ? normaliseKey(reading.r) : '';
-        const callsign = reading.flight ? normaliseKey(reading.flight) : '';
-        const named = this.watchlist.has(hex) || (registration !== '' && this.watchlist.has(registration)) || (callsign !== '' && this.watchlist.has(callsign));
-        if (named) {
-            const shown = (reading.r || reading.flight || reading.hex || '').trim();
-            return { kind: 'aircraft', label: `${shown} — watched by name` };
-        }
-        const type = reading.t ? normaliseKey(reading.t) : '';
-        if (type === '')
-            return null;
-        const byTail = [];
-        for (const rule of this.typeRules) {
-            if (rule.type !== type)
-                continue;
-            if (rule.tails.length === 0)
-                return { kind: 'type', label: `any ${rule.type}` };
-            if (rule.tails.includes(registration) || rule.tails.includes(hex) || rule.tails.includes(callsign)) {
-                byTail.push(rule);
-            }
-        }
-        if (byTail.length > 0) {
-            return { kind: 'type+tail', label: `${byTail[0].type}, tail ${(reading.r || reading.hex || '').trim()}` };
-        }
-        return null;
+        return matchAgainst(reading, this.watchlist, this.typeRules);
+    }
+    /**
+     * Which ALERT rule, if any, this aircraft matches — or null.
+     *
+     * The same rules as `matchOf`, asked of the bell's list instead of the star's. It is the
+     * same function so the two cannot drift: an aircraft alerted about is always one the page
+     * would also have listed, and a rule that works for one works for the other.
+     */
+    alertOf(reading) {
+        return matchAgainst(reading, EMPTY_KEYS, this.alertRules);
+    }
+    /**
+     * 🔴 IS THERE ANYTHING TO ALERT ABOUT AT ALL? The page needs this to be able to say so.
+     *
+     * A reader who has granted notifications and picked nothing gets silence, and silence is
+     * indistinguishable from a broken alert — which is the failure this whole feature keeps
+     * running into. The page asks this and says which it is.
+     */
+    hasAlertRules() {
+        return this.alertRules.length > 0;
     }
     /** Does this aircraft match anything the reader is watching? */
     isWatched(reading) {
@@ -248,6 +254,7 @@ export class DetectionEngine {
             const decision = judgeTakeoff(previous, reading, { ...this.options, now });
             const match = this.matchOf(reading);
             const watched = match !== null;
+            const alert = this.alertOf(reading) !== null;
             if (decision.verdict !== 'none') {
                 const last = this.firedAt.get(hex);
                 const cooling = last !== undefined && now - last < this.options.cooldownMs;
@@ -273,6 +280,7 @@ export class DetectionEngine {
                         climbFpm,
                         distanceNm: distanceToAirport,
                         watched,
+                        alert,
                         matchedBy: match ? match.kind : null,
                         matchedLabel: match ? match.label : '',
                     });
@@ -299,6 +307,60 @@ export class DetectionEngine {
         }
         return found;
     }
+}
+/**
+ * The two rule sets, normalised the one way.
+ *
+ * Kept as a function rather than written out in each setter, because two copies of a
+ * normaliser is how a tail number ends up matching a star but not a bell.
+ */
+function normaliseRules(rules) {
+    return [...rules]
+        .filter((rule) => String(rule?.type ?? '').trim() !== '')
+        .map((rule) => ({
+        type: normaliseKey(rule.type),
+        tails: [...(rule.tails ?? [])].map(normaliseKey).filter((tail) => tail !== ''),
+    }));
+}
+/** No named aircraft at all — for the alert rule set, which does not watch by name. */
+const EMPTY_KEYS = new Set();
+/**
+ * The matching rule, in one place, over whichever rule set is handed in.
+ *
+ * `matchOf` and `alertOf` both call this, so "what the page lists" and "what it alerts about"
+ * can never disagree about what a rule means. The parts they differ on — which list, and
+ * whether a named aircraft counts — are parameters.
+ *
+ * Order matters and is deliberate: a tail number the reader named is reported as a tail
+ * number, not as "a type", even when a type rule would also have caught it. The row should say
+ * the most specific true thing it can. When more than one rule matches, the narrowest wins.
+ */
+function matchAgainst(reading, named, rules) {
+    const hex = normaliseKey(reading.hex);
+    const registration = reading.r ? normaliseKey(reading.r) : '';
+    const callsign = reading.flight ? normaliseKey(reading.flight) : '';
+    const byName = named.has(hex) || (registration !== '' && named.has(registration)) || (callsign !== '' && named.has(callsign));
+    if (byName) {
+        const shown = (reading.r || reading.flight || reading.hex || '').trim();
+        return { kind: 'aircraft', label: `${shown} — watched by name` };
+    }
+    const type = reading.t ? normaliseKey(reading.t) : '';
+    if (type === '')
+        return null;
+    const byTail = [];
+    for (const rule of rules) {
+        if (rule.type !== type)
+            continue;
+        if (rule.tails.length === 0)
+            return { kind: 'type', label: `any ${rule.type}` };
+        if (rule.tails.includes(registration) || rule.tails.includes(hex) || rule.tails.includes(callsign)) {
+            byTail.push(rule);
+        }
+    }
+    if (byTail.length > 0) {
+        return { kind: 'type+tail', label: `${byTail[0].type}, tail ${(reading.r || reading.hex || '').trim()}` };
+    }
+    return null;
 }
 /**
  * One key shape for hex, callsign and tail number, so "c-gxxx", "C-GXXX" and

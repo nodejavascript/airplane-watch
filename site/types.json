@@ -1,13 +1,13 @@
 {
-  "generated": "2026-09-20T19:13:33.455Z",
+  "generated": "2026-09-20T21:25:32.572Z",
   "method": "3 rounds of 74 km around 7 airports, 15s apart",
-  "aircraftInspected": 1114,
+  "aircraftInspected": 1252,
   "counted": "sightings (one per aircraft per round)",
   "registrationsNote": "Up to 40 registrations per type, from aircraft that actually transmitted one. Many transponders never send a registration, so this is a sample of what identifies itself, not a fleet list.",
-  "historyNote": "lastSeen and runsSeen are read from the type_last_seen view — the most recent time each type was seen, and how many runs have seen it, over 3 survey runs so far. Nothing carries a date forward: a run records what it saw and nothing else. seen is this run's frequency.",
-  "runsRecorded": 3,
+  "historyNote": "lastSeen and runsSeen are read from the type_last_seen view — the most recent time each type was seen, and how many runs have seen it, over 4 survey runs so far. Nothing carries a date forward: a run records what it saw and nothing else. seen is this run's frequency.",
+  "runsRecorded": 4,
   "historyFrom": "2026-09-20T16:17:45.036Z",
-  "historyTo": "2026-09-20T19:13:33.455Z",
+  "historyTo": "2026-09-20T21:25:32.572Z",
   "airports": [
     "CYHM",
     "CYKF",
@@ -20,93 +20,69 @@
   "types": [
     {
       "code": "C172",
-      "seen": 158,
+      "seen": 184,
       "airports": [
         "CYHM",
         "CYKF",
         "CYTZ",
-        "CYUL",
         "CYVR",
-        "CYYZ",
-        "KBUF"
+        "CYYZ"
       ],
       "operators": [
-        "CFA",
-        "CFF",
-        "CFI",
-        "CFQ",
+        "ACA",
+        "CFG",
+        "CFN",
         "CFS",
-        "CFT",
-        "CFU",
-        "CFV",
         "CGA",
         "CGB",
         "CGE",
-        "CGG"
+        "CGF",
+        "CGH",
+        "CGI",
+        "CGM",
+        "CGO"
       ],
       "categories": [
-        "A1"
+        "A1",
+        "A3"
       ],
       "registrations": [
         {
-          "reg": "C-FAKH",
+          "reg": "C-FGAR",
           "airports": [
             "CYHM",
             "CYKF",
+            "CYTZ",
             "CYYZ"
           ]
         },
         {
-          "reg": "C-FATP",
+          "reg": "C-FGMU",
           "airports": [
             "CYHM",
             "CYKF",
+            "CYTZ",
             "CYYZ"
           ]
         },
         {
-          "reg": "C-FFSK",
-          "airports": [
-            "CYUL"
-          ]
-        },
-        {
-          "reg": "C-FSEV",
-          "airports": [
-            "CYKF"
-          ]
-        },
-        {
-          "reg": "C-FTLA",
+          "reg": "C-FHYY",
           "airports": [
             "CYVR"
           ]
         },
         {
-          "reg": "C-FVKO",
+          "reg": "C-FNOJ",
           "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
+            "CYVR"
           ]
         },
         {
-          "reg": "C-GADT",
+          "reg": "C-FSEV",
           "airports": [
             "CYHM",
-            "CYKF",
             "CYTZ",
             "CYYZ"
-          ]
-        },
-        {
-          "reg": "C-GAPS",
-          "airports": [
-            "CYHM",
-            "CYTZ",
-            "CYYZ",
-            "KBUF"
           ]
         },
         {
@@ -116,16 +92,21 @@
           ]
         },
         {
-          "reg": "C-GBFA",
+          "reg": "C-GBBP",
           "airports": [
+            "CYHM",
             "CYKF",
+            "CYTZ",
             "CYYZ"
           ]
         },
         {
-          "reg": "C-GBLP",
+          "reg": "C-GBFA",
           "airports": [
-            "CYVR"
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
           ]
         },
         {
@@ -133,15 +114,6 @@
           "airports": [
             "CYHM",
             "CYKF"
-          ]
-        },
-        {
-          "reg": "C-GELN",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
           ]
         },
         {
@@ -154,7 +126,15 @@
           ]
         },
         {
-          "reg": "C-GGBL",
+          "reg": "C-GFMO",
+          "airports": [
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GFSP",
           "airports": [
             "CYHM",
             "CYKF",
@@ -163,45 +143,78 @@
           ]
         },
         {
-          "reg": "C-GINS",
+          "reg": "C-GHXU",
           "airports": [
-            "CYHM"
-          ]
-        },
-        {
-          "reg": "C-GJMD",
-          "airports": [
-            "CYHM",
             "CYKF",
             "CYTZ",
             "CYYZ"
           ]
         },
         {
-          "reg": "C-GPWD",
+          "reg": "C-GIJO",
           "airports": [
+            "CYKF",
             "CYYZ"
           ]
         },
         {
-          "reg": "C-GSCR",
+          "reg": "C-GILN",
           "airports": [
             "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
+            "CYKF"
           ]
         },
         {
-          "reg": "C-GSDZ",
+          "reg": "C-GMXV",
           "airports": [
             "CYVR"
           ]
         },
         {
-          "reg": "C-GVTS",
+          "reg": "C-GOIQ",
+          "airports": [
+            "CYKF",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GOYE",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GOZD",
+          "airports": [
+            "CYKF",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GPPV",
           "airports": [
             "CYVR"
+          ]
+        },
+        {
+          "reg": "C-GRFK",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GUWQ",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
           ]
         },
         {
@@ -214,65 +227,37 @@
           "reg": "C-GYEE",
           "airports": [
             "CYHM",
-            "CYKF"
+            "CYKF",
+            "CYYZ"
           ]
         },
         {
-          "reg": "C-IYN",
-          "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "C-UGC",
-          "airports": [
-            "CYTZ"
-          ]
-        },
-        {
-          "reg": "CF-QTO",
-          "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "N20487",
-          "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "N739BC",
-          "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "N79884",
+          "reg": "N75844",
           "airports": [
             "CYVR"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 473
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 657
     },
     {
       "code": "B38M",
-      "seen": 56,
+      "seen": 66,
       "airports": [
         "CYHM",
         "CYKF",
         "CYTZ",
+        "CYUL",
         "CYVR",
         "CYYZ",
         "KBUF"
       ],
       "operators": [
+        "ACA",
         "FLE",
         "ROU",
-        "SWA",
         "UAL",
         "WJA"
       ],
@@ -281,13 +266,21 @@
       ],
       "registrations": [
         {
-          "reg": "C-FLEJ",
+          "reg": "C-FAXD",
           "airports": [
             "CYVR"
           ]
         },
         {
-          "reg": "C-FTXF",
+          "reg": "C-FFFX",
+          "airports": [
+            "CYTZ",
+            "CYYZ",
+            "KBUF"
+          ]
+        },
+        {
+          "reg": "C-FFJF",
           "airports": [
             "CYHM",
             "CYKF",
@@ -296,7 +289,7 @@
           ]
         },
         {
-          "reg": "C-FULJ",
+          "reg": "C-FSCY",
           "airports": [
             "CYHM",
             "CYKF",
@@ -305,21 +298,28 @@
           ]
         },
         {
-          "reg": "C-GEHF",
+          "reg": "C-FTJV",
           "airports": [
+            "CYHM",
             "CYKF",
             "CYTZ",
             "CYYZ"
           ]
         },
         {
-          "reg": "C-GEHI",
+          "reg": "C-FXWJ",
           "airports": [
             "KBUF"
           ]
         },
         {
-          "reg": "C-GEPF",
+          "reg": "C-GUUL",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "N27290",
           "airports": [
             "CYHM",
             "CYKF",
@@ -328,163 +328,137 @@
           ]
         },
         {
-          "reg": "C-GWLK",
+          "reg": "N57286",
           "airports": [
             "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "N17338",
-          "airports": [
-            "CYHM"
-          ]
-        },
-        {
-          "reg": "N47340",
-          "airports": [
-            "KBUF"
-          ]
-        },
-        {
-          "reg": "N9001F",
-          "airports": [
             "KBUF"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 172
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 238
     },
     {
-      "code": "E75L",
-      "seen": 41,
+      "code": "B789",
+      "seen": 53,
       "airports": [
         "CYHM",
         "CYKF",
         "CYTZ",
+        "CYUL",
         "CYVR",
         "CYYZ",
         "KBUF"
       ],
       "operators": [
-        "QXE",
-        "RPA"
+        "ACA",
+        "AFR",
+        "ANA",
+        "CHH",
+        "HVN"
+      ],
+      "categories": [
+        "A5"
+      ],
+      "registrations": [
+        {
+          "reg": "B-7880",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-FGDZ",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-FGEI",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "C-FSBV",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GWUU",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "F-HRBI",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "JA921A",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "VN-A868",
+          "airports": [
+            "CYTZ",
+            "CYYZ",
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 87
+    },
+    {
+      "code": "CRJ9",
+      "seen": 42,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYUL",
+        "CYYZ"
+      ],
+      "operators": [
+        "EDV",
+        "JZA"
       ],
       "categories": [
         "A3"
       ],
       "registrations": [
         {
-          "reg": "N136HQ",
+          "reg": "C-FJFZ",
           "airports": [
-            "KBUF"
-          ]
-        },
-        {
-          "reg": "N634QX",
-          "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "N723YX",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "N739YX",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "N745YX",
-          "airports": [
-            "CYHM",
-            "CYKF",
             "CYTZ"
           ]
         },
         {
-          "reg": "N747YX",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 101
-    },
-    {
-      "code": "A319",
-      "seen": 40,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYUL",
-        "CYYZ",
-        "KBUF"
-      ],
-      "operators": [
-        "AAL",
-        "ROU"
-      ],
-      "categories": [
-        "A3"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FYJE",
-          "airports": [
-            "CYUL"
-          ]
-        },
-        {
-          "reg": "C-FYJP",
-          "airports": [
-            "CYUL"
-          ]
-        },
-        {
-          "reg": "C-FYKW",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "C-GBHY",
-          "airports": [
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "C-GBIN",
+          "reg": "C-GJFZ",
           "airports": [
             "CYHM",
             "CYKF"
           ]
         },
         {
-          "reg": "N733UW",
+          "reg": "C-GJUZ",
           "airports": [
             "CYHM",
             "CYKF",
@@ -493,176 +467,40 @@
           ]
         },
         {
-          "reg": "N834AW",
+          "reg": "C-GPJZ",
           "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "N292PQ",
+          "airports": [
+            "CYHM",
+            "CYKF",
             "CYTZ",
-            "KBUF"
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "N916XJ",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:17.491Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 81
-    },
-    {
-      "code": "CRJ9",
-      "seen": 36,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYUL",
-        "CYYZ",
-        "KBUF"
-      ],
-      "operators": [
-        "EDV",
-        "JZA",
-        "SKW"
-      ],
-      "categories": [
-        "A3"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FJZL",
-          "airports": [
-            "CYUL"
-          ]
-        },
-        {
-          "reg": "C-FLJZ",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "C-FNJZ",
-          "airports": [
-            "CYUL"
-          ]
-        },
-        {
-          "reg": "C-GCJZ",
-          "airports": [
-            "CYUL"
-          ]
-        },
-        {
-          "reg": "C-GJHZ",
-          "airports": [
-            "CYUL"
-          ]
-        },
-        {
-          "reg": "N132EV",
-          "airports": [
-            "KBUF"
-          ]
-        },
-        {
-          "reg": "N336PQ",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "N813SK",
-          "airports": [
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:17.491Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 100
-    },
-    {
-      "code": "A321",
-      "seen": 35,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYUL",
-        "CYVR",
-        "CYYZ",
-        "KBUF"
-      ],
-      "operators": [
-        "AAL",
-        "ACA",
-        "DAL",
-        "ROU"
-      ],
-      "categories": [
-        "A3"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FGKZ",
-          "airports": [
-            "CYUL"
-          ]
-        },
-        {
-          "reg": "C-GHPD",
-          "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "C-GHPJ",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "C-GIUF",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "N112DN",
-          "airports": [
-            "CYHM"
-          ]
-        },
-        {
-          "reg": "N303DN",
-          "airports": [
-            "KBUF"
-          ]
-        },
-        {
-          "reg": "N519UW",
-          "airports": [
-            "CYHM",
-            "CYKF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 80
+      "lastSeen": "2026-09-20T21:25:16.598Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 142
     },
     {
       "code": "DH8D",
-      "seen": 31,
+      "seen": 42,
       "airports": [
+        "CYHM",
+        "CYKF",
         "CYTZ",
         "CYUL",
         "CYVR",
@@ -679,201 +517,63 @@
       ],
       "registrations": [
         {
-          "reg": "C-GGMQ",
+          "reg": "C-FSWE",
           "airports": [
             "CYVR"
           ]
         },
         {
-          "reg": "C-GGNF",
+          "reg": "C-GGNW",
           "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "C-GJZN",
-          "airports": [
+            "CYHM",
+            "CYKF",
             "CYTZ",
-            "KBUF"
+            "CYYZ"
           ]
         },
         {
-          "reg": "C-GKQG",
+          "reg": "C-GGOI",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GJZA",
+          "airports": [
+            "CYHM",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GKQC",
           "airports": [
             "CYUL"
           ]
         },
         {
-          "reg": "C-GLQO",
+          "reg": "C-GLQZ",
           "airports": [
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "C-GPWE",
-          "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "C-GWRE",
-          "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "C-GYJZ",
-          "airports": [
-            "CYTZ",
-            "CYYZ",
             "KBUF"
+          ]
+        },
+        {
+          "reg": "C-GUJZ",
+          "airports": [
+            "CYUL"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 105
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 147
     },
     {
       "code": "BCS3",
-      "seen": 26,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYVR",
-        "CYYZ",
-        "KBUF"
-      ],
-      "operators": [
-        "ACA",
-        "DAL"
-      ],
-      "categories": [
-        "A3"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GNBE",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "C-GVUO",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "N308DU",
-          "airports": [
-            "CYTZ",
-            "KBUF"
-          ]
-        },
-        {
-          "reg": "N331DU",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 66
-    },
-    {
-      "code": "E170",
-      "seen": 22,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ",
-        "KBUF"
-      ],
-      "operators": [
-        "ENY",
-        "RPA"
-      ],
-      "categories": [
-        "A3"
-      ],
-      "registrations": [
-        {
-          "reg": "N789SS",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "N979RP",
-          "airports": [
-            "CYHM",
-            "CYTZ",
-            "CYYZ",
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 35
-    },
-    {
-      "code": "B738",
-      "seen": 19,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "AAL",
-        "UAL"
-      ],
-      "categories": [
-        "A3"
-      ],
-      "registrations": [
-        {
-          "reg": "N14250",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "N976AN",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 82
-    },
-    {
-      "code": "E295",
-      "seen": 17,
+      "seen": 41,
       "airports": [
         "CYHM",
         "CYKF",
@@ -883,26 +583,62 @@
         "CYYZ"
       ],
       "operators": [
-        "POE"
+        "ACA"
       ],
       "categories": [
         "A3"
       ],
       "registrations": [
         {
-          "reg": "C-GKQP",
+          "reg": "C-FHXN",
           "airports": [
-            "CYUL"
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
           ]
         },
         {
-          "reg": "C-GKXA",
+          "reg": "C-GJYI",
           "airports": [
             "CYVR"
           ]
         },
         {
-          "reg": "C-GZQX",
+          "reg": "C-GMZY",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "C-GNAM",
+          "airports": [
+            "CYTZ"
+          ]
+        },
+        {
+          "reg": "C-GNBN",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "C-GNGV",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "C-GUPG",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GWUT",
           "airports": [
             "CYHM",
             "CYKF",
@@ -911,13 +647,84 @@
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 62
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 107
     },
     {
-      "code": "P28A",
-      "seen": 17,
+      "code": "A320",
+      "seen": 38,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYUL",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "ACA",
+        "JBU",
+        "TAI",
+        "UAL"
+      ],
+      "categories": [
+        "A3"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FCZF",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "C-FZQS",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GKOE",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "N467UA",
+          "airports": [
+            "KBUF"
+          ]
+        },
+        {
+          "reg": "N529JB",
+          "airports": [
+            "KBUF"
+          ]
+        },
+        {
+          "reg": "N980AV",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:16.598Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 122
+    },
+    {
+      "code": "B738",
+      "seen": 38,
       "airports": [
         "CYHM",
         "CYKF",
@@ -927,47 +734,478 @@
         "KBUF"
       ],
       "operators": [
-        "CFX",
-        "CGO",
-        "CGR"
+        "ANT",
+        "SCX",
+        "SWA",
+        "UAL",
+        "WJA"
       ],
       "categories": [
-        "A1"
+        "A3"
       ],
       "registrations": [
         {
-          "reg": "C-GOBO",
+          "reg": "C-FNYA",
           "airports": [
-            "CYHM",
-            "CYKF"
+            "CYVR"
           ]
         },
         {
-          "reg": "C-GRQR",
+          "reg": "C-GOCD",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GWSX",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "N36272",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "N856SY",
+          "airports": [
+            "KBUF"
+          ]
+        },
+        {
+          "reg": "N8674B",
+          "airports": [
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:14.877Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 120
+    },
+    {
+      "code": "A321",
+      "seen": 37,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYUL",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "AAL",
+        "ACA",
+        "JBU",
+        "ROU",
+        "TSC"
+      ],
+      "categories": [
+        "A3"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FGKZ",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "C-FJOU",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GEZX",
           "airports": [
             "CYTZ",
             "CYYZ"
           ]
         },
         {
-          "reg": "C-XTW",
+          "reg": "C-GKFA",
+          "airports": [
+            "CYHM",
+            "CYTZ",
+            "CYYZ",
+            "KBUF"
+          ]
+        },
+        {
+          "reg": "N585UW",
+          "airports": [
+            "CYHM"
+          ]
+        },
+        {
+          "reg": "N964JT",
+          "airports": [
+            "CYHM"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:16.598Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 117
+    },
+    {
+      "code": "A21N",
+      "seen": 35,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "JBU",
+        "SAS",
+        "TSC",
+        "UAL"
+      ],
+      "categories": [
+        "A3"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GOIE",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GOKF",
+          "airports": [
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "N2193J",
+          "airports": [
+            "KBUF"
+          ]
+        },
+        {
+          "reg": "N34562",
+          "airports": [
+            "CYHM"
+          ]
+        },
+        {
+          "reg": "SE-DMR",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:14.877Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 54
+    },
+    {
+      "code": "E75S",
+      "seen": 30,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "JZA"
+      ],
+      "categories": [
+        "A3"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FEJB",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-FEJF",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-FUJA",
+          "airports": [
+            "CYHM",
+            "CYTZ",
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:14.877Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 130
+    },
+    {
+      "code": "E295",
+      "seen": 27,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "POE"
+      ],
+      "categories": [
+        "A3"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GKQO",
+          "airports": [
+            "CYHM",
+            "CYTZ",
+            "CYYZ",
+            "KBUF"
+          ]
+        },
+        {
+          "reg": "C-GKQP",
+          "airports": [
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GKXV",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:14.877Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 89
+    },
+    {
+      "code": "C152",
+      "seen": 24,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFG",
+        "CFY",
+        "CGZ"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FGJK",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-FYKF",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GZKT",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:46.516Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 94
+    },
+    {
+      "code": "B788",
+      "seen": 23,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "ACA",
+        "LOT"
+      ],
+      "categories": [
+        "A5"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GHQQ",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "SP-LRF",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 35
+    },
+    {
+      "code": "B739",
+      "seen": 21,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYVR",
+        "CYYZ"
+      ],
+      "operators": [
+        "ASA",
+        "DAL",
+        "UAL"
+      ],
+      "categories": [
+        "A3"
+      ],
+      "registrations": [
+        {
+          "reg": "N39475",
           "airports": [
             "CYVR"
           ]
         },
         {
-          "reg": "N4937F",
+          "reg": "N434AS",
           "airports": [
-            "KBUF"
+            "CYKF"
+          ]
+        },
+        {
+          "reg": "N69813",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "N892DN",
+          "airports": [
+            "CYHM",
+            "CYKF"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
+      "lastSeen": "2026-09-20T21:25:18.317Z",
       "runsSeen": 3,
-      "seenInAllRuns": 56
+      "seenInAllRuns": 41
     },
     {
-      "code": "GLID",
+      "code": "PC12",
+      "seen": 20,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYUL",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFS",
+        "NDL"
+      ],
+      "categories": [
+        "A1",
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FSCO",
+          "airports": [
+            "CYHM",
+            "CYKF"
+          ]
+        },
+        {
+          "reg": "C-GMQZ",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "N147AF",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:16.598Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 34
+    },
+    {
+      "code": "A139",
       "seen": 16,
       "airports": [
         "CYHM",
@@ -976,22 +1214,242 @@
         "CYYZ"
       ],
       "operators": [
-        "CFY",
-        "CGP"
+        "CGY"
       ],
       "categories": [
-        "B1"
+        "A7"
       ],
       "registrations": [
         {
-          "reg": "C-FYSK",
+          "reg": "C-GYNJ",
           "airports": [
+            "CYHM",
             "CYKF",
+            "CYTZ",
             "CYYZ"
           ]
         },
         {
-          "reg": "C-GPNN",
+          "reg": "C-GYNM",
+          "airports": [
+            "CYHM",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 25
+    },
+    {
+      "code": "EC30",
+      "seen": 16,
+      "airports": [
+        "CYHM",
+        "CYTZ",
+        "CYVR",
+        "KBUF"
+      ],
+      "operators": [
+        "CFD",
+        "CGL",
+        "CGM",
+        "CGN"
+      ],
+      "categories": [
+        "A1",
+        "A7"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FDHD",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "C-GLVT",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "C-GMMA",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "C-GNND",
+          "airports": [
+            "CYHM",
+            "CYTZ",
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 40
+    },
+    {
+      "code": "B39M",
+      "seen": 15,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "ASA",
+        "UAL"
+      ],
+      "categories": [
+        "A3"
+      ],
+      "registrations": [
+        {
+          "reg": "N27503",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "N716AL",
+          "airports": [
+            "CYKF"
+          ]
+        },
+        {
+          "reg": "N979AK",
+          "airports": [
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:14.877Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 26
+    },
+    {
+      "code": "C182",
+      "seen": 14,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYVR",
+        "CYYZ"
+      ],
+      "operators": [
+        "CGS"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GSUB",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "N35ZQ",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 44
+    },
+    {
+      "code": "DH3T",
+      "seen": 14,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "CFH",
+        "CGE",
+        "CGH",
+        "CGL"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FHAJ",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "C-FHAX",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "C-GEND",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "C-GHAZ",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "C-GLCP",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 34
+    },
+    {
+      "code": "A333",
+      "seen": 12,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYUL",
+        "CYYZ"
+      ],
+      "operators": [
+        "SWR"
+      ],
+      "categories": [
+        "A5"
+      ],
+      "registrations": [
+        {
+          "reg": "HB-JHA",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "HB-JHF",
           "airports": [
             "CYHM",
             "CYKF",
@@ -1000,13 +1458,13 @@
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 30
+      "lastSeen": "2026-09-20T21:25:16.598Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 62
     },
     {
-      "code": "A333",
-      "seen": 15,
+      "code": "B763",
+      "seen": 12,
       "airports": [
         "CYHM",
         "CYKF",
@@ -1021,16 +1479,7 @@
       ],
       "registrations": [
         {
-          "reg": "C-FDHU",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "C-GFUR",
+          "reg": "C-GHLU",
           "airports": [
             "CYHM",
             "CYKF",
@@ -1039,57 +1488,181 @@
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
+      "lastSeen": "2026-09-20T21:24:48.269Z",
       "runsSeen": 3,
-      "seenInAllRuns": 50
+      "seenInAllRuns": 20
     },
     {
-      "code": "C152",
-      "seen": 15,
+      "code": "C550",
+      "seen": 12,
       "airports": [
         "CYHM",
-        "CYKF"
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
       ],
       "operators": [
-        "CFY",
-        "CGG",
-        "CGZ"
+        "FSY"
       ],
       "categories": [
         "A1"
       ],
       "registrations": [
         {
-          "reg": "C-FYKF",
+          "reg": "C-GJNE",
           "airports": [
             "CYHM",
-            "CYKF"
-          ]
-        },
-        {
-          "reg": "C-GGFR",
-          "airports": [
-            "CYKF"
-          ]
-        },
-        {
-          "reg": "C-GZKT",
-          "airports": [
-            "CYHM",
-            "CYKF"
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:12:27.013Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 70
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 15
     },
     {
-      "code": "S22T",
-      "seen": 15,
+      "code": "C68A",
+      "seen": 12,
       "airports": [
         "CYHM",
         "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "EJA"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "N918QS",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 32
+    },
+    {
+      "code": "CRJ7",
+      "seen": 12,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "JIA"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "N703PS",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 68
+    },
+    {
+      "code": "P28A",
+      "seen": 12,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "CGO"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GOBO",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 68
+    },
+    {
+      "code": "R44",
+      "seen": 12,
+      "airports": [
+        "CYUL",
+        "CYVR"
+      ],
+      "operators": [
+        "CFC",
+        "CGB",
+        "CGJ",
+        "CGL"
+      ],
+      "categories": [
+        "A7"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FCAB",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "C-GBCO",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "C-GJYM",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "N90815",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 21
+    },
+    {
+      "code": "S22T",
+      "seen": 12,
+      "airports": [
+        "CYHM",
         "CYTZ",
         "CYYZ",
         "KBUF"
@@ -1104,27 +1677,25 @@
         {
           "reg": "C-GTES",
           "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
             "CYYZ"
           ]
         },
         {
-          "reg": "N833JR",
+          "reg": "N686JP",
           "airports": [
             "CYHM",
+            "CYTZ",
             "KBUF"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 23
+      "lastSeen": "2026-09-20T21:25:14.877Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 35
     },
     {
-      "code": "CL60",
-      "seen": 14,
+      "code": "T206",
+      "seen": 12,
       "airports": [
         "CYHM",
         "CYKF",
@@ -1132,23 +1703,14 @@
         "CYYZ"
       ],
       "operators": [
-        "CGW",
-        "HRT"
+        "CGI"
       ],
       "categories": [
-        "A2"
+        "A1"
       ],
       "registrations": [
         {
-          "reg": "C-GBBB",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "C-GWLL",
+          "reg": "C-GIRY",
           "airports": [
             "CYHM",
             "CYKF",
@@ -1157,128 +1719,536 @@
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 26
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 17
     },
     {
-      "code": "CRJ7",
-      "seen": 14,
+      "code": "E75L",
+      "seen": 10,
       "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
+        "CYUL",
+        "CYVR",
+        "KBUF"
       ],
       "operators": [
-        "GJS",
+        "QXE",
+        "RPA",
         "SKW"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "N537GJ",
-          "airports": [
-            "CYHM"
-          ]
-        },
-        {
-          "reg": "N728SK",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 56
-    },
-    {
-      "code": "E75S",
-      "seen": 14,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "JZA"
       ],
       "categories": [
         "A3"
       ],
       "registrations": [
         {
-          "reg": "C-FEIQ",
+          "reg": "N222JQ",
+          "airports": [
+            "KBUF"
+          ]
+        },
+        {
+          "reg": "N317SY",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "N630QX",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "N785YX",
+          "airports": [
+            "CYUL"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 111
+    },
+    {
+      "code": "LJ60",
+      "seen": 10,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FJOL",
           "airports": [
             "CYHM",
             "CYKF",
             "CYTZ",
             "CYYZ"
           ]
-        },
-        {
-          "reg": "C-FUJE",
-          "airports": [
-            "CYHM",
-            "CYKF"
-          ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 100
+      "lastSeen": "2026-09-20T21:24:44.775Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 15
     },
     {
-      "code": "CL35",
-      "seen": 13,
+      "code": "SF50",
+      "seen": 10,
       "airports": [
         "CYHM",
-        "CYKF",
         "CYTZ",
         "CYYZ",
         "KBUF"
       ],
+      "operators": [],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "N944AL",
+          "airports": [
+            "CYHM",
+            "CYTZ",
+            "CYYZ",
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:14.877Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 10
+    },
+    {
+      "code": "A319",
+      "seen": 9,
+      "airports": [
+        "CYUL",
+        "KBUF"
+      ],
       "operators": [
-        "HPJ",
-        "VJA"
+        "DAL",
+        "ROU"
+      ],
+      "categories": [
+        "A3"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FYJE",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "N333NB",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "N371NB",
+          "airports": [
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:16.598Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 90
+    },
+    {
+      "code": "B505",
+      "seen": 9,
+      "airports": [
+        "CYHM",
+        "CYTZ",
+        "KBUF"
+      ],
+      "operators": [
+        "CGN"
+      ],
+      "categories": [
+        "A7"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GNNP",
+          "airports": [
+            "CYHM",
+            "CYTZ",
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:14.877Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 18
+    },
+    {
+      "code": "C25B",
+      "seen": 9,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "ASP"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GFSX",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 19
+    },
+    {
+      "code": "C150",
+      "seen": 7,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [
+        "CGA",
+        "CGE",
+        "CGW"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GACW",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "C-GEEU",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "C-GWNZ",
+          "airports": [
+            "CYUL"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:16.598Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 20
+    },
+    {
+      "code": "DHC6",
+      "seen": 7,
+      "airports": [
+        "CYTZ",
+        "CYVR",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFT",
+        "CGH"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FTFX",
+          "airports": [
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "C-GHAP",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 18
+    },
+    {
+      "code": "A339",
+      "seen": 6,
+      "airports": [
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "ITY"
+      ],
+      "categories": [
+        "A5"
+      ],
+      "registrations": [
+        {
+          "reg": "EI-TYH",
+          "airports": [
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 29
+    },
+    {
+      "code": "C206",
+      "seen": 6,
+      "airports": [
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFX"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FXWH",
+          "airports": [
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 6
+    },
+    {
+      "code": "DA40",
+      "seen": 6,
+      "airports": [
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFK"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FKWZ",
+          "airports": [
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 15
+    },
+    {
+      "code": "DC3T",
+      "seen": 6,
+      "airports": [
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "CGO"
       ],
       "categories": [
         "A2"
       ],
       "registrations": [
         {
-          "reg": "N310JE",
+          "reg": "C-GOOU",
           "airports": [
-            "KBUF"
-          ]
-        },
-        {
-          "reg": "N350HJ",
-          "airports": [
-            "CYHM",
-            "CYKF",
             "CYTZ",
             "CYYZ"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 14
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 6
     },
     {
-      "code": "C68A",
-      "seen": 12,
+      "code": "DHC2",
+      "seen": 6,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "CGO"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GOLC",
+          "airports": [
+            "CYVR"
+          ]
+        },
+        {
+          "reg": "N1018F",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 11
+    },
+    {
+      "code": "GLID",
+      "seen": 6,
+      "airports": [
+        "CYKF",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFY"
+      ],
+      "categories": [
+        "B1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FYSK",
+          "airports": [
+            "CYKF",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:46.516Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 36
+    },
+    {
+      "code": "P28R",
+      "seen": 6,
+      "airports": [
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFD"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FDWK",
+          "airports": [
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 9
+    },
+    {
+      "code": "AS55",
+      "seen": 4,
+      "airports": [
+        "CYKF",
+        "CYUL"
+      ],
+      "operators": [
+        "ACA",
+        "CGO"
+      ],
+      "categories": [
+        "A3",
+        "A7"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FHNB",
+          "airports": [
+            "CYKF"
+          ]
+        },
+        {
+          "reg": "C-GODG",
+          "airports": [
+            "CYUL"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:16.598Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 15
+    },
+    {
+      "code": "C208",
+      "seen": 4,
+      "airports": [
+        "CYUL",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFC"
+      ],
+      "categories": [
+        "A1",
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FCPM",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "C-GZFI",
+          "airports": [
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:16.598Z",
+      "runsSeen": 4,
+      "seenInAllRuns": 22
+    },
+    {
+      "code": "CL35",
+      "seen": 4,
       "airports": [
         "CYHM",
-        "CYTZ",
         "KBUF"
       ],
       "operators": [
@@ -1289,65 +2259,326 @@
       ],
       "registrations": [
         {
-          "reg": "N621QS",
-          "airports": [
-            "KBUF"
-          ]
-        },
-        {
-          "reg": "N671QS",
+          "reg": "N761QS",
           "airports": [
             "CYHM",
-            "CYTZ",
             "KBUF"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
+      "lastSeen": "2026-09-20T21:25:14.877Z",
       "runsSeen": 3,
-      "seenInAllRuns": 20
+      "seenInAllRuns": 18
     },
     {
-      "code": "A320",
-      "seen": 11,
+      "code": "A169",
+      "seen": 3,
       "airports": [
-        "CYHM",
-        "CYKF",
+        "CYVR"
+      ],
+      "operators": [
+        "AHC"
+      ],
+      "categories": [
+        "A7"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GSIO",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 3
+    },
+    {
+      "code": "A359",
+      "seen": 3,
+      "airports": [
         "CYTZ",
         "CYYZ"
       ],
       "operators": [
-        "ACA",
-        "UAL"
+        "SIA"
       ],
       "categories": [
-        "A3"
+        "A5"
       ],
       "registrations": [
         {
-          "reg": "C-FCZF",
+          "reg": "9V-SGB",
           "airports": [
-            "CYHM",
-            "CYKF",
             "CYTZ",
             "CYYZ"
           ]
-        },
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 13
+    },
+    {
+      "code": "B744",
+      "seen": 3,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "DLH"
+      ],
+      "categories": [
+        "A5"
+      ],
+      "registrations": [
         {
-          "reg": "N494UA",
+          "reg": "D-ABVW",
           "airports": [
-            "CYHM",
-            "CYKF"
+            "CYVR"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:12:27.013Z",
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 3
+    },
+    {
+      "code": "C177",
+      "seen": 3,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FHBW",
+          "airports": [
+            "CYUL"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:16.598Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 8
+    },
+    {
+      "code": "C501",
+      "seen": 3,
+      "airports": [
+        "KBUF"
+      ],
+      "operators": [],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "N171WJ",
+          "airports": [
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:14.877Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 3
+    },
+    {
+      "code": "CL60",
+      "seen": 3,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [
+        "CGP"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GPGD",
+          "airports": [
+            "CYUL"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:16.598Z",
       "runsSeen": 3,
-      "seenInAllRuns": 84
+      "seenInAllRuns": 29
+    },
+    {
+      "code": "PA24",
+      "seen": 3,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "GVK"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "N9239P",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 3
+    },
+    {
+      "code": "RCAL",
+      "seen": 3,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "CFT"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FTGO",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 6
+    },
+    {
+      "code": "ST75",
+      "seen": 3,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "CGS"
+      ],
+      "categories": [],
+      "registrations": [
+        {
+          "reg": "C-GSDK",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 3
+    },
+    {
+      "code": "DH8A",
+      "seen": 2,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [
+        "CRQ"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FODL",
+          "airports": [
+            "CYUL"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:24.310Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 5
+    },
+    {
+      "code": "AS65",
+      "seen": 1,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "GTV"
+      ],
+      "categories": [],
+      "registrations": [
+        {
+          "reg": "C-GTVD",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:25:18.317Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 7
+    },
+    {
+      "code": "C56X",
+      "seen": 1,
+      "airports": [
+        "KBUF"
+      ],
+      "operators": [
+        "EJA"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "N669QS",
+          "airports": [
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:23:04.425Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 1
+    },
+    {
+      "code": "PA27",
+      "seen": 1,
+      "airports": [
+        "CYTZ"
+      ],
+      "operators": [
+        "CGI"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GIQC",
+          "airports": [
+            "CYTZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T21:24:48.269Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 7
     },
     {
       "code": "A332",
-      "seen": 11,
+      "seen": 0,
       "airports": [
         "CYHM",
         "CYKF",
@@ -1376,38 +2607,8 @@
       "seenInAllRuns": 23
     },
     {
-      "code": "A339",
-      "seen": 11,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "ITY"
-      ],
-      "categories": [
-        "A5"
-      ],
-      "registrations": [
-        {
-          "reg": "EI-TYH",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 23
-    },
-    {
       "code": "A35K",
-      "seen": 11,
+      "seen": 0,
       "airports": [
         "CYHM",
         "CYKF",
@@ -1437,7 +2638,7 @@
     },
     {
       "code": "A388",
-      "seen": 11,
+      "seen": 0,
       "airports": [
         "CYHM",
         "CYKF",
@@ -1466,73 +2667,34 @@
       "seenInAllRuns": 16
     },
     {
-      "code": "AS55",
-      "seen": 11,
+      "code": "AA5",
+      "seen": 0,
       "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
+        "CYUL"
       ],
       "operators": [
-        "ACA"
+        "CGH"
       ],
       "categories": [
-        "A3"
+        "A1"
       ],
       "registrations": [
         {
-          "reg": "C-FHNB",
+          "reg": "C-GHLN",
           "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
+            "CYUL"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
+      "lastSeen": "2026-09-20T18:51:35.481Z",
       "runsSeen": 1,
-      "seenInAllRuns": 11
+      "seenInAllRuns": 3
     },
     {
-      "code": "B39M",
-      "seen": 11,
+      "code": "AC11",
+      "seen": 0,
       "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "ASA"
-      ],
-      "categories": [
-        "A3"
-      ],
-      "registrations": [
-        {
-          "reg": "N716AL",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 11
-    },
-    {
-      "code": "B737",
-      "seen": 11,
-      "airports": [
-        "CYHM",
-        "CYTZ",
-        "CYYZ",
-        "KBUF"
+        "CYVR"
       ],
       "operators": [
         "WJA"
@@ -1542,7 +2704,120 @@
       ],
       "registrations": [
         {
-          "reg": "C-GWJO",
+          "reg": "C-GWJJ",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:19.221Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 3
+    },
+    {
+      "code": "AS21",
+      "seen": 0,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYYZ"
+      ],
+      "operators": [
+        "CGD"
+      ],
+      "categories": [
+        "B1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GDXX",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:12:27.013Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 24
+    },
+    {
+      "code": "AS50",
+      "seen": 0,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [
+        "ACA",
+        "CGF"
+      ],
+      "categories": [
+        "A3",
+        "A7"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FHEI",
+          "airports": [
+            "CYUL"
+          ]
+        },
+        {
+          "reg": "C-GFBC",
+          "airports": [
+            "CYUL"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:17.491Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 4
+    },
+    {
+      "code": "ASTR",
+      "seen": 0,
+      "airports": [
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "HTT"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GRJP",
+          "airports": [
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:13.763Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 3
+    },
+    {
+      "code": "B06",
+      "seen": 0,
+      "airports": [
+        "CYHM",
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "CFF"
+      ],
+      "categories": [
+        "A7"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FFUJ",
           "airports": [
             "CYHM",
             "CYTZ",
@@ -1551,133 +2826,13 @@
           ]
         }
       ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 31
-    },
-    {
-      "code": "B77L",
-      "seen": 11,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "ACA"
-      ],
-      "categories": [
-        "A5"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FNNH",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 22
-    },
-    {
-      "code": "E145",
-      "seen": 11,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "PDT"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "N909AE",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 26
-    },
-    {
-      "code": "E550",
-      "seen": 11,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "ASP"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FSJR",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 26
-    },
-    {
-      "code": "M600",
-      "seen": 10,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "CGM"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GMUS",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
+      "lastSeen": "2026-09-20T18:51:33.750Z",
       "runsSeen": 1,
       "seenInAllRuns": 10
     },
     {
       "code": "B190",
-      "seen": 9,
+      "seen": 0,
       "airports": [
         "CYUL",
         "CYVR"
@@ -1717,1298 +2872,6 @@
       "seenInAllRuns": 16
     },
     {
-      "code": "EC30",
-      "seen": 9,
-      "airports": [
-        "CYHM",
-        "CYTZ",
-        "KBUF"
-      ],
-      "operators": [
-        "CGN"
-      ],
-      "categories": [
-        "A7"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GNND",
-          "airports": [
-            "CYHM",
-            "CYTZ",
-            "KBUF"
-          ]
-        },
-        {
-          "reg": "N961RA",
-          "airports": [
-            "CYHM",
-            "CYTZ",
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:11:39.886Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 24
-    },
-    {
-      "code": "LJ35",
-      "seen": 9,
-      "airports": [
-        "CYHM",
-        "CYTZ",
-        "CYYZ",
-        "KBUF"
-      ],
-      "operators": [
-        "HTT"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GAJS",
-          "airports": [
-            "CYHM",
-            "CYTZ",
-            "CYYZ",
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 9
-    },
-    {
-      "code": "AS21",
-      "seen": 8,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYYZ"
-      ],
-      "operators": [
-        "CGD"
-      ],
-      "categories": [
-        "B1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GDXX",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:12:27.013Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 24
-    },
-    {
-      "code": "B739",
-      "seen": 8,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYVR"
-      ],
-      "operators": [
-        "UAL"
-      ],
-      "categories": [
-        "A3"
-      ],
-      "registrations": [
-        {
-          "reg": "N62895",
-          "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "N69813",
-          "airports": [
-            "CYHM",
-            "CYKF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 20
-    },
-    {
-      "code": "C150",
-      "seen": 8,
-      "airports": [
-        "CYUL"
-      ],
-      "operators": [
-        "CGC",
-        "CGN"
-      ],
-      "categories": [
-        "A1",
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GCZJ",
-          "airports": [
-            "CYUL"
-          ]
-        },
-        {
-          "reg": "C-GNBL",
-          "airports": [
-            "CYUL"
-          ]
-        },
-        {
-          "reg": "C-GNBM",
-          "airports": [
-            "CYUL"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:17.491Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 13
-    },
-    {
-      "code": "C560",
-      "seen": 8,
-      "airports": [
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "HRT"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FREQ",
-          "airports": [
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 16
-    },
-    {
-      "code": "C750",
-      "seen": 8,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "SJE"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "N977AF",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:12:27.013Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 20
-    },
-    {
-      "code": "CH7B",
-      "seen": 8,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "CGK"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GKXJ",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:11:38.131Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 8
-    },
-    {
-      "code": "DA40",
-      "seen": 8,
-      "airports": [
-        "CYKF",
-        "CYVR",
-        "CYYZ"
-      ],
-      "operators": [
-        "CFL",
-        "CGX"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FLEV",
-          "airports": [
-            "CYKF",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "C-GXLS",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 9
-    },
-    {
-      "code": "DH3T",
-      "seen": 8,
-      "airports": [
-        "CYTZ",
-        "CYVR",
-        "CYYZ"
-      ],
-      "operators": [
-        "ASP",
-        "CFI",
-        "CGE"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FITF",
-          "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "C-FSVP",
-          "airports": [
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "C-GEND",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 20
-    },
-    {
-      "code": "M20T",
-      "seen": 8,
-      "airports": [
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "CGG"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GGMK",
-          "airports": [
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 10
-    },
-    {
-      "code": "PC12",
-      "seen": 8,
-      "airports": [
-        "CYTZ",
-        "CYUL",
-        "CYYZ"
-      ],
-      "operators": [
-        "CFW",
-        "PNO"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FWAF",
-          "airports": [
-            "CYTZ",
-            "CYYZ"
-          ]
-        },
-        {
-          "reg": "C-GDTL",
-          "airports": [
-            "CYUL"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:17.491Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 14
-    },
-    {
-      "code": "GL5T",
-      "seen": 7,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [],
-      "categories": [
-        "A3"
-      ],
-      "registrations": [
-        {
-          "reg": "N311RR",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 11
-    },
-    {
-      "code": "WW24",
-      "seen": 7,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "CFX"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FXAW",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 7
-    },
-    {
-      "code": "C177",
-      "seen": 5,
-      "airports": [
-        "CYKF",
-        "CYYZ"
-      ],
-      "operators": [
-        "CGZ"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GZJB",
-          "airports": [
-            "CYKF",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:12:27.013Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 5
-    },
-    {
-      "code": "E45X",
-      "seen": 5,
-      "airports": [
-        "CYTZ",
-        "KBUF"
-      ],
-      "operators": [
-        "UCA"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "N16178",
-          "airports": [
-            "CYTZ",
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 5
-    },
-    {
-      "code": "LJ60",
-      "seen": 5,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "KBUF"
-      ],
-      "operators": [
-        "STY"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "N90CE",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 5
-    },
-    {
-      "code": "RV9",
-      "seen": 5,
-      "airports": [
-        "CYKF",
-        "CYYZ"
-      ],
-      "operators": [
-        "CGU"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GUMO",
-          "airports": [
-            "CYKF",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:12:27.013Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 5
-    },
-    {
-      "code": "A21N",
-      "seen": 4,
-      "airports": [
-        "CYUL",
-        "KBUF"
-      ],
-      "operators": [
-        "TSC",
-        "UAL"
-      ],
-      "categories": [
-        "A3"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GOIF",
-          "airports": [
-            "CYUL"
-          ]
-        },
-        {
-          "reg": "N14566",
-          "airports": [
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:17.491Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 19
-    },
-    {
-      "code": "AS50",
-      "seen": 4,
-      "airports": [
-        "CYUL"
-      ],
-      "operators": [
-        "ACA",
-        "CGF"
-      ],
-      "categories": [
-        "A3",
-        "A7"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FHEI",
-          "airports": [
-            "CYUL"
-          ]
-        },
-        {
-          "reg": "C-GFBC",
-          "airports": [
-            "CYUL"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:17.491Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 4
-    },
-    {
-      "code": "AC11",
-      "seen": 3,
-      "airports": [
-        "CYVR"
-      ],
-      "operators": [
-        "WJA"
-      ],
-      "categories": [
-        "A3"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GWJJ",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 3
-    },
-    {
-      "code": "AS65",
-      "seen": 3,
-      "airports": [
-        "KBUF"
-      ],
-      "operators": [],
-      "categories": [
-        "A7"
-      ],
-      "registrations": [
-        {
-          "reg": "6578",
-          "airports": [
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 6
-    },
-    {
-      "code": "ASTR",
-      "seen": 3,
-      "airports": [
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "HTT"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GRJP",
-          "airports": [
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:13.763Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 3
-    },
-    {
-      "code": "B763",
-      "seen": 3,
-      "airports": [
-        "CYKF"
-      ],
-      "operators": [
-        "CJT"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GAZF",
-          "airports": [
-            "CYKF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:12:27.013Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 8
-    },
-    {
-      "code": "BE20",
-      "seen": 3,
-      "airports": [
-        "CYVR"
-      ],
-      "operators": [
-        "PBR"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GFAL",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 4
-    },
-    {
-      "code": "BE9L",
-      "seen": 3,
-      "airports": [
-        "CYUL"
-      ],
-      "operators": [
-        "SUZ"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "PH-ZBZ",
-          "airports": [
-            "CYUL"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:17.491Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 9
-    },
-    {
-      "code": "C182",
-      "seen": 3,
-      "airports": [
-        "CYKF"
-      ],
-      "operators": [
-        "CGP"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GPYK",
-          "airports": [
-            "CYKF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:12:27.013Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 30
-    },
-    {
-      "code": "C25A",
-      "seen": 3,
-      "airports": [
-        "CYVR"
-      ],
-      "operators": [
-        "ASP"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FIAS",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 3
-    },
-    {
-      "code": "C550",
-      "seen": 3,
-      "airports": [
-        "KBUF"
-      ],
-      "operators": [],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "N447SF",
-          "airports": [
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 3
-    },
-    {
-      "code": "DHC6",
-      "seen": 3,
-      "airports": [
-        "CYVR"
-      ],
-      "operators": [
-        "CGH"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GHAP",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 11
-    },
-    {
-      "code": "P28T",
-      "seen": 3,
-      "airports": [
-        "CYUL"
-      ],
-      "operators": [
-        "CFD"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FDYK",
-          "airports": [
-            "CYUL"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:17.491Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 3
-    },
-    {
-      "code": "PA34",
-      "seen": 3,
-      "airports": [
-        "CYVR"
-      ],
-      "operators": [
-        "CGG"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GGSP",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 15
-    },
-    {
-      "code": "R44",
-      "seen": 3,
-      "airports": [
-        "CYUL"
-      ],
-      "operators": [
-        "CGJ"
-      ],
-      "categories": [
-        "A7"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GJYM",
-          "airports": [
-            "CYUL"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:17.491Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 9
-    },
-    {
-      "code": "C25B",
-      "seen": 2,
-      "airports": [
-        "CYVR"
-      ],
-      "operators": [
-        "PBR"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GYXY",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 10
-    },
-    {
-      "code": "C82S",
-      "seen": 2,
-      "airports": [
-        "KBUF"
-      ],
-      "operators": [
-        "CAP"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "N286CP",
-          "airports": [
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 5
-    },
-    {
-      "code": "F900",
-      "seen": 2,
-      "airports": [
-        "CYHM"
-      ],
-      "operators": [],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "N18CG",
-          "airports": [
-            "CYHM"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:11:20.203Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 2
-    },
-    {
-      "code": "PA32",
-      "seen": 2,
-      "airports": [
-        "CYVR"
-      ],
-      "operators": [
-        "CGM"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GMMD",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:11:55.842Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 5
-    },
-    {
-      "code": "PC24",
-      "seen": 2,
-      "airports": [
-        "CYUL"
-      ],
-      "operators": [
-        "TLK"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GOEI",
-          "airports": [
-            "CYUL"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:11:41.614Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 2
-    },
-    {
-      "code": "SF34",
-      "seen": 2,
-      "airports": [
-        "CYVR"
-      ],
-      "operators": [
-        "CGP"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GPCF",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:11:55.842Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 6
-    },
-    {
-      "code": "T206",
-      "seen": 2,
-      "airports": [
-        "CYVR"
-      ],
-      "operators": [],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "N8599Q",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:19.221Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 5
-    },
-    {
-      "code": "C208",
-      "seen": 1,
-      "airports": [
-        "CYYZ"
-      ],
-      "operators": [
-        "CGZ"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GZFI",
-          "airports": [
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:11:23.914Z",
-      "runsSeen": 3,
-      "seenInAllRuns": 18
-    },
-    {
-      "code": "E55P",
-      "seen": 1,
-      "airports": [
-        "KBUF"
-      ],
-      "operators": [
-        "LXJ"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "N386FX",
-          "airports": [
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:10:46.601Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 14
-    },
-    {
-      "code": "H25B",
-      "seen": 1,
-      "airports": [
-        "KBUF"
-      ],
-      "operators": [
-        "COL"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "N733HB",
-          "airports": [
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:10:46.601Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 1
-    },
-    {
-      "code": "LJ45",
-      "seen": 1,
-      "airports": [
-        "KBUF"
-      ],
-      "operators": [
-        "ERY"
-      ],
-      "categories": [
-        "A2"
-      ],
-      "registrations": [
-        {
-          "reg": "N452SD",
-          "airports": [
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T19:13:15.757Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 1
-    },
-    {
-      "code": "A139",
-      "seen": 0,
-      "airports": [
-        "CYVR"
-      ],
-      "operators": [],
-      "categories": [],
-      "registrations": [
-        {
-          "reg": "C-GPCO",
-          "airports": [
-            "CYVR"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T18:51:37.209Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 9
-    },
-    {
-      "code": "A359",
-      "seen": 0,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "AFR"
-      ],
-      "categories": [
-        "A5"
-      ],
-      "registrations": [
-        {
-          "reg": "F-HUVJ",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T16:17:45.036Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 10
-    },
-    {
-      "code": "AA5",
-      "seen": 0,
-      "airports": [
-        "CYUL"
-      ],
-      "operators": [
-        "CGH"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GHLN",
-          "airports": [
-            "CYUL"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T18:51:35.481Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 3
-    },
-    {
-      "code": "B06",
-      "seen": 0,
-      "airports": [
-        "CYHM",
-        "CYTZ",
-        "CYYZ",
-        "KBUF"
-      ],
-      "operators": [
-        "CFF"
-      ],
-      "categories": [
-        "A7"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FFUJ",
-          "airports": [
-            "CYHM",
-            "CYTZ",
-            "CYYZ",
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T18:51:33.750Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 10
-    },
-    {
       "code": "B407",
       "seen": 0,
       "airports": [
@@ -3031,34 +2894,6 @@
       "lastSeen": "2026-09-20T18:51:35.481Z",
       "runsSeen": 1,
       "seenInAllRuns": 3
-    },
-    {
-      "code": "B505",
-      "seen": 0,
-      "airports": [
-        "CYHM",
-        "CYTZ",
-        "KBUF"
-      ],
-      "operators": [
-        "CGN"
-      ],
-      "categories": [
-        "A7"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GNNP",
-          "airports": [
-            "CYHM",
-            "CYTZ",
-            "KBUF"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T18:51:33.750Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 9
     },
     {
       "code": "B732",
@@ -3133,6 +2968,36 @@
       "seenInAllRuns": 3
     },
     {
+      "code": "B737",
+      "seen": 0,
+      "airports": [
+        "CYHM",
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "WJA"
+      ],
+      "categories": [
+        "A3"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GWJO",
+          "airports": [
+            "CYHM",
+            "CYTZ",
+            "CYYZ",
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:15.757Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 31
+    },
+    {
       "code": "B752",
       "seen": 0,
       "airports": [
@@ -3205,6 +3070,36 @@
       "seenInAllRuns": 3
     },
     {
+      "code": "B77L",
+      "seen": 0,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "ACA"
+      ],
+      "categories": [
+        "A5"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FNNH",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:13.763Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 22
+    },
+    {
       "code": "B77W",
       "seen": 0,
       "airports": [
@@ -3242,79 +3137,6 @@
       "seenInAllRuns": 10
     },
     {
-      "code": "B788",
-      "seen": 0,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYYZ"
-      ],
-      "operators": [
-        "ACA"
-      ],
-      "categories": [
-        "A5"
-      ],
-      "registrations": [
-        {
-          "reg": "C-GHQQ",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T18:51:19.509Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 12
-    },
-    {
-      "code": "B789",
-      "seen": 0,
-      "airports": [
-        "CYHM",
-        "CYKF",
-        "CYTZ",
-        "CYVR",
-        "CYYZ"
-      ],
-      "operators": [
-        "ACA"
-      ],
-      "categories": [
-        "A5"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FRSE",
-          "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "C-FRSR",
-          "airports": [
-            "CYVR"
-          ]
-        },
-        {
-          "reg": "C-FVLQ",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYTZ",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T18:51:37.209Z",
-      "runsSeen": 2,
-      "seenInAllRuns": 34
-    },
-    {
       "code": "BCS1",
       "seen": 0,
       "airports": [
@@ -3345,6 +3167,30 @@
       "seenInAllRuns": 11
     },
     {
+      "code": "BE20",
+      "seen": 0,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "PBR"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GFAL",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:19.221Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 4
+    },
+    {
       "code": "BE35",
       "seen": 0,
       "airports": [
@@ -3367,6 +3213,30 @@
       "lastSeen": "2026-09-20T18:51:37.209Z",
       "runsSeen": 1,
       "seenInAllRuns": 3
+    },
+    {
+      "code": "BE9L",
+      "seen": 0,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [
+        "SUZ"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "PH-ZBZ",
+          "airports": [
+            "CYUL"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:17.491Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 9
     },
     {
       "code": "C10T",
@@ -3399,6 +3269,30 @@
       "seenInAllRuns": 7
     },
     {
+      "code": "C25A",
+      "seen": 0,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "ASP"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FIAS",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:19.221Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 3
+    },
+    {
       "code": "C414",
       "seen": 0,
       "airports": [
@@ -3419,6 +3313,64 @@
       "lastSeen": "2026-09-20T16:17:45.036Z",
       "runsSeen": 1,
       "seenInAllRuns": 3
+    },
+    {
+      "code": "C560",
+      "seen": 0,
+      "airports": [
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "HRT"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FREQ",
+          "airports": [
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:13.763Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 16
+    },
+    {
+      "code": "C750",
+      "seen": 0,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "SJE"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "N977AF",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:12:27.013Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 20
     },
     {
       "code": "C82R",
@@ -3443,6 +3395,60 @@
       "lastSeen": "2026-09-20T16:17:45.036Z",
       "runsSeen": 1,
       "seenInAllRuns": 1
+    },
+    {
+      "code": "C82S",
+      "seen": 0,
+      "airports": [
+        "KBUF"
+      ],
+      "operators": [
+        "CAP"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "N286CP",
+          "airports": [
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:15.757Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 5
+    },
+    {
+      "code": "CH7B",
+      "seen": 0,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "CGK"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GKXJ",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:11:38.131Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 8
     },
     {
       "code": "CL30",
@@ -3497,50 +3503,155 @@
       "seenInAllRuns": 12
     },
     {
-      "code": "DH8A",
+      "code": "E145",
       "seen": 0,
       "airports": [
-        "CYVR"
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
       ],
       "operators": [
-        "GLR"
+        "PDT"
       ],
       "categories": [
         "A2"
       ],
       "registrations": [
         {
-          "reg": "C-GYSJ",
+          "reg": "N909AE",
           "airports": [
-            "CYVR"
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T18:51:37.209Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 3
+      "lastSeen": "2026-09-20T19:13:13.763Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 26
     },
     {
-      "code": "DHC2",
+      "code": "E170",
       "seen": 0,
       "airports": [
-        "CYVR"
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
       ],
-      "operators": [],
+      "operators": [
+        "ENY",
+        "RPA"
+      ],
       "categories": [
-        "A1"
+        "A3"
       ],
       "registrations": [
         {
-          "reg": "N1018F",
+          "reg": "N789SS",
           "airports": [
-            "CYVR"
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        },
+        {
+          "reg": "N979RP",
+          "airports": [
+            "CYHM",
+            "CYTZ",
+            "CYYZ",
+            "KBUF"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T18:49:39.876Z",
+      "lastSeen": "2026-09-20T19:13:15.757Z",
       "runsSeen": 2,
+      "seenInAllRuns": 35
+    },
+    {
+      "code": "E45X",
+      "seen": 0,
+      "airports": [
+        "CYTZ",
+        "KBUF"
+      ],
+      "operators": [
+        "UCA"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "N16178",
+          "airports": [
+            "CYTZ",
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:15.757Z",
+      "runsSeen": 1,
       "seenInAllRuns": 5
+    },
+    {
+      "code": "E550",
+      "seen": 0,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "ASP"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FSJR",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:13.763Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 26
+    },
+    {
+      "code": "E55P",
+      "seen": 0,
+      "airports": [
+        "KBUF"
+      ],
+      "operators": [
+        "LXJ"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "N386FX",
+          "airports": [
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:10:46.601Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 14
     },
     {
       "code": "EVSS",
@@ -3573,6 +3684,28 @@
       "seenInAllRuns": 12
     },
     {
+      "code": "F900",
+      "seen": 0,
+      "airports": [
+        "CYHM"
+      ],
+      "operators": [],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "N18CG",
+          "airports": [
+            "CYHM"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:11:20.203Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 2
+    },
+    {
       "code": "GA6C",
       "seen": 0,
       "airports": [
@@ -3593,6 +3726,34 @@
       "lastSeen": "2026-09-20T18:51:33.750Z",
       "runsSeen": 1,
       "seenInAllRuns": 3
+    },
+    {
+      "code": "GL5T",
+      "seen": 0,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [],
+      "categories": [
+        "A3"
+      ],
+      "registrations": [
+        {
+          "reg": "N311RR",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:13.763Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 11
     },
     {
       "code": "GL7T",
@@ -3671,6 +3832,30 @@
       "seenInAllRuns": 1
     },
     {
+      "code": "H25B",
+      "seen": 0,
+      "airports": [
+        "KBUF"
+      ],
+      "operators": [
+        "COL"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "N733HB",
+          "airports": [
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:10:46.601Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 1
+    },
+    {
       "code": "H500",
       "seen": 0,
       "airports": [
@@ -3721,6 +3906,60 @@
       "lastSeen": "2026-09-20T16:17:45.036Z",
       "runsSeen": 1,
       "seenInAllRuns": 2
+    },
+    {
+      "code": "LJ35",
+      "seen": 0,
+      "airports": [
+        "CYHM",
+        "CYTZ",
+        "CYYZ",
+        "KBUF"
+      ],
+      "operators": [
+        "HTT"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GAJS",
+          "airports": [
+            "CYHM",
+            "CYTZ",
+            "CYYZ",
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:15.757Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 9
+    },
+    {
+      "code": "LJ45",
+      "seen": 0,
+      "airports": [
+        "KBUF"
+      ],
+      "operators": [
+        "ERY"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "N452SD",
+          "airports": [
+            "KBUF"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:15.757Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 1
     },
     {
       "code": "LJ75",
@@ -3795,58 +4034,86 @@
       "seenInAllRuns": 3
     },
     {
-      "code": "P28R",
+      "code": "M20T",
       "seen": 0,
       "airports": [
-        "CYHM",
         "CYKF",
-        "CYYZ"
-      ],
-      "operators": [
-        "CFA"
-      ],
-      "categories": [
-        "A1"
-      ],
-      "registrations": [
-        {
-          "reg": "C-FADJ",
-          "airports": [
-            "CYHM",
-            "CYKF",
-            "CYYZ"
-          ]
-        }
-      ],
-      "lastSeen": "2026-09-20T16:17:45.036Z",
-      "runsSeen": 1,
-      "seenInAllRuns": 3
-    },
-    {
-      "code": "PA27",
-      "seen": 0,
-      "airports": [
         "CYTZ",
         "CYYZ"
       ],
       "operators": [
-        "CFB"
+        "CGG"
       ],
       "categories": [
         "A1"
       ],
       "registrations": [
         {
-          "reg": "C-FBIL",
+          "reg": "C-GGMK",
           "airports": [
+            "CYKF",
             "CYTZ",
             "CYYZ"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T16:17:45.036Z",
+      "lastSeen": "2026-09-20T19:13:13.763Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 10
+    },
+    {
+      "code": "M600",
+      "seen": 0,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "CGM"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GMUS",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:13.763Z",
       "runsSeen": 1,
-      "seenInAllRuns": 6
+      "seenInAllRuns": 10
+    },
+    {
+      "code": "P28T",
+      "seen": 0,
+      "airports": [
+        "CYUL"
+      ],
+      "operators": [
+        "CFD"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FDYK",
+          "airports": [
+            "CYUL"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:17.491Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 3
     },
     {
       "code": "PA31",
@@ -3873,6 +4140,54 @@
       "seenInAllRuns": 3
     },
     {
+      "code": "PA32",
+      "seen": 0,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "CGM"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GMMD",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:11:55.842Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 5
+    },
+    {
+      "code": "PA34",
+      "seen": 0,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "CGG"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GGSP",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:19.221Z",
+      "runsSeen": 3,
+      "seenInAllRuns": 15
+    },
+    {
       "code": "PA44",
       "seen": 0,
       "airports": [
@@ -3897,28 +4212,54 @@
       "seenInAllRuns": 3
     },
     {
-      "code": "RCAL",
+      "code": "PC24",
       "seen": 0,
       "airports": [
-        "CYVR"
+        "CYUL"
       ],
       "operators": [
-        "CFT"
+        "TLK"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GOEI",
+          "airports": [
+            "CYUL"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:11:41.614Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 2
+    },
+    {
+      "code": "RV9",
+      "seen": 0,
+      "airports": [
+        "CYKF",
+        "CYYZ"
+      ],
+      "operators": [
+        "CGU"
       ],
       "categories": [
         "A1"
       ],
       "registrations": [
         {
-          "reg": "C-FTGO",
+          "reg": "C-GUMO",
           "airports": [
-            "CYVR"
+            "CYKF",
+            "CYYZ"
           ]
         }
       ],
-      "lastSeen": "2026-09-20T18:51:37.209Z",
+      "lastSeen": "2026-09-20T19:12:27.013Z",
       "runsSeen": 1,
-      "seenInAllRuns": 3
+      "seenInAllRuns": 5
     },
     {
       "code": "S76",
@@ -3943,6 +4284,30 @@
       "lastSeen": "2026-09-20T16:17:45.036Z",
       "runsSeen": 1,
       "seenInAllRuns": 3
+    },
+    {
+      "code": "SF34",
+      "seen": 0,
+      "airports": [
+        "CYVR"
+      ],
+      "operators": [
+        "CGP"
+      ],
+      "categories": [
+        "A2"
+      ],
+      "registrations": [
+        {
+          "reg": "C-GPCF",
+          "airports": [
+            "CYVR"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:11:55.842Z",
+      "runsSeen": 2,
+      "seenInAllRuns": 6
     },
     {
       "code": "SS2P",
@@ -3995,6 +4360,36 @@
       "lastSeen": "2026-09-20T16:17:45.036Z",
       "runsSeen": 1,
       "seenInAllRuns": 5
+    },
+    {
+      "code": "WW24",
+      "seen": 0,
+      "airports": [
+        "CYHM",
+        "CYKF",
+        "CYTZ",
+        "CYYZ"
+      ],
+      "operators": [
+        "CFX"
+      ],
+      "categories": [
+        "A1"
+      ],
+      "registrations": [
+        {
+          "reg": "C-FXAW",
+          "airports": [
+            "CYHM",
+            "CYKF",
+            "CYTZ",
+            "CYYZ"
+          ]
+        }
+      ],
+      "lastSeen": "2026-09-20T19:13:13.763Z",
+      "runsSeen": 1,
+      "seenInAllRuns": 7
     }
   ]
 }

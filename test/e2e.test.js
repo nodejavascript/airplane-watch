@@ -196,6 +196,21 @@ async function starEveryType(page) {
   });
 }
 
+/**
+ * Arm the BELL on every type, which is the only thing that raises a notification now.
+ *
+ * 🔴 THE BELL IS A DIFFERENT LIST FROM THE STAR, AND ITS SEPARATENESS IS THE FEATURE. George,
+ * 20 Sep 2026: *"i should be able to select from the list w3hich ones i want an alert for"*.
+ * Starring a type used to arm a phone notification as a side effect, with no way to decline;
+ * the bell is its own answer to its own question.
+ */
+async function armEveryBell(page) {
+  await page.waitForSelector('#typeList .typerow', { timeout: 30_000, state: 'attached' });
+  await page.$$eval('#typeList .typerow .alert-toggle', (nodes) => {
+    for (const node of nodes) node.click();
+  });
+}
+
 /** The distance the page is currently showing, in km. */
 async function shownDistance(page) {
   return page.$eval('#radiusValue', (element) => element.textContent.trim());
@@ -397,6 +412,15 @@ test('a watched departure raises the alert — the board went, the alert stayed'
   ];
   const { context, page } = await openPage(polls);
 
+  // 🔴 THE POLL COUNT COMES FROM THE NETWORK, NOT FROM A PAGE GLOBAL. The first cut waited on
+  // `window.__polls`, which nothing sets — the page counts polls for its own back-off and does
+  // not publish them. Counting the requests the browser actually made is the honest version and
+  // needs nothing from the page.
+  let pollsSeen = 0;
+  page.on('request', (request) => {
+    if (request.url().includes('/api/v2/point/')) pollsSeen += 1;
+  });
+
   // 🔴 THIS TEST EXISTS BECAUSE THE ALERT FIRED FROM INSIDE THE BOARD.
   //
   // The departures board was removed on George's instruction (20 Sep 2026, pasting
@@ -436,10 +460,71 @@ test('a watched departure raises the alert — the board went, the alert stayed'
   await chooseDistance(page);
   await starEveryType(page);
 
+  // 🔴 ARMED BEFORE THE AIRCRAFT LEAVES, BECAUSE A DEPARTURE HAPPENS ONCE. The first cut
+  // starred everything, waited to prove silence, and only THEN armed the bell — and then
+  // waited 45 seconds for an alert that could never come. Measured: the ground-to-air
+  // transition had already been consumed during the silent phase, and the same aircraft cannot
+  // depart twice. So the bell goes on first, and the silence claim lives in its own test below,
+  // where it has an aircraft of its own to stay quiet about.
+  await armEveryBell(page);
+
   await page.waitForFunction(() => window.__alerts.length > 0, null, { timeout: 45_000 });
   const alerts = await page.evaluate(() => window.__alerts);
   assert.equal(alerts.length, 1, `expected one alert, got ${alerts.length}: ${JSON.stringify(alerts)}`);
   assert.match(alerts[0].title, /ACA123/, 'the alert must name the aircraft that left');
+
+  await context.close();
+});
+
+test('a starred type raises no alert on its own — only the bell does', async () => {
+  const polls = [
+    [{ hex: 'c011e4', flight: 'ACA123', t: 'B738', alt_baro: 'ground', gs: 0, lat: 43.18, lon: -79.94 }],
+    [{ hex: 'c011e4', flight: 'ACA123', t: 'B738', alt_baro: 1400, baro_rate: 2300, lat: 43.19, lon: -79.93 }],
+  ];
+  const { context, page } = await openPage(polls);
+
+  // 🔴 THE HALF OF THE FEATURE THAT WOULD HAVE CAUGHT THE OLD BEHAVIOUR. George, 20 Sep 2026:
+  // *"i should be able to select from the list w3hich ones i want an alert for"*. Before the
+  // bell existed, a star WAS an alert with no way to decline it. Here everything is starred and
+  // nothing is armed, so the same departure must pass in complete silence.
+  let pollsSeen = 0;
+  page.on('request', (request) => {
+    if (request.url().includes('/api/v2/point/')) pollsSeen += 1;
+  });
+
+  await page.addInitScript(() => {
+    window.__alerts = [];
+    class StubNotification {
+      static permission = 'granted';
+      constructor(title, options) {
+        window.__alerts.push({ title: String(title), body: String((options && options.body) || '') });
+      }
+    }
+    Object.defineProperty(window, 'Notification', { value: StubNotification, writable: true });
+  });
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await chooseDistance(page);
+  await starEveryType(page);
+
+  // 🔴 WAIT FOR THE POLLS, NOT FOR AN ALERT. A departure needs two readings — on the ground,
+  // then airborne — and the page's first gap between looks is twenty seconds, so this waits on
+  // the thing that must happen rather than on the thing that must not. Waiting on the alert
+  // would burn the full timeout every run to prove a silence.
+  const deadline = Date.now() + 60_000;
+  while (pollsSeen < 3 && Date.now() < deadline) await page.waitForTimeout(250);
+  assert.ok(pollsSeen >= 3, `the feed was only asked ${pollsSeen} time(s), so this proves nothing`);
+  // Then give the ingest a moment to finish deciding before the claim about silence is made.
+  await page.waitForTimeout(1200);
+
+  const starred = await page.$$eval('.star[aria-pressed="true"]', (nodes) => nodes.length);
+  assert.ok(starred > 0, 'nothing was starred, so this proves nothing');
+  assert.equal(
+    (await page.evaluate(() => window.__alerts.length)),
+    0,
+    'a starred type raised an alert on its own — the star must not be the bell'
+  );
 
   await context.close();
 });

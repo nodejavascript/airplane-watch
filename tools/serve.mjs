@@ -537,6 +537,122 @@ async function servePostal(raw, response) {
 }
 
 /**
+ * A place, searched by NAME — the same shape of interaction the quiz site uses.
+ *
+ * 🔴 GEORGE ASKED FOR THIS BY COMPARISON. George, 20 Sep 2026: *"i want to search for location by
+ * name, similiar to what inputresponse.com does"*. That site takes a typed city, matches it
+ * against a catalogue, and hands back a short list for the player to pick from — type, choose,
+ * and the choice is explicit. This page had two ways in and neither was that: a postal code,
+ * which works only where postal codes are known, and the browser's own position, which needs a
+ * permission prompt before it says anything at all.
+ *
+ * 🔴 THE CATALOGUE IS NOT SHIPPED WITH THE SITE, AND THAT IS DELIBERATE. `inputresponse.com`
+ * ships GeoNames because it needs every city in the world to build a board for. This page only
+ * ever needs the one place the reader names, so a country-wide file would be megabytes loading
+ * on every visit to answer one question. Nominatim is asked instead, through this server, so the
+ * visitor still never talks to a third party.
+ *
+ * 🔴 IT SEARCHES ON SUBMIT, NOT ON EVERY KEYSTROKE, AND THAT IS A LIMIT RATHER THAN A CHOICE.
+ * Nominatim's usage policy allows about one request a second; as-you-type with a debounce would
+ * breach that on a fast typist, and this page does not get to lean on a free service — the same
+ * reason George keeps CanLII out of anything but his own case. Typing then pressing Enter still
+ * gives the list to pick from.
+ *
+ * Results are cached for five minutes: a place name does not move, and a reader trying three
+ * spellings of one town should cost one request.
+ */
+const searchCache = new Map();
+
+async function servePlaceSearch(raw, response) {
+  const json = (status, body) => {
+    response.writeHead(status, {
+      'content-type': 'application/json; charset=utf-8',
+      'access-control-allow-origin': '*',
+      'cache-control': 'no-store',
+    });
+    response.end(JSON.stringify(body));
+  };
+
+  const query = String(raw ?? '').trim();
+  if (query.length < 2) {
+    json(400, { ok: false, error: 'Type at least two characters of a place name.' });
+    return;
+  }
+
+  const key = query.toLowerCase();
+  const hit = searchCache.get(key);
+  if (hit && Date.now() - hit.at < 5 * 60_000) {
+    json(200, { ...hit.body, cached: true });
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams({
+      q: query,
+      format: 'jsonv2',
+      limit: '6',
+      // 🔴 CANADA AND THE UNITED STATES. The feed reaches anywhere, but the fence is drawn round
+      // the reader and the page lists airports near them — so a match in Belgium is never the one
+      // being asked for, and offering it would bury the right answer under the interesting one.
+      countrycodes: 'ca,us',
+      addressdetails: '1',
+    });
+    const upstream = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+      headers: { accept: 'application/json', 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!upstream.ok) throw new Error(`${upstream.status}`);
+    const rows = await upstream.json();
+    const places = (Array.isArray(rows) ? rows : []).slice(0, 6).map((row) => {
+      const address = row.address ?? {};
+      // 🔴 THE OBJECT'S OWN NAME IS THE COMMUNITY, AND IT IS THE THING GEORGE KEPT ASKING FOR.
+      // A search for "Stoney Creek" returns an OSM object called exactly that, whose `city` is
+      // Hamilton — so taking only the city threw away the one word he wanted. Measured: the
+      // first cut returned `name: "Hamilton"`, `area: ""`, and the page printed "Hamilton" for
+      // a search that said Stoney Creek.
+      //
+      // So the administrative town comes from the address, and the community is the object's own
+      // name WHEN IT DIFFERS FROM THAT TOWN — which is precisely the "Stoney Creek · Hamilton"
+      // shape the postal path produces from the postal service's bracketed list. When the name
+      // and the town are the same word there is no community to report, and the page prints the
+      // town once rather than twice.
+      const own = String(row.name ?? '').trim();
+      const town = String(address.city ?? address.town ?? address.village ?? '').trim() || own;
+      const area =
+        String(address.suburb ?? address.neighbourhood ?? '').trim() || (own !== '' && own !== town ? own : '');
+      return {
+        // The whole label, trimmed to three parts, so two towns of one name can be told apart
+        // BEFORE the reader picks — "Hamilton, Ontario, Canada" and "Hamilton, Ohio, United
+        // States" are the same six letters and different places.
+        label: String(row.display_name ?? town)
+          .split(',')
+          .slice(0, 3)
+          .join(',')
+          .trim(),
+        name: town,
+        area,
+        region: String(address.state ?? '').trim(),
+        lat: Number(row.lat),
+        lon: Number(row.lon),
+      };
+    });
+    const body = {
+      ok: true,
+      query,
+      places,
+      note: 'Pick one, and the airports below are ordered by distance from it.',
+    };
+    searchCache.set(key, { at: Date.now(), body });
+    json(200, body);
+  } catch (error) {
+    json(503, {
+      ok: false,
+      error: `The place search could not be reached (${error instanceof Error ? error.message : error}).`,
+    });
+  }
+}
+
+/**
  * A coordinate, turned into the name of the place it falls in.
  *
  * 🔴 WHY THIS EXISTS AT ALL: "FIND ME" USED TO PRINT A NON-ANSWER. George, 20 Sep 2026:
@@ -769,6 +885,11 @@ async function serveApi(request, response) {
     // and a path segment pair would have to invent an order and a separator for them.
     const query = new URL(request.url, 'http://localhost').searchParams;
     await serveReverse(query.get('lat'), query.get('lon'), response);
+    return;
+  }
+  if (path.startsWith('/api/geo/search')) {
+    const query = new URL(request.url, 'http://localhost').searchParams;
+    await servePlaceSearch(query.get('q'), response);
     return;
   }
 

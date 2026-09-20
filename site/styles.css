@@ -287,8 +287,23 @@ main {
 .chips {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin-bottom: 10px;
+}
+
+/* 🔴 THE ROW'S OWN NAME, SAID ONCE. George, 20 Sep 2026: *"i want a label instead of saying
+ * last seen mnay times"*. It is not a chip and must not look like one — no border, no pill, no
+ * pointer — because a label that can be mistaken for a control gets pressed. It is set back in
+ * the muted colour and pushed slightly away from the first chip, so the eye reads
+ * "Last seen · [All flights] [5 minutes] …" as one sentence. */
+.chip-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  margin-right: 4px;
+  white-space: nowrap;
 }
 
 .chip {
@@ -949,9 +964,70 @@ main > #status {
 
 /* The button is no longer a direct grid child, so the placement rule written for
  * it earlier no longer applies and must be undone explicitly. */
-.typerow .typerow-actions .type-toggle {
+.typerow .typerow-actions .type-toggle,
+.typerow .typerow-actions .alert-toggle {
   grid-column: auto;
   grid-row: auto;
+}
+
+/* 🔴 THE BELL IS THE STAR'S TWIN IN SHAPE AND ITS OPPOSITE IN COLOUR. George, 20 Sep 2026:
+ * *"i should be able to select from the list w3hich ones i want an alert for"*. Two marks
+ * sit on every row now and they answer different questions — the star says show me this, the
+ * bell says wake me for this. Sharing the gold would make them one mark in two places, which
+ * is exactly the confusion the separate list is meant to end, so the bell takes the site's
+ * own accent. */
+.bell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(4, 16, 26, 0.5);
+  color: color-mix(in srgb, var(--theme) 72%, #7fb4cc);
+  cursor: pointer;
+}
+
+.bell svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+}
+
+.bell:hover {
+  border-color: var(--theme);
+  color: var(--theme);
+}
+
+.bell[aria-pressed='true'] {
+  border-color: var(--theme);
+  background: color-mix(in srgb, var(--theme) 16%, transparent);
+  color: var(--theme);
+}
+
+.bell[aria-pressed='true'] svg {
+  fill: currentColor;
+}
+
+/* Armed for some tail numbers rather than the whole type — the same idea as the star's dot,
+ * so a narrowed bell can never be mistaken for an armed whole type. */
+.bell-part {
+  position: relative;
+}
+
+.bell-part::after {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--theme);
+  transform: translate(11px, 11px);
 }
 
 .tail-panel {
