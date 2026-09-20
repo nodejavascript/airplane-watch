@@ -486,12 +486,36 @@ async function servePostal(raw, response) {
       json(404, { ok: false, error: `Nothing is listed for ${target.code}.` });
       return;
     }
+    // 🔴 A POSTAL AREA IS NAMED FOR A TOWN AND A LIST OF COMMUNITIES, AND THE LIST IS THE
+    // USEFUL PART. George, 20 Sep 2026: *"you should be able to pinpoint their location a
+    // bit better, im in stoney fcreek for example"*. The postal service names L8E as
+    // *"Hamilton (Confederation Park / Nashdale / East Kentley / Riverdale / Lakely /
+    // Grayside / North Stoney Creek)"* — seven communities, one of which is his.
+    //
+    // Anyone can be pinned to one of those communities; nobody can be pinned to which
+    // one from the postcode alone, because the postcode covers all seven. Two other
+    // routes were tried and measured before settling on this: Nominatim's reverse lookup
+    // returns `suburb: "Kentley Drive"` — a street — for this exact point, and Photon
+    // returns the same street plus `city: Hamilton`. OpenStreetMap simply does not carry
+    // the community name at these coordinates. So the reader is offered the list instead
+    // of being handed a guess.
+    const raw = String(place['place name'] ?? '').trim();
+    const split = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(raw);
+    const town = (split ? split[1] : raw).trim();
+    const areas = split
+      ? split[2]
+          .split('/')
+          .map((part) => part.trim())
+          .filter((part) => part !== '')
+      : [];
     json(200, {
       ok: true,
       lookedUp: target.code,
       country: body.country,
       region: place.state,
-      place: place['place name'],
+      place: town,
+      town,
+      areas,
       lat: Number(place.latitude),
       lon: Number(place.longitude),
       note:

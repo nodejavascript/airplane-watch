@@ -164,7 +164,15 @@ async function servePostal(raw) {
       lookedUp: target.code,
       country: body.country,
       region: place.state,
-      place: place['place name'],
+      place: String(place['place name'] ?? '').replace(/\s*\([^)]*\)\s*$/, '').trim(),
+      // 🔴 The Worker has to answer the same shape as tools/serve.mjs, or production and
+      // development disagree about what the page receives — the same contract kept in two
+      // places on purpose, and the one place a divergence shows up silently.
+      town: String(place['place name'] ?? '').replace(/\s*\([^)]*\)\s*$/, '').trim(),
+      areas: (/\((.*)\)\s*$/.exec(String(place['place name'] ?? ''))?.[1] ?? '')
+        .split('/')
+        .map((part) => part.trim())
+        .filter((part) => part !== ''),
       lat: Number(place.latitude),
       lon: Number(place.longitude),
       note:

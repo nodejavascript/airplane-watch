@@ -54,7 +54,7 @@ const AIRPORT_KEY = 'aircraft_airport';
  * 🔴 THE READER'S PLACE AND THEIR DISTANCE ARE KEPT TOO. George, 20 Sep 2026:
  * *"and maybe save in cooking, my location, how far, my favorites"* — the
  * favourites were already kept and the other two were not, so a reload made you
- * answer step 2 again and forgot where you were.
+ * answer the distance again and forgot where you were.
  *
  * 🔴 IT IS LOCAL STORAGE AND NOT A COOKIE, ON PURPOSE. A cookie is sent to the
  * server with every single request, so a cookie holding where you are would hand
@@ -65,6 +65,8 @@ const AIRPORT_KEY = 'aircraft_airport';
  */
 const CENTRE_KEY = 'aircraft_centre';
 const RADIUS_KEY = 'aircraft_radius';
+/** The community the reader picked inside their postal area — see renderAreaPicker. */
+const AREA_KEY = 'aircraft_place_area';
 /**
  * 🔴 THE PAGE ASKS A VOLUNTEER FEED, SO IT ASKS AS LITTLE AS IT CAN.
  *
@@ -102,11 +104,35 @@ const POLL_MAX_MS = 180_000;
  * what it means in plain words as well as in kilometres, because "20 km" is a
  * number and "the airport and the city around it" is an answer.
  */
-const DISTANCES: { km: number; label: string; blurb: string }[] = [
-  { km: 10, label: 'Just the airport', blurb: 'the runway and the apron' },
-  { km: 20, label: 'The airport and the city', blurb: 'climb-out and approach' },
-  { km: 50, label: 'The whole region', blurb: 'everything passing over' },
+/**
+ * 🔴 THE DISTANCE IS A LOGARITHMIC LADDER NOW, NOT THREE BUTTONS. George, 20 Sep 2026:
+ * *"How far out from you? maybe this should be a slider? logrythmic?"*
+ *
+ * Three chips offered three answers, and the two that mattered sat at the ends: the
+ * difference between 10 and 20 km is the whole difference between catching an aircraft
+ * on the ground and not, while the difference between 20 and 50 is barely noticeable.
+ * A slider alone would be worse — dragging to 37 km is false precision for a fence, and
+ * a fence is a question you answer, not a number you tune — so the slider is
+ * **logarithmic and snapped**: equal travel gives equal RATIOS (each step is about a
+ * quarter larger than the last), and every stop is a round number.
+ *
+ * 5 km to 200 km covers everything the page is good at: below 5 the round loses the
+ * airport's own apron, and above 200 on a 30-minute poll the fence is wider than any
+ * aircraft can be watched across.
+ */
+const RADIUS_LADDER = [
+  5, 6, 8, 10, 12, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200,
 ];
+
+/** What each end of the slider means, in words rather than numbers. */
+function radiusBlurb(km: number): string {
+  if (km <= 10) return 'the runway and the apron';
+  if (km <= 25) return 'the airport and the city around it';
+  if (km <= 63) return 'climb-out and approach';
+  if (km <= 125) return 'the whole region';
+  return 'everything passing over';
+}
+
 
 /**
  * 🔴 AN ERA IS A FILTER A READER ACTUALLY REACHES FOR. George, 20 Sep 2026: *"i
@@ -146,17 +172,43 @@ const ERAS: { key: EraKey; label: string; from: number; to: number }[] = [
  * time it is re-run — and the list opens NARROWED, because a filter nobody presses
  * does not stop anybody picking something dead.
  */
-type SeenKey = 'day' | 'week' | 'month' | 'ever';
+type SeenKey = 'often' | 'now' | 'day' | 'week' | 'month' | 'ever';
 
-const SEEN_CHOICES: { key: SeenKey; label: string; days: number }[] = [
-  { key: 'day', label: 'seen in the last day', days: 1 },
-  { key: 'week', label: 'seen this week', days: 7 },
-  { key: 'month', label: 'seen this month', days: 30 },
+interface SeenChoice {
+  key: SeenKey;
+  label: string;
+  /** Calendar reach in days, or infinity for the round-based and "any time" choices. */
+  days: number;
+  /**
+   * 🔴 A CALENDAR WINDOW IS ONLY OFFERED ONCE IT CAN CHANGE THE LIST. George, 20 Sep
+   * 2026, after the first version shipped: *"i still want the last seen to work right
+   * now."* He was right and the reason was structural — three rounds inside three hours
+   * put every type inside every window, so day, week and month were the same set and
+   * pressing the chips changed nothing. A chip that cannot change the list teaches the
+   * reader the filter is broken.
+   */
+  needsDays?: number;
+}
+
+const SEEN_CHOICES: SeenChoice[] = [
+  { key: 'often', label: 'flies here often', days: Number.POSITIVE_INFINITY },
+  { key: 'now', label: 'in the last look', days: Number.POSITIVE_INFINITY },
+  { key: 'day', label: 'seen in the last day', days: 1, needsDays: 1 },
+  { key: 'week', label: 'seen this week', days: 7, needsDays: 7 },
+  { key: 'month', label: 'seen this month', days: 30, needsDays: 30 },
   { key: 'ever', label: 'seen at any time', days: Number.POSITIVE_INFINITY },
 ];
 
-/** The window the list opens on. Wide enough to survive a survey a week old. */
-const SEEN_DEFAULT: SeenKey = 'month';
+/**
+ * 🔴 THE LIST OPENS ON THE USEFUL ANSWER, WHICH IS NOW "FLIES HERE OFTEN".
+ *
+ * It opened on "seen this month", which on the first day of the site is the same list as
+ * "seen at any time" — so the reader's first impression of the filter was that it did
+ * nothing. "Often" is the question the page is for: George, 20 Sep 2026, *"something that
+ * is never going to fly soon is a useless selection"*. With one round it degrades to
+ * everything, and from the second round it starts hiding the one-off visitors.
+ */
+const SEEN_DEFAULT: SeenKey = 'often';
 
 /** One measured type, as tools/survey-types.mjs writes it. */
 interface SurveyedType {
@@ -170,6 +222,8 @@ interface SurveyedType {
   lastSeen?: string | null;
   /** How many survey runs have recorded it. */
   runsSeen?: number;
+  /** How many times it was seen in total, across every run. */
+  seenInAllRuns?: number;
 }
 
 interface TypesDocument {
@@ -180,6 +234,17 @@ interface TypesDocument {
   roundsRefusedByRateLimit?: number;
   /** Said out loud: a registration is only in here if one was transmitted. */
   registrationsNote?: string;
+  /**
+   * 🔴 HOW MUCH HISTORY STANDS BEHIND "LAST SEEN", AND IT IS READ, NOT GUESSED.
+   * `runsRecorded` is the number of looks at the sky the database holds, and the two
+   * dates bound them. The filter needs the count to decide what "often" means, and the
+   * page needs the span to know whether a calendar window could change anything — see
+   * the note on SeenChoice.
+   */
+  runsRecorded?: number;
+  historyFrom?: string;
+  historyTo?: string;
+  historyNote?: string;
   types: SurveyedType[];
 }
 
@@ -526,9 +591,25 @@ class Page {
 
   /** What the reader's place is called, for saying it back to them. */
   private placeLabel = '';
+  /**
+   * 🔴 WHERE YOU ARE, SAID PROPERLY. George, 20 Sep 2026: *"Your location put the city in
+   * highlighted text, you should be able to pinpoint their location a bit better, im in
+   * stoney fcreek for example"*.
+   *
+   * Three parts, because they are three different facts:
+   *   placeLabel — what the reader is called, or 'your position'
+   *   placeTown  — the town the postal area belongs to
+   *   placeArea  — WHICH community inside that area, once the reader says so
+   *
+   * The postcode cannot tell us the third; it lists them. So the third is the reader's
+   * to give in one tap, and until they do the town is the honest answer.
+   */
+  private placeTown = '';
+  private placeArea = '';
+  private placeAreas: string[] = [];
 
   /** A place read back from storage, applied once the airport list has loaded. */
-  private restored: { lat: number; lon: number; label: string } | null = null;
+  private restored: { lat: number; lon: number; label: string; town?: string; areas?: string[] } | null = null;
 
   /** The airport list the feed itself confirmed, for the "around you" panel. */
   private listedAirports: AirportsDocument | null = null;
@@ -545,12 +626,17 @@ class Page {
   private lastReadings: Reading[] = [];
 
   /**
-   * Whether the reader has answered step 2 by choosing a distance.
+   * Whether the reader has answered the distance half of step 1 by moving the slider.
    *
-   * 🔴 IT IS NOT PRESELECTED, AND THAT IS THE POINT. A distance applied silently is
-   * a step that answers itself, and a step that answers itself cannot be waited on —
-   * which is why the first attempt at this revealed steps 2, 3 and 5 together. The
-   * reader picks, and the next step arrives because they did.
+   * 🔴 IT USED TO SAY "step 2", AND THERE IS NO STEP 2 ANY MORE. The distance and the place
+   * are one card — George, 20 Sep 2026: *"the circle in the map should be based on the how
+   * far out from you distance, so lets combine those cards nicely"* — so the status line was
+   * sending the reader to look for a step that is not on the page.
+   *
+   * 🔴 IT IS NOT PRESELECTED, AND THAT IS THE POINT. A distance applied silently is a step
+   * that answers itself, and a step that answers itself cannot be waited on — which is why
+   * the first attempt at this revealed steps 2, 3 and 5 together. The reader moves the
+   * slider, and the next step arrives because they did.
    */
   private radiusChosen = false;
   /** Types the feed showed in THIS session, which may be newer than the survey. */
@@ -572,9 +658,9 @@ class Page {
       this.radiusChosen = true;
     }
     try {
-      const kept = JSON.parse(readStore(CENTRE_KEY, 'null')) as { lat?: number; lon?: number; label?: string } | null;
+      const kept = JSON.parse(readStore(CENTRE_KEY, 'null')) as { lat?: number; lon?: number; label?: string; town?: string; areas?: string[] } | null;
       if (kept && typeof kept.lat === 'number' && typeof kept.lon === 'number') {
-        this.restored = { lat: kept.lat, lon: kept.lon, label: kept.label ?? '' };
+        this.restored = { lat: kept.lat, lon: kept.lon, label: kept.label ?? '', town: kept.town ?? '', areas: Array.isArray(kept.areas) ? kept.areas : [] };
       }
     } catch {
       // A corrupt store is not worth failing over; the reader simply starts again.
@@ -662,43 +748,98 @@ class Page {
 
   /* ------------------------------------------------------------ the airport */
 
+  /**
+   * 🔴 A SLIDER, LOGARITHMIC, SNAPPED — and the feed is only asked when you let go.
+   *
+   * The slider's POSITION is linear and its VALUE is not: position n is
+   * `RADIUS_LADDER[n]`, and the ladder is roughly geometric, so the same drag moves you
+   * 5→6 km at one end of the track and 160→200 km at the other. That is what makes a
+   * short distance feel controllable without wasting half the track on numbers nobody
+   * can tell apart.
+   *
+   * 🔴 DRAGGING REDRAWS; RELEASING FETCHES. `input` fires on every pixel of a drag, so
+   * it redraws the map and the sentence — local work — and `change` fires when the
+   * reader lets go, which is what re-aims the fence and may ask the feed. Measured
+   * against the live feed on 20 Sep 2026: ten requests three seconds apart were refused
+   * with 429 from the third onward. A control that asked on every pixel would exhaust
+   * that budget in one gesture.
+   */
   private buildRadiusButtons(): void {
     const host = byId('radiusButtons');
     if (!host) return;
     host.innerHTML = '';
-    for (const choice of DISTANCES) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'chip';
-      button.dataset.km = String(choice.km);
-      // The distance AND what it means. "20 km" is a number; "the airport and the
-      // city around it" is an answer.
-      button.innerHTML =
-        `<b>${choice.km} km</b> <span>${escapeHtml(choice.label)}</span>`;
-      button.setAttribute('aria-pressed', String(this.radiusChosen && choice.km === this.radiusKm));
-      button.addEventListener('click', () => {
-        // 🔴 CHOOSING A DISTANCE IS WHAT ANSWERS STEP 2, and until it is answered
-        // step 3 is not on the page. That is the whole sequence: nothing here is
-        // applied silently, so the reader can see which step the page is waiting on.
-        const first = !this.radiusChosen;
-        this.radiusChosen = true;
-        this.radiusKm = choice.km;
-        // Kept, so a reload does not ask the same question again.
-        writeStore(RADIUS_KEY, String(choice.km));
-        for (const other of host.querySelectorAll('button')) {
-          other.setAttribute('aria-pressed', String(other === button));
-        }
-        // Step 2 is answered, so step 3 may arrive — and the fence is (re)aimed
-        // with the distance they actually chose.
-        this.updateSteps();
-        // Re-aimed with the distance they actually chose. Nothing is re-fetched:
-        // `point()` already falls back to the airports that are picked, so this is
-        // the same point at a new radius rather than a new question.
-        this.rearm();
-        track('distance_chosen', { km: choice.km, nm: kmToNm(choice.km), first });
-      });
-      host.appendChild(button);
-    }
+
+    const nearest = RADIUS_LADDER.reduce(
+      (best, _km, index) =>
+        Math.abs(RADIUS_LADDER[index] - this.radiusKm) < Math.abs(RADIUS_LADDER[best] - this.radiusKm) ? index : best,
+      0
+    );
+
+    const row = document.createElement('div');
+    row.className = 'radius-row';
+
+    const end = (text: string, side: string): HTMLElement => {
+      const span = document.createElement('span');
+      span.className = `radius-end radius-end-${side}`;
+      span.textContent = text;
+      return span;
+    };
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.id = 'radiusSlider';
+    slider.className = 'radius-slider';
+    slider.min = '0';
+    slider.max = String(RADIUS_LADDER.length - 1);
+    slider.step = '1';
+    slider.value = String(nearest);
+    slider.setAttribute('aria-label', 'How far out to look');
+
+    const readout = document.createElement('b');
+    readout.id = 'radiusValue';
+    readout.className = 'radius-value';
+
+    const blurb = document.createElement('span');
+    blurb.id = 'radiusBlurb';
+    blurb.className = 'radius-blurb';
+
+    const show = (index: number): void => {
+      const km = RADIUS_LADDER[index];
+      readout.textContent = `${km} km`;
+      blurb.textContent = radiusBlurb(km);
+      slider.setAttribute('aria-valuetext', `${km} kilometres`);
+    };
+    show(nearest);
+
+    slider.addEventListener('input', () => {
+      const index = Number(slider.value);
+      this.radiusKm = RADIUS_LADDER[index];
+      show(index);
+      // Local only: the sentence, the circle and the map all come from `radiusKm`,
+      // and none of them needs the feed to be asked again.
+      this.renderFenceNote();
+      this.renderMap();
+    });
+
+    slider.addEventListener('change', () => {
+      // 🔴 MOVING THE SLIDER IS WHAT ANSWERS STEP 1, and until it is answered step 3 is
+      // not on the page. Nothing is applied silently, so the reader can see which step
+      // the page is waiting on.
+      const first = !this.radiusChosen;
+      this.radiusChosen = true;
+      const km = RADIUS_LADDER[Number(slider.value)];
+      // Kept, so a reload does not ask the same question again.
+      writeStore(RADIUS_KEY, String(km));
+      this.updateSteps();
+      // Re-aimed with the distance they actually chose. Nothing is re-fetched by the
+      // page: `point()` already falls back to the airports that are picked, so this is
+      // the same point at a new radius rather than a new question.
+      this.rearm();
+      track('distance_chosen', { km, nm: kmToNm(km), first });
+    });
+
+    row.append(end('close', 'near'), slider, end('wide', 'far'));
+    host.append(row, readout, blurb);
   }
 
   private buildTypeFilter(): void {
@@ -1034,7 +1175,7 @@ class Page {
     // on a choice, and saying so beats showing a count of aircraft in a fence the
     // reader has not picked.
     if (!this.radiusChosen) {
-      this.setStatus('Choose how far out to look in step 2, and this fills in.', 'working');
+      this.setStatus('Set how far out to look at the top of the page, and this fills in.', 'working');
       return;
     }
     const url = `/api/v2/point/${at.lat}/${at.lon}/${kmToNm(this.radiusKm)}`;
@@ -1345,7 +1486,10 @@ class Page {
     const host = byId('seenFilter');
     if (!host) return;
     host.innerHTML = '';
+    // A chip is drawn only when it can change the list — see the note on SeenChoice.
+    const span = this.historySpanDays();
     for (const choice of SEEN_CHOICES) {
+      if (choice.needsDays !== undefined && span < choice.needsDays) continue;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'chip chip-small';
@@ -1358,10 +1502,25 @@ class Page {
           other.setAttribute('aria-pressed', String(other === button));
         }
         this.renderTypeList();
-        track('seen_chosen', { seen: choice.key });
+        this.renderFilterNote();
+        track('seen_chosen', { seen: choice.key, runs: this.runsRecorded() });
       });
       host.appendChild(button);
     }
+  }
+
+  /** How many looks the database holds. Zero until the survey answers. */
+  private runsRecorded(): number {
+    const n = this.survey?.runsRecorded;
+    return Number.isFinite(n) && (n ?? 0) > 0 ? (n as number) : Math.max(1, ...(this.survey?.types ?? []).map((row) => row.runsSeen ?? 1));
+  }
+
+  /** How long the observed history covers, in days. 0 when there is nothing yet. */
+  private historySpanDays(): number {
+    const from = this.survey?.historyFrom ? new Date(this.survey.historyFrom).getTime() : NaN;
+    const to = this.survey?.historyTo ? new Date(this.survey.historyTo).getTime() : NaN;
+    if (!Number.isFinite(from) || !Number.isFinite(to) || to < from) return 0;
+    return (to - from) / 86_400_000;
   }
 
   /**
@@ -1383,30 +1542,31 @@ class Page {
     }
     const rows = this.survey?.types ?? [];
     if (rows.length > 0) {
-      const runs = Math.max(1, ...rows.map((row) => row.runsSeen ?? 1));
-      const times = rows
-        .map((row) => (row.lastSeen ? new Date(row.lastSeen).getTime() : NaN))
-        .filter((value) => Number.isFinite(value));
-      const spanDays =
-        times.length > 0 ? (Math.max(...times) - Math.min(...times)) / 86_400_000 : 0;
-      const window = SEEN_CHOICES.find((candidate) => candidate.key === this.seenFilter) ?? SEEN_CHOICES[2];
-      // 🔴 THE FILTER IS ONLY AS GOOD AS THE HISTORY BEHIND IT, AND THE PAGE SAYS SO.
-      // Two rounds run an hour apart cannot tell "flown in the last day" apart from
-      // "flown in the last month" — every type is inside both windows, so the window
-      // you pick changes nothing. That is a fact about how long this site has been
-      // watching, not a fault in the filter, and the honest thing is to say which of
-      // the two it is rather than let the choice look broken.
-      const tooEarly = window.days < 4000 && spanDays < window.days;
+      const runs = this.runsRecorded();
+      const span = this.historySpanDays();
+      const window = SEEN_CHOICES.find((candidate) => candidate.key === this.seenFilter) ?? SEEN_CHOICES[0];
+      // 🔴 THE NOTE HAS TO SAY WHICH KIND OF FILTER IS RUNNING, because there are now two
+      // kinds and they answer different questions. "Flies here often" is about how regular
+      // a type is; "in the last look" is about this afternoon; a calendar window is about
+      // days. Saying which one is on, and how much history stands behind it, is the
+      // difference between a filter and a mystery.
+      const how = window.key === 'often'
+        ? `A type is shown when it has been seen in at least half of them — ${Math.max(1, Math.ceil(runs / 2))} of ${runs} so far.`
+        : window.key === 'now'
+          ? 'A type is shown when the most recent look of the sky found it.'
+          : window.days === Number.POSITIVE_INFINITY
+            ? 'Every type this site has ever seen is shown.'
+            : `A type is shown when it has been seen within ${window.days === 1 ? 'a day' : `${window.days} days`}.`;
       parts.push(
-        `Last seen: ${runs} survey run${runs === 1 ? '' : 's'} recorded so far` +
-          (spanDays > 0 ? `, spanning ${this.spanText(spanDays)}.` : '.') +
-          (tooEarly
-            ? ` That is shorter than "${window.label}", so every type is inside the window and this` +
-              ' choice cannot tell them apart yet — it starts to bite once rounds have been running for' +
-              ' longer than the window you pick.'
+        `Last seen: ${runs} look${runs === 1 ? '' : 's'} at the sky recorded so far` +
+          (span > 0 ? `, spanning ${this.spanText(span)}.` : '.') +
+          ` ${how}` +
+          (span > 0 && span < 1
+            ? ' The day, week and month choices are not offered yet: with less than a day of history' +
+              ' every type falls inside all of them, so they could not change the list.'
             : '') +
-          ' A type that has not been seen inside the window you choose is hidden rather than offered' +
-          ' — an aircraft that does not fly near you is not a choice worth making.'
+          ' A type that does not qualify is hidden rather than offered — an aircraft that does not fly near' +
+          ' you is not a choice worth making.'
       );
     }
     note.textContent = parts.join(' ');
@@ -1468,7 +1628,60 @@ class Page {
     const have = this.centre !== null;
     if (ask) ask.hidden = have;
     if (known) known.hidden = !have;
-    if (name) name.textContent = this.placeLabel || 'your position';
+    if (name) {
+      // 🔴 THE COMMUNITY IS THE HIGHLIGHTED PART, AND THE TOWN SITS BESIDE IT. George,
+      // 20 Sep 2026: *"Your location put the city in highlighted text"*. Which is
+      // highlighted matters: "Hamilton" is a city of half a million and tells the reader
+      // nothing about where the fence is centred, while "Stoney Creek" is where they
+      // actually are. So the community leads and is marked, and the town follows it in
+      // plain text — and with no community chosen the town is highlighted instead, because
+      // then it IS the best answer available.
+      name.innerHTML = this.placeArea
+        ? `<span class="place-area">${escapeHtml(this.placeArea)}</span>` +
+          (this.placeTown ? `<span class="place-sep"> · </span><span class="place-town">${escapeHtml(this.placeTown)}</span>` : '')
+        : `<span class="place-area">${escapeHtml(this.placeLabel || 'your position')}</span>`;
+    }
+    this.renderAreaPicker();
+  }
+
+  /**
+   * The communities this postal area covers — as chips, because there is exactly one of
+   * them the reader is in and the page cannot work out which.
+   *
+   * Hidden for a browser position, where there is no postcode list to offer, and hidden
+   * when the postal service named only one place, because a picker with one option is not
+   * a question.
+   */
+  private renderAreaPicker(): void {
+    const host = byId('areaPicker');
+    if (!host) return;
+    if (this.placeAreas.length < 2) {
+      host.innerHTML = '';
+      host.hidden = true;
+      return;
+    }
+    host.hidden = false;
+    host.innerHTML =
+      `<span class="small muted">Which one? </span>` +
+      this.placeAreas
+        .map(
+          (area) =>
+            `<button type="button" class="chip chip-small area-chip" data-area="${escapeHtml(area)}" ` +
+            `aria-pressed="${area === this.placeArea}" data-ga="place-area">${escapeHtml(area)}</button>`
+        )
+        .join('');
+    for (const button of host.querySelectorAll<HTMLButtonElement>('.area-chip')) {
+      button.addEventListener('click', () => {
+        // 🔴 THE CHOICE DOES NOT MOVE THE FENCE. Naming the community is a better label
+        // for the same place, not a new place — the coordinates are the postal area's and
+        // they do not change. Re-aiming here would silently re-ask the feed for an answer
+        // nobody asked for.
+        this.placeArea = button.dataset.area === this.placeArea ? '' : button.dataset.area ?? '';
+        writeStore(AREA_KEY, this.placeArea);
+        this.renderPlace();
+        track('place_area_chosen', { area: this.placeArea });
+      });
+    }
   }
 
   /**
@@ -1484,6 +1697,9 @@ class Page {
     button.addEventListener('click', () => {
       this.centre = null;
       this.placeLabel = '';
+      this.placeTown = '';
+      this.placeArea = '';
+      this.placeAreas = [];
       this.nearby = [];
       writeStore(CENTRE_KEY, '');
       this.renderPlace();
@@ -1514,7 +1730,7 @@ class Page {
     elsewhere: number;
   } {
     const era = ERAS.find((candidate) => candidate.key === this.eraFilter) ?? ERAS[0];
-    const seen = SEEN_CHOICES.find((candidate) => candidate.key === this.seenFilter) ?? SEEN_CHOICES[2];
+    const seen = SEEN_CHOICES.find((candidate) => candidate.key === this.seenFilter) ?? SEEN_CHOICES[0];
     const picked = new Set(this.chosenIcaos());
     let undated = 0;
     let stale = 0;
@@ -1541,7 +1757,27 @@ class Page {
         }
         if (entry.year < era.from || entry.year > era.to) return false;
       }
-      if (seen.days !== Number.POSITIVE_INFINITY) {
+      // 🔴 HOW OFTEN, AS WELL AS HOW RECENTLY. The two round-based choices are the ones
+      // that work on the day the site is first watched: with three looks behind it, a
+      // type seen in all three is a different proposition from a type seen once, and no
+      // calendar window can tell them apart yet.
+      if (seen.key === 'often') {
+        const need = Math.max(1, Math.ceil(this.runsRecorded() / 2));
+        // A type in the air right now counts as a regular whatever the history says:
+        // the reader can see it, and hiding what is flying past is the wrong kind of
+        // tidy. It is the same allowance the airport filter makes a few lines up.
+        if ((row.runsSeen ?? 0) < need && (row.seen ?? 0) <= 0) {
+          stale += 1;
+          return false;
+        }
+      } else if (seen.key === 'now') {
+        // `seen` is this run's frequency, from the latest run's own row — so "in the
+        // last look" is a fact about the most recent look and nothing else.
+        if ((row.seen ?? 0) <= 0) {
+          stale += 1;
+          return false;
+        }
+      } else if (seen.days !== Number.POSITIVE_INFINITY) {
         const at = this.lastSeenOf(row.code);
         if (at === null || Date.now() - at.getTime() > seen.days * 86_400_000) {
           stale += 1;
@@ -1579,6 +1815,12 @@ class Page {
     operators: string[];
     registrations: { reg: string; airports: string[] }[];
     lastSeen: string | null;
+    /** 🔴 How many looks at the sky have found it. The filter needs this, and so does
+     * the row it is printed on — "seen 3 of 3 looks" is the fact that makes "flies here
+     * often" mean something on the day the site is first watched. */
+    runsSeen: number;
+    /** How many times in total, across every look. */
+    seenInAllRuns: number;
   }[] {
     type Row = ReturnType<Page['combinedTypes']>[number];
     const rows = new Map<string, Row>();
@@ -1590,14 +1832,28 @@ class Page {
         operators: [...(row.operators ?? [])],
         registrations: [...(row.registrations ?? [])],
         lastSeen: row.lastSeen ?? null,
+        runsSeen: row.runsSeen ?? 0,
+        seenInAllRuns: row.seenInAllRuns ?? row.seen,
       });
     }
     for (const [code, seen] of this.liveTypes) {
       const existing = rows.get(code);
       // A type this session saw but the survey never did has no measured tail
-      // numbers, and is given none rather than an invented list.
+      // numbers, and is given none rather than an invented list. It has also never
+      // been recorded by a look at the sky, so it counts as seen in none of them and
+      // is NOT treated as a regular — the row is here because it is in the air now.
       if (existing) existing.seen += seen;
-      else rows.set(code, { code, seen, airports: [], operators: [], registrations: [], lastSeen: null });
+      else
+        rows.set(code, {
+          code,
+          seen,
+          airports: [],
+          operators: [],
+          registrations: [],
+          lastSeen: null,
+          runsSeen: 0,
+          seenInAllRuns: 0,
+        });
     }
     // 🔴 ALPHABETICAL BY NAME, NOT BY HOW OFTEN IT WAS SEEN. George, 20 Sep 2026:
     // *"maybe list the airplane types in alpha order"*. The sighting count is
@@ -2047,6 +2303,12 @@ class Page {
           `<span class="typerow-bar" aria-hidden="true"><i style="width:${width}%"></i></span>` +
           `<span class="small muted">${row.seen} sighting${row.seen === 1 ? '' : 's'}` +
           ` · ${escapeHtml(this.sinceText(this.lastSeenOf(row.code)))}` +
+          // 🔴 HOW OFTEN, BESIDE HOW RECENTLY — because on the day the site is first
+          // watched the count is the only one of the two that means anything. "3 of 3
+          // looks" is a regular; "1 of 3" is a visitor, and no date can say that yet.
+          (row.runsSeen > 0 && this.runsRecorded() > 1
+            ? ` <span class="looks-tag">${row.runsSeen} of ${this.runsRecorded()} looks</span>`
+            : '') +
           (row.operators.length > 0 ? ` · ${escapeHtml(row.operators.slice(0, 4).join(' '))}` : '') +
           (row.airports.length > 1 ? ` · ${row.airports.length} airports` : row.airports.length === 1 ? ` · ${escapeHtml(row.airports[0])}` : '') +
           `${escapeHtml(this.creditOf(row.code))}</span></div>` +
@@ -2321,7 +2583,7 @@ class Page {
    *
    * So it is drawn from the two facts that matter: where the reader is, and how
    * far out the fence reaches. The nearest airports carry their codes, the chosen
-   * one is drawn larger, and the rings are the distance they picked in step 2.
+   * one is drawn larger, and the rings are the distance they picked.
    */
   /**
    * 🔴 THE MAP IS A FREE SERVICE, AND THE BROWSER NEVER TALKS TO IT.
@@ -2739,7 +3001,7 @@ class Page {
     this.renderMap();
   }
 
-  private computeNearby(lat: number, lon: number, label = ''): void {
+  private computeNearby(lat: number, lon: number, label = '', town = '', areas: string[] = []): void {
     const list = this.listedAirports?.airports ?? [];
     if (list.length === 0) return;
     // 400 km, because that is roughly the reach of the list as it stands. The
@@ -2759,6 +3021,12 @@ class Page {
     // it, because "restored to Hamilton (Riverdale)" is an answer and a pair of
     // coordinates is not.
     this.placeLabel = label;
+    this.placeTown = town;
+    this.placeAreas = areas;
+    // A community only counts while it belongs to the area being looked at, so a new
+    // postal code clears the old one rather than carrying a name from another town.
+    const keptArea = areas.includes(readStore(AREA_KEY, '')) ? readStore(AREA_KEY, '') : '';
+    this.placeArea = keptArea;
     writeStore(CENTRE_KEY, JSON.stringify({ lat, lon, label }));
     this.renderPlace();
     this.renderNearby();
@@ -2799,6 +3067,10 @@ class Page {
           ok?: boolean;
           error?: string;
           place?: string;
+          /** The town the postal area belongs to, split out from the community list. */
+          town?: string;
+          /** The communities the area covers — see renderAreaPicker. */
+          areas?: string[];
           region?: string;
           country?: string;
           lat?: number;
@@ -2809,7 +3081,7 @@ class Page {
           if (note) note.textContent = body.error ?? 'That code could not be looked up.';
           return;
         }
-        this.computeNearby(body.lat, body.lon, `${body.place ?? ''}${body.region ? `, ${body.region}` : ''}`);
+        this.computeNearby(body.lat, body.lon, `${body.town ?? body.place ?? ''}${body.region ? `, ${body.region}` : ''}`, body.town ?? body.place ?? '', Array.isArray(body.areas) ? body.areas : []);
         if (note) {
           note.textContent =
             `${body.place}, ${body.region} — airports below are listed by distance from there. ${body.note ?? ''}`.trim();
