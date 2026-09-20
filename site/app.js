@@ -20,7 +20,7 @@
  * which is served in development by `tools/serve.mjs` and in production by a
  * Cloudflare Worker. Both do the same small job.
  */
-import { AIRPORTS, DEFAULT_AIRPORT, parseAirport, } from './airports.js';
+import { DEFAULT_AIRPORT, parseAirport, } from './airports.js';
 import { thumbSvg } from './thumbs.js';
 import { DEFAULTS, DetectionEngine, distanceNm, kmToNm, nmToKm, normaliseKey, } from './detect.js';
 import { CLASS_ORDER, classLabel, describeType, isCivilClass, knownTypeCount, } from './typeinfo.js';
@@ -195,7 +195,6 @@ class Page {
         this.watchlist = this.loadList(WATCH_KEY);
         this.typeRules = this.loadTypeRules();
         this.board = this.loadBoard();
-        this.buildAirportButtons();
         this.buildRadiusButtons();
         this.buildTypeFilter();
         this.renderWatchlist();
@@ -276,22 +275,6 @@ class Page {
         writeStore(BOARD_KEY, JSON.stringify(this.board.slice(0, 100)));
     }
     /* ------------------------------------------------------------ the airport */
-    buildAirportButtons() {
-        const host = byId('airportButtons');
-        if (!host)
-            return;
-        host.innerHTML = '';
-        for (const airport of AIRPORTS) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'chip';
-            button.dataset.icao = airport.icao;
-            button.setAttribute('data-ga', 'airport');
-            button.innerHTML = `<b>${escapeHtml(airport.icao)}</b> <span>${escapeHtml(airport.label)}</span>`;
-            button.addEventListener('click', () => void this.chooseAirport(airport.icao));
-            host.appendChild(button);
-        }
-    }
     buildRadiusButtons() {
         const host = byId('radiusButtons');
         if (!host)
@@ -398,9 +381,6 @@ class Page {
             return;
         }
         writeStore(AIRPORT_KEY, this.airport.icao);
-        for (const button of document.querySelectorAll('#airportButtons .chip')) {
-            button.setAttribute('aria-pressed', String(button.dataset.icao === this.airport.icao));
-        }
         const title = byId('airportTitle');
         if (title)
             title.textContent = `${this.airport.name} (${this.airport.icao})`;

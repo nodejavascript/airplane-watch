@@ -22,7 +22,6 @@
  */
 
 import {
-  AIRPORTS,
   DEFAULT_AIRPORT,
   parseAirport,
   type ResolvedAirport,
@@ -308,7 +307,6 @@ class Page {
     this.watchlist = this.loadList(WATCH_KEY);
     this.typeRules = this.loadTypeRules();
     this.board = this.loadBoard();
-    this.buildAirportButtons();
     this.buildRadiusButtons();
     this.buildTypeFilter();
     this.renderWatchlist();
@@ -394,22 +392,6 @@ class Page {
   }
 
   /* ------------------------------------------------------------ the airport */
-
-  private buildAirportButtons(): void {
-    const host = byId('airportButtons');
-    if (!host) return;
-    host.innerHTML = '';
-    for (const airport of AIRPORTS) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'chip';
-      button.dataset.icao = airport.icao;
-      button.setAttribute('data-ga', 'airport');
-      button.innerHTML = `<b>${escapeHtml(airport.icao)}</b> <span>${escapeHtml(airport.label)}</span>`;
-      button.addEventListener('click', () => void this.chooseAirport(airport.icao));
-      host.appendChild(button);
-    }
-  }
 
   private buildRadiusButtons(): void {
     const host = byId('radiusButtons');
@@ -514,9 +496,6 @@ class Page {
     }
 
     writeStore(AIRPORT_KEY, this.airport.icao);
-    for (const button of document.querySelectorAll<HTMLButtonElement>('#airportButtons .chip')) {
-      button.setAttribute('aria-pressed', String(button.dataset.icao === this.airport.icao));
-    }
 
     const title = byId('airportTitle');
     if (title) title.textContent = `${this.airport.name} (${this.airport.icao})`;

@@ -678,8 +678,11 @@ test('refusing the position request leaves a usable page', async () => {
   assert.ok(note.length > 0, 'a refusal said nothing at all');
   assert.equal(/undefined|NaN/.test(note), false, `the refusal message is broken: ${note}`);
 
-  // And the page still works: an airport can still be chosen by name.
-  assert.ok(await page.$$eval('#airportButtons .chip', (items) => items.length) > 0);
+  // And the page still works. The manual airport picker was removed on
+  // 20 Sep 2026, so the path to an airport is the code or the position — and
+  // after a refusal the form must still be there and still usable.
+  assert.equal(await page.$eval('#postalInput', (element) => element.disabled), false,
+    'the postal code field is unusable after a position refusal');
 
   await context.close();
 });
@@ -756,7 +759,8 @@ test('a postal code that is not one is refused with a sentence, and the page sti
   assert.equal(/undefined|NaN|\[object/.test(note), false, `the refusal message is broken: ${note}`);
 
   // Refusing a lookup must not take the rest of the page with it.
-  assert.ok(await page.$$eval('#airportButtons .chip', (items) => items.length) > 0);
+  assert.equal(await page.$eval('#postalInput', (element) => element.disabled), false,
+    'the postal code field is unusable after a refused lookup');
   assert.ok(await page.$$eval('#typeList .typerow', (items) => items.length) > 0);
 
   await context.close();
