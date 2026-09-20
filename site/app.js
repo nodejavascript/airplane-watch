@@ -95,6 +95,27 @@ async function readJson(response) {
             text.slice(0, 120).replace(/\s+/g, ' ').trim());
     }
 }
+/**
+ * 🔴 THE STAR, AND THE THREE THINGS IT SAYS. George, 20 Sep 2026: *"instead of
+ * favority this, use a start icon"*. One control, and its shape carries the
+ * state: outlined means the whole type is NOT favourited, filled means it is, and
+ * a narrowed type — one watched by particular tail numbers rather than as a whole
+ * — shows outlined with a dot, because it is not the whole type and must not
+ * claim to be.
+ *
+ * The words did not disappear; they moved into the title and the accessible name,
+ * so a screen reader still hears "Favourite this type" and a sighted reader
+ * gets the glance.
+ */
+const STAR_PATH = 'M12 2.7l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.6l-5.8 3.05L7.3 14.15 2.6 9.55l6.5-.95z';
+const TAIL_STAR = '<svg class="tail-star" viewBox="0 0 24 24" aria-hidden="true"><path d="' + STAR_PATH + '"/></svg>';
+function starButton(code, wholeType, narrowed) {
+    const label = wholeType ? 'Favourited — remove' : narrowed ? 'Favourite the whole type' : 'Favourite this type';
+    return (`<button type="button" class="star type-toggle${narrowed ? ' star-part' : ''}" ` +
+        `data-type="${escapeHtml(code)}" aria-pressed="${wholeType}" ` +
+        `title="${label}" aria-label="${label}" data-ga="type-favourite">` +
+        `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}"/></svg></button>`);
+}
 function byId(id) {
     return document.getElementById(id);
 }
@@ -698,15 +719,26 @@ class Page {
     updateSteps() {
         const place = this.airport !== null || this.centre !== null;
         const picked = this.typeRules.length > 0 || this.watchlist.length > 0;
-        const ready = {
-            '2': place,
-            '3': place,
-            '4': picked,
-            '5': place,
-            '6': picked,
-        };
         for (const section of document.querySelectorAll('.step-gated')) {
-            const show = ready[section.dataset.step ?? ''] === true;
+            const step = section.dataset.step ?? '';
+            // 🔴 SHOWN, EXPLAINED, INERT — NOT HIDDEN. George, 20 Sep 2026: *"maybe make
+            // it visible just put note to select airport first"*. A page that hides what
+            // is coming reads as broken; a page that shows it with the reason reads as
+            // waiting. So these stay on the page, dimmed, with their note, and every
+            // control inside them disabled until the page knows where the reader is.
+            if (step === '2' || step === '3' || step === '5') {
+                section.hidden = false;
+                section.dataset.waiting = String(!place);
+                const why = section.querySelector('.step-why');
+                if (why)
+                    why.hidden = place;
+                for (const control of section.querySelectorAll('button, input')) {
+                    control.disabled = !place;
+                }
+                continue;
+            }
+            // The two that would be empty shells still arrive with the glide.
+            const show = step === '4' || step === '6' ? picked : place;
             if (show && section.hidden) {
                 section.hidden = false;
                 section.classList.add('step-arrive');
@@ -795,10 +827,13 @@ class Page {
                 `<span class="tag tag-curated">based here · listed by hand</span>` +
                 '</div>' +
                 `<div class="typerow-actions">` +
-                `<button type="button" class="ghost ${already ? 'chip-off' : 'chip-on'} resident-toggle" ` +
+                `<button type="button" class="star resident-toggle" ` +
                 `data-reg="${escapeHtml(resident.registration)}" data-also="${escapeHtml(keys.slice(1).join(','))}" ` +
-                `data-type="${escapeHtml(code)}" ` +
-                `data-ga="resident-favourite">${already ? 'Favourited — remove' : 'Favourite this aircraft'}</button>` +
+                `data-type="${escapeHtml(code)}" aria-pressed="${already}" ` +
+                `title="${already ? 'Favourited — remove' : 'Favourite this aircraft'}" ` +
+                `aria-label="${already ? 'Favourited — remove' : 'Favourite this aircraft'}" ` +
+                `data-ga="resident-favourite">` +
+                `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}"/></svg></button>` +
                 '</div>' +
                 `<p class="small muted typerow-meta">${escapeHtml(resident.note)}</p>` +
                 '</div>');
@@ -825,9 +860,17 @@ class Page {
                 ? ''
                 : '<div class="tail-chips">' +
                     tails
-                        .map((item) => `<button type="button" class="tail-chip" data-type="${escapeHtml(row.code)}" ` +
-                        `data-tail="${escapeHtml(item.reg)}" aria-pressed="${chosen.has(normaliseKey(item.reg))}" ` +
-                        `data-ga="tail-chip">${escapeHtml(item.reg)}</button>`)
+                        .map((item) => {
+                        const on = chosen.has(normaliseKey(item.reg));
+                        // 🔴 A LITTLE STAR ON THE ONES YOU PICKED. George, 20 Sep 2026:
+                        // *"if i select tail number also add a little star in their
+                        // button"* — so the choice is visible as a mark and not only as a
+                        // border colour, which at this size is easy to miss.
+                        return (`<button type="button" class="tail-chip" data-type="${escapeHtml(row.code)}" ` +
+                            `data-tail="${escapeHtml(item.reg)}" aria-pressed="${on}" ` +
+                            `title="${on ? 'Watching only this one' : 'Watch only this one'}" ` +
+                            `data-ga="tail-chip">${on ? TAIL_STAR : ''}${escapeHtml(item.reg)}</button>`);
+                    })
                         .join('') +
                     '</div>';
             const tailNote = tails.length === 0
@@ -842,9 +885,7 @@ class Page {
                 `<span class="tag">${escapeHtml(classLabel(klass))}</span>` +
                 '</div>' +
                 `<div class="typerow-actions">` +
-                `<button type="button" class="ghost chip-small ${wholeType ? 'chip-off' : 'chip-on'} type-toggle" ` +
-                `data-type="${escapeHtml(row.code)}" data-ga="type-favourite">` +
-                `${wholeType ? 'Favourited — remove' : already ? 'Favourite the whole type' : 'Favourite this type'}</button>` +
+                starButton(row.code, wholeType, already && !wholeType) +
                 '</div>' +
                 `<div class="typerow-meta">` +
                 `<span class="typerow-bar" aria-hidden="true"><i style="width:${width}%"></i></span>` +
@@ -938,6 +979,9 @@ class Page {
                 this.renderTypeList();
             });
         }
+        // The star buttons are rebuilt above, so the waiting gate is re-applied here
+        // or a fresh poll would hand back buttons that are enabled too early.
+        this.updateSteps();
     }
     renderWatchlist() {
         const host = byId('watchList');
@@ -1113,6 +1157,73 @@ class Page {
         }
         this.renderNearby();
     }
+    /**
+     * 🔴 WHERE YOU ARE, AND HOW FAR THE PAGE IS LOOKING — DRAWN HERE, NOT EMBEDDED.
+     *
+     * George, 20 Sep 2026: *"maybe google map can show a circle around their location
+     * with a marker on the airport with the airport code, not sure"* — and the
+     * drawing is right, the source is not. An embedded Google map needs an API key,
+     * a billing account, and a request to Google from **every** visitor's browser
+     * before they have answered the cookie question — which is the one thing this
+     * site's own gate exists to prevent. It would also add a third party to a page
+     * whose promise is that it asks the feed, this server, and nobody else.
+     *
+     * So it is drawn from the two facts that matter: where the reader is, and how
+     * far out the fence reaches. The nearest airports carry their codes, the chosen
+     * one is drawn larger, and the rings are the distance they picked in step 2.
+     */
+    renderMap() {
+        const host = byId('locMap');
+        if (!host)
+            return;
+        const at = this.centre;
+        if (!at || this.nearby.length === 0) {
+            host.innerHTML = '';
+            return;
+        }
+        const size = 340;
+        const middle = size / 2;
+        const radius = middle - 32;
+        const near = this.nearby.slice(0, 10);
+        const maxKm = Math.max(this.radiusKm, ...near.map((row) => row.km));
+        const toPx = (km) => (km / maxKm) * radius;
+        const place = (lat, lon) => {
+            const km = nmToKm(distanceNm(at.lat, at.lon, lat, lon));
+            const rad = (bearingDeg(at.lat, at.lon, lat, lon) * Math.PI) / 180;
+            return { x: middle + Math.sin(rad) * toPx(km), y: middle - Math.cos(rad) * toPx(km), km };
+        };
+        let svg = `<svg class="locmap" viewBox="0 0 ${size} ${size}" role="img" ` +
+            `aria-label="A ${this.radiusKm} kilometre circle around your position, with the nearest airports marked with their codes">`;
+        for (const ring of [maxKm / 2, maxKm]) {
+            svg += `<circle class="locmap-ring" cx="${middle}" cy="${middle}" r="${toPx(ring).toFixed(1)}" />`;
+            svg +=
+                `<text class="locmap-small" x="${(middle + 4).toFixed(1)}" ` +
+                    `y="${(middle - toPx(ring) + 12).toFixed(1)}">${Math.round(ring)} km</text>`;
+        }
+        // The reader, at the middle, because everything here is measured from them.
+        svg += `<circle class="locmap-you" cx="${middle}" cy="${middle}" r="4.5" />`;
+        svg += `<text class="locmap-small" x="${middle}" y="${middle + 17}" text-anchor="middle">you</text>`;
+        for (const row of near) {
+            const spot = place(row.airport.lat, row.airport.lon);
+            const chosenAirport = row.airport.icao === this.airport?.icao;
+            svg +=
+                `<line class="locmap-line" x1="${middle}" y1="${middle}" ` +
+                    `x2="${spot.x.toFixed(1)}" y2="${spot.y.toFixed(1)}" />`;
+            svg +=
+                `<circle class="locmap-airport" cx="${spot.x.toFixed(1)}" cy="${spot.y.toFixed(1)}" ` +
+                    `r="${chosenAirport ? 5 : 3.2}" />`;
+            svg +=
+                `<text class="locmap-label" x="${(spot.x + 7).toFixed(1)}" ` +
+                    `y="${(spot.y + 3.5).toFixed(1)}">${escapeHtml(row.airport.icao)}</text>`;
+        }
+        svg += '</svg>';
+        svg +=
+            '<p class="small muted locmap-note">You, at the middle, and the ' +
+                `${this.radiusKm} km circle this page is watching. The nearest ten airports are marked with their codes, and ` +
+                'the one you picked is drawn larger. It is drawn rather than embedded: an embedded map is an API key, a ' +
+                'billing account, and a request to Google from every visitor before they have answered the cookie question.</p>';
+        host.innerHTML = svg;
+    }
     renderNearby() {
         const host = byId('nearbyList');
         if (!host || !this.listedAirports)
@@ -1132,6 +1243,7 @@ class Page {
         for (const button of host.querySelectorAll('.near-chip')) {
             button.addEventListener('click', () => void this.chooseAirport(button.dataset.icao ?? ''));
         }
+        this.renderMap();
     }
     computeNearby(lat, lon) {
         const list = this.listedAirports?.airports ?? [];

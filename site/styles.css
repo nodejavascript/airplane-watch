@@ -222,7 +222,7 @@ main {
 .lede {
   font-size: 17.5px;
   color: #cfe4f0;
-  max-width: 72ch;
+  max-width: none;
   margin: 0 0 18px;
 }
 
@@ -269,11 +269,18 @@ main {
   font-weight: 700;
 }
 
+/* 🔴 THE MEASURE CAPS ARE GONE, AND THEY WERE MEASURED OFF THE RENDERED PAGE
+ * rather than guessed at. George, 20 Sep 2026: *"the description wrapping are not
+ * taking up max width available"* — and he was right, three times over: a `.sub`
+ * paragraph rendered 635px wide inside an 856px card (74ch), a list rendered
+ * 666px (80ch), and the lede 72ch. The card itself is already capped at 940px, so
+ * that is the measure; a second cap inside it just leaves a third of the card
+ * empty beside the text. */
 .sub {
   color: var(--muted);
   font-size: 15px;
   margin: 0 0 14px;
-  max-width: 74ch;
+  max-width: none;
 }
 
 /* -------------------------------------------------------------- controls --- */
@@ -657,7 +664,7 @@ main {
   gap: 9px;
   color: #cfe4f0;
   font-size: 15px;
-  max-width: 80ch;
+  max-width: none;
 }
 
 .limits li::marker,
@@ -1247,4 +1254,171 @@ main > #status {
   .chip[aria-busy='true']::after {
     animation-duration: 1.6s;
   }
+}
+
+/* ======================= fourth pass, 20 Sep 2026 ===========================
+ * A star instead of the word, a little star on a highlighted tail number, a note
+ * rather than a hidden step, and a drawing of where you are.
+ */
+
+/* ------------------------------------------------------------ the star --- */
+/* 🔴 ONE CONTROL, THREE STATES, AND THE SHAPE SAYS WHICH. George, 20 Sep 2026:
+ * *"instead of favority this, use a start icon"*. An outlined star means the
+ * whole type is not favourited; a filled one means it is. A type narrowed to
+ * particular tail numbers is NOT the whole type, so it shows outlined — which is
+ * the same thing the reader was told in words before, said in a glance. */
+.star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(4, 16, 26, 0.5);
+  color: var(--muted, #8aa6b8);
+  cursor: pointer;
+}
+
+.star svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+}
+
+.star:hover {
+  border-color: var(--theme);
+  color: var(--theme);
+}
+
+.star[aria-pressed='true'] {
+  border-color: var(--theme);
+  background: rgba(56, 189, 248, 0.16);
+  color: var(--theme);
+}
+
+.star[aria-pressed='true'] svg {
+  fill: currentColor;
+}
+
+/* A narrowed type: the row is watched, but not as a whole — so the button is
+ * outlined and carries a dot, rather than claiming to be filled. */
+.star-part::after {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--theme);
+  transform: translate(11px, 11px);
+}
+
+.star-part {
+  position: relative;
+}
+
+/* -------------------------------------------------- the little star --- */
+/* On a highlighted tail number, so "you picked this one" is visible at a glance
+ * and not only in the border colour. */
+.tail-chip .tail-star {
+  width: 11px;
+  height: 11px;
+  margin-right: 4px;
+  fill: currentColor;
+  vertical-align: -1px;
+}
+
+/* ------------------------------------------------- a note, not a hiding --- */
+/* 🔴 THE STEP STAYS ON THE PAGE. George, 20 Sep 2026: *"i dont want pick an
+ * aircraft to be visible until an airport is selected. maybe make it visible just
+ * put note to select airport first"*. So the step is shown with the reason it
+ * cannot be used yet, and its controls are inert rather than absent — a page that
+ * hides what is coming reads as broken, and a page that explains reads as
+ * waiting. */
+.step-why {
+  margin: 0 0 14px;
+  padding: 10px 13px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: rgba(4, 16, 26, 0.4);
+  color: var(--muted, #8aa6b8);
+  font-size: 14px;
+}
+
+.step-gated[data-waiting='true'] {
+  opacity: 0.62;
+}
+
+.step-gated[data-waiting='true'] .typelist,
+.step-gated[data-waiting='true'] .chips,
+.step-gated[data-waiting='true'] .watch-form {
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------- the drawn map --- */
+/* 🔴 NOT GOOGLE MAPS, AND THE REASON IS IN THE PAGE. An embedded map is an API
+ * key, a billing account, and a request to Google from every visitor's browser —
+ * which collides head-on with the cookie gate this site is built around, because
+ * a map loads Google whether or not the reader said yes. So the map is drawn
+ * here, from the two facts that matter: where you are, and how far out the page
+ * is looking. */
+.locmap {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  margin: 14px auto 4px;
+}
+
+.locmap-ring {
+  fill: rgba(56, 189, 248, 0.07);
+  stroke: rgba(56, 189, 248, 0.5);
+  stroke-width: 1.3;
+}
+
+.locmap-you {
+  fill: var(--theme);
+}
+
+.locmap-airport {
+  fill: #f0be5a;
+}
+
+.locmap-line {
+  stroke: rgba(56, 189, 248, 0.25);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.locmap-label {
+  fill: var(--ink, #e8f4fc);
+  font-size: 10px;
+  font-family: var(--mono, ui-monospace, monospace);
+}
+
+.locmap-small {
+  fill: var(--muted, #8aa6b8);
+  font-size: 9px;
+  font-family: var(--mono, ui-monospace, monospace);
+}
+
+.locmap-note {
+  margin: 0 0 14px;
+}
+
+/* 🔴 A NOTE THAT LANDS IN A CHIP CONTAINER MUST TAKE ITS OWN LINE. Measured on
+ * the rendered page: the "press find airports near me" note and the notification
+ * note were being laid out as if they were chips, so each sat at its own text
+ * width — 601px and 352px inside an 856px card — with the rest of the line empty
+ * beside it. They are paragraphs in a flex row, not chips, and this is the rule
+ * that says so. */
+.chips > p,
+.notify > p {
+  flex-basis: 100%;
+  width: 100%;
+  margin: 0;
 }

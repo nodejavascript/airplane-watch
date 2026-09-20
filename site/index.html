@@ -208,6 +208,8 @@
         <div class="chips" id="nearbyList" role="group" aria-label="Airports near you"></div>
         <p class="small muted" id="nearbyNote">Loading the airport list…</p>
 
+        <div id="locMap"></div>
+
         <details class="fallback">
           <summary>Or pick one of the airports this site starts with</summary>
           <div class="chips" id="airportButtons" role="group" aria-label="A well-known airport"></div>
@@ -215,8 +217,9 @@
         </details>
       </section>
 
-      <section class="card step-gated" id="step-2" data-step="2" hidden>
+      <section class="card step-gated" id="step-2" data-step="2" data-waiting="true">
         <h2><span class="step">2</span> How far out from you?</h2>
+        <p class="step-why">Choose where you are first. This distance is measured from <b>your</b> postal code or position, so it means nothing until the page knows where that is.</p>
         <p class="sub">
           This is the distance from <b>your</b> postal code or position — not from the airport. Everything inside the
           circle is what you will see in the air around you, which is the question this site exists to answer.
@@ -231,8 +234,9 @@
         <p class="small muted" id="fenceNote"></p>
       </section>
 
-      <section class="card step-gated" id="step-3" data-step="3" hidden>
+      <section class="card step-gated" id="step-3" data-step="3" data-waiting="true">
         <h2><span class="step">3</span> Pick an aircraft type</h2>
+        <p class="step-why">Choose an airport first. This list belongs to the airport you are watching, so it arrives with one.</p>
         <p class="sub">
           This list is <b>measured, not remembered</b>: it comes from reading the feed around these airports and
           counting what actually appeared, so it is the aircraft that really come and go rather than a list of famous
@@ -261,8 +265,9 @@
         <ul class="watchlist" id="watchList"></ul>
       </section>
 
-      <section class="card step-gated" id="step-5" data-step="5" hidden>
+      <section class="card step-gated" id="step-5" data-step="5" data-waiting="true">
         <h2><span class="step">5</span> Or name one aircraft</h2>
+        <p class="step-why">Choose an airport first — a named aircraft needs a place to be watched from.</p>
         <p class="sub">
           A tail number such as <span class="mono">C-GXXX</span>, a callsign such as <span class="mono">ACA123</span>,
           or a transponder address such as <span class="mono">c011e4</span>. Case, spaces and hyphens do not matter.

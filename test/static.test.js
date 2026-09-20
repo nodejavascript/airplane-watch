@@ -724,3 +724,65 @@ test('the fence is measured from the reader, not from the airport', () => {
   assert.match(source, /out from \$\{this\.centre \? 'your own position' : 'the airport'\}/,
     'the page does not say which point the distance is from');
 });
+
+/* ============================================ 20 Sep 2026, fourth pass ======= */
+
+test('no measure cap is left on a description, measured off the rendered page', () => {
+  const css = read(SITE, 'styles.css');
+  // These three were measured at 635px, 666px and 635px inside an 856px card.
+  for (const selector of ['.sub', '.lede']) {
+    const rule = css.slice(css.indexOf(`\n${selector} {`), css.indexOf('}', css.indexOf(`\n${selector} {`)));
+    assert.match(rule, /max-width: none/, `${selector} is still capped short of the card`);
+    assert.equal(/max-width: \d+ch/.test(rule), false, `${selector} still carries a character-measure cap`);
+  }
+  assert.equal(/max-width: 80ch/.test(css), false, 'a list is still capped at 80ch');
+  // And a paragraph that lands in a flex chip row must take its own line.
+  assert.match(css, /\.chips > p[\s\S]{0,120}flex-basis: 100%/, 'a note in a chip row is laid out as a chip');
+});
+
+test('a type is favourited with a star, and the shape carries the state', () => {
+  const source = readSrc('src/app.ts');
+  assert.match(source, /function starButton\(/, 'there is no star control');
+  assert.match(source, /aria-pressed="\$\{wholeType\}"/, 'the star does not carry its pressed state');
+  assert.match(source, /star-part/, 'a type narrowed to tails does not show as partly watched');
+  assert.match(source, /const TAIL_STAR/, 'a highlighted tail number gets no little star');
+  assert.match(source, /\$\{on \? TAIL_STAR : ''\}/, 'the tail star is not conditional on the highlight');
+  // The words still have to reach a screen reader even though the icon replaced them.
+  assert.match(source, /aria-label="\$\{label\}"/, 'the star has no accessible name');
+  assert.match(source, /title="\$\{label\}"/, 'the star has no tooltip');
+  assert.equal(/'Favourite this type'/.test(source), true, 'the wording was deleted rather than moved');
+});
+
+test('a step that waits on a place is SHOWN with the reason, not hidden', () => {
+  const html = read('index.html');
+  for (const n of [2, 3, 5]) {
+    assert.match(html, new RegExp(`id="step-${n}"[^>]*data-waiting="true"`), `step ${n} does not start as waiting`);
+    assert.equal(new RegExp(`id="step-${n}"[^>]*hidden`).test(html), false, `step ${n} is hidden instead of waiting`);
+    assert.match(html, new RegExp(`id="step-${n}"[\\s\\S]{0,600}class="step-why"`), `step ${n} has no note saying what to do`);
+  }
+  assert.match(html, /id="step-4"[^>]*hidden/, 'the watchlist is shown before anything is picked');
+  assert.match(html, /id="departures"[^>]*hidden/, 'the board is shown before anything is picked');
+
+  const css = read(SITE, 'styles.css');
+  assert.match(css, /\.step-why\b/, 'the note has no style');
+  assert.match(css, /data-waiting='true'[\s\S]{0,200}pointer-events: none/, 'a waiting step is still clickable');
+
+  const source = readSrc('src/app.ts');
+  assert.match(source, /control\.disabled = !place;/, 'the controls of a waiting step are still usable');
+  assert.match(source, /waiting = String\(!place\)/, 'the waiting state is never set');
+});
+
+test('the map is DRAWN, not embedded, and says why', () => {
+  const source = readSrc('src/app.ts');
+  assert.match(source, /private renderMap\(\)/, 'there is no map');
+  assert.match(source, /NOT EMBEDDED/, 'the drawing does not record the decision');
+  assert.match(source, /an API key, a billing account, and a request to Google from every visitor/,
+    'the reason an embedded map was refused is not written down');
+  // The two things a map of this is for: where the reader is, and what is near.
+  assert.match(source, /locmap-you/, 'the reader is not marked');
+  assert.match(source, /locmap-airport/, 'the airports are not marked');
+  assert.match(source, /escapeHtml\(row\.airport\.icao\)/, 'the airports are drawn without their codes');
+  // 🔴 No Google in the page, which is the standing rule for every one of these sites.
+  assert.equal(/maps\.google|googleapis\.com\/maps|gtag\(|googletagmanager/.test(readSrc('src/app.ts')), false,
+    'something in the page now calls Google directly');
+});

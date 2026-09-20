@@ -922,3 +922,88 @@ test('the readability of a Dash 8 name, and a drawing beside every type', async 
 
   await context.close();
 });
+
+/* ============================================ 20 Sep 2026, fourth pass ======= */
+
+test('the aircraft step is on the page from the start, with a note instead of a hiding', async () => {
+  const { context, page } = await openPage([[[]]]);
+  await page.route('**/api/0/airport/**', (r) => r.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForTimeout(900);
+
+  for (const id of ['#step-2', '#step-3', '#step-5']) {
+    assert.equal(await page.$eval(id, (element) => element.hidden), false, `${id} is hidden rather than waiting`);
+    const why = await page.$eval(`${id} .step-why`, (element) => ({ hidden: element.hidden, text: element.textContent }));
+    assert.equal(why.hidden, false, `${id} shows no note about what to do first`);
+    assert.ok(why.text.length > 20, `${id}'s note says nothing`);
+  }
+  assert.match(await page.$eval('#step-3 .step-why', (element) => element.textContent), /airport/i);
+
+  // And the controls inside a waiting step cannot be used.
+  const disabled = await page.$$eval('#step-3 button', (items) => items.filter((i) => i.disabled).length);
+  const total = await page.$$eval('#step-3 button', (items) => items.length);
+  assert.ok(disabled > 0, 'nothing in the waiting step is disabled');
+  assert.equal(disabled, total, `${total - disabled} control(s) in a waiting step are still usable`);
+
+  await context.close();
+});
+
+test('the star says what the row actually watches', async () => {
+  const { context, page } = await openPage([[[]]]);
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  const row = '#typeList .typerow:has(.tail-chip)';
+  const star = `${row} .star.type-toggle`;
+
+  assert.equal(await page.$eval(star, (element) => element.getAttribute('aria-pressed')), 'false',
+    'a type starts out favourited');
+
+  await page.$eval(star, (element) => element.click());
+  await page.waitForTimeout(250);
+  assert.equal(await page.$eval(star, (element) => element.getAttribute('aria-pressed')), 'true',
+    'pressing the star did not favourite the whole type');
+  assert.match(await page.$eval(star, (element) => element.getAttribute('title')), /remove/i);
+
+  // Highlighting one tail number un-favourites the whole type, and the star says so.
+  await page.$eval(`${row} .tail-chip`, (element) => element.click());
+  await page.waitForTimeout(250);
+  assert.equal(await page.$eval(star, (element) => element.getAttribute('aria-pressed')), 'false',
+    'the star still claims the whole type is favourited after a tail was highlighted');
+  assert.match(await page.$eval(star, (element) => element.getAttribute('title')), /whole type/i);
+
+  // 🔴 And the little star is on the chip the reader picked.
+  const stars = await page.$$eval(`${row} .tail-chip .tail-star`, (items) => items.length);
+  assert.equal(stars, 1, `expected one starred tail chip, found ${stars}`);
+
+  await context.close();
+});
+
+test('the map draws the reader, the circle and the airport codes', async () => {
+  const { context, page } = await openPage([[[]]]);
+  await page.route('**/api/geo/postal/**', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, lookedUp: 'L8E', place: 'Hamilton', region: 'Ontario', lat: 43.2318, lon: -79.7696 }) })
+  );
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  assert.equal(await page.$$eval('#locMap svg', (items) => items.length), 0, 'a map is drawn before the reader says where they are');
+
+  await page.fill('#postalInput', 'L8E');
+  await page.$eval('#postalForm button[type="submit"]', (element) => element.click());
+  await page.waitForSelector('#locMap svg', { timeout: 10000 });
+
+  assert.ok(await page.$$eval('#locMap .locmap-you', (items) => items.length) >= 1, 'the reader is not on the map');
+  assert.ok(await page.$$eval('#locMap .locmap-ring', (items) => items.length) >= 2, 'the distance rings are missing');
+  const labels = await page.$$eval('#locMap .locmap-label', (items) => items.map((i) => i.textContent));
+  assert.ok(labels.includes('CYHM'), `the airport codes are not on the map: ${labels.join(' ')}`);
+  assert.equal(await page.$$eval('#locMap [src], #locMap iframe', (items) => items.length), 0,
+    'the map loads something from somewhere instead of drawing it');
+
+  await context.close();
+});
