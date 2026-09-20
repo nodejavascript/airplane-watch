@@ -1521,3 +1521,55 @@ main > #status {
     max-height: 520px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * THE STEP HEADINGS ARE CONTROLS. George, 20 Sep 2026: *"you didnt do the
+ * collpase / expand like i asked"*. The automatic gate decides what ARRIVES; this
+ * is what the reader decides to keep open. A step you have finished with folds
+ * away so the one you care about is not a screenful further down.
+ * ══════════════════════════════════════════════════════════════════════════ */
+.step-gated > h2 {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 26px;
+}
+
+/* The mark says which way it will go, not which way it is — a chevron that
+ * rotates is read at a glance; two different glyphs have to be compared. */
+.step-gated > h2::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: translateY(-70%) rotate(45deg);
+  transition: transform 240ms ease;
+}
+
+.step-gated > h2:hover::after {
+  border-color: var(--theme);
+}
+
+.step-gated.step-folded > h2::after {
+  transform: translateY(-30%) rotate(-135deg);
+}
+
+.step-gated.step-folded > h2 {
+  margin-bottom: 0;
+}
+
+/* Everything except the heading folds away — the h2 is the handle. */
+.step-gated.step-folded > *:not(h2) {
+  display: none !important;
+}
+
+/* The folded state must not be re-opened behind the reader's back by the gate,
+ * and `[hidden]` still wins over it, because a step that is not yet unlocked is
+ * not on the page at all. */
+.step-gated[hidden] {
+  display: none !important;
+}

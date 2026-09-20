@@ -203,6 +203,15 @@ class Page {
     nearby = [];
     /** The raw readings from the last poll — the live view is drawn from these. */
     lastReadings = [];
+    /**
+     * Whether the reader has answered step 2 by choosing a distance.
+     *
+     * 🔴 IT IS NOT PRESELECTED, AND THAT IS THE POINT. A distance applied silently is
+     * a step that answers itself, and a step that answers itself cannot be waited on —
+     * which is why the first attempt at this revealed steps 2, 3 and 5 together. The
+     * reader picks, and the next step arrives because they did.
+     */
+    radiusChosen = false;
     /** Types the feed showed in THIS session, which may be newer than the survey. */
     liveTypes = new Map();
     typeFilter = 'all';
@@ -217,6 +226,7 @@ class Page {
         this.bindWatchForm();
         this.bindNotify();
         this.renderWatchButton();
+        this.bindStepToggles();
         this.bindLocate();
         const saved = readStore(AIRPORT_KEY, DEFAULT_AIRPORT);
         void this.chooseAirport(saved);
@@ -302,15 +312,25 @@ class Page {
             // city around it" is an answer.
             button.innerHTML =
                 `<b>${choice.km} km</b> <span>${escapeHtml(choice.label)}</span>`;
-            button.setAttribute('aria-pressed', String(choice.km === this.radiusKm));
+            button.setAttribute('aria-pressed', String(this.radiusChosen && choice.km === this.radiusKm));
             button.addEventListener('click', () => {
+                // 🔴 CHOOSING A DISTANCE IS WHAT ANSWERS STEP 2, and until it is answered
+                // step 3 is not on the page. That is the whole sequence: nothing here is
+                // applied silently, so the reader can see which step the page is waiting on.
+                const first = !this.radiusChosen;
+                this.radiusChosen = true;
                 this.radiusKm = choice.km;
                 for (const other of host.querySelectorAll('button')) {
                     other.setAttribute('aria-pressed', String(other === button));
                 }
+                // Step 2 is answered, so step 3 may arrive — and the fence is (re)aimed
+                // with the distance they actually chose.
+                this.updateSteps();
                 if (this.airport)
                     void this.chooseAirport(this.airport.icao);
-                track('distance_changed', { km: choice.km, nm: kmToNm(choice.km) });
+                else
+                    this.rearm();
+                track('distance_chosen', { km: choice.km, nm: kmToNm(choice.km), first });
             });
             host.appendChild(button);
         }
@@ -485,6 +505,13 @@ class Page {
         const at = this.point();
         if (!at || !this.engine)
             return;
+        // 🔴 NOTHING IS ASKED OF THE FEED UNTIL STEP 2 IS ANSWERED. The page is waiting
+        // on a choice, and saying so beats showing a count of aircraft in a fence the
+        // reader has not picked.
+        if (!this.radiusChosen) {
+            this.setStatus('Choose how far out to look in step 2, and this fills in.', 'working');
+            return;
+        }
         const url = `/api/v2/point/${at.lat}/${at.lon}/${kmToNm(this.radiusKm)}`;
         try {
             const response = await fetch(url, { headers: { accept: 'application/json' } });
@@ -757,41 +784,74 @@ class Page {
         const picked = this.typeRules.length > 0 || this.watchlist.length > 0;
         for (const section of document.querySelectorAll('.step-gated')) {
             const step = Number(section.dataset.step ?? '0');
-            // 🔴 ONE STEP AT A TIME, IN ORDER. George, 20 Sep 2026: *"step 2 and 3 and 4,
-            // etc should be collapsed if previous steps are not completed. as soon as
-            // step 1 is done, gently expand step two"*.
+            // 🔴 ONE STEP AT A TIME, AND EACH WAITS FOR THE ONE BEFORE IT TO BE ANSWERED.
+            // George, 20 Sep 2026: *"step 2 and 3 and 4, etc should be collapsed if
+            // previous steps are not completed. as soon as step 1 is done, gently expand
+            // step two"* — and then, when the first attempt revealed 2, 3 and 5 together
+            // a third of a second apart, *"you didnt do the collpase / expand like i
+            // asked"*. He was right: a stagger is not a sequence.
             //
-            // Nothing is on the page until the step before it has an answer:
-            //   1  where you are      → unlocks 2
-            //   2  how far out        → answered the moment it lands, because a distance is
-            //                           always selected, so it unlocks 3 on arrival
-            //   3  the aircraft types → unlocks 4 and the chart once something is starred
-            //   5  name one aircraft  → the alternative to 3, so it arrives with it
+            //   1  where you are      → ANSWERED when a place is known        → unlocks 2
+            //   2  how far out        → ANSWERED when a distance is chosen    → unlocks 3
+            //   3  the aircraft types → ANSWERED when something is starred    → unlocks 4
+            //   5  name one aircraft  → the alternative to 3, so it rides with it
             //   4, 6, 7               → a watchlist, a board and a chart are all empty
             //                           until something has actually been picked
-            const wantsPlace = step <= 5;
-            const show = wantsPlace ? place : place && picked;
-            // 🔴 THE STAGGER IS WHAT MAKES IT READ AS ONE AFTER ANOTHER. Steps 3 and 5
-            // land a beat after 2 rather than in the same frame, so the reader sees the
-            // page answering them in sequence instead of redrawing all at once. The delay
-            // is only ever applied to a step that is actually arriving — a re-render on
-            // the next poll must not make the page flinch.
-            const delay = step === 3 || step === 5 ? 420 : 0;
+            const answered1 = place;
+            const answered2 = place && this.radiusChosen;
+            const answered3 = answered2 && picked;
+            // 🔴 STEP 4 IS NOT THE SAME AS STEPS 3 AND 5. The first version of this said
+            // `step <= 5 ? answered2`, which put the watchlist on the page the moment a
+            // distance was chosen — before anything had been starred. Caught by driving
+            // the page rather than by reading the expression.
+            const show = step === 1 ? true : step === 2 ? answered1 : step === 3 || step === 5 ? answered2 : answered3;
             if (show && section.hidden) {
-                window.setTimeout(() => {
-                    section.hidden = false;
-                    section.classList.add('step-arrive');
-                    window.setTimeout(() => section.classList.remove('step-arrive'), 900);
-                    // The chart is drawn when it arrives rather than when it was last polled,
-                    // or it would show whatever was in the air a moment before it appeared.
-                    if (step === 7)
-                        this.renderLive();
-                }, delay);
+                section.hidden = false;
+                section.classList.add('step-arrive');
+                window.setTimeout(() => section.classList.remove('step-arrive'), 900);
+                // The chart is drawn when it arrives rather than when it was last polled,
+                // or it would show whatever was in the air a moment before it appeared.
+                if (step === 7)
+                    this.renderLive();
             }
             else if (!show && !section.hidden) {
                 section.hidden = true;
             }
         }
+    }
+    /**
+     * 🔴 EVERY STEP HEADING COLLAPSES AND EXPANDS, AND THE READER OWNS IT.
+     *
+     * George, 20 Sep 2026: *"you didnt do the collpase / expand like i asked"*. The
+     * automatic sequence above decides what ARRIVES; this decides what STAYS OPEN.
+     * A reader who has finished with where they are should be able to fold it away
+     * and get on with the part they care about, rather than scrolling past a step
+     * they have already answered.
+     *
+     * Delegated on the document, so every step works including the ones revealed
+     * later — a listener bound to the headings at load would only ever know about the
+     * steps that existed at load. That is the same mistake that made the cookie gate's
+     * footer door dead on the other sites in this family.
+     */
+    bindStepToggles() {
+        document.addEventListener('click', (event) => {
+            // 🔴 A DESCENDANT SELECTOR, NOT A CHILD ONE. `closest` matches a selector
+            // against each ancestor, and the first version of this used `.step-gated > h2`
+            // — which reads as a child selector and did not fire in Chrome. Matching on
+            // the plain descendant and checking the parent explicitly is the same test
+            // written so it cannot be ambiguous.
+            const target = event.target;
+            const heading = target?.closest('h2');
+            if (!(heading instanceof HTMLElement))
+                return;
+            const section = heading.parentElement;
+            if (!(section instanceof HTMLElement) || !section.classList.contains('step-gated'))
+                return;
+            section.classList.toggle('step-folded');
+            const folded = section.classList.contains('step-folded');
+            heading.setAttribute('aria-expanded', String(!folded));
+            track('step_folded', { step: section.dataset.step ?? '', folded });
+        });
     }
     async loadMilitary() {
         try {
