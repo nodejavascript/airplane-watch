@@ -97,3 +97,23 @@ published under the **Open Database License**. Aircraft that have asked not to b
 published, and aircraft with no ADS-B at all, will never appear here. Nothing is
 stored on a server: the watchlist, the chosen airport and the departures board
 live in the reader's own browser.
+
+### The Lancaster that flies out of Hamilton
+
+Asked 20 Sep 2026: *"im not sure way the lancaster doesnt show up in hamilton, search the web they do
+offer tour flights"*. Read live from the museum's own pages that day:
+
+- The **Canadian Warplane Heritage Museum** states *"We are located at 9280 Airport Road in Mount Hope,
+  Ontario right at the Hamilton International Airport"* — which is **CYHM**, the airport this page
+  watches, and one of the 76 entries in `site/airports.json`. Nothing there marks it as a place a
+  Lancaster flies from.
+- Its flights page says *"All Lancaster passenger seat sales for the 2026 season are NOW SOLD OUT.
+  Seats for the 2027 season are expected to go on sale in November 2026."*
+- **And the page still cannot show one, for the only reason that matters:** no type code beginning
+  `LAN` appears in the 129 the survey measured. The page can list what the feed reported and nothing
+  else. Its own aircraft flight schedule is fetched per day in the browser
+  (`FlightPurchaseHandler.ashx?action=getAircraftFlightsDay&date=…`), so the dates are not in the
+  markup and cannot be read without a browser.
+- ⚠️ **Its ADS-B equipage was NOT confirmed.** `hexdb.io` returns *"Aircraft not found"* for both the
+  registration and the computed hex, so it is unknown whether one would ever be reported here. Do not
+  claim it is visible — that is not established either way.
