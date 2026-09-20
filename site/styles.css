@@ -1875,3 +1875,46 @@ main > #status {
 .step-gated[hidden] {
   display: none !important;
 }
+
+/* ---------------------------------------------------------------------------
+ * The historic aircraft panel — when to look up.
+ *
+ * 🔴 THIS IS THE ONE PANEL ON THE CARD THAT ANSWERS A DIFFERENT QUESTION. Everything
+ * else says what the feed saw; this says when a rare aeroplane is going to fly, from
+ * an airport the reader already has on screen. It gets the theme's accent edge so it
+ * reads as an aside rather than another list, and it is absent entirely when there is
+ * nothing to say — `[hidden]` stays authoritative.
+ * ------------------------------------------------------------------------ */
+.historic {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--theme);
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.historic-head {
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+.historic-head a {
+  font-weight: 600;
+}
+
+.historic-days {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  line-height: 1.5;
+}
+
+.historic-days li {
+  margin: 0 0 2px;
+}
+
+/* A day with nothing left is still worth printing — the reader can see the pattern —
+ * but it must not read like an invitation. */
+.historic-gone {
+  color: var(--muted);
+  font-style: italic;
+}

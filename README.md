@@ -98,22 +98,49 @@ published, and aircraft with no ADS-B at all, will never appear here. Nothing is
 stored on a server: the watchlist, the chosen airport and the departures board
 live in the reader's own browser.
 
-### The Lancaster that flies out of Hamilton
+### The old aircraft, and the days they fly — this is the point of the page
 
-Asked 20 Sep 2026: *"im not sure way the lancaster doesnt show up in hamilton, search the web they do
-offer tour flights"*. Read live from the museum's own pages that day:
+George, 20 Sep 2026: **"thats the whole point actually, to watch these old aircraft fly past your
+home location"**. Everything else here answers *what is in the air*. This answers the question a
+reader actually has about a rare aeroplane, which is **when to look up** — because a Lancaster flies a
+handful of times a year, and a handful of times a year is not something anybody notices by chance.
 
-- The **Canadian Warplane Heritage Museum** states *"We are located at 9280 Airport Road in Mount Hope,
-  Ontario right at the Hamilton International Airport"* — which is **CYHM**, the airport this page
-  watches, and one of the 76 entries in `site/airports.json`. Nothing there marks it as a place a
-  Lancaster flies from.
-- Its flights page says *"All Lancaster passenger seat sales for the 2026 season are NOW SOLD OUT.
-  Seats for the 2027 season are expected to go on sale in November 2026."*
-- **And the page still cannot show one, for the only reason that matters:** no type code beginning
-  `LAN` appears in the 129 the survey measured. The page can list what the feed reported and nothing
-  else. Its own aircraft flight schedule is fetched per day in the browser
-  (`FlightPurchaseHandler.ashx?action=getAircraftFlightsDay&date=…`), so the dates are not in the
-  markup and cannot be read without a browser.
-- ⚠️ **Its ADS-B equipage was NOT confirmed.** `hexdb.io` returns *"Aircraft not found"* for both the
-  registration and the computed hex, so it is unknown whether one would ever be reported here. Do not
-  claim it is visible — that is not established either way.
+**It is DATA, in the database, served by the API.** Asked of an earlier draft that had it as a note
+here: *"shoudnt these be in the api?"* — and the honest answer was yes. Three tables and a view in
+`db/schema.sql`, composed once in `tools/historic-document.mjs` and served at `/historic.json`.
+
+```bash
+node tools/load-historic.mjs            # read the operator's next 28 days
+node tools/load-historic.mjs --check    # what the database already holds
+```
+
+The museum is at **CYHM** — the airport this page already watches, 15 km from Hamilton — and the
+museum names it itself: *"We are located at 9280 Airport Road in Mount Hope, Ontario right at the
+Hamilton International Airport."* So the panel reads *"flies from CYHM, 15 km from you"*, and the
+distance is the same measurement as every other airport on the card.
+
+Two things are worth knowing before touching the loader:
+
+- **The endpoint's `date` parameter is one day ahead of the day it returns.** Measured against ten
+  dates, all ten agreeing. The loader asks for the offset day **and** checks every event against the
+  day it claims, so if that ever changes the result is an empty day rather than the wrong day.
+- **`LANC` is a Lancaster and `LNC4` is a Lancair.** The survey's own list contains `LNC4`, a
+  kit-built light aircraft. A name-shaped match would have announced a Lancaster on the strength of a
+  Lancair. Only `LANC` is the Lancaster, and only the Lancaster's code has a source
+  (`hexdb.io` hex `C07DD7` — Registration `C-GVRA`, ICAOTypeCode `LANC`, RegisteredOwners
+  *Canadian Warplane Heritage Museum*).
+
+**⚠️ CORRECTED 20 SEPTEMBER 2026, AND THE PRIOR TEXT IS QUOTED SO IT CANNOT COME BACK.** This section
+previously ended: *"Its ADS-B equipage was NOT confirmed. `hexdb.io` returns 'Aircraft not found' for
+both the registration and the computed hex, so it is unknown whether one would ever be reported
+here."* **That was wrong**, and it was reached by looking up a hex computed from the registration
+rather than the hex the airframe actually carries — and then drawing a conclusion from two 404s.
+`C-GVRA` **is** in the register, under its Mode-S address `C07DD7`, with owner *Canadian Warplane
+Heritage Museum*. The type is `LANC` and it is the one the page already knows. **The right statement
+is the opposite one: the page would show it the moment a survey round caught it, and no round ever
+has** — which `site/historic.json` reports as `reported: false`, read from the survey's own table.
+
+`reported` has **three** states in the data, and the third is the honest one: `true` (the feed has
+reported this type), `false` (it never has), and **`null` — nobody has sourced this aircraft's type
+code, so the question has not been asked.** The page prints the never-reported note only for a
+definite `false`. Only the Lancaster is sourced today.

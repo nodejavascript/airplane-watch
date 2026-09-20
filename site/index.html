@@ -220,6 +220,15 @@
         <div class="chips" id="nearbyList" role="group" aria-label="Airports near you"></div>
         <p class="small muted" id="nearbyNote">Loading the airport list…</p>
 
+        <!--
+          🔴 THE DAYS HISTORIC AIRCRAFT FLY FROM AN AIRPORT THE READER ALREADY HAS. George,
+          20 Sep 2026: *"thats the whole point actually, to watch these old aircraft fly past
+          your home location"*. The other list on this card is what the feed saw; this one is
+          when to go outside and look. It is empty unless a nearby airport has a site in the
+          database, and rendering it is what `renderHistoric` does.
+        -->
+        <div id="historicPanel" class="historic" hidden></div>
+
         <h3 class="subhead" id="radiusHead">How far out from you?</h3>
         <div id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
 

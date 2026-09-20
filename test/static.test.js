@@ -954,3 +954,85 @@ test('an empty type list explains itself, and the guard exists at all', () => {
   // And the abandoned dimmed-waiting approach left no CSS behind.
   assert.equal(/data-waiting/.test(read(SITE, 'styles.css')), false, 'the dead waiting rules are still in the stylesheet');
 });
+
+/* ============================ the historic schedule =========================
+ *
+ * George, 20 Sep 2026: *"thats the whole point actually, to watch these old aircraft fly past
+ * your home location"* — and, of the first draft that put this in a README instead,
+ * *"shoudnt these be in the api?"*. These tests hold both halves of that: the data lives in
+ * the database and is served, and the composition exists in exactly one place.
+ */
+
+test('the historic schedule is DATA — in the schema, served by the API, not a note in a file', () => {
+  const schema = read(ROOT, 'db', 'schema.sql');
+  for (const table of ['historic_sites', 'historic_aircraft', 'historic_flights']) {
+    assert.match(schema, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`), `${table} is not in the schema`);
+  }
+  assert.match(schema, /CREATE OR REPLACE VIEW historic_next/, 'the next-flying-day is stored rather than computed');
+
+  // Served, on the same path shape as every other data file the page reads.
+  const serve = readSrc('tools/serve.mjs');
+  assert.match(serve, /'\/historic\.json'/, 'the dev server does not answer /historic.json');
+  assert.match(serve, /composeHistoric/, 'the dev server has no historic composer');
+
+  // And read by the page rather than written into it.
+  const app = readSrc('src/app.ts');
+  assert.match(app, /fetch\('\/historic\.json'/, 'the page does not read the served document');
+
+  // The file is the deploy artefact, because a Worker cannot reach Postgres — so it must
+  // exist in the repo the deploy ships.
+  assert.ok(existsSync(join(SITE, 'historic.json')), 'site/historic.json is missing, so a deploy would 404');
+});
+
+test('the historic document is composed in ONE place, or the file and the route drift', () => {
+  // 🔴 THIS IS NOT STYLE, IT IS THE FAULT THIS REPO HAS ALREADY HAD. `types.json` was built
+  // by the dev server from Postgres while `site/types.json` said something else, and an
+  // experiment was invalidated by it. One composer, imported by both, is the fix.
+  const composer = readSrc('tools/historic-document.mjs');
+  assert.match(composer, /export async function composeHistoric/, 'there is no exported composer');
+
+  const loader = readSrc('tools/load-historic.mjs');
+  assert.match(loader, /import \{ composeHistoric \}/, 'the loader does not use the shared composer');
+  assert.equal(/source: "the operator/.test(loader), false, 'the loader still carries its own copy of the document');
+
+  const serve = readSrc('tools/serve.mjs');
+  assert.match(serve, /import \{ composeHistoric \}/, 'the dev server does not use the shared composer');
+});
+
+test('the museum endpoint\'s ONE-DAY OFFSET is encoded and checked, not assumed', () => {
+  // 🔴 READ RAW, NOT THROUGH `readSrc`. This test asserts on the MEASUREMENT RECORDED IN A
+  // COMMENT, and `readSrc` strips comments — so through it every one of these would fail
+  // against correct code. That is the false failure this file's header warns about, and it
+  // has already cost this family four tests once.
+  const loader = read(ROOT, 'tools', 'load-historic.mjs');
+
+  // The measurement must be recorded where the code is, because a comment elsewhere is a
+  // comment nobody reads when the number changes.
+  assert.match(loader, /THE `date` PARAMETER IS ONE DAY AHEAD/i, 'the measured offset is not written down');
+  assert.match(loader, /Ten pairs, measured/, 'the evidence for the offset is missing');
+
+  // And the code itself: the offset day is requested, and every event is checked against the
+  // day that was WANTED. The second half is what turns "the offset changed" from a wrong day
+  // beside somebody's home airport into an empty day.
+  const code = readSrc('tools/load-historic.mjs');
+  assert.match(code, /day\.getTime\(\) \+ 86_400_000/, 'the offset day is not requested');
+  assert.match(code, /startsWith\(wanted\)/, 'an event is not checked against the day it was asked for');
+});
+
+test('an aircraft whose type code has no source is reported as UNKNOWN, not as never seen', () => {
+  // 🔴 THREE STATES IN THE DATA AND THE PAGE MUST KEEP ALL THREE. `reported: null` means no
+  // source was found for this aircraft's code, which is not the same as "the feed has never
+  // reported it" — and printing the second when the first is true is a claim nobody checked.
+  const composer = readSrc('tools/historic-document.mjs');
+  assert.match(composer, /item\.type_code === null \? null : inFeed\.has\(item\.type_code\)/,
+    'the composer does not distinguish an unknown code from an unseen one');
+
+  const loader = read(ROOT, 'tools', 'load-historic.mjs');
+  // The trap is recorded where the code it guards is, and it is a COMMENT — so raw again.
+  assert.match(loader, /LNC4/, 'the Lancair/Lancaster trap is not recorded next to the code it guards');
+
+  const app = readSrc('src/app.ts');
+  assert.match(app, /one\.reported === false/, 'the page does not test for the definite `false`');
+  assert.equal(/reported !== true/.test(app), false,
+    'the page treats anything that is not `true` as never seen, which swallows the unknown case');
+});

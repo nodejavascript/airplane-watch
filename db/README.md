@@ -55,6 +55,40 @@ shape).
 | `survey_runs` | One row per round of watching, `started_at` UNIQUE. |
 | `sightings` | One row per type per round. Primary key `(run_id, code)`. |
 | `type_last_seen` (**view**) | `last_seen`, `runs_seen`, `seen_in_all_runs` per type — the whole of the "last seen" filter. |
+| `historic_sites` | Places where historic aircraft are based and flown. One row today: the Canadian Warplane Heritage Museum at **CYHM**. |
+| `historic_aircraft` | The aircraft each site flies, named as the operator names them, with the feed's type code **only where a source was found** — see `type_code` / `code_source` below. |
+| `historic_flights` | One row per scheduled flight the operator publishes, keyed on **their** event id so re-reading a day cannot duplicate it. |
+| `historic_next` (**view**) | The next day something historic flies at each site, how many flights are still to come, and how many days are published. A view for the same reason `type_last_seen` is one. |
+
+### Why the historic tables exist at all
+
+George, 20 Sep 2026: **"thats the whole point actually, to watch these old aircraft fly past your
+home location"** — and, of the first draft that had this as a README note instead,
+**"shoudnt these be in the api?"**. It is data, so it lives here and the API composes it
+(`tools/historic-document.mjs`, served at `/historic.json` and written to `site/historic.json`).
+
+```bash
+node tools/load-historic.mjs            # read the operator's next 28 days and load them
+node tools/load-historic.mjs --days 7   # a shorter window
+node tools/load-historic.mjs --check    # say what is already here
+```
+
+**🔴 THE ONE MEASUREMENT THAT MATTERS: the endpoint's `date` parameter is ONE DAY AHEAD of the day it
+returns.** Ten pairs, measured 20 Sep 2026 — asked `2026-09-26`, every event stamped `2026-09-25`; the
+same for nine more dates. The loader therefore requests `day + 1` **and checks every event against the
+day it wanted**, so a change in that behaviour produces an empty day rather than the wrong day next to
+somebody's home airport.
+
+**🔴 `type_code` IS NULL UNLESS A SOURCE WAS FOUND, AND THAT IS THE POINT.** `hexdb.io` answers for hex
+`C07DD7`: Registration `C-GVRA`, ICAOTypeCode `LANC`, **RegisteredOwners "Canadian Warplane Heritage
+Museum"** — a source that ties the museum to the code, so `LANC` is stored. The other aircraft have a
+name and no code, because giving the Harvard a code on the grounds that a Harvard is probably a T-6 is
+the kind of guess that puts the wrong aeroplane in front of a reader. The trap that makes this
+concrete: the survey's own 129 types include **`LNC4`, which is a Lancair, not a Lancaster**.
+
+**⚠️ AND A TIMER IS DELIBERATELY NOT INSTALLED YET.** The schedule changes rarely, and a daily job
+would mean calling somebody else's server every day for the rest of this site's life. It is one unit
+file away (`aircraft-survey.timer` is the pattern) but it is a cadence decision, not an oversight.
 
 ## The rounds, and why there is a timer
 

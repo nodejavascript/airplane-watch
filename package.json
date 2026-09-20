@@ -16,6 +16,8 @@
     "db:tunnel": "systemctl --user start aircraft-db-tunnel.service",
     "db:load": "node tools/load-db.mjs",
     "db:check": "node tools/load-db.mjs --check",
+    "historic:load": "node tools/load-historic.mjs",
+    "historic:check": "node tools/load-historic.mjs --check",
     "icons": "python3 tools/make-icons.py",
     "deploy": "bash tools/deploy.sh"
   },

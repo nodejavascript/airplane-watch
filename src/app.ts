@@ -349,6 +349,53 @@ interface NearbyAirport {
 }
 
 /**
+ * A place where historic aircraft are based and flown, and the days they fly.
+ *
+ * 🔴 THE POINT OF THE PAGE, PER GEORGE. 20 Sep 2026: *"thats the whole point actually, to
+ * watch these old aircraft fly past your home location"*. Everything else here answers "what
+ * is in the air"; this answers the question a reader actually has about a rare aeroplane,
+ * which is WHEN TO LOOK UP. It is read from the site's own database rather than written into
+ * this file, because it is data — George asked exactly that question about an earlier draft
+ * that had it as a note: *"shoudnt these be in the api?"*.
+ */
+interface HistoricDocument {
+  generated: string;
+  source: string;
+  method: string;
+  caution: string;
+  sites: HistoricSite[];
+}
+
+interface HistoricSite {
+  icao: string;
+  name: string;
+  url: string;
+  note: string;
+  source: string;
+  readAt: string;
+  nextAt: string | null;
+  upcoming: number;
+  daysPublished: number;
+  aircraft: HistoricAircraft[];
+  flights: { aircraft: number; beginsAt: string; seats: string | null; url: string }[];
+}
+
+interface HistoricAircraft {
+  name: string;
+  label: string;
+  theirId: number;
+  typeCode: string | null;
+  codeSource: string | null;
+  /**
+   * 🔴 THREE STATES, NOT TWO, AND THE THIRD ONE IS THE HONEST ONE. `true` — the feed has
+   * reported this type. `false` — it never has. `null` — nobody has sourced the type code,
+   * so the question has not been asked, and saying "never reported" here would be a claim
+   * that was never checked. Only `LANC` has a source today.
+   */
+  reported: boolean | null;
+}
+
+/**
  * One place name, with the list of communities in brackets cut off.
  *
  * `"Hamilton (Confederation Park / … / North Stoney Creek)"` becomes `"Hamilton"`, and a
@@ -847,6 +894,11 @@ class Page {
    */
   private airportsNote = '';
   private nearby: NearbyAirport[] = [];
+  /**
+   * The days historic aircraft fly, from the site's own database. Null until read, and null
+   * for good if the file cannot be read — the panel is an extra, so its absence is quiet.
+   */
+  private historic: HistoricDocument | null = null;
   /** The raw readings from the last poll — the live view is drawn from these. */
   private lastReadings: Reading[] = [];
 
@@ -921,6 +973,7 @@ class Page {
     void this.loadMilitary();
     void this.loadPhotos();
     void this.loadAirports();
+    void this.loadHistoric();
     this.updateSteps();
 
     const notice = byId('notifyNote');
@@ -3372,6 +3425,133 @@ class Page {
     }).observe(host);
   }
 
+  /**
+   * Read `historic.json` — the days the museum at Hamilton flies its aircraft.
+   *
+   * 🔴 THIS IS THE THING THE READER ACTUALLY CAME FOR, AND IT IS STILL ONLY A SCHEDULE.
+   * George, 20 Sep 2026: *"thats the whole point actually, to watch these old aircraft fly
+   * past your home location"*. A Lancaster flies a handful of times a year from a named
+   * airfield, and a handful of times a year is not something anybody notices by chance — so
+   * the schedule is the useful half, and the feed is the lucky half.
+   *
+   * It is composed by the site's own database and served at `/historic.json`, the same shape
+   * whether that came from the database or from the file the deploy carries. If it cannot be
+   * read the panel is simply absent: this is an extra, and a broken extra must not take the
+   * page with it.
+   */
+  private async loadHistoric(): Promise<void> {
+    try {
+      const response = await fetch('/historic.json', { headers: { accept: 'application/json' } });
+      this.historic = (await readJson(response)) as HistoricDocument;
+    } catch {
+      this.historic = null;
+    }
+    this.renderHistoric();
+  }
+
+  /**
+   * Show the historic site nearest the reader — but only when it is one of THEIR airports.
+   *
+   * 🔴 THE SITE IS SHOWN AGAINST AN AIRPORT THE READER ALREADY HAS, WHICH IS WHAT MAKES IT
+   * BELIEVABLE. The museum is at CYHM; CYHM is in the same list, measured by the same
+   * distance, as every other airport on this card. So the sentence is not "somewhere there is
+   * a museum" — it is "the airport 15 km from you flies a Lancaster", which is a fact about a
+   * place already on screen.
+   *
+   * Nothing here is offered when the reader has no location: a schedule for an airport
+   * hundreds of kilometres away is not news, and this card has already been criticised once
+   * for claiming a place it did not know (see the note in `renderNearby`).
+   */
+  private renderHistoric(): void {
+    const host = byId('historicPanel');
+    if (!host) return;
+    const sites = this.historic?.sites ?? [];
+    // The nearest airport the reader has, out of the airports that have a historic site.
+    const within = this.nearby.find(({ airport }) => sites.some((site) => site.icao === airport.icao));
+    if (this.centre === null || within === undefined) {
+      host.hidden = true;
+      host.innerHTML = '';
+      return;
+    }
+    const site = sites.find((one) => one.icao === within.airport.icao);
+    if (!site) {
+      host.hidden = true;
+      return;
+    }
+
+    const names = site.aircraft.map((one) => one.name);
+    // 🔴 THE AIRCRAFT WHOSE TYPE THE FEED HAS NEVER REPORTED ARE NAMED, NOT HIDDEN. This is
+    // the honest answer to "why have I never seen it" and it comes straight from the
+    // database: `reported === false` means the survey has looked 129 types deep and never
+    // once recorded this code. `null` means nobody has sourced the code, so the page says
+    // nothing rather than guessing which of the two it is.
+    const neverSeen = site.aircraft.filter((one) => one.reported === false).map((one) => one.name);
+
+    const days = this.historicDays(site);
+    const dayLines = days
+      .map((day) => {
+        const flown = [...new Set(day.aircraft)].join(', ');
+        const open = day.seats.some((seats) => seats !== null && !/sold out/i.test(seats));
+        return (
+          `<li><b>${escapeHtml(day.label)}</b> — ${escapeHtml(flown)}` +
+          (open ? '' : ' <span class="historic-gone">(no seats left)</span>') +
+          `</li>`
+        );
+      })
+      .join('');
+
+    host.hidden = false;
+    host.innerHTML =
+      `<p class="historic-head">` +
+      `<a href="${escapeHtml(site.url)}" target="_blank" rel="noopener">${escapeHtml(site.name)}</a> ` +
+      `flies from <span class="mono">${escapeHtml(site.icao)}</span>, ` +
+      `${Math.round(within.km)} km from you.` +
+      `</p>` +
+      `<p class="small muted">Aircraft: ${escapeHtml(names.join(', '))}.</p>` +
+      (dayLines === ''
+        ? `<p class="small muted">Nothing is scheduled in the days published so far.</p>`
+        : `<p class="small"><b>Next days they fly:</b></p><ul class="historic-days">${dayLines}</ul>`) +
+      (neverSeen.length === 0
+        ? ''
+        : `<p class="small muted">The feed has never reported ${escapeHtml(neverSeen.join(' or '))} — ` +
+          `it flies a handful of times a year, and this page can only list what the feed saw. ` +
+          `A flight that transmits will appear in the table like any other.</p>`);
+    track('historic_shown', { icao: site.icao, upcoming: site.upcoming });
+  }
+
+  /**
+   * The next few days the site flies, each with the aircraft on it.
+   *
+   * 🔴 THE MUSEUM'S OWN CLOCK, SAID OUT LOUD. The times are the museum's local times, and a
+   * reader in another zone would otherwise read a number that means nothing to them. The zone
+   * is named in the output rather than assumed, and the day is grouped in that same zone — a
+   * flight at 09:30 in Mount Hope is not on the same date as 09:30 in Auckland.
+   */
+  private historicDays(site: HistoricSite): { label: string; aircraft: string[]; seats: (string | null)[] }[] {
+    const zone = 'America/Toronto';
+    const dayKey = (at: Date): string =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
+    const dayLabel = (at: Date): string =>
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: zone, weekday: 'short', month: 'short', day: 'numeric',
+      }).format(at);
+
+    const byAircraft = new Map(site.aircraft.map((one) => [one.theirId, one.name]));
+    const grouped = new Map<string, { label: string; aircraft: string[]; seats: (string | null)[] }>();
+    for (const flight of site.flights) {
+      const at = new Date(flight.beginsAt);
+      const key = dayKey(at);
+      if (!grouped.has(key)) grouped.set(key, { label: dayLabel(at), aircraft: [], seats: [] });
+      const group = grouped.get(key);
+      if (group) {
+        const name = byAircraft.get(flight.aircraft);
+        if (name) group.aircraft.push(name);
+        group.seats.push(flight.seats);
+      }
+    }
+    return [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(0, 4).map(([, group]) => group);
+  }
+
   private renderNearby(): void {
     const host = byId('nearbyList');
     const head = byId('nearbyHead');
@@ -3460,6 +3640,10 @@ class Page {
       .join('');
     this.wireNearChips(host);
     this.renderDistance();
+    // 🔴 THE HISTORIC PANEL IS RENDERED LAST, BECAUSE IT DEPENDS ON `this.nearby` — and it
+    // is rendered HERE rather than only at load, so a reader who moves their location gets
+    // the panel for the airport that is now near them rather than the one that was.
+    this.renderHistoric();
   }
 
   /**

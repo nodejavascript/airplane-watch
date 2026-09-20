@@ -31,6 +31,7 @@ import { readFileSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { composeHistoric } from './historic-document.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('../site', import.meta.url)));
 const PORT = Number(process.env.PORT || 4340);
@@ -139,7 +140,7 @@ function resolvePath(urlPath) {
  * that breaks when a local container is down would be a worse site, so the file path
  * stays and the header says which one answered.
  */
-const DATA_PATHS = new Set(['/airports.json', '/types.json', '/years.json', '/photos.json']);
+const DATA_PATHS = new Set(['/airports.json', '/types.json', '/years.json', '/photos.json', '/historic.json']);
 /** Assembled documents are held briefly, so a poll storm cannot hammer the database. */
 const CATALOGUE_MS = 30_000;
 const catalogueCache = new Map();
@@ -338,6 +339,11 @@ const BUILDERS = {
   '/types.json': buildTypes,
   '/years.json': buildYears,
   '/photos.json': buildPhotos,
+  // 🔴 THE SAME COMPOSER THE LOADER WRITES THE FILE WITH. If this had its own builder, the
+  // route and the deploy artefact would be two answers to one question, and the page would
+  // see one of them while the file said the other — which has already happened once in
+  // this repo with types.json.
+  '/historic.json': () => db().then((p) => composeHistoric((text, values) => p.query(text, values))),
 };
 
 /**
