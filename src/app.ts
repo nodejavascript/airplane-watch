@@ -51,6 +51,21 @@ const WATCH_KEY = 'aircraft_watchlist';
 const TYPES_KEY = 'aircraft_types';
 const BOARD_KEY = 'aircraft_departures';
 const AIRPORT_KEY = 'aircraft_airport';
+/**
+ * 🔴 THE READER'S PLACE AND THEIR DISTANCE ARE KEPT TOO. George, 20 Sep 2026:
+ * *"and maybe save in cooking, my location, how far, my favorites"* — the
+ * favourites were already kept and the other two were not, so a reload made you
+ * answer step 2 again and forgot where you were.
+ *
+ * 🔴 IT IS LOCAL STORAGE AND NOT A COOKIE, ON PURPOSE. A cookie is sent to the
+ * server with every single request, so a cookie holding where you are would hand
+ * your position to this site ten times a minute. Local storage is never
+ * transmitted anywhere. And the privacy section already tells the reader their
+ * answer is "remembered in your browser's local storage, not in a cookie" — using
+ * a cookie for this would make that sentence false.
+ */
+const CENTRE_KEY = 'aircraft_centre';
+const RADIUS_KEY = 'aircraft_radius';
 const POLL_MS = 10_000;
 
 /**
@@ -326,6 +341,12 @@ class Page {
    */
   private centre: { lat: number; lon: number } | null = null;
 
+  /** What the reader's place is called, for saying it back to them. */
+  private placeLabel = '';
+
+  /** A place read back from storage, applied once the airport list has loaded. */
+  private restored: { lat: number; lon: number; label: string } | null = null;
+
   /** The airport list the feed itself confirmed, for the "around you" panel. */
   private listedAirports: AirportsDocument | null = null;
   private nearby: NearbyAirport[] = [];
@@ -349,6 +370,27 @@ class Page {
     this.watchlist = this.loadList(WATCH_KEY);
     this.typeRules = this.loadTypeRules();
     this.board = this.loadBoard();
+
+    // 🔴 WHAT WAS KEPT COMES BACK BEFORE ANYTHING IS BUILT FROM IT. The distance
+    // buttons read their pressed state from `this.radiusKm`, so restoring after
+    // they are built would leave the wrong one lit.
+    const keptRadius = Number(readStore(RADIUS_KEY, ''));
+    if (Number.isFinite(keptRadius) && keptRadius > 0) {
+      this.radiusKm = keptRadius;
+      // Step 2 was answered once already, so it is answered now — the sequence
+      // resumes where the reader left it instead of collapsing back to step 1.
+      this.radiusChosen = true;
+    }
+    try {
+      const kept = JSON.parse(readStore(CENTRE_KEY, 'null')) as { lat?: number; lon?: number; label?: string } | null;
+      if (kept && typeof kept.lat === 'number' && typeof kept.lon === 'number') {
+        this.restored = { lat: kept.lat, lon: kept.lon, label: kept.label ?? '' };
+      }
+    } catch {
+      // A corrupt store is not worth failing over; the reader simply starts again.
+      this.restored = null;
+    }
+
     this.buildRadiusButtons();
     this.buildTypeFilter();
     this.renderWatchlist();
@@ -456,6 +498,8 @@ class Page {
         const first = !this.radiusChosen;
         this.radiusChosen = true;
         this.radiusKm = choice.km;
+        // Kept, so a reload does not ask the same question again.
+        writeStore(RADIUS_KEY, String(choice.km));
         for (const other of host.querySelectorAll('button')) {
           other.setAttribute('aria-pressed', String(other === button));
         }
@@ -1031,7 +1075,7 @@ class Page {
     const button = byId('startOver');
     if (!button) return;
     button.addEventListener('click', () => {
-      for (const key of [WATCH_KEY, TYPES_KEY, BOARD_KEY, AIRPORT_KEY]) {
+      for (const key of [WATCH_KEY, TYPES_KEY, BOARD_KEY, AIRPORT_KEY, CENTRE_KEY, RADIUS_KEY]) {
         try {
           localStorage.removeItem(key);
         } catch {
@@ -1524,6 +1568,16 @@ class Page {
           ? `${dropped.length} identifier was dropped because the feed could not place it: ${dropped.join(', ')}.`
           : 'Nothing was dropped.');
     }
+    // 🔴 THE KEPT PLACE IS APPLIED HERE, NOT IN start(). Ordering the airports by
+    // distance needs the airport list, and the list has only just arrived — so
+    // doing it in start() would sort against an empty list and show the reader
+    // nothing near them.
+    if (this.restored) {
+      const kept = this.restored;
+      this.restored = null;
+      this.computeNearby(kept.lat, kept.lon, kept.label);
+      return;
+    }
     this.renderNearby();
   }
 
@@ -1675,10 +1729,14 @@ class Page {
     for (const button of host.querySelectorAll<HTMLButtonElement>('.near-chip')) {
       button.addEventListener('click', () => void this.chooseAirport(button.dataset.icao ?? ''));
     }
+    // Said back to the reader, because a place they gave once and cannot see again
+    // is indistinguishable from a place the page forgot.
+    const head = byId('nearbyHead');
+    if (head) head.textContent = this.placeLabel ? `Airports around ${this.placeLabel}` : 'Airports around you';
     this.renderMap();
   }
 
-  private computeNearby(lat: number, lon: number): void {
+  private computeNearby(lat: number, lon: number, label = ''): void {
     const list = this.listedAirports?.airports ?? [];
     if (list.length === 0) return;
     // 400 km, because that is roughly the reach of the list as it stands. The
@@ -1694,6 +1752,11 @@ class Page {
     // chart and the airport order all hang off it, because the question is what
     // is in the air around THEM.
     this.centre = { lat, lon };
+    // Kept so a reload does not forget where the reader is. The label travels with
+    // it, because "restored to Hamilton (Riverdale)" is an answer and a pair of
+    // coordinates is not.
+    this.placeLabel = label;
+    writeStore(CENTRE_KEY, JSON.stringify({ lat, lon, label }));
     this.renderNearby();
     // 🔴 RE-ARMED EVEN WITH NO AIRPORT. `this.point()` falls back to the centre, and
     // the poll only ever needed a point — so a reader whose airport lookup failed
@@ -1742,7 +1805,7 @@ class Page {
           if (note) note.textContent = body.error ?? 'That code could not be looked up.';
           return;
         }
-        this.computeNearby(body.lat, body.lon);
+        this.computeNearby(body.lat, body.lon, `${body.place ?? ''}${body.region ? `, ${body.region}` : ''}`);
         if (note) {
           note.textContent =
             `${body.place}, ${body.region} — airports below are listed by distance from there. ${body.note ?? ''}`.trim();
@@ -1775,7 +1838,7 @@ class Page {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           button.disabled = false;
-          this.computeNearby(position.coords.latitude, position.coords.longitude);
+          this.computeNearby(position.coords.latitude, position.coords.longitude, 'your position');
           if (note) {
             note.textContent =
               'Ordered by distance from your position. Your coordinates are used inside this page and are not sent ' +
