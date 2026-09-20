@@ -71,6 +71,16 @@ export interface TrackState {
   type: string;
   /** true when the reader asked to be told about this one. */
   watched: boolean;
+  /**
+   * 🔴 WHERE IT WAS, SO THE TABLE CAN SAY WHICH AIRPORT IT IS AT. George, 20 Sep 2026:
+   * *"i want to group by aircraft type, and the airport. Address is useless"*. The table
+   * could not answer "which airport" at all before this, because the state it renders from
+   * carried no position — only a hex code, which is the one field he has now asked to be
+   * rid of. Kept as the last known position rather than the reading's, so an aircraft that
+   * drops out of a poll keeps the place it was last seen.
+   */
+  lat?: number;
+  lon?: number;
 }
 
 export type Verdict = 'none' | 'confirmed' | 'inferred';
@@ -447,6 +457,8 @@ export class DetectionEngine {
         callsign: (reading.flight || '').trim() || previous?.callsign || '',
         registration: reading.r || previous?.registration || '',
         type: reading.t || previous?.type || '',
+        lat: Number.isFinite(reading.lat) ? (reading.lat as number) : previous?.lat,
+        lon: Number.isFinite(reading.lon) ? (reading.lon as number) : previous?.lon,
         watched,
       };
       this.tracks.set(hex, next);

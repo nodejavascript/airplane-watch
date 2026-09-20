@@ -225,7 +225,13 @@ async function main() {
     generated,
     // Stated so nobody has to guess how much weight the list carries: this is a
     // sample of what the feed showed over a few minutes, not a schedule.
-    method: `${ROUNDS} rounds of ${RADIUS_NM} nm around ${airports.length} airports, ${PAUSE_MS / 1000}s apart`,
+    //
+    // 🔴 IN KILOMETRES, BECAUSE THE READER NEVER MEETS A NAUTICAL MILE. The feed is
+    // asked in nautical miles — that is the unit its endpoint takes — but the page's own
+    // test asserts that the word never reaches the screen, and this sentence is printed
+    // on the page. It was written in the unit of the wire rather than the unit of the
+    // reader, and the test caught it: *"the page shows the reader 'nm'"*.
+    method: `${ROUNDS} rounds of ${Math.round(RADIUS_NM * 1.852)} km around ${airports.length} airports, ${PAUSE_MS / 1000}s apart`,
     aircraftInspected: inspected,
     // A reading counted once per round it appeared in, so a busy airliner seen in
     // every round scores four. This is a FREQUENCY of sightings over a short

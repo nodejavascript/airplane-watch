@@ -1525,23 +1525,14 @@ main > #status {
 }
 
 /* ------------------------------------------------ how far out (the slider) --- */
-/* 🔴 EQUAL TRAVEL, EQUAL RATIOS. The slider's position is linear and its value is not:
- * every stop is about a quarter larger than the one before, so the low end — where the
- * difference between catching an aircraft on the ground or not actually lives — gets half
- * the track to itself. George, 20 Sep 2026: *"maybe this should be a slider? logrythmic?"* */
+/* 🔴 FULL WIDTH, AND NO END LABELS. George, 20 Sep 2026: *"remove closewide … make this full
+ * width and remove things like the whole region"*. The words at each end ("close", "wide")
+ * and the description under the track both went: the number says what was chosen, and the
+ * track itself says which way is further. What is left is the control and its value. */
 .radius-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 4px 0 6px;
-}
-
-.radius-end {
-  font-size: 12px;
-  color: var(--muted);
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  white-space: nowrap;
+  margin: 4px 0 2px;
 }
 
 .radius-slider {
@@ -1594,10 +1585,23 @@ main > #status {
   font-size: 15px;
 }
 
-.radius-blurb {
-  color: var(--muted);
+/* 🔴 THE TYPE GROUP HEADING IN THE "WHAT THE FEED CAN SEE" TABLE. George, 20 Sep 2026:
+ * *"i want to group by aircraft type, and the airport"*. A group has to look like a group
+ * rather than like a row with an empty first cell, or the reader has to work out that the
+ * type is a heading by reading three rows. */
+.aircraft .type-group th {
+  text-align: left;
+  padding: 12px 10px 5px;
   font-size: 13.5px;
-  margin-left: 8px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--line);
+}
+
+.aircraft .type-group .group-count {
+  margin-left: 9px;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 /* "3 of 3 looks" — how often, beside how recently. */

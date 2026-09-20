@@ -283,6 +283,20 @@ async function main() {
 }
 
 /**
+ * A run note with any nautical-mile radius spelled out in kilometres.
+ *
+ * `"3 rounds of 40 nm around 7 airports"` becomes `"3 rounds of 74 km around 7 airports"`.
+ * The survey is asked in nautical miles and the page is read in kilometres, and the reader
+ * is the one who has to make sense of the sentence — so the conversion happens where the
+ * note leaves the database, not only where the survey writes it. That also fixes the rows
+ * that already exist: the string lives in a row, so editing the survey alone would leave
+ * every run recorded so far still reading in the unit of the wire.
+ */
+function readerUnits(note) {
+  return String(note ?? '').replace(/\b(\d+(?:\.\d+)?)\s*nm\b/g, (_all, nm) => `${Math.round(Number(nm) * 1.852)} km`);
+}
+
+/**
  * Rebuild `site/types.json` from the database.
  *
  * The site reads this file when the database is unreachable, and it is the deploy
@@ -319,7 +333,12 @@ async function writeTypesFile(client) {
 
   const document = {
     generated: new Date(latest.started_at).toISOString(),
-    method: latest.method ?? '',
+    // 🔴 THE RUN'S OWN NOTE, READ IN THE READER'S UNIT. Rows written before 20 Sep 2026
+    // carry the radius in nautical miles — the unit the feed takes — and the page prints
+    // this sentence as written. Converting on the way out fixes the rows that already
+    // exist as well as the ones the survey writes from here on, which editing the survey
+    // alone would not: the string lives in a row, not in the code.
+    method: readerUnits(latest.method),
     aircraftInspected: latest.aircraft_inspected ?? 0,
     counted: 'sightings (one per aircraft per round)',
     registrationsNote:

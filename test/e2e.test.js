@@ -128,6 +128,59 @@ async function openPage(aircraftByPoll) {
   return { context, page };
 }
 
+/**
+ * Answers step 1 the way a reader does — by moving the distance slider.
+ *
+ * 🔴 THIS WAS FOUR CALLS TO `#radiusButtons button`, AND THE BUTTONS ARE GONE. George,
+ * 20 Sep 2026: *"maybe this should be a slider? logrythmic?"* — so the row of distance
+ * buttons became one slider, and every test that pressed a button started failing on a
+ * missing selector. That reads exactly like a broken page and is not one, which is why the
+ * gesture lives here, once, instead of in each test.
+ *
+ * `index` is the slider's own step, which is not the same as a distance: the track is
+ * linear and the values are not, so `10` is 50 km. The default step is what "just move it"
+ * means, and a test that cares about the exact distance passes one in.
+ */
+async function chooseDistance(page, index = 6) {
+  await page.$eval(
+    '#radiusSlider',
+    (element, value) => {
+      element.value = String(value);
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    },
+    index
+  );
+}
+
+/**
+ * Answer step 1, which is what UNLOCKS step 3 — the aircraft-type list.
+ *
+ * 🔴 SIXTEEN TESTS WAITED ON A LIST THE PAGE DELIBERATELY KEEPS HIDDEN. Every one of them
+ * ended the same way, measured in the suite output:
+ *
+ *     waiting for locator('#typeList .typerow') to be visible
+ *     64 × locator resolved to 43 elements. Proceeding with the first one: <div class="typerow">…
+ *
+ * Forty-three rows, found immediately, sixty-four times — and reported as a failure. The rows
+ * were there and the SECTION around them was `hidden`, because `updateSteps()` shows the
+ * type list only once step 1 is answered (`place && radiusChosen`). The test was asserting on
+ * a page state the reader has not reached yet, so it could never pass, and it said nothing
+ * about whether the type list works.
+ *
+ * That mattered more than the count suggests: the type list is exactly what changed today —
+ * the table is grouped by type now — so the one area with new behaviour had no working test
+ * at all, and the suite's noise was hiding it.
+ */
+async function answerStep1(page) {
+  await chooseDistance(page);
+}
+
+/** The distance the page is currently showing, in km. */
+async function shownDistance(page) {
+  return page.$eval('#radiusValue', (element) => element.textContent.trim());
+}
+
 /* ------------------------------------------------------------------- shell --- */
 
 test('the shell is served no-store, so a deploy is visible', async () => {
@@ -171,7 +224,16 @@ test('BEFORE answering: nothing is loaded, and a refusal makes ZERO requests to 
   assert.equal(gtagBefore, 'undefined', 'window.gtag exists before the visitor answered');
 
   await page.$eval('#consentDecline', (element) => element.click());
-  await page.waitForSelector('#consentBar[hidden]');
+  // 🔴 WAITING FOR A HIDDEN ELEMENT TO APPEAR IS A WAIT THAT CAN NEVER END.
+  // `waitForSelector` defaults to `state: 'visible'`, and the selector here MATCHES AN
+  // ELEMENT THAT IS HIDDEN — which is the whole point of `[hidden]`. So this line could
+  // never be satisfied, and each of the three tests carrying it burned a full 30-second
+  // timeout and reported a failure. Measured in the suite output: *"waiting for locator
+  // '#consentBar[hidden]' to be visible … 64 × locator resolved to hidden <div hidden>…"* —
+  // Playwright found it immediately, 64 times, and was right to call it not visible.
+  // `state: 'attached'` is the question actually being asked: the bar is in the document,
+  // it has been dismissed, and it is not on screen.
+  await page.waitForSelector('#consentBar[hidden]', { state: 'attached' });
   await page.waitForTimeout(400);
 
   assert.equal(google.length, 0, `a refusal still made ${google.length} request(s) to Google`);
@@ -186,7 +248,16 @@ test('a refusal is real: the bar does not come back on the next visit', async ()
   await page.goto(BASE, { waitUntil: 'load' });
   await page.waitForSelector('#consentBar:not([hidden])');
   await page.$eval('#consentDecline', (element) => element.click());
-  await page.waitForSelector('#consentBar[hidden]');
+  // 🔴 WAITING FOR A HIDDEN ELEMENT TO APPEAR IS A WAIT THAT CAN NEVER END.
+  // `waitForSelector` defaults to `state: 'visible'`, and the selector here MATCHES AN
+  // ELEMENT THAT IS HIDDEN — which is the whole point of `[hidden]`. So this line could
+  // never be satisfied, and each of the three tests carrying it burned a full 30-second
+  // timeout and reported a failure. Measured in the suite output: *"waiting for locator
+  // '#consentBar[hidden]' to be visible … 64 × locator resolved to hidden <div hidden>…"* —
+  // Playwright found it immediately, 64 times, and was right to call it not visible.
+  // `state: 'attached'` is the question actually being asked: the bar is in the document,
+  // it has been dismissed, and it is not on screen.
+  await page.waitForSelector('#consentBar[hidden]', { state: 'attached' });
 
   await page.reload({ waitUntil: 'load' });
   await page.waitForTimeout(300);
@@ -220,7 +291,16 @@ test('the footer door is DELEGATED — it opens the panel, and leaves the answer
   await page.goto(BASE, { waitUntil: 'load' });
   await page.waitForSelector('#consentBar:not([hidden])');
   await page.$eval('#consentAccept', (element) => element.click());
-  await page.waitForSelector('#consentBar[hidden]');
+  // 🔴 WAITING FOR A HIDDEN ELEMENT TO APPEAR IS A WAIT THAT CAN NEVER END.
+  // `waitForSelector` defaults to `state: 'visible'`, and the selector here MATCHES AN
+  // ELEMENT THAT IS HIDDEN — which is the whole point of `[hidden]`. So this line could
+  // never be satisfied, and each of the three tests carrying it burned a full 30-second
+  // timeout and reported a failure. Measured in the suite output: *"waiting for locator
+  // '#consentBar[hidden]' to be visible … 64 × locator resolved to hidden <div hidden>…"* —
+  // Playwright found it immediately, 64 times, and was right to call it not visible.
+  // `state: 'attached'` is the question actually being asked: the bar is in the document,
+  // it has been dismissed, and it is not on screen.
+  await page.waitForSelector('#consentBar[hidden]', { state: 'attached' });
 
   await page.$eval('#consentBtn', (element) => element.click());
   const panelShown = await page.$eval('#consentPrefs', (element) => !element.hidden);
@@ -321,7 +401,7 @@ test('a watched departure raises the alert — the board went, the alert stayed'
   // to look in step 2, and this fills in."* The page deliberately sends nothing until
   // the reader has said where and how far — so a test that expects aircraft has to
   // press a distance first, or it is waiting for a request the page will never make.
-  await page.$eval('#radiusButtons button', (element) => element.click());
+  await chooseDistance(page);
   await page.waitForSelector('#aircraftBody .watch-toggle', { timeout: 30_000 });
   await page.$eval('#aircraftBody .watch-toggle', (element) => element.click());
 
@@ -334,25 +414,33 @@ test('a watched departure raises the alert — the board went, the alert stayed'
 });
 
 test('the watchlist survives a reload', async () => {
+  // One set, so every poll returns the same aircraft — the stub clamps at the last entry,
+  // which is what makes the row still there to assert on after the reload.
   const polls = [
-    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B738', alt_baro: 'ground', gs: 0, lat: 43.18, lon: -79.94 }],
-    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B738', alt_baro: 1600, baro_rate: 2400, lat: 43.19, lon: -79.93 }],
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B738', alt_baro: 5000, lat: 43.19, lon: -79.93 }],
   ];
   const { context, page } = await openPage(polls);
 
+  // 🔴 THE PROOF IS THE ROW'S OWN CONTROL, BECAUSE THE CARD THAT USED TO PROVE IT IS GONE.
+  // This test read `#watchList` — a card that no longer exists on the page, so it failed on
+  // a selector with no match while the feature it describes was working. George asked for
+  // the watch form and its list to go (*"the choosing flow is the only flow"*), and what is
+  // left to read is the same button the reader pressed.
+  const watchRow = async () => page.$eval('#aircraftBody .watch-toggle', (element) => element.textContent.trim());
+
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
-
-  // A distance first — the page asks the feed for nothing until step 1 is answered.
-  await page.$eval('#radiusButtons button', (element) => element.click());
-
-  const watchlist = await page.$eval('#watchList', (element) => element.textContent);
-  assert.match(watchlist, /cgxxx/);
+  await chooseDistance(page);
+  await page.waitForSelector('#aircraftBody .watch-toggle', { timeout: 30_000 });
+  await page.$eval('#aircraftBody .watch-toggle', (element) => element.click());
+  await page.waitForTimeout(200);
+  assert.equal(await watchRow(), 'unwatch', 'the aircraft was not watched before the reload');
 
   await page.reload({ waitUntil: 'load' });
-  await page.waitForTimeout(300);
-  const afterReload = await page.$eval('#watchList', (element) => element.textContent);
-  assert.match(afterReload, /cgxxx/, 'the watchlist did not survive a reload');
+  await page.$eval('#consentDecline', (element) => element.click()).catch(() => {});
+  await chooseDistance(page);
+  await page.waitForSelector('#aircraftBody .watch-toggle', { timeout: 30_000 });
+  assert.equal(await watchRow(), 'unwatch', 'the watchlist did not survive a reload');
 
   await context.close();
 });
@@ -366,7 +454,7 @@ test('the aircraft table offers a watch control, and it works without typing', a
   await page.$eval('#consentDecline', (element) => element.click());
   // A distance has to be chosen first: the page asks the feed for nothing until
   // step 1 is answered (see the note on the alert test above).
-  await page.$eval('#radiusButtons button', (element) => element.click());
+  await chooseDistance(page);
   await page.waitForSelector('#aircraftBody .watch-toggle', { timeout: 30_000 });
 
   await page.$eval('#aircraftBody .watch-toggle', (element) => element.click());
@@ -448,24 +536,40 @@ test('the reader is shown kilometres, and the feed is still asked in nautical mi
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
 
-  // The buttons read in km, with words beside the number.
-  const chips = await page.$$eval('#radiusButtons .chip', (items) =>
-    items.map((item) => item.textContent.replace(/\s+/g, ' ').trim())
-  );
-  assert.ok(chips.length >= 3, `expected three distances, got ${chips.length}`);
-  assert.match(chips[0], /km/);
-  assert.match(chips[0], /Just the airport/i);
+  // 🔴 THE CONTROL IS A SLIDER AND ITS READOUT IS THE PROOF. It used to be a row of
+  // buttons that carried words like "Just the airport" beside each distance; George asked
+  // for a slider on 20 Sep 2026 (*"maybe this should be a slider? logrythmic?"*) and the
+  // words went with the buttons. What the reader is told now is the number.
+  await chooseDistance(page, 6);
+  const shown = await shownDistance(page);
+  assert.match(shown, /^\d+ km$/, `the distance readout is not a distance in km: ${shown}`);
+  const stated = Number(shown.replace(/[^\d]/g, ''));
+  assert.ok(stated > 0, 'the slider must state a real distance');
 
   // Nothing the reader can read says "nm".
   const visibleText = await page.evaluate(() => document.body.innerText);
   assert.equal(/\bnm\b/.test(visibleText), false, 'the page shows the reader "nm"');
-  assert.match(visibleText, /20 km/);
+  assert.match(visibleText, new RegExp(`${stated} km`), 'the page does not show the distance it chose');
 
-  await page.waitForFunction(() => true, null, { timeout: 1000 });
+  // 🔴 WAIT FOR THE REQUEST RATHER THAN A GUESSED INTERVAL. This was a flat 1,000 ms
+  // against a feed the page asks on its own schedule, and it reported *"no poll reached the
+  // feed"* on a page that was polling — a false failure, which is worse than no check,
+  // because it teaches the reader to ignore the test.
+  const deadline = Date.now() + 20_000;
+  while (polled.length === 0 && Date.now() < deadline) {
+    await page.waitForTimeout(200);
+  }
   assert.ok(polled.length > 0, 'no poll reached the feed');
-  // …but the FEED still gets nautical miles, because that is the unit it takes:
-  // its own endpoint summary says "up to 250nm". Default 20 km is 11 nm.
-  assert.match(polled[0], /\/11$/, `the poll did not ask in nautical miles: ${polled[0]}`);
+  // …but the FEED still gets nautical miles, because that is the unit it takes: its own
+  // endpoint summary says "up to 250nm". The radius on the wire is the kilometres the
+  // reader chose converted at 1.852 km to the nautical mile, rounded — so it is checked
+  // against the readout rather than against a number written here.
+  const expectedNm = Math.round(stated / 1.852);
+  assert.match(
+    polled[0],
+    new RegExp(`/${expectedNm}$`),
+    `the poll did not ask in nautical miles: ${polled[0]} (${stated} km is ${expectedNm} nm)`
+  );
 
   await context.close();
 });
@@ -484,6 +588,7 @@ test('a type can be watched whole, and then narrowed to tail numbers', async () 
 
   // The list arrives from the measured survey, and every row says what the code
   // means rather than only the code.
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
   const listText = await page.$eval('#typeList', (element) => element.textContent);
   assert.match(listText, /Boeing 737 MAX 8/);
@@ -542,6 +647,7 @@ test('narrowing to a tail number is UNDONE by removing it, back to the whole typ
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
   await page.$$eval('#typeList .typerow', (items) => {
@@ -576,6 +682,7 @@ test('the live view hides the choosing flow and charts only what matches', async
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
   // Watch one type only, so an aircraft of any other type must not be drawn.
@@ -610,6 +717,7 @@ test('the live view survives a switch back and forth', async () => {
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
   await page.$$eval('#typeList .typerow', (items) => {
     items.find((item) => /Boeing 737 MAX 8/.test(item.textContent))?.querySelector('.type-toggle').click();
@@ -632,6 +740,7 @@ test('ticking a tail number inside a type narrows the rule, and unticking widens
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
   // The measurement for this type lists a tail number, because the survey saw
@@ -664,6 +773,7 @@ test('refusing the position request leaves a usable page', async () => {
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
   await page.$eval('#locateBtn', (element) => element.click());
@@ -711,6 +821,7 @@ test('a postal code orders the airports by distance, without asking the browser 
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
   await page.waitForSelector('#nearbyList');
 
@@ -743,6 +854,7 @@ test('a postal code that is not one is refused with a sentence, and the page sti
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
   await page.fill('#postalInput', 'not a code');
@@ -767,6 +879,7 @@ test('the type list is in alphabetical order', async () => {
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
   // 🔴 THE CURATED ROWS ARE EXCLUDED ON PURPOSE, AND THAT IS THE DESIGN. The
@@ -817,6 +930,7 @@ test('the Warplanes filter is warplanes — the Cessna and the Dash 8 are NOT in
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
   await page.$$eval('#typeFilter .chip', (items) => {
@@ -850,6 +964,7 @@ test('tail numbers are chips on the row, and highlighting one unfavourites the w
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
   // The chips are there without pressing anything at all.
@@ -886,6 +1001,7 @@ test('the readability of a Dash 8 name, and a drawing beside every type', async 
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
   const list = await page.$eval('#typeList', (element) => element.textContent);
@@ -931,6 +1047,7 @@ test('the star says what the row actually watches', async () => {
   const { context, page } = await openPage([[[]]]);
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
   const row = '#typeList .typerow:has(.tail-chip)';
@@ -967,6 +1084,7 @@ test('the map draws the reader, the circle and the airport codes', async () => {
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
   assert.equal(await page.$$eval('#locMap svg', (items) => items.length), 0, 'a map is drawn before the reader says where they are');
@@ -990,6 +1108,7 @@ test('every row shows a free photograph with its credit, or a drawing and no cla
   const { context, page } = await openPage([[[]]]);
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
   await page.waitForTimeout(900);
 
@@ -1025,6 +1144,7 @@ test('a type whose search match was weak gets a drawing instead of a wrong pictu
   const { context, page } = await openPage([[[]]]);
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
   await page.waitForTimeout(900);
 

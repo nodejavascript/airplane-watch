@@ -99,18 +99,6 @@ const POLL_MAX_MS = 180_000;
 const RADIUS_LADDER = [
     5, 6, 8, 10, 12, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200,
 ];
-/** What each end of the slider means, in words rather than numbers. */
-function radiusBlurb(km) {
-    if (km <= 10)
-        return 'the runway and the apron';
-    if (km <= 25)
-        return 'the airport and the city around it';
-    if (km <= 63)
-        return 'climb-out and approach';
-    if (km <= 125)
-        return 'the whole region';
-    return 'everything passing over';
-}
 const ERAS = [
     { key: 'all', label: 'Any year', from: 0, to: 9999 },
     { key: 'before1970', label: 'first flown before 1970', from: 0, to: 1969 },
@@ -135,6 +123,25 @@ const SEEN_CHOICES = [
  * everything, and from the second round it starts hiding the one-off visitors.
  */
 const SEEN_DEFAULT = 'often';
+/**
+ * One place name, with the postal area's list of communities cut off.
+ *
+ * `"Hamilton (Confederation Park / … / North Stoney Creek)"` becomes `"Hamilton"`, and a
+ * name without brackets is returned unchanged. George, 20 Sep 2026: *"Your location just
+ * make it say the city name, not the others in ()"*.
+ *
+ * It is applied to EVERY string that reaches the screen from a place lookup — the label
+ * under "Your location", the heading above the airport list, and anything restored from a
+ * browser that saved the uncleaned version. A rule applied in one of those places and not
+ * the others is exactly how the same string ends up printed twice in two different shapes
+ * on one card, which is what he was looking at when he reported it.
+ */
+function stripBrackets(value) {
+    return String(value ?? '')
+        .replace(/\s*\([^)]*\)\s*/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
 /**
  * How far round the compass one point is from another, in degrees from north.
  *
@@ -536,12 +543,6 @@ class Page {
         const nearest = RADIUS_LADDER.reduce((best, _km, index) => Math.abs(RADIUS_LADDER[index] - this.radiusKm) < Math.abs(RADIUS_LADDER[best] - this.radiusKm) ? index : best, 0);
         const row = document.createElement('div');
         row.className = 'radius-row';
-        const end = (text, side) => {
-            const span = document.createElement('span');
-            span.className = `radius-end radius-end-${side}`;
-            span.textContent = text;
-            return span;
-        };
         const slider = document.createElement('input');
         slider.type = 'range';
         slider.id = 'radiusSlider';
@@ -554,13 +555,9 @@ class Page {
         const readout = document.createElement('b');
         readout.id = 'radiusValue';
         readout.className = 'radius-value';
-        const blurb = document.createElement('span');
-        blurb.id = 'radiusBlurb';
-        blurb.className = 'radius-blurb';
         const show = (index) => {
             const km = RADIUS_LADDER[index];
             readout.textContent = `${km} km`;
-            blurb.textContent = radiusBlurb(km);
             slider.setAttribute('aria-valuetext', `${km} kilometres`);
         };
         show(nearest);
@@ -570,7 +567,6 @@ class Page {
             show(index);
             // Local only: the sentence, the circle and the map all come from `radiusKm`,
             // and none of them needs the feed to be asked again.
-            this.renderFenceNote();
             this.renderMap();
         });
         slider.addEventListener('change', () => {
@@ -589,8 +585,8 @@ class Page {
             this.rearm();
             track('distance_chosen', { km, nm: kmToNm(km), first });
         });
-        row.append(end('close', 'near'), slider, end('wide', 'far'));
-        host.append(row, readout, blurb);
+        row.append(slider);
+        host.append(row, readout);
     }
     buildTypeFilter() {
         const host = byId('typeFilter');
@@ -798,7 +794,6 @@ class Page {
         // 5 airports watched: CYHM — Hamilton · CYSN — St Catharines ..."*. The chips are
         // gold when they are picked and the map draws them; a sentence repeating the list
         // underneath the list was the same fact told three times.
-        this.renderFenceNote();
         // Redraws the chips AND the map — `renderNearby` draws the map too — so the
         // stars and the map agree with the list in the same frame.
         this.renderNearby();
@@ -819,34 +814,6 @@ class Page {
      * What the fence is drawn round — which changed the moment several airports could
      * be picked at once, so the sentence has to be able to say "the middle of them".
      */
-    renderFenceNote() {
-        const fence = byId('fenceNote');
-        if (!fence)
-            return;
-        // 🔴 WITH NOTHING TO MEASURE FROM THERE IS NO SENTENCE, AND ESPECIALLY NOT THIS ONE.
-        // It used to fall through to "the airport" — so a page that knew no place and had no
-        // airport picked still read *"Looking 20 km out from the airport"*, a sentence naming a
-        // thing that did not exist. The block is hidden in this state anyway (see
-        // renderDistance); this is the guard that makes that safe rather than lucky.
-        if (this.centre === null && this.airports.length === 0) {
-            fence.textContent = '';
-            return;
-        }
-        const km = nmToKm(kmToNm(this.radiusKm));
-        const from = this.centre
-            ? 'your own position'
-            : this.airports.length > 1
-                ? 'the middle of the airports you picked'
-                : 'the airport';
-        fence.textContent =
-            `Looking ${this.radiusKm} km out from ${from} — ` +
-                `${kmToNm(this.radiusKm)} nautical miles, which is the unit the feed takes. ` +
-                (this.radiusKm <= 10
-                    ? 'A short distance is the best chance of catching an aircraft on the ground, and the least notice of anything else.'
-                    : this.radiusKm >= 50
-                        ? 'A long distance sees a great deal of traffic, and very little of it on the ground — the two pull in opposite directions.'
-                        : `Climb-out and approach both fall inside it, and about ${km} km is what most aircraft cover in the first minute after leaving.`);
-    }
     stop() {
         if (this.timer !== null) {
             window.clearInterval(this.timer);
@@ -1042,40 +1009,63 @@ class Page {
         const body = byId('aircraftBody');
         if (!body || !this.engine)
             return;
-        const rows = this.engine.snapshot().slice(0, 40);
+        const rows = this.engine.snapshot().slice(0, 60);
         if (rows.length === 0) {
             body.innerHTML =
-                '<tr><td colspan="6" class="muted">Nothing in the fence at this moment. Aircraft appear and disappear as they pass.</td></tr>';
+                '<tr><td colspan="5" class="muted">Nothing in the fence at this moment. Aircraft appear and disappear as they pass.</td></tr>';
             return;
         }
-        body.innerHTML = rows
-            .map((state) => {
-            const label = state.callsign || state.registration || state.hex;
-            // 🔴 WATCHED IS ASKED, NOT REMEMBERED. Measured on 20 Sep 2026: the button read
-            // "watch" for a full poll cycle after it was pressed, because `state.watched`
-            // was written by the last `ingest()` and `setWatchlist` does not rewrite the
-            // states already stored. So the reader pressed watch, the write succeeded, and
-            // the page showed them nothing for twenty seconds — the shape of a control that
-            // does not work. The engine already owns the rule for what matches (matchOf),
-            // so the table asks it at render time instead of holding a stale copy.
-            const watched = this.isWatchedNow(state);
-            const phase = state.phase === 'ground'
-                ? '<span class="tag tag-ground">on the ground</span>'
-                : state.phase === 'airborne'
-                    ? '<span class="tag tag-air">airborne</span>'
-                    : '<span class="tag tag-unknown">no altitude</span>';
-            return (`<tr${watched ? ' class="watched-row"' : ''}>` +
-                `<td class="mono">${escapeHtml(state.hex)}</td>` +
-                `<td><b>${escapeHtml(label)}</b></td>` +
-                (state.type ? this.typeCell(state.type) : '<td class="mono">—</td>') +
-                `<td>${phase}</td>` +
-                `<td class="mono">${formatClock(state.observedAt)}</td>` +
-                `<td><button type="button" class="linkish watch-toggle" data-key="${escapeHtml(label)}" ` +
-                `data-type="${escapeHtml(state.type || '')}" ` +
-                `data-ga="watch">${watched ? 'unwatch' : 'watch'}</button></td>` +
-                '</tr>');
-        })
-            .join('');
+        // 🔴 GROUPED BY TYPE, WITH THE AIRPORT ON EVERY ROW, AND NO HEX ADDRESS AT ALL.
+        // George, 20 Sep 2026: *"i want to group by aircraft type, and the airport. Address is
+        // useless"*.
+        //
+        // He is right about the address: a transponder hex code is an implementation detail
+        // that no reader can use, and it was the FIRST column — the most prominent place on
+        // the table for the least useful fact. What a reader actually asks is "what is that"
+        // and "where" — a type and an airport — so the type heads each group and the airport
+        // is the first thing on the row.
+        //
+        // The airport is the nearest one the reader is watching, worked out from the aircraft's
+        // last known position. An aircraft with no position yet is put under "not placed" rather
+        // than being given a guess or dropped, because it is real and it is in the fence.
+        const withAirport = rows.map((state) => ({ state, airport: this.nearestAirportTo(state) }));
+        const groups = new Map();
+        for (const row of withAirport) {
+            const code = row.state.type || '';
+            if (!groups.has(code)) {
+                groups.set(code, { label: code ? describeType(code).name : 'Type not transmitted', items: [] });
+            }
+            groups.get(code).items.push(row);
+        }
+        const html = [];
+        for (const [code, group] of [...groups.entries()].sort((a, b) => a[1].label.localeCompare(b[1].label) || a[0].localeCompare(b[0]))) {
+            // Sorted by airport inside the group, so the rows read as sub-groups rather than as
+            // whatever order the feed happened to report them in.
+            group.items.sort((a, b) => (a.airport ?? 'zz').localeCompare(b.airport ?? 'zz') || a.state.callsign.localeCompare(b.state.callsign));
+            html.push(`<tr class="type-group"><th scope="colgroup" colspan="5">` +
+                (code ? `<span class="mono">${escapeHtml(code)}</span> ${escapeHtml(group.label)}` : escapeHtml(group.label)) +
+                `<span class="group-count">${group.items.length} aircraft</span>` +
+                `</th></tr>`);
+            for (const { state, airport } of group.items) {
+                const label = state.callsign || state.registration || state.hex;
+                const watched = this.isWatchedNow(state);
+                const phase = state.phase === 'ground'
+                    ? '<span class="tag tag-ground">on the ground</span>'
+                    : state.phase === 'airborne'
+                        ? '<span class="tag tag-air">airborne</span>'
+                        : '<span class="tag tag-unknown">no altitude</span>';
+                html.push(`<tr${watched ? ' class="watched-row"' : ''}>` +
+                    `<td class="mono">${airport ? escapeHtml(airport) : '<span class="muted">not placed</span>'}</td>` +
+                    `<td><b>${escapeHtml(label)}</b></td>` +
+                    `<td>${phase}</td>` +
+                    `<td class="mono">${formatClock(state.observedAt)}</td>` +
+                    `<td><button type="button" class="linkish watch-toggle" data-key="${escapeHtml(label)}" ` +
+                    `data-type="${escapeHtml(state.type || '')}" ` +
+                    `data-ga="watch">${watched ? 'unwatch' : 'watch'}</button></td>` +
+                    '</tr>');
+            }
+        }
+        body.innerHTML = html.join('');
         for (const button of body.querySelectorAll('.watch-toggle')) {
             button.addEventListener('click', () => {
                 const key = button.dataset.key ?? '';
@@ -1087,6 +1077,24 @@ class Page {
                 }
             });
         }
+    }
+    /**
+     * Which of the airports the reader is watching this aircraft is nearest to.
+     *
+     * Null when the aircraft has not reported a position, or when nothing is being watched —
+     * and the row says "not placed" rather than inventing an airport, because a wrong airport
+     * on a row is worse than an empty one.
+     */
+    nearestAirportTo(state) {
+        if (typeof state.lat !== 'number' || typeof state.lon !== 'number')
+            return null;
+        let best = null;
+        for (const airport of this.airports) {
+            const km = nmToKm(distanceNm(state.lat, state.lon, airport.lat, airport.lon));
+            if (best === null || km < best.km)
+                best = { icao: airport.icao, km };
+        }
+        return best ? best.icao : null;
     }
     /**
      * Does this aircraft match something the reader asked about — right now?
@@ -1342,6 +1350,41 @@ class Page {
      * you ... but if a user want to change their location, delete thier location and
      * bring it back up"*.
      */
+    /**
+     * The reader's place as one short NAME — the community they named, else the town.
+     *
+     * George, 20 Sep 2026: *"Your location just make it say the city name, not the others in
+     * ()"*, and *"it says [redacted] should say stoney creek at least"*.
+     *
+     * He was reading a label that said the town followed by seven neighbourhoods in brackets,
+     * because the postal service names the whole area in one string and the page printed it
+     * verbatim. A reader asking where the circle is centred does not want their postcode's
+     * coverage read back to them.
+     *
+     * Which name leads matters: "Hamilton" is a city of half a million and says nothing about
+     * where the circle sits, while "North Stoney Creek" is where they actually are. So the
+     * community leads when one has been named, and the town carries it otherwise. What never
+     * appears is the bracketed list or the code — and it never appears in the heading either,
+     * which is why both callers come through here: a rule applied in one place and not the
+     * other is how one card ends up printing the same place two different ways.
+     */
+    nearbyPlace() {
+        const area = stripBrackets(this.placeArea);
+        if (area)
+            return area;
+        return stripBrackets(this.placeTown) || stripBrackets(this.placeLabel) || 'your position';
+    }
+    /**
+     * The reader's place as the two-part line: the community, then the town it sits in.
+     *
+     * Returns `{ lead, tail }` rather than HTML, so the label and any other reader of it agree
+     * on the words and only the markup differs.
+     */
+    nearbyPlaceLine() {
+        const lead = this.nearbyPlace();
+        const town = stripBrackets(this.placeTown);
+        return { lead, tail: this.placeArea && town && town !== lead ? town : '' };
+    }
     renderPlace() {
         const ask = byId('placeAsk');
         const known = byId('placeKnown');
@@ -1352,17 +1395,13 @@ class Page {
         if (known)
             known.hidden = !have;
         if (name) {
-            // 🔴 THE COMMUNITY IS THE HIGHLIGHTED PART, AND THE TOWN SITS BESIDE IT. George,
-            // 20 Sep 2026: *"Your location put the city in highlighted text"*. Which is
-            // highlighted matters: "Hamilton" is a city of half a million and tells the reader
-            // nothing about where the fence is centred, while "Stoney Creek" is where they
-            // actually are. So the community leads and is marked, and the town follows it in
-            // plain text — and with no community chosen the town is highlighted instead, because
-            // then it IS the best answer available.
-            name.innerHTML = this.placeArea
-                ? `<span class="place-area">${escapeHtml(this.placeArea)}</span>` +
-                    (this.placeTown ? `<span class="place-sep"> · </span><span class="place-town">${escapeHtml(this.placeTown)}</span>` : '')
-                : `<span class="place-area">${escapeHtml(this.placeLabel || 'your position')}</span>`;
+            // 🔴 THE LABEL IS A NAME, NOT A LIST AND NOT A CODE. George, 20 Sep 2026: *"Your
+            // location just make it say the city name, not the others in ()"*, and then *"it says
+            // [redacted] should say stoney creek at least"*. See `nearbyPlace`.
+            const { lead, tail } = this.nearbyPlaceLine();
+            name.innerHTML =
+                `<span class="place-area">${escapeHtml(lead)}</span>` +
+                    (tail ? `<span class="place-sep"> · </span><span class="place-town">${escapeHtml(tail)}</span>` : '');
         }
         this.renderAreaPicker();
     }
@@ -1399,6 +1438,11 @@ class Page {
                 this.placeArea = button.dataset.area === this.placeArea ? '' : button.dataset.area ?? '';
                 writeStore(AREA_KEY, this.placeArea);
                 this.renderPlace();
+                // 🔴 THE HEADING NAMES THE PLACE TOO, SO IT HAS TO FOLLOW THE CHOICE. Measured
+                // 20 Sep 2026: after clicking "North Stoney Creek" the label above read the community
+                // and the heading beside it still read "Airports around Hamilton" — two names for one
+                // place on one screen, which is the same defect the label was cleaned to fix.
+                this.renderNearby();
                 track('place_area_chosen', { area: this.placeArea });
             });
         }
@@ -1506,21 +1550,6 @@ class Page {
         });
         return { rows, undated, stale, elsewhere };
     }
-    /**
-     * One type's code and its year, as a table cell can carry them.
-     *
-     * 🔴 THE NUMBER ALONE WOULD BE MISTAKEN FOR A COUNT. Every other number in this
-     * table is how MANY — readings, aircraft, kilometres — so the year goes in its own
-     * mark, and the sentence behind it (including what it is a year OF) is on the
-     * tooltip rather than in the cell.
-     */
-    typeCell(code) {
-        const entry = this.yearOf(code);
-        return (`<td class="mono" title="${escapeHtml(entry ? this.yearTitle(entry) : describeType(code).name)}">` +
-            escapeHtml(code) +
-            (entry ? ` <span class="year-tag">${entry.year}</span>` : '') +
-            '</td>');
-    }
     /** The survey's types, with anything newer that this session saw merged in. */
     combinedTypes() {
         const rows = new Map();
@@ -1598,7 +1627,6 @@ class Page {
         // Said here rather than where a distance is pressed, because this is the one
         // place that runs for every reason the fence can change — a new distance, a new
         // place, a new airport — so the sentence cannot fall out of step with the fence.
-        this.renderFenceNote();
         // 🔴 AND THE MAP IS REDRAWN HERE TOO, WHICH IT WAS NOT UNTIL 20 SEP 2026. The
         // circle IS the distance, and the distance chips used to live in their own card
         // where nothing on the map appeared to depend on them — so pressing 50 km redrew
@@ -2135,10 +2163,15 @@ class Page {
         }
         button.hidden = false;
         button.textContent = Notification.permission === 'denied' ? 'Notifications are blocked' : 'Tell me when they leave';
+        // 🔴 THE BOARD IS GONE, SO NOTHING MAY POINT AT IT. George, 20 Sep 2026, pasting the
+        // board: *"remove all of this"* — and the sentence telling the reader what the
+        // notifications are for was still describing a card that is no longer on the page.
+        // What is left to point at is the table, which is where a column changes when an
+        // aircraft leaves the ground.
         note.textContent =
             Notification.permission === 'denied'
-                ? 'This browser has blocked notifications for this site. Departures still appear on the board.'
-                : 'Notifications are off. The board below works either way.';
+                ? 'This browser has blocked notifications for this site. The table below still updates as aircraft leave.'
+                : 'Notifications are off. The table below works either way.';
     }
     bindNotify() {
         const button = byId('notifyBtn');
@@ -2171,7 +2204,8 @@ class Page {
         }
         catch {
             /* Some browsers refuse to build a notification from a page that is not
-               itself in the foreground. The board is the record either way. */
+               itself in the foreground. The alert has already fired either way, and the
+               aircraft's phase is corrected in the table on the next render. */
         }
     }
     /* ------------------------------------------------- airports around you */
@@ -2548,7 +2582,20 @@ class Page {
         host.hidden = false;
         if (head) {
             head.hidden = false;
-            head.textContent = this.placeLabel ? `Airports around ${this.placeLabel}` : 'Airports around you';
+            // 🔴 THE HEADING GETS THE SAME TREATMENT AS THE LABEL, OR THE SAME PLACE IS PRINTED
+            // TWO WAYS ON ONE CARD. George, 20 Sep 2026, pasting this exact heading back:
+            // *"remove ### Airports around Hamilton (Confederation Park / Nashdale / East Kentley /
+            // Riverdale / Lakely / Grayside / North Stoney Creek), Ontario"* — the label above it
+            // had been cleaned and the heading was still reading the postcode's coverage aloud,
+            // followed by the province.
+            //
+            // So it says the same short name the label does: the community the reader named, or
+            // the town, and never the parenthetical, the postcode or the province. "Airports
+            // around Hamilton" is a heading; "Airports around Hamilton (seven communities),
+            // Ontario" is the postal service's own coverage note printed as though it were a
+            // place. They are not the same sentence and only one of them belongs on a heading.
+            const shown = stripBrackets(this.nearbyPlace());
+            head.textContent = shown ? `Airports around ${shown}` : 'Airports around you';
         }
         if (note) {
             note.hidden = false;
@@ -2614,22 +2661,29 @@ class Page {
      * With an airport picked but no place, the distance IS meaningful — measured from that
      * airport — so the block stays and the heading says so.
      */
+    /**
+     * 🔴 THE SENTENCE UNDER THE SLIDER IS GONE. George, 20 Sep 2026: *"remove this
+     * Looking 80 km out from your own position — 43 nautical miles, which is the unit the
+     * feed takes. A long distance sees a great deal of traffic, and very little of it on the
+     * ground — the two pull in opposite directions."*
+     *
+     * He is right that it earns nothing: a reader who has just moved a slider to 80 km does
+     * not need to be told that 80 km is 43 nautical miles, and the trade-off it describes is
+     * the one the slider already makes visible by being a slider. The number and the plain
+     * description under the track say what was chosen; the rest was the page explaining
+     * itself. It read the distance back in a unit the reader never asked for and then
+     * editorialised about it.
+     */
     renderDistance() {
         const hasCentre = this.centre !== null;
         const shown = hasCentre || this.airports.length > 0;
-        for (const id of ['radiusHead', 'radiusButtons', 'fenceNote', 'locMap']) {
+        for (const id of ['radiusHead', 'radiusButtons', 'locMap']) {
             const element = byId(id);
             if (element)
                 element.hidden = !shown;
         }
-        if (!shown) {
-            // Cleared rather than left standing: text under a hidden element is a trap for
-            // whoever unhides it, and this page has already shipped one stale sentence.
-            const fence = byId('fenceNote');
-            if (fence)
-                fence.textContent = '';
+        if (!shown)
             return;
-        }
         const head = byId('radiusHead');
         if (head) {
             head.textContent = hasCentre
@@ -2638,7 +2692,6 @@ class Page {
                     ? 'How far out from the airports you picked?'
                     : 'How far out from the airport?';
         }
-        this.renderFenceNote();
         this.renderMap();
     }
     computeNearby(lat, lon, label = '', town = '', areas = []) {

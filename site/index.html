@@ -165,7 +165,7 @@
           to install.
         </p>
         <ul class="facts">
-          <li><b>It is honest about the hard part.</b> An aircraft sitting on the apron is only heard by a receiver a few kilometres away, so a departure is usually detected seconds after it is airborne, not at the moment of rotation. Every line on the board says which of the two you got.</li>
+          <li><b>It is honest about the hard part.</b> An aircraft sitting on the apron is only heard by a receiver a few kilometres away, so a departure is usually detected seconds after it is airborne, not at the moment of rotation. Every row says which of the two you got, in its <b>phase</b> column.</li>
           <li><b>Your watchlist stays in your browser.</b> Tail numbers you type are matched locally and never sent here or to Google.</li>
           <li><b>Free and open data.</b> The feed is <a href="https://adsb.lol/" rel="noopener">adsb.lol</a>, published under the Open Database License.</li>
         </ul>
@@ -215,8 +215,7 @@
         <p class="small muted" id="nearbyNote">Loading the airport list…</p>
 
         <h3 class="subhead" id="radiusHead">How far out from you?</h3>
-        <div class="chips" id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
-        <p class="small muted" id="fenceNote"></p>
+        <div id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
 
         <div id="locMap"></div>
       </section>
@@ -251,19 +250,18 @@
         
         <div class="table-wrap">
           <table class="aircraft">
-            <caption class="visually-hidden">Aircraft currently inside the fence</caption>
+            <caption class="visually-hidden">Aircraft currently inside the fence, grouped by type</caption>
             <thead>
               <tr>
-                <th scope="col">Address</th>
+                <th scope="col">Airport</th>
                 <th scope="col">Callsign</th>
-                <th scope="col">Type</th>
                 <th scope="col">Phase</th>
                 <th scope="col">Last reading</th>
                 <th scope="col"></th>
               </tr>
             </thead>
             <tbody id="aircraftBody">
-              <tr><td colspan="6" class="muted">Waiting for the first poll…</td></tr>
+              <tr><td colspan="5" class="muted">Waiting for the first poll…</td></tr>
             </tbody>
           </table>
         </div>
@@ -301,7 +299,7 @@
           <li>
             <b>It cannot tell you the wheels are leaving the ground.</b> It tells you an aircraft that was in the fence
             is airborne. Surface coverage from a receiver far away is poor, so the usual case is a departure noticed a
-            few seconds late. The board marks each one as <b>seen on the ground first</b> (a fact) or <b>first seen
+            few seconds late. Each row is marked as <b>seen on the ground first</b> (a fact) or <b>first seen
             climbing</b> (a strong inference).
           </li>
           <li>
@@ -357,10 +355,11 @@
             distance you chose. Each reading is classified as on the ground, airborne, or unknown, and compared with
             the same aircraft's previous reading. Ground to airborne inside the distance is a departure; seen only
             after it is already climbing is a probable one; already airborne is ignored; a stale reading proves
-            nothing. A match against one of your rules is what puts it on your board.
+            nothing. A match against one of your rules is what marks a row as watched, and what makes the page
+tell you when that aircraft leaves.
           </li>
           <li>
-            <b>Where it is kept.</b> Nowhere on a server. The watchlist, the chosen airport and the board live in this
+            <b>Where it is kept.</b> Nowhere on a server. The watchlist, the chosen airport and your place name live in this
             browser's own storage and are removed when you clear site data.
           </li>
         </ol>

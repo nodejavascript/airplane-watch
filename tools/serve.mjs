@@ -243,7 +243,13 @@ async function buildTypes() {
   );
   return {
     generated: new Date(latest.started_at).toISOString(),
-    method: latest.method ?? '',
+    // 🔴 IN THE UNIT THE READER USES. The survey is asked in nautical miles, the page is
+    // read in kilometres, and this sentence is printed on the page — so a radius recorded
+    // in the unit of the wire is converted here as well as in the file the deploy ships.
+    method: String(latest.method ?? '').replace(
+      /\b(\d+(?:\.\d+)?)\s*nm\b/g,
+      (_all, nm) => `${Math.round(Number(nm) * 1.852)} km`
+    ),
     aircraftInspected: latest.aircraft_inspected ?? 0,
     counted: 'sightings (one per aircraft per round)',
     registrationsNote:

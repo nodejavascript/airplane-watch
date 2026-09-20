@@ -291,6 +291,8 @@ export class DetectionEngine {
                 callsign: (reading.flight || '').trim() || previous?.callsign || '',
                 registration: reading.r || previous?.registration || '',
                 type: reading.t || previous?.type || '',
+                lat: Number.isFinite(reading.lat) ? reading.lat : previous?.lat,
+                lon: Number.isFinite(reading.lon) ? reading.lon : previous?.lon,
                 watched,
             };
             this.tracks.set(hex, next);

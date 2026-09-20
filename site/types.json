@@ -1,6 +1,6 @@
 {
   "generated": "2026-09-20T19:13:33.455Z",
-  "method": "3 rounds of 40 nm around 7 airports, 15s apart",
+  "method": "3 rounds of 74 km around 7 airports, 15s apart",
   "aircraftInspected": 1114,
   "counted": "sightings (one per aircraft per round)",
   "registrationsNote": "Up to 40 registrations per type, from aircraft that actually transmitted one. Many transponders never send a registration, so this is a sample of what identifies itself, not a fleet list.",
