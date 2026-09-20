@@ -375,6 +375,43 @@ class Page {
                 chip.removeAttribute('aria-busy');
         }
     }
+    /**
+     * 🔴 A RESPONSE THAT IS NOT GOING TO PARSE IS DECIDED BY ITS STATUS, NEVER BY
+     * TRYING TO PARSE IT.
+     *
+     * George, 20 Sep 2026, twice in one day and for two different faults:
+     *
+     *   "The feed answered 429 with text/html instead of JSON — that is a web page"
+     *   "The feed answered 502 with text/html instead of JSON ... <title>502 Bad
+     *    Gateway</title> ... nginx"
+     *
+     * Both sentences were TRUE and both were useless. The first was the feed's rate
+     * limit; the second was **adsb.lol's own nginx**, which answers 502 with an HTML
+     * page of its own when its backend is unwell — measured 20 Sep 2026, the same
+     * endpoint answering 200 minutes later. Neither is anything to do with the
+     * reader's connection or with this site, and a message about JSON parsing tells
+     * them neither of those things.
+     *
+     * So the status decides, before the body is touched, and the reader is told which
+     * fault they are looking at and what it means.
+     */
+    feedTrouble(response) {
+        if (response.status === 429) {
+            return ('The feed asked us to slow down (HTTP 429). It is volunteer-funded and answers a limited number of ' +
+                'requests per minute, and this page asks again every ten seconds. Nothing is wrong with the site — ' +
+                'the table below is holding the last reading it managed to get.');
+        }
+        if (response.status >= 500) {
+            return (`The feed's own server is having trouble (HTTP ${response.status}). That is at their end, not yours and ` +
+                'not this site\'s: api.adsb.lol is a volunteer service and its gateway sometimes fails for a moment, ' +
+                'then recovers. The page keeps asking, and the table below keeps the last reading it got.');
+        }
+        if (!response.ok) {
+            return (`The feed answered HTTP ${response.status}. The page keeps asking every ten seconds, so this may clear ` +
+                'on its own.');
+        }
+        return null;
+    }
     async chooseAirport(icao) {
         this.stop();
         this.setBusy(icao, true);
@@ -383,12 +420,13 @@ class Page {
             const response = await fetch(`/api/0/airport/${encodeURIComponent(icao)}`, {
                 headers: { accept: 'application/json' },
             });
-            // Same order as the poll: a 429 arrives as an HTML page, so it is caught by
-            // its status and never by trying to parse it.
-            if (response.status === 429) {
+            // Same order as the poll, through the same helper: an error status arrives as
+            // an HTML page, so it is caught by its status and never by trying to parse it.
+            const trouble = this.feedTrouble(response);
+            if (trouble) {
                 this.airport = null;
                 this.setBusy(icao, false);
-                this.setStatus('The feed asked us to slow down (HTTP 429) while looking that airport up. Try again in a moment.', 'error');
+                this.setStatus(trouble, 'error');
                 return;
             }
             const payload = await readJson(response);
@@ -456,17 +494,14 @@ class Page {
         try {
             const response = await fetch(url, { headers: { accept: 'application/json' } });
             // 🔴 THE STATUS IS CHECKED *BEFORE* THE BODY IS READ, AND THAT ORDER IS THE
-            // WHOLE FIX. Measured 20 Sep 2026: when the feed rate-limits it answers 429
-            // with an HTML page, not JSON — `<title>429 Too Many Requests</title>` — so
-            // parsing first threw a JSON error and the reader was told *"the feed
-            // answered 429 with text/html instead of JSON, that is a web page"*, which
-            // is true and useless: it names the symptom and hides the cause. A rate
-            // limit is a rate limit whether or not the body parses.
-            if (response.status === 429) {
-                this.lastError = 'the feed is rate-limiting us';
-                this.setStatus('The feed asked us to slow down (HTTP 429). It is volunteer-funded and answers a limited number of ' +
-                    'requests per minute, and this page asks again every ten seconds. Nothing is wrong with the site — ' +
-                    'the aircraft table below is simply holding the last reading it managed to get.', 'error');
+            // WHOLE FIX — for every error status, not just the rate limit. See the note
+            // on feedTrouble(): the 429 came back as an HTML page and so did the 502, and
+            // both were reported as a JSON parsing complaint, which names the symptom and
+            // hides the cause.
+            const trouble = this.feedTrouble(response);
+            if (trouble) {
+                this.lastError = `the feed answered ${response.status}`;
+                this.setStatus(trouble, 'error');
                 return;
             }
             const payload = (await readJson(response));

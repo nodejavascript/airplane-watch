@@ -865,3 +865,31 @@ test('the later steps do not exist until the first is answered', () => {
   assert.equal(/data-waiting/.test(source), false, 'the waiting mechanism is still in the app');
   assert.equal(/step-why/.test(html), false, 'a waiting note is still on the page');
 });
+
+test('a 502 from the feed own gateway is described as what it is', () => {
+  const source = readSrc('src/app.ts');
+
+  // 🔴 The fault was described twice in one day and both descriptions named the
+  // symptom: "answered 429 with text/html" and "answered 502 with text/html ...
+  // nginx". The 502 was adsb.lol's OWN nginx failing, which has nothing to do with
+  // the reader's connection, and the reader was told about JSON.
+  assert.match(source, /private feedTrouble\(response: Response\)/, 'there is no single place that reads the status');
+  const helper = source.slice(source.indexOf('private feedTrouble('), source.indexOf('private async chooseAirport'));
+  assert.match(helper, /response\.status === 429/, 'the rate limit is not handled');
+  assert.match(helper, /response\.status >= 500/, 'a 5xx from the feed has no sentence of its own');
+  assert.match(helper, /at their end, not yours/, 'the 5xx message does not say whose fault it is');
+  assert.match(helper, /!response\.ok/, 'any other error status has no sentence');
+
+  // And it must run BEFORE the body is touched, in both callers.
+  for (const [name, header, next] of [
+    ['the poll', 'private async poll()', 'private recordDepartures'],
+    ['the airport lookup', 'private async chooseAirport', 'private stop('],
+  ]) {
+    const body = source.slice(source.indexOf(header), source.indexOf(next));
+    const decides = body.indexOf('this.feedTrouble(response)');
+    const parses = body.indexOf('readJson(response)');
+    assert.ok(decides > -1, `${name} never consults the status`);
+    assert.ok(parses > -1, `${name} no longer parses a body`);
+    assert.ok(decides < parses, `${name} reads the body before checking the status — the exact fault this fixes`);
+  }
+});
