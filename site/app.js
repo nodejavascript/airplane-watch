@@ -335,6 +335,13 @@ class Page {
     restored = null;
     /** The airport list the feed itself confirmed, for the "around you" panel. */
     listedAirports = null;
+    /**
+     * The sentence under the airport list once a place is known, kept so it can be put BACK.
+     * The list is drawn in two states — with a place and without one — and each needs its own
+     * text; holding the place-known one here is what stops the place-unknown one following a
+     * reader into the other state.
+     */
+    airportsNote = '';
     nearby = [];
     /** The raw readings from the last poll — the live view is drawn from these. */
     lastReadings = [];
@@ -736,6 +743,15 @@ class Page {
         const fence = byId('fenceNote');
         if (!fence)
             return;
+        // 🔴 WITH NOTHING TO MEASURE FROM THERE IS NO SENTENCE, AND ESPECIALLY NOT THIS ONE.
+        // It used to fall through to "the airport" — so a page that knew no place and had no
+        // airport picked still read *"Looking 20 km out from the airport"*, a sentence naming a
+        // thing that did not exist. The block is hidden in this state anyway (see
+        // renderDistance); this is the guard that makes that safe rather than lucky.
+        if (this.centre === null && this.airports.length === 0) {
+            fence.textContent = '';
+            return;
+        }
         const km = nmToKm(kmToNm(this.radiusKm));
         const from = this.centre
             ? 'your own position'
@@ -1250,12 +1266,11 @@ class Page {
             this.nearby = [];
             writeStore(CENTRE_KEY, '');
             this.renderPlace();
-            // The list is emptied and the map redrawn by hand, because `renderNearby` stops
-            // at its "type a postal code" line and would leave the old map and its "you"
-            // marker standing.
+            // 🔴 `renderNearby` NOW DOES ALL THE WORK, INCLUDING HIDING THE DISTANCE BLOCK. It
+            // used to stop at its empty-list line and leave the old map and its "you" marker
+            // standing; it now goes through `renderDistance` on every path, so there is no
+            // second place where the page can be half-updated.
             this.renderNearby();
-            this.renderMap();
-            this.renderFenceNote();
             // The fence falls back to the airports still picked — see point() — so the page
             // keeps working while it waits to be told where the reader is.
             this.rearm();
@@ -1988,12 +2003,13 @@ class Page {
         }
         if (note && this.listedAirports) {
             const dropped = this.listedAirports.dropped ?? [];
-            note.textContent =
+            this.airportsNote =
                 `${this.listedAirports.kept} airports, every one of them confirmed by asking the feed where it is. ` +
                     'Press as many as you like: each one you press is watched, and the map is drawn to fit all of them. ' +
                     (dropped.length > 0
                         ? `${dropped.length} identifier was dropped because the feed could not place it: ${dropped.join(', ')}.`
                         : 'Nothing was dropped.');
+            note.textContent = this.airportsNote;
         }
         // 🔴 THE KEPT PLACE IS APPLIED HERE, NOT IN start(). Ordering the airports by
         // distance needs the airport list, and the list has only just arrived — so
@@ -2055,6 +2071,15 @@ class Page {
         if (!host)
             return;
         const at = this.centre;
+        // 🔴 WHAT THE FENCE IS AIMED AT, WHICH IS NOT ALWAYS THE READER.
+        //
+        // With no place known, the fence is aimed at the airports that are picked — and the
+        // sentence underneath the distance chips already said so (*"Looking 20 km out from the
+        // middle of the airports you picked"*). The map did not: it drew the ring only when
+        // there was a centre, so a reader with no location was shown a map with no circle and a
+        // caption describing one. Found by measuring the page rather than reading it, and it is
+        // the same fault as the ring that was reported missing earlier today.
+        const anchor = this.point();
         const needed = [
             ...(at ? [at] : []),
             ...this.airports.map((one) => ({ lat: one.lat, lon: one.lon })),
@@ -2085,34 +2110,34 @@ class Page {
             minLon = Math.min(minLon, point.lon);
             maxLon = Math.max(maxLon, point.lon);
         }
-        // 🔴 THE FENCE IS FITTED AGAIN, AND THAT IS A CORRECTION RATHER THAN A REVERSAL.
+        // 🔴 THE ZOOM FOLLOWS ONE RULE: THE BOX HAS TO HOLD THE AIRPORTS, WHERE YOU ARE, AND
+        // THE DISTANCE YOU CHOSE.
         //
-        // For an hour this file chose the zoom from the airports alone, on the strength of
-        // *"only the required zoom out where airports can be seen"* — and the map showed a
-        // ring whose edge was off the screen, which George reported as the ring being gone.
-        // Both things he asked for are true at once: the zoom must not be wasteful, and the
-        // circle must be visible. The full-width map is what makes room for both.
-        // 🔴 THE CIRCLE IS ALWAYS WHOLE. George, 20 Sep 2026: *"the map is no longer
-        // showing ther ring"*.
+        // Both halves of the request are true at once — *"only the required zoom out where
+        // airports can be seen"* and *"the circle in the map should be based on the how far out
+        // from you distance"* — and this is where they are reconciled. An earlier attempt used
+        // an ease-out to bring the circle's edge into view and produced **zoom 11 at 10 km,
+        // zoom 10 at 20 km and zoom 12 at 50 km**: a larger radius giving a CLOSER view, because
+        // the ease succeeded at the small radii and failed at the large one. A map that jumps
+        // about as you change a number is worse than a circle whose edge is off screen. So the
+        // radius goes into the fit properly, with no easing: monotonic, and the ring whole at
+        // every distance. The full-width map is what makes that affordable.
         //
-        // He was right and it was my doing. I had taken the circle out of the fit to stop
-        // the map zooming out further than the airports needed — and the consequence,
-        // which the screenshot showed plainly, is a map at street level with one airport
-        // on it and an arc crossing the corner: the reader sees part of a circle and
-        // concludes there is no circle. A ring that cannot be seen is not a distance, and
-        // the distance is what this map is FOR.
+        // 🔴 AND IT IS FOLDED IN HERE, BEFORE THE SPAN IS MEASURED. It was briefly placed after
+        // `spanLat`/`spanLon` were computed, which meant the radius was added to a box nobody
+        // looked at again — the map chose zoom 14 and drew a 2,870-pixel circle on an 854-pixel
+        // map. Nothing about the code looked wrong; the number did.
         //
-        // The earlier complaint — "only the required zoom out where airports can be seen"
-        // — was made against a 512-pixel map. The map is now 854 pixels wide, so the same
-        // box fits at a noticeably closer zoom than it did, which is the part of that
-        // request the width change answers. The ring is the part that has to be whole.
-        if (at) {
+        // 🔴 AROUND THE AIM, NOT NECESSARILY AROUND THE READER. With no place known the fence is
+        // aimed at the middle of the airports being watched (see `point()`), and the ring has to
+        // be whole around THAT — the caption underneath already said which one it was.
+        if (anchor) {
             const dLat = this.radiusKm / 111.32;
-            const dLon = this.radiusKm / (111.32 * Math.max(0.2, Math.cos((at.lat * Math.PI) / 180)));
-            minLat = Math.min(minLat, at.lat - dLat);
-            maxLat = Math.max(maxLat, at.lat + dLat);
-            minLon = Math.min(minLon, at.lon - dLon);
-            maxLon = Math.max(maxLon, at.lon + dLon);
+            const dLon = this.radiusKm / (111.32 * Math.max(0.2, Math.cos((anchor.lat * Math.PI) / 180)));
+            minLat = Math.min(minLat, anchor.lat - dLat);
+            maxLat = Math.max(maxLat, anchor.lat + dLat);
+            minLon = Math.min(minLon, anchor.lon - dLon);
+            maxLon = Math.max(maxLon, anchor.lon + dLon);
         }
         const midLat = (minLat + maxLat) / 2;
         const midLon = (minLon + maxLon) / 2;
@@ -2122,23 +2147,11 @@ class Page {
         // park with a code label on it.
         const spanLat = Math.max(maxLat - minLat, 0.02);
         const spanLon = Math.max(maxLon - minLon, 0.02);
-        // 🔴 THE ZOOM IS CHOSEN FOR THE AIRPORTS YOU PICKED, AND FOR NOTHING ELSE.
-        //
-        // George, 20 Sep 2026: *"only the required zoom out where airports can be seen"*,
-        // and separately *"the circle in the map should be based on the how far out from
-        // you distance"*.
-        //
-        // 🔴 I TRIED TO SATISFY BOTH AND IT PRODUCED SOMETHING WORSE, which the
-        // measurement caught: an ease-out of up to two steps aimed at bringing the
-        // circle's edge into view gave **zoom 11 at 10 km, zoom 10 at 20 km and zoom 12 at
-        // 50 km** — a LARGER radius producing a CLOSER view, because the easing succeeded
-        // at the small radii and failed at the large one. A rule that makes the map jump
-        // about as you change a number is worse than a circle whose edge is off-screen.
-        //
-        // So the rule is now one sentence: **the zoom depends only on the airports you
-        // picked and where you are.** The same picks give the same view at every distance.
-        // The circle is drawn at its true size, so a radius larger than the airports need
-        // runs past the edge of the map — and the note on the map says exactly that.
+        // 🔴 THE ZOOM IS ONE RULE: THE BOX HAS TO HOLD THE AIRPORTS, WHERE YOU ARE, AND THE
+        // DISTANCE YOU CHOSE. See the fold above — this space used to hold a comment claiming the
+        // opposite (that the zoom was chosen "for the airports you picked, and for nothing else")
+        // directly above code that does not do that. Two contradicting paragraphs about the same
+        // three lines is how the next change gets made in the wrong direction.
         const metresPerDegLat = 110_574;
         const metresPerDegLon = 111_320 * Math.max(0.2, Math.cos((midLat * Math.PI) / 180));
         let zoom = 3;
@@ -2178,7 +2191,14 @@ class Page {
             x: lonToTile(lon, zoom) * TILE - left,
             y: latToTile(lat, zoom) * TILE - top,
         });
+        // 🔴 THE RING IS DRAWN AROUND THE AIM, AND "YOU" IS ONLY DRAWN WHEN IT IS YOU.
+        //
+        // `you` is the reader; `anchorPx` is where the fence is pointed. With a place known they
+        // are the same spot. Without one, the ring sits on the middle of the airports being
+        // watched and is labelled as that — because a dot marked "you" on a map that does not
+        // know where you are is the page inventing a fact, which is the whole complaint.
         const you = at ? spotOf(at.lat, at.lon) : null;
+        const anchorPx = anchor ? spotOf(anchor.lat, anchor.lon) : null;
         const fencePx = (this.radiusKm * 1000) / scale;
         let marks = '';
         // The nearest airports, small and grey, with a line back to the reader. A picked
@@ -2226,24 +2246,30 @@ class Page {
                 tiles +
                 `<svg class="locmap-over" viewBox="0 0 ${VIEW_W} ${VIEW_H}" role="img" ` +
                 `aria-label="A map showing ${escapeHtml(described)}` +
-                (you ? `, a ${this.radiusKm} kilometre circle around your position` : '') +
+                (anchorPx
+                    ? `, a ${this.radiusKm} kilometre circle around ${you ? 'your position' : 'the airports you are watching'}`
+                    : '') +
                 `, and the nearest other airports marked with their codes">` +
-                (you
-                    ? `<circle class="locmap-fence" cx="${you.x.toFixed(1)}" cy="${you.y.toFixed(1)}" r="${fencePx.toFixed(1)}" />`
+                (anchorPx
+                    ? `<circle class="locmap-fence" cx="${anchorPx.x.toFixed(1)}" cy="${anchorPx.y.toFixed(1)}" r="${fencePx.toFixed(1)}" />`
                     : '') +
                 marks +
                 (you
                     ? `<circle class="locmap-you" cx="${you.x.toFixed(1)}" cy="${you.y.toFixed(1)}" r="5" />` +
                         `<text class="locmap-you-label" x="${you.x.toFixed(1)}" ` +
                         `y="${(you.y + 18).toFixed(1)}" text-anchor="middle">you</text>`
-                    : '') +
+                    : anchorPx
+                        ? `<circle class="locmap-anchor" cx="${anchorPx.x.toFixed(1)}" cy="${anchorPx.y.toFixed(1)}" r="5" />` +
+                            `<text class="locmap-you-label" x="${anchorPx.x.toFixed(1)}" ` +
+                            `y="${(anchorPx.y + 18).toFixed(1)}" text-anchor="middle">watched</text>`
+                        : '') +
                 '</svg></div>' +
                 '<p class="small muted locmap-note">The map is ' +
                 '<a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, free and with no API key. ' +
-                (you
-                    ? `It is fitted so the ${this.radiusKm} km gap you chose is inside the frame, together with the airports you picked`
-                    : 'It is fitted to the airports you picked') +
-                ' — a ring you can only see part of is no use as a distance. The tiles are fetched by this site\'s own server rather than by your ' +
+                (anchor
+                    ? `It is fitted so the ${this.radiusKm} km gap you chose is inside the frame, together with the airports you picked — a ring you can only see part of is no use as a distance.`
+                    : 'It is fitted to the airports you picked.') +
+                ' The tiles are fetched by this site\'s own server rather than by your ' +
                 'browser, so the map service never sees you — the same way the flight feed is handled.' +
                 '</p>';
     }
@@ -2271,43 +2297,150 @@ class Page {
     }
     renderNearby() {
         const host = byId('nearbyList');
+        const head = byId('nearbyHead');
+        const note = byId('nearbyNote');
         if (!host || !this.listedAirports)
             return;
+        // 🔴 WITH NO LOCATION THERE IS NO SUCH THING AS "NEAR YOU", SO NOTHING IS OFFERED.
+        //
+        // George, 20 Sep 2026: *"if you dont know location. there should be no airports seen
+        // expect selected one."* He was right, and the page was doing the opposite: a heading
+        // reading **"Airports around you"** over a paragraph telling the reader to type a
+        // postal code. Both are claims about a place we do not have. "Around you" is not a
+        // heading this page is entitled to before it knows where you are, and a list that is
+        // really an empty state dressed as a list is worse than no list at all.
+        //
+        // So with no centre there is no list and no heading. What survives is what the reader
+        // already chose — an airport they picked is a fact, not a distance, and it has to stay
+        // on screen or they cannot unpick it.
+        if (this.centre === null) {
+            const picked = (this.listedAirports.airports ?? []).filter((one) => this.isChosen(one.icao));
+            if (picked.length === 0) {
+                host.innerHTML = '';
+                host.hidden = true;
+                if (head)
+                    head.hidden = true;
+                if (note)
+                    note.hidden = true;
+            }
+            else {
+                host.hidden = false;
+                if (head) {
+                    head.hidden = false;
+                    // 🔴 "YOU PICKED IT" IS A CLAIM ABOUT THE READER, AND SOMETIMES IT IS FALSE. A
+                    // brand-new visitor is given one airport (`DEFAULT_AIRPORT`) so the page has
+                    // something to draw — and calling that "the airport you picked" is a small lie
+                    // told on the very first screen. What IS true either way is that it is being
+                    // watched, so that is what the heading says.
+                    head.textContent = picked.length === 1 ? 'The airport you are watching' : 'The airports you are watching';
+                }
+                host.innerHTML = picked.map((airport) => this.nearChip(airport, null)).join('');
+                if (note) {
+                    note.hidden = false;
+                    note.textContent =
+                        'No place is known yet, so there is nothing to order these by and nothing else to offer. ' +
+                            'The rest of the list appears — nearest first — once the page knows where you are.';
+                }
+            }
+            this.wireNearChips(host);
+            this.renderDistance();
+            return;
+        }
+        // From here on there IS a place, so a distance exists and the list can be ordered by it.
+        host.hidden = false;
+        if (head) {
+            head.hidden = false;
+            head.textContent = this.placeLabel ? `Airports around ${this.placeLabel}` : 'Airports around you';
+        }
+        if (note) {
+            note.hidden = false;
+            // 🔴 THE TEXT IS PUT BACK ON EVERY PATH. It was written once by `loadAirports` and
+            // then overwritten by the no-location branch — so a reader who gave their location
+            // back up and then set it again read *"No place is known yet"* underneath a heading
+            // that named the place. A sentence that is only written in one branch is stale in
+            // the other, and this is the same trap the page had already shipped once.
+            note.textContent = this.airportsNote;
+        }
         if (this.nearby.length === 0) {
-            host.innerHTML =
-                '<p class="muted small">Type a postal code above — or press <b>find me</b> — and this list is ordered by ' +
-                    'how far each airport is from where you are.</p>';
+            host.innerHTML = '';
+            this.renderDistance();
             return;
         }
         host.innerHTML = this.nearby
             .slice(0, 14)
-            .map(({ airport, km }) => {
-            // 🔴 AN AIRPORT IS A CHOICE, SO IT TAKES THE YELLOW — AND NOTHING ELSE.
-            // George, 20 Sep 2026: *"selecting an airport should hava star and yellow
-            // hue"*, then *"remove start that are in chip, i just want the yellow hue
-            // only"*. The colour is the mark; a star repeated on every chip is the
-            // same fact drawn twice.
-            //
-            // 🔴 AND IT IS A TOGGLE. George, 20 Sep 2026: *"i should also be able to
-            // select multiple airport"*. The label says what pressing it will do
-            // rather than what the airport is, because that is the question a reader
-            // has while their pointer is over it.
-            const picked = this.isChosen(airport.icao);
-            return (`<button type="button" class="ghost chip near-chip" data-icao="${escapeHtml(airport.icao)}" ` +
-                `aria-pressed="${picked}" title="${picked ? `Stop watching ${airport.icao}` : `Also watch ${airport.icao}`}" ` +
-                `data-ga="airport-near">` +
-                `<span class="mono">${escapeHtml(airport.icao)}</span> ${escapeHtml(airport.location || airport.name)}` +
-                `<span class="near-km">${Math.round(km)} km</span></button>`);
-        })
+            .map(({ airport, km }) => this.nearChip(airport, km))
             .join('');
+        this.wireNearChips(host);
+        this.renderDistance();
+    }
+    /**
+     * One airport, as a chip — drawn in ONE place, so both lists cannot drift apart.
+     *
+     * 🔴 AN AIRPORT IS A CHOICE, SO IT TAKES THE YELLOW — AND NOTHING ELSE. George, 20 Sep
+     * 2026: *"selecting an airport should hava star and yellow hue"*, then *"remove start
+     * that are in chip, i just want the yellow hue only"*. The colour is the mark; a star
+     * repeated on every chip is the same fact drawn twice.
+     *
+     * 🔴 AND IT IS A TOGGLE. George, 20 Sep 2026: *"i should also be able to select
+     * multiple airport"*. The label says what pressing it will do rather than what the
+     * airport is, because that is the question a reader has while their pointer is over it.
+     *
+     * `km` is null when there is no place to measure from, and then the chip carries no
+     * distance — one invented from nowhere would be worse than none.
+     */
+    nearChip(airport, km) {
+        const picked = this.isChosen(airport.icao);
+        return (`<button type="button" class="ghost chip near-chip" data-icao="${escapeHtml(airport.icao)}" ` +
+            `aria-pressed="${picked}" title="${picked ? `Stop watching ${airport.icao}` : `Also watch ${airport.icao}`}" ` +
+            `data-ga="airport-near">` +
+            `<span class="mono">${escapeHtml(airport.icao)}</span> ${escapeHtml(airport.location || airport.name)}` +
+            (km === null ? '' : `<span class="near-km">${Math.round(km)} km</span>`) +
+            `</button>`);
+    }
+    wireNearChips(host) {
         for (const button of host.querySelectorAll('.near-chip')) {
             button.addEventListener('click', () => void this.toggleAirport(button.dataset.icao ?? ''));
         }
-        // Said back to the reader, because a place they gave once and cannot see again
-        // is indistinguishable from a place the page forgot.
-        const head = byId('nearbyHead');
-        if (head)
-            head.textContent = this.placeLabel ? `Airports around ${this.placeLabel}` : 'Airports around you';
+    }
+    /**
+     * 🔴 A DISTANCE NEEDS SOMETHING TO MEASURE FROM, AND THE PAGE HIDES THE QUESTION WHEN
+     * THERE IS NOTHING.
+     *
+     * George, 20 Sep 2026: *"if you dont know location. there should be no airports seen
+     * expect selected one."* The same reasoning reaches the distance block: **"How far out
+     * from you?"** is not a question this page may ask before it knows where you are, and a
+     * 20 km circle drawn around nothing is a drawing of an idea. The fence note underneath
+     * was saying *"Looking 20 km out from the airport"* when there was no airport on the map
+     * and no place to be near — a sentence with no subject.
+     *
+     * With an airport picked but no place, the distance IS meaningful — measured from that
+     * airport — so the block stays and the heading says so.
+     */
+    renderDistance() {
+        const hasCentre = this.centre !== null;
+        const shown = hasCentre || this.airports.length > 0;
+        for (const id of ['radiusHead', 'radiusButtons', 'fenceNote', 'locMap']) {
+            const element = byId(id);
+            if (element)
+                element.hidden = !shown;
+        }
+        if (!shown) {
+            // Cleared rather than left standing: text under a hidden element is a trap for
+            // whoever unhides it, and this page has already shipped one stale sentence.
+            const fence = byId('fenceNote');
+            if (fence)
+                fence.textContent = '';
+            return;
+        }
+        const head = byId('radiusHead');
+        if (head) {
+            head.textContent = hasCentre
+                ? 'How far out from you?'
+                : this.airports.length > 1
+                    ? 'How far out from the airports you picked?'
+                    : 'How far out from the airport?';
+        }
+        this.renderFenceNote();
         this.renderMap();
     }
     computeNearby(lat, lon, label = '') {

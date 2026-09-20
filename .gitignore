@@ -3,3 +3,6 @@ node_modules/
 *.log
 .DS_Store
 db/.env
+# The most recent survey round — a working input to the load, not something the site
+# serves. `site/types.json` is the served artefact and it is rebuilt from the database.
+.survey/

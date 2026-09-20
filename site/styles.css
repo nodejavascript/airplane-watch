@@ -1393,6 +1393,19 @@ main > #status {
   fill: var(--theme);
 }
 
+/* 🔴 THE AIM IS NOT ALWAYS THE READER, AND IT IS NOT DRAWN AS THOUGH IT WERE.
+ *
+ * With a place known, the fence is centred on the reader and this class is never used. With
+ * no place, it is centred on the middle of the airports being watched — and a dot marked
+ * "you" on a map that does not know where you are is the page inventing a fact. So the ring
+ * is drawn around the aim either way, and the marker says what it is: hollow, so it reads as
+ * a reference point rather than a person. */
+.locmap-anchor {
+  fill: none;
+  stroke: var(--theme);
+  stroke-width: 1.8;
+}
+
 /* 🔴 GREY IS AN AIRPORT YOU HAVE NOT PICKED. Every marker on this map used to be
  * gold, so the airport the page was watching looked exactly like the thirteen it
  * was not — and now that several can be picked at once, the picked ones have to be

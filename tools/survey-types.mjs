@@ -22,7 +22,7 @@
  *         node tools/survey-types.mjs 4 40
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -87,88 +87,30 @@ async function locate(icao) {
 }
 
 /**
- * 🔴 THE HISTORY, CARRIED FORWARD RUN BY RUN — AND IT IS THE POINT OF THE WHOLE FILE.
+ * 🔴 THIS FILE RECORDS ONE LOOK AT THE SKY. IT DOES NOT KEEP THE HISTORY.
  *
- * One survey is one look at the sky. A type seen in that look has a `lastSeen`, and a
- * type that was in the file from a previous run and is NOT in this one has a `lastSeen`
- * that is old — which is exactly the signal the page needs, and the one thing a single
- * run can never provide. George, 20 Sep 2026: *"something that is never going to fly
- * soon is a useless selection"*.
+ * It used to. There was a `mergeHistory()` here that read the previous `types.json`,
+ * carried every unseen type forward with its old date, and incremented a `runsSeen`
+ * counter — so the file was a running summary that each run had to remember to update.
  *
- * So the previous file is read and MERGED: a type seen again keeps the later of the two
- * times and gains a run; a type not seen this time keeps its old time and its run count
- * and stays on the list with `seen: 0`, because "not today" is information and deleting
- * it would be throwing that information away.
+ * George, 20 Sep 2026: *"Last seen is a view, not a column somebody must remember to
+ * update."* He was right, and the file proved it: the second run wrote **28 sightings
+ * rows for types it never saw**, because the merge had put them back into the file and
+ * the loader wrote a row for every entry it found. `runs_seen` was counting runs that
+ * had copied a row along rather than runs that had seen the aircraft.
  *
- * 🔴 AND DEAD ENTRIES ARE PRUNED, or the list would grow forever. A type not seen this
- * run and not seen for six months has stopped being a fact about the sky here, so it is
- * dropped — that window is written down rather than implied.
+ * So the merge is gone. What is written here is a record of ONE run: the types this look
+ * saw, the time it saw each of them, and nothing else. A type that was seen yesterday and
+ * not today is simply ABSENT from this file — which is the truth about today — and its
+ * history is untouched, because history is not stored here. It lives in the `sightings`
+ * rows already in the database, and `type_last_seen` reads it back with a `max()`.
+ *
+ * The consequence worth naming: **nothing has to remember anything.** A run that fails,
+ * a run that is skipped, a machine that is off for a week — none of them can corrupt a
+ * last-seen, because none of them are what last-seen is computed from.
  */
-const HISTORY_DAYS = 180;
-
-function mergeHistory(current, generated) {
-  let previous = null;
-  try {
-    previous = JSON.parse(readFileSync(join(ROOT, 'site', 'types.json'), 'utf8'));
-  } catch {
-    previous = null;
-  }
-  const merged = new Map(current.map((row) => [row.code, row]));
-  if (!previous) return current;
-
-  for (const row of previous.types ?? []) {
-    const already = merged.get(row.code);
-    if (already) {
-      already.runsSeen = (row.runsSeen ?? 0) + 1;
-      continue;
-    }
-    // Not seen this run. Keep it if its last sighting is recent enough to still be a
-    // fact about what flies here.
-    const lastSeen = row.lastSeen ?? previous.generated ?? null;
-    const age = lastSeen ? (Date.now() - new Date(lastSeen).getTime()) / 86_400_000 : Infinity;
-    if (age > HISTORY_DAYS) continue;
-    merged.set(row.code, {
-      ...row,
-      seen: 0,
-      lastSeen,
-      runsSeen: row.runsSeen ?? 1,
-    });
-  }
-  return [...merged.values()].sort((a, b) => b.seen - a.seen || a.code.localeCompare(b.code));
-}
-
-/**
- * 🔴 `--merge-only` ADDS THE HISTORY TO A FILE THAT DOES NOT HAVE IT YET, WITHOUT
- * ASKING THE FEED FOR ANYTHING. The types measured before `lastSeen` existed have no
- * date of their own, and the honest date for them is the time of the survey that
- * found them — `generated`, which is a fact already in the file. Asking the feed to
- * prove it again would cost a burst of requests against a service that rate-limits,
- * to learn something the file already knows.
- */
-function mergeOnly() {
-  const out = join(ROOT, 'site', 'types.json');
-  const document = JSON.parse(readFileSync(out, 'utf8'));
-  let backfilled = 0;
-  for (const row of document.types ?? []) {
-    if (!row.lastSeen && row.seen > 0) {
-      row.lastSeen = document.generated;
-      backfilled += 1;
-    }
-    if (typeof row.runsSeen !== 'number') row.runsSeen = 1;
-  }
-  document.historyNote =
-    'lastSeen is the most recent time each type was seen, carried forward across every survey run; runsSeen is how ' +
-    'many runs have recorded it. seen is the frequency within THIS run only.';
-  writeFileSync(out, JSON.stringify(document, null, 2) + '\n', 'utf8');
-  console.log(`backfilled lastSeen for ${backfilled} types from the survey that found them (${document.generated})`);
-  console.log(`wrote ${out}`);
-}
 
 async function main() {
-  if (process.argv.includes('--merge-only')) {
-    mergeOnly();
-    return;
-  }
   console.log(`surveying ${AIRPORTS.length} airports, ${ROUNDS} rounds, ${RADIUS_NM} nm, ${PAUSE_MS / 1000}s apart\n`);
 
   const airports = [];
@@ -261,8 +203,10 @@ async function main() {
       airports: [...entry.airports].sort(),
       operators: [...entry.callsigns].sort().slice(0, 12),
       categories: [...entry.categories].sort(),
-      lastSeen: entry.lastSeenAt,
-      runsSeen: 1,
+      // 🔴 THE TIME OF THE LOOK THAT SAW IT — this run's clock, never a value read in
+      // from anywhere. It is named `seenAt` rather than `lastSeen` on purpose: `lastSeen`
+      // is the answer the page shows, and it comes from the view. This is an input to it.
+      seenAt: entry.lastSeenAt,
       // Most-seen first, so the page can show the handful that matter and keep
       // the long tail behind a count rather than in a wall of buttons.
       registrations: [...entry.regs.entries()]
@@ -273,9 +217,11 @@ async function main() {
     .sort((a, b) => b.seen - a.seen || a.code.localeCompare(b.code));
 
   const generated = new Date().toISOString();
-  const carried = mergeHistory(types, generated);
 
   const document = {
+    // What this is, for anyone who opens the file: ONE run. Not a summary, and not the
+    // place last-seen is kept.
+    kind: 'survey-run',
     generated,
     // Stated so nobody has to guess how much weight the list carries: this is a
     // sample of what the feed showed over a few minutes, not a schedule.
@@ -291,15 +237,22 @@ async function main() {
     // they were all of them would be wrong in a way nobody could see.
     registrationsNote:
       'Up to 40 registrations per type, from aircraft that actually transmitted one. Many transponders never send a registration, so this is a sample of what identifies itself, not a fleet list.',
-    // 🔴 SAID HERE SO THE PAGE CANNOT PRETEND OTHERWISE: `seen` is this run's
-    // frequency, and `lastSeen` is the most recent sighting across EVERY run.
+    // 🔴 THE SENTENCE THAT USED TO BE HERE SAID `lastSeen` WAS CARRIED FORWARD ACROSS
+    // EVERY RUN. It was true, and it was the defect. This file has no `lastSeen` at all
+    // now, and saying so is more useful than saying nothing.
     historyNote:
-      'lastSeen is the most recent time each type was seen, carried forward across every survey run; runsSeen is how many runs have recorded it. seen is the frequency within THIS run only.',
+      'This file is one run and nothing else. Every type listed was seen by it, and nothing here is carried forward from an earlier run. Last seen across runs is a view over the sightings table in the database — ask the database, not this file.',
     airports: airports.map((airport) => ({ icao: airport.icao, name: airport.name })),
-    types: carried,
+    types,
   };
 
-  writeFileSync(join(ROOT, 'site', 'types.json'), JSON.stringify(document, null, 2) + '\n', 'utf8');
+  // 🔴 WRITTEN OUTSIDE `site/`, because it is not something the site serves — it is an
+  // input to the load, and a run file sitting in the served directory is a second copy of
+  // the truth waiting to be read by mistake.
+  const outDir = join(ROOT, '.survey');
+  mkdirSync(outDir, { recursive: true });
+  const out = join(outDir, 'latest-run.json');
+  writeFileSync(out, JSON.stringify(document, null, 2) + '\n', 'utf8');
 
   console.log(`\ninspected ${inspected} aircraft readings, ${types.length} distinct types\n`);
   console.log('  seen  type   airports                         operators');
@@ -308,7 +261,8 @@ async function main() {
       `  ${String(entry.seen).padStart(4)}  ${entry.code.padEnd(6)} ${entry.airports.join(',').padEnd(32)} ${entry.operators.slice(0, 5).join(' ')}`
     );
   }
-  console.log(`\nwrote site/types.json`);
+  console.log(`\nwrote ${out} — one run.`);
+  console.log('next: node tools/load-db.mjs   (records the run, then rewrites site/types.json from the view)');
 }
 
 main().catch((error) => {

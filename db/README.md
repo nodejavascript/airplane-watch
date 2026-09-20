@@ -58,15 +58,40 @@ shape).
 
 ## The rounds, and why there is a timer
 
-`types.json` once held a single reading, so every type carried the same timestamp and
-"in the last day", "in the last week" and "in the last month" were the same set. That
-is not a bug in the filter — it is what one reading can support. **Last-seen works by
-rounds accumulating.**
+**Last seen is a VIEW, not a field anybody maintains.** That sentence is George's, from
+20 Sep 2026 — *"Last seen is a view, not a column somebody must remember to update"* —
+and the first version of this got it wrong in a way worth writing down, because the code
+looked fine.
+
+The survey used to read the previous `site/types.json`, carry every type it had not seen
+forward with its old date, and increment a counter. The loader then wrote a `sightings`
+row for **every entry in the file**. So a run that saw 72 types wrote **100** rows — and the
+next run's `runs_seen` counted runs that had copied a row along rather than runs that had
+seen the aircraft. Measured, run 2: **28 rows for types it never saw**, and `runs_seen > 1`
+for **62 types when only 34 had actually been seen twice**.
+
+That is what "a column somebody must remember to update" looks like when it goes stale:
+nothing crashes, the numbers just get quietly bigger.
+
+**Now there is exactly one place a sighting is recorded, and it is a row.**
+
+1. `tools/survey-types.mjs` writes **`.survey/latest-run.json`** — one run, only the types
+   that run saw, each with the time of the look. Nothing is carried; the file has no
+   `lastSeen` and no `runsSeen` at all.
+2. `tools/load-db.mjs` records a `sightings` row **only when `seen > 0`**.
+3. `type_last_seen` derives `last_seen`, `runs_seen` and `seen_in_all_runs` from those rows.
+4. The loader then **rewrites `site/types.json` from the view**, so the fallback the site
+   serves is a rendering of the database rather than a second copy of the truth.
+
+A run that failed, was skipped, or could not reach the database therefore cannot corrupt a
+last-seen — it is simply not what last-seen is computed from. Three runs in, the view reads
+**59 types seen once, 30 twice, 31 three times**, which is a real distinction and the thing
+that makes the day/week/month filter mean something.
 
 ```bash
-tools/run-survey.sh              # one round: survey, then load
+tools/run-survey.sh              # one round: survey, then load and rebuild the file
 tools/run-survey.sh --check      # say what is in the database, ask the feed nothing
-npm run survey                   # the survey alone, writing site/types.json
+npm run survey                   # the survey alone, writing .survey/latest-run.json
 ```
 
 `aircraft-survey.timer` runs a round **four times a day** (07:20, 12:20, 17:20, 22:20,

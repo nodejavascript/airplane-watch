@@ -11,28 +11,39 @@
  * years, the photographs with the credit their licence requires, and the thing that
  * prompted all of it: WHEN EACH TYPE WAS LAST SEEN.
  *
- * 🔴 AND LAST SEEN IS THE POINT. One survey is one look at the sky, so a single file
- * can only ever say "seen in this run". This tool inserts a `survey_runs` row and a
- * `sightings` row per type for every run it loads, and `type_last_seen` answers from
- * all of them. The number improves every time the survey is re-run, which is the only
- * way the question *"is this one worth watching?"* can be answered at all.
+ * 🔴 AND LAST SEEN IS THE POINT — AND IT IS A VIEW, NOT A FIELD.
+ *
+ * George, 20 Sep 2026: *"Last seen is a view, not a column somebody must remember to
+ * update"* — and he was right, and the measured proof was that the SECOND run wrote
+ * **28 sightings rows for types it never saw**, because a file was still carrying them
+ * forward. `runs_seen` was counting runs that had copied a row along, not runs that had
+ * seen the aircraft.
+ *
+ * So there is now exactly one place a sighting is recorded, and it is a row: **one row
+ * in `sightings` per (run, type) that the run actually saw.** Everything the page shows
+ * about last-seen comes from the `type_last_seen` view over those rows. Nothing carries
+ * a date forward, no tool has to remember to refresh a field, and a run that saw nothing
+ * adds nothing to the history — because it did not see anything.
+ *
+ * The file the survey writes therefore describes **one run** and nothing else
+ * (`.survey/latest-run.json`). It is a record of what was seen, not a running summary.
+ * The running summary is a `max()` in the database, where it cannot go stale.
+ *
+ * 🔴 AND `site/types.json` IS WRITTEN FROM THE VIEW, after the load. It stops being a
+ * parallel truth maintained by hand and becomes a rendering of the database — the same
+ * shape as a status file generated from a database rather than edited. If the two ever
+ * disagree, the file is wrong, and it is rebuilt in one command.
  *
  * 🔴 IT IS IDEMPOTENT, AND THE RUN'S OWN TIMESTAMP IS THE KEY. `survey_runs.started_at`
- * is unique, so loading the same `types.json` twice cannot invent a second run and
- * double every count — which would quietly double `seen` and make `runs_seen` a lie.
- *
- * 🔴 AND IT DOES NOT REPLACE THE JSON FILES. They stay the deploy artefact, because
- * the Cloudflare Worker cannot reach a database on this machine. The database is where
- * the site reads from in development and where the answers are computed; the files are
- * what gets shipped. Saying that plainly is better than implying the database is
- * somehow serving production.
+ * is unique, so loading the same run twice cannot invent a second run and double every
+ * count — which would quietly double `seen` and make `runs_seen` a lie.
  *
  * Usage:
  *   node tools/load-db.mjs            load every file it finds
  *   node tools/load-db.mjs --check    connect and print what is in there
  */
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import pg from 'pg';
@@ -131,8 +142,24 @@ async function main() {
     console.log('airports        (site/airports.json not found)');
   }
 
-  // ── types, their tail numbers, and the run that recorded them ──────────────
-  const types = readJson('types.json');
+  // ── the run: what one look at the sky actually saw ─────────────────────────
+  //
+  // The file is `.survey/latest-run.json`, written by the survey, and it contains ONLY
+  // the types that look saw. A type that was in a previous run and not in this one is
+  // ABSENT — not present with an old date on it. That absence is the whole fix: a run
+  // can no longer write a sighting for an aircraft it did not see.
+  const runFile = join(ROOT, '.survey', 'latest-run.json');
+  let types = null;
+  if (existsSync(runFile)) {
+    try {
+      types = JSON.parse(readFileSync(runFile, 'utf8'));
+    } catch (error) {
+      console.warn(`  the run file could not be read (${error.message})`);
+    }
+  } else {
+    console.log('the run file is missing — run `npm run survey` first');
+  }
+
   if (types) {
     let runId = null;
     if (types.generated) {
@@ -141,20 +168,20 @@ async function main() {
          values ($1, $2, $3, $4)
          on conflict (started_at) do update set method = excluded.method
          returning id`,
-        [types.generated, types.method ?? null, types.aircraftInspected ?? null, 'site/types.json']
+        [types.generated, types.method ?? null, types.aircraftInspected ?? null, '.survey/latest-run.json']
       );
       runId = rows[0].id;
     }
 
     let n = 0;
+    let recorded = 0;
     for (const row of types.types ?? []) {
       await client.query(
         `insert into types (code, airports, operators, categories, sightings, updated_at)
          values ($1, $2, $3, $4, $5, now())
          on conflict (code) do update set
            airports = excluded.airports, operators = excluded.operators,
-           categories = excluded.categories, sightings = excluded.sightings,
-           updated_at = now()`,
+           categories = excluded.categories, updated_at = now()`,
         [row.code, row.airports ?? [], row.operators ?? [], row.categories ?? [], row.seen ?? 0]
       );
       // The tail numbers are replaced rather than merged: a registration the feed no
@@ -168,20 +195,28 @@ async function main() {
           [row.code, item.reg, item.airports ?? []]
         );
       }
-      if (runId !== null) {
-        // `lastSeen` is preferred, because it is the time of the look that actually saw
-        // it; `generated` is the honest fallback for a file written before that field.
+      // 🔴 A SIGHTING IS WRITTEN ONLY WHEN THERE WAS ONE. `seen > 0` is the guard, and
+      // the date is the time of THIS look — never a date carried in from anywhere. The
+      // old code took `row.lastSeen ?? types.generated`, which is how 28 types that run 2
+      // never saw ended up with sightings rows dated to run 1.
+      if (runId !== null && (row.seen ?? 0) > 0) {
         await client.query(
           `insert into sightings (run_id, code, sighted_at, seen) values ($1, $2, $3, $4)
            on conflict (run_id, code) do update set sighted_at = excluded.sighted_at, seen = excluded.seen`,
-          [runId, row.code, row.lastSeen ?? types.generated, row.seen ?? 0]
+          [runId, row.code, row.seenAt ?? types.generated, row.seen]
         );
+        recorded += 1;
       }
       n += 1;
     }
-    console.log(`types           ${n} upserted, plus a survey run at ${types.generated}`);
+    console.log(
+      `types           ${n} in the run, ${recorded} with a sighting recorded, at ${types.generated}`
+    );
+    if (n !== recorded) {
+      console.log(`                ${n - recorded} carried no sighting — a run only records what it saw`);
+    }
   } else {
-    console.log('types           (site/types.json not found)');
+    console.log('types           (no run to load — run `npm run survey` first)');
   }
 
   // ── first-flown years ─────────────────────────────────────────────────────
@@ -234,14 +269,95 @@ async function main() {
     console.log('photos          (site/photos.json not found)');
   }
 
+  // ── and the file the site serves is written FROM the view ──────────────────
+  //
+  // 🔴 THIS IS THE PART THAT MAKES "A VIEW, NOT A COLUMN" TRUE IN PRACTICE. If
+  // `site/types.json` were still assembled by the survey, then last-seen would be a
+  // field something has to remember to write — which is exactly what George named. It
+  // is now read back out of the database in one query, so the file cannot disagree with
+  // the view: it IS the view, formatted.
+  await writeTypesFile(client);
+
   await client.end();
   console.log('\nloaded. Run `node tools/load-db.mjs --check` to see the counts, including last-seen.');
+}
+
+/**
+ * Rebuild `site/types.json` from the database.
+ *
+ * The site reads this file when the database is unreachable, and it is the deploy
+ * artefact — so it has to be right, and the only way to keep it right is to stop it
+ * being maintained by hand.
+ */
+async function writeTypesFile(client) {
+  const run = await client.query(
+    'select started_at, method, aircraft_inspected from survey_runs order by started_at desc limit 1'
+  );
+  if (run.rows.length === 0) return;
+  const latest = run.rows[0];
+
+  const types = await client.query(
+    `select t.code, t.airports, t.operators, t.categories,
+            l.last_seen, l.runs_seen, l.seen_in_all_runs,
+            s.seen as seen_this_run
+       from types t
+       left join type_last_seen l on l.code = t.code
+       left join survey_runs r on r.started_at = $1
+       left join sightings s on s.code = t.code and s.run_id = r.id
+      order by coalesce(s.seen, 0) desc, t.code`,
+    [latest.started_at]
+  );
+  const regs = await client.query('select code, reg, airports from registrations order by code, reg');
+  const byCode = new Map();
+  for (const row of regs.rows) {
+    if (!byCode.has(row.code)) byCode.set(row.code, []);
+    byCode.get(row.code).push({ reg: row.reg, airports: row.airports ?? [] });
+  }
+  const runs = await client.query(
+    'select count(*)::int as n, min(started_at) as first, max(started_at) as last from survey_runs'
+  );
+
+  const document = {
+    generated: new Date(latest.started_at).toISOString(),
+    method: latest.method ?? '',
+    aircraftInspected: latest.aircraft_inspected ?? 0,
+    counted: 'sightings (one per aircraft per round)',
+    registrationsNote:
+      'Up to 40 registrations per type, from aircraft that actually transmitted one. Many transponders never send a registration, so this is a sample of what identifies itself, not a fleet list.',
+    // 🔴 THIS SENTENCE HAS TO MATCH THE QUERY ABOVE IT. It described a carried-forward
+    // field while the field was being carried; now it describes a view, and says how many
+    // runs the view is built from, because a last-seen from two runs and a last-seen from
+    // two hundred are different claims.
+    historyNote:
+      `lastSeen and runsSeen are read from the type_last_seen view — the most recent time each type was seen, and how many runs have seen it, over ${runs.rows[0].n} survey run${runs.rows[0].n === 1 ? '' : 's'} so far. Nothing carries a date forward: a run records what it saw and nothing else. seen is this run's frequency.`,
+    runsRecorded: runs.rows[0].n,
+    historyFrom: new Date(runs.rows[0].first).toISOString(),
+    historyTo: new Date(runs.rows[0].last).toISOString(),
+    airports: [...new Set(types.rows.flatMap((row) => row.airports ?? []))].sort(),
+    types: types.rows.map((row) => ({
+      code: row.code,
+      seen: row.seen_this_run ?? 0,
+      airports: row.airports ?? [],
+      operators: row.operators ?? [],
+      categories: row.categories ?? [],
+      registrations: byCode.get(row.code) ?? [],
+      lastSeen: row.last_seen === null ? null : new Date(row.last_seen).toISOString(),
+      runsSeen: row.runs_seen ?? 0,
+      seenInAllRuns: row.seen_in_all_runs ?? 0,
+    })),
+  };
+
+  writeFileSync(join(SITE, 'types.json'), JSON.stringify(document, null, 2) + '\n');
+  console.log(
+    `types.json      rewritten from the view — ${document.types.length} types, ` +
+      `${document.runsRecorded} run${document.runsRecorded === 1 ? '' : 's'} of history`
+  );
 }
 
 main().catch((error) => {
   console.error(`\n${error.message}`);
   if (/ECONNREFUSED/.test(error.message)) {
-    console.error('Is the database up?  docker compose --env-file db/.env up -d');
+    console.error('Is the tunnel up?  systemctl --user status aircraft-db-tunnel.service');
   }
   process.exitCode = 1;
 });

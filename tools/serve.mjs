@@ -215,12 +215,20 @@ async function buildTypes() {
   const run = await p.query('select id, started_at, method, aircraft_inspected from survey_runs order by started_at desc limit 1');
   if (run.rows.length === 0) throw new Error('no survey run has been loaded');
   const latest = run.rows[0];
+  // 🔴 LAST SEEN COMES FROM THE VIEW AND THIS RUN'S FREQUENCY COMES FROM THE RUN'S OWN
+  // ROWS. It used to read `t.sightings`, a column on `types` that the loader overwrote
+  // with whatever the file said — so a type nobody had seen for a week could still be
+  // carrying last week's number. `seen` is now `sightings.seen` for the LATEST RUN only,
+  // which is a fact about one look rather than a leftover.
   const types = await p.query(
-    `select t.code, t.sightings, t.airports, t.operators, t.categories,
-            l.last_seen, l.runs_seen
+    `select t.code, t.airports, t.operators, t.categories,
+            l.last_seen, l.runs_seen, l.seen_in_all_runs,
+            coalesce(s.seen, 0) as seen_this_run
        from types t
        left join type_last_seen l on l.code = t.code
-      order by t.sightings desc, t.code`
+       left join sightings s on s.code = t.code and s.run_id = $1
+      order by coalesce(s.seen, 0) desc, t.code`,
+    [latest.id]
   );
   const regs = await p.query('select code, reg, airports from registrations order by code, reg');
   const byCode = new Map();
@@ -228,6 +236,11 @@ async function buildTypes() {
     if (!byCode.has(row.code)) byCode.set(row.code, []);
     byCode.get(row.code).push({ reg: row.reg, airports: row.airports ?? [] });
   }
+  // How much history the last-seen number actually rests on — two runs and two hundred
+  // are different claims, and the page should not have to guess which it is showing.
+  const runs = await p.query(
+    'select count(*)::int as n, min(started_at) as first, max(started_at) as last from survey_runs'
+  );
   return {
     generated: new Date(latest.started_at).toISOString(),
     method: latest.method ?? '',
@@ -235,18 +248,24 @@ async function buildTypes() {
     counted: 'sightings (one per aircraft per round)',
     registrationsNote:
       'Up to 40 registrations per type, from aircraft that actually transmitted one. Many transponders never send a registration, so this is a sample of what identifies itself, not a fleet list.',
+    // 🔴 THIS SENTENCE DESCRIBED A CARRIED-FORWARD FIELD. It now describes a view, and
+    // says how many runs the view is built from.
     historyNote:
-      'lastSeen is the most recent time each type was seen, carried forward across every survey run; runsSeen is how many runs have recorded it. seen is the frequency within THIS run only.',
+      `lastSeen and runsSeen are read from the type_last_seen view — the most recent time each type was seen, and how many runs have seen it, over ${runs.rows[0].n} survey run${runs.rows[0].n === 1 ? '' : 's'} so far. Nothing carries a date forward: a run records what it saw and nothing else. seen is this run's frequency.`,
+    runsRecorded: runs.rows[0].n,
+    historyFrom: new Date(runs.rows[0].first).toISOString(),
+    historyTo: new Date(runs.rows[0].last).toISOString(),
     airports: [...new Set(types.rows.flatMap((row) => row.airports ?? []))].sort().map((icao) => ({ icao })),
     types: types.rows.map((row) => ({
       code: row.code,
-      seen: row.sightings,
+      seen: row.seen_this_run,
       airports: row.airports ?? [],
       operators: row.operators ?? [],
       categories: row.categories ?? [],
       registrations: byCode.get(row.code) ?? [],
       lastSeen: row.last_seen === null ? null : new Date(row.last_seen).toISOString(),
-      runsSeen: row.runs_seen ?? 1,
+      runsSeen: row.runs_seen ?? 0,
+      seenInAllRuns: row.seen_in_all_runs ?? 0,
     })),
   };
 }
