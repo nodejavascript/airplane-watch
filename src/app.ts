@@ -27,6 +27,7 @@ import {
   parseAirport,
   type ResolvedAirport,
 } from './airports.js';
+import { thumbSvg } from './thumbs.js';
 import {
   DEFAULTS,
   DetectionEngine,
@@ -42,6 +43,7 @@ import {
   CLASS_ORDER,
   classLabel,
   describeType,
+  isCivilClass,
   knownTypeCount,
   type AircraftClass,
 } from './typeinfo.js';
@@ -254,16 +256,20 @@ class Page {
 
   /**
    * Type codes the feed itself marks as military, harvested by
-   * `tools/survey-military.mjs`. Empty if that file could not be read, in which
-   * case the historic types in `typeinfo.ts` still carry the class on their own.
+   * `tools/survey-military.mjs`. Empty if that file could not be read.
    */
   private militaryCodes = new Set<string>();
+
+  /**
+   * Where the reader actually is, once they have said. Everything else — the
+   * fence, the airports list, the chart — hangs off this rather than off the
+   * airport, because the question is what is in the air around THEM.
+   */
+  private centre: { lat: number; lon: number } | null = null;
 
   /** The airport list the feed itself confirmed, for the "around you" panel. */
   private listedAirports: AirportsDocument | null = null;
   private nearby: NearbyAirport[] = [];
-  /** Which types the reader has opened to reach the tail numbers inside them. */
-  private expandedTypes = new Set<string>();
   /** The raw readings from the last poll — the live view is drawn from these. */
   private lastReadings: Reading[] = [];
   private view: 'select' | 'live' = 'select';
@@ -293,6 +299,7 @@ class Page {
     void this.loadAirports();
     this.view = readStore(VIEW_KEY, 'select') === 'live' ? 'live' : 'select';
     this.showView(this.view);
+    this.updateSteps();
 
     const notice = byId('notifyNote');
     if (notice && !('Notification' in window)) {
@@ -407,9 +414,14 @@ class Page {
     const host = byId('typeFilter');
     if (!host) return;
     host.innerHTML = '';
+    // 🔴 WARPLANES FIRST. George, 20 Sep 2026: *"war plans should be first
+    // option"*. It is the one filter somebody arriving at this page is most
+    // likely to be looking for — it is the whole reason the class was asked for —
+    // so it leads, and "Everything" follows it as the default that is already on.
     const options: { key: AircraftClass | 'all'; label: string }[] = [
+      { key: 'military', label: classLabel('military') },
       { key: 'all', label: 'Everything' },
-      ...CLASS_ORDER.filter((klass) => klass !== 'other').map((klass) => ({
+      ...CLASS_ORDER.filter((klass) => klass !== 'other' && klass !== 'military').map((klass) => ({
         key: klass,
         label: classLabel(klass),
       })),
@@ -432,8 +444,24 @@ class Page {
     }
   }
 
+  /**
+   * A spinner ON the button whose airport is being looked up.
+   *
+   * 🔴 AND IT IS CLEARED ON EVERY WAY OUT, not just the happy one. A spinner that
+   * outlives its request is worse than no spinner at all: the reader presses the
+   * button a second time, the page looks stuck, and the fault is invisible because
+   * everything else on the page still works.
+   */
+  private setBusy(icao: string, on: boolean): void {
+    for (const chip of document.querySelectorAll<HTMLElement>(`.chip[data-icao="${icao}"]`)) {
+      if (on) chip.setAttribute('aria-busy', 'true');
+      else chip.removeAttribute('aria-busy');
+    }
+  }
+
   private async chooseAirport(icao: string): Promise<void> {
     this.stop();
+    this.setBusy(icao, true);
     this.setStatus(`Looking up ${icao}…`, 'working');
     try {
       const response = await fetch(`/api/0/airport/${encodeURIComponent(icao)}`, {
@@ -443,6 +471,7 @@ class Page {
       // its status and never by trying to parse it.
       if (response.status === 429) {
         this.airport = null;
+        this.setBusy(icao, false);
         this.setStatus('The feed asked us to slow down (HTTP 429) while looking that airport up. Try again in a moment.', 'error');
         return;
       }
@@ -452,6 +481,7 @@ class Page {
     } catch (error) {
       this.airport = null;
       this.lastError = error instanceof Error ? error.message : String(error);
+      this.setBusy(icao, false);
       this.setStatus(this.lastError, 'error');
       return;
     }
@@ -474,7 +504,8 @@ class Page {
     if (fence) {
       const km = nmToKm(kmToNm(this.radiusKm));
       fence.textContent =
-        `Looking ${this.radiusKm} km out — ${kmToNm(this.radiusKm)} nautical miles, which is the unit the feed takes. ` +
+        `Looking ${this.radiusKm} km out from ${this.centre ? 'your own position' : 'the airport'} — ` +
+        `${kmToNm(this.radiusKm)} nautical miles, which is the unit the feed takes. ` +
         (this.radiusKm <= 10
           ? 'A short distance is the best chance of catching an aircraft on the ground, and the least notice of anything else.'
           : this.radiusKm >= 50
@@ -482,10 +513,11 @@ class Page {
             : `Climb-out and approach both fall inside it, and about ${km} km is what most aircraft cover in the first minute after leaving.`);
     }
 
+    const at = this.point() ?? { lat: this.airport.lat, lon: this.airport.lon };
     this.engine = new DetectionEngine(
       {
-        lat: this.airport.lat,
-        lon: this.airport.lon,
+        lat: at.lat,
+        lon: at.lon,
         radiusNm: kmToNm(this.radiusKm),
         now: Date.now(),
         staleAfterSec: DEFAULTS.staleAfterSec,
@@ -496,7 +528,9 @@ class Page {
     this.engine.setTypeRules(this.typeRules);
 
     track('airport_chosen', { airport: this.airport.icao, km: this.radiusKm, nm: kmToNm(this.radiusKm) });
+    this.setBusy(icao, false);
     await this.poll();
+    this.updateSteps();
     this.timer = window.setInterval(() => void this.poll(), POLL_MS);
   }
 
@@ -510,9 +544,9 @@ class Page {
   /* -------------------------------------------------------------- the polls */
 
   private async poll(): Promise<void> {
-    if (!this.airport || !this.engine) return;
-    const url =
-      `/api/v2/point/${this.airport.lat}/${this.airport.lon}/${kmToNm(this.radiusKm)}`;
+    const at = this.point();
+    if (!at || !this.engine) return;
+    const url = `/api/v2/point/${at.lat}/${at.lon}/${kmToNm(this.radiusKm)}`;
 
     try {
       const response = await fetch(url, { headers: { accept: 'application/json' } });
@@ -764,16 +798,74 @@ class Page {
   }
 
   /**
-   * The class of a type code, with the military set applied.
+   * The point the feed is asked about, and the centre of the fence.
    *
-   * `typeinfo.ts` is a static table and stays one, because the historic types do
-   * not change. The military set does — airframes are re-registered, retired and
-   * added — so it is asked of the feed by `tools/survey-military.mjs` and read
-   * from `site/military.json` at run time, and it OVERRIDES the table.
+   * 🔴 IT IS THE READER'S OWN PLACE, NOT THE AIRPORT. George, 20 Sep 2026: *"choose
+   * how far out to look is how far from my postal or zip code. i want to know
+   * whats in the air and around me"*. The airport is only the fallback for a
+   * reader who has not said where they are, because a fence drawn round an
+   * airport answers a different question from the one this site is for.
    */
-  private klassOf(code: string): AircraftClass {
-    if (this.militaryCodes.has(code.trim().toUpperCase())) return 'military';
-    return describeType(code).klass;
+  private point(): { lat: number; lon: number } | null {
+    if (this.centre) return this.centre;
+    if (this.airport) return { lat: this.airport.lat, lon: this.airport.lon };
+    return null;
+  }
+
+  /** Re-aim the fence and start polling again — used when the reader moves. */
+  private rearm(): void {
+    const at = this.point();
+    if (!at) return;
+    this.engine = new DetectionEngine(
+      {
+        lat: at.lat,
+        lon: at.lon,
+        radiusNm: kmToNm(this.radiusKm),
+        now: Date.now(),
+        staleAfterSec: DEFAULTS.staleAfterSec,
+        cooldownMs: DEFAULTS.cooldownMs,
+      },
+      this.watchlist
+    );
+    this.engine.setTypeRules(this.typeRules);
+    this.stop();
+    void this.poll();
+    this.timer = window.setInterval(() => void this.poll(), POLL_MS);
+  }
+
+  /**
+   * 🔴 ONE STEP AT A TIME. George, 20 Sep 2026: *"i dont want other steps to be
+   * visible is the 1st step is not complete. maybe a nice slow glide down
+   * animation like when they finish a step"*.
+   *
+   * The gate is the PREVIOUS step having an answer in it, not a form being filled
+   * in: a type list is meaningless before a place is known, and a watchlist is
+   * meaningless before something has been picked. The glide runs once, on
+   * arrival — never on a re-render, or the page would twitch every ten seconds as
+   * the feed answered.
+   */
+  private updateSteps(): void {
+    const place = this.airport !== null || this.centre !== null;
+    const picked = this.typeRules.length > 0 || this.watchlist.length > 0;
+    const ready: Record<string, boolean> = {
+      '2': place,
+      '3': place,
+      '4': picked,
+      '5': place,
+      '6': picked,
+    };
+    for (const section of document.querySelectorAll<HTMLElement>('.step-gated')) {
+      const show = ready[section.dataset.step ?? ''] === true;
+      if (show && section.hidden) {
+        section.hidden = false;
+        section.classList.add('step-arrive');
+        window.setTimeout(() => section.classList.remove('step-arrive'), 900);
+      } else if (!show && !section.hidden) {
+        section.hidden = true;
+      }
+    }
+    const bar = document.querySelector('.viewbar');
+    if (bar instanceof HTMLElement) bar.hidden = !place;
   }
 
   private async loadMilitary(): Promise<void> {
@@ -790,6 +882,28 @@ class Page {
     this.renderTypeList();
   }
 
+  /**
+   * The class of a type code, with the harvested military set applied.
+   *
+   * 🔴 A CIVIL TYPE IS NEVER RECLASSIFIED BY THE FEED'S GLOBAL MILITARY FLAG, AND
+   * THIS IS THE FILTERING FAULT THE READER SPOTTED. The flag comes from a WORLDWIDE
+   * query that takes no point and no radius, so every type any air force anywhere
+   * flies appears in it — measured 20 Sep 2026 it named 11 of the 62 types this
+   * site actually sees, including the Cessna 172, the Dash 8, the Airbus A320 and
+   * the Boeing 737. Applied naively that put the 172 and the Dash 8 under
+   * **Warplanes** and took the 737 and the A320 out of **Airliner**, so two filters
+   * were quietly wrong at once.
+   *
+   * So the flag may only classify a code this site does not already place — which
+   * is how the C-17, the C-130 and the Chinook still land under Warplanes.
+   */
+  private klassOf(code: string): AircraftClass {
+    const known = describeType(code).klass;
+    if (isCivilClass(known)) return known;
+    if (this.militaryCodes.has(code.trim().toUpperCase())) return 'military';
+    return known;
+  }
+
   private renderTypeList(): void {
     const host = byId('typeList');
     if (!host) return;
@@ -799,15 +913,10 @@ class Page {
       return this.klassOf(row.code) === this.typeFilter;
     });
 
-    // 🔴 THE AIRCRAFT THAT A SURVEY CAN NEVER SEE. Hamilton's Lancaster flies a
-    // handful of times a year, so a list built from one afternoon of sightings
-    // will always miss exactly the aircraft a person most wants to watch. These
-    // are curated from the operator's own published record and are labelled as
-    // curated, never mixed into a measured count.
-    //
-    // They show under "everything" and under "warplanes", because that is what
-    // they are — and NOT under the airliner, regional, business, light or
-    // helicopter filters, where they would be wrong.
+    // 🔴 THE AIRCRAFT A SURVEY CAN NEVER SEE. Hamilton's Lancaster flies a handful
+    // of times a year, so a list built from one afternoon of sightings will always
+    // miss exactly the aircraft a person most wants to watch. Curated from the
+    // operator's own record and labelled as curated, never mixed into a count.
     const curated =
       this.typeFilter === 'all' || this.typeFilter === 'military' || this.typeFilter === 'other'
         ? (RESIDENTS[this.airport?.icao ?? ''] ?? [])
@@ -824,22 +933,26 @@ class Page {
     const curatedHtml = curated
       .map((resident) => {
         const keys = [resident.registration, ...(resident.alsoMatch ?? [])];
-        const already = keys.some((key) =>
-          this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key))
-        );
+        const code = (resident.typeCode ?? '').toUpperCase();
+        const already =
+          keys.some((key) => this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key))) ||
+          (code !== '' && this.typeRules.some((rule) => normaliseKey(rule.type) === code));
         return (
           `<div class="typerow typerow-curated${already ? ' typerow-on' : ''}">` +
+          `<div class="typerow-thumb" aria-hidden="true">${thumbSvg(code || 'ZZZZ', 'military')}</div>` +
           `<div class="typerow-main">` +
           `<b>${escapeHtml(resident.name)}</b> ` +
-          `<span class="mono muted">${escapeHtml(resident.typeCode ?? resident.registration)}</span> ` +
+          `<span class="mono muted">${escapeHtml(code || resident.registration)}</span> ` +
           `<span class="mono muted">${escapeHtml(resident.registration)}</span> ` +
           `<span class="tag tag-curated">based here · listed by hand</span>` +
           '</div>' +
-          `<div class="typerow-meta"><span class="small muted">${escapeHtml(resident.note)}</span></div>` +
+          `<div class="typerow-actions">` +
           `<button type="button" class="ghost ${already ? 'chip-off' : 'chip-on'} resident-toggle" ` +
           `data-reg="${escapeHtml(resident.registration)}" data-also="${escapeHtml(keys.slice(1).join(','))}" ` +
-          `data-type="${escapeHtml(resident.typeCode ?? '')}" ` +
-          `data-ga="resident-watch">${already ? 'Watching — stop' : 'Watch this aircraft'}</button>` +
+          `data-type="${escapeHtml(code)}" ` +
+          `data-ga="resident-favourite">${already ? 'Favourited — remove' : 'Favourite this aircraft'}</button>` +
+          '</div>' +
+          `<p class="small muted typerow-meta">${escapeHtml(resident.note)}</p>` +
           '</div>'
         );
       })
@@ -848,54 +961,64 @@ class Page {
     const measuredHtml = rows
       .map((row) => {
         const info = describeType(row.code);
+        const klass = this.klassOf(row.code);
         const rule = this.typeRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(row.code));
         const already = rule !== undefined;
-        // A bar, because "136 sightings" and "1 sighting" are the same shape to
-        // the eye until the numbers are drawn against each other.
+        // 🔴 THE WHOLE TYPE IS ONLY FAVOURITED WHEN NOTHING IS NARROWED. George,
+        // 20 Sep 2026: *"if they highlight a tail, un favourite the whole type"* —
+        // so the moment one tail is highlighted the button changes to offer the
+        // whole type back, and the row stops claiming to watch all of them.
+        const wholeType = already && rule.tails.length === 0;
+        const chosen = new Set((rule?.tails ?? []).map((tail) => normaliseKey(tail)));
         const width = Math.max(2, Math.round((row.seen / maxima) * 100));
         const tails = (row.registrations ?? []).slice(0, 24);
-        const open = this.expandedTypes.has(row.code.toUpperCase());
-        const chosen = new Set((rule?.tails ?? []).map((tail) => normaliseKey(tail)));
 
-        const tailPanel = open
-          ? '<div class="tail-panel">' +
-            (tails.length === 0
-              ? '<p class="muted small">No tail number for this type has been seen transmitting one, so the whole type is what can be watched.</p>'
-              : '<p class="muted small">Tick any that matter, or leave every box clear to watch the whole type. ' +
-                'A tail number is only listed when the aircraft actually sent one.</p>' +
-                '<div class="tail-grid">' +
-                tails
-                  .map(
-                    (item) =>
-                      `<label class="tail-box"><input type="checkbox" data-type="${escapeHtml(row.code)}" ` +
-                      `data-tail="${escapeHtml(item.reg)}"${chosen.has(normaliseKey(item.reg)) ? ' checked' : ''} /> ` +
-                      `<span class="mono">${escapeHtml(item.reg)}</span></label>`
-                  )
-                  .join('') +
-                '</div>')
-            + '</div>'
-          : '';
+        // 🔴 CHIPS IN THE CARD, NOTHING BEHIND A BUTTON. George, 20 Sep 2026: *"i
+        // dont want the button choose tail numbers, list the tail numbers as chips
+        // in the car they can highlight"*.
+        const tailChips =
+          tails.length === 0
+            ? ''
+            : '<div class="tail-chips">' +
+              tails
+                .map(
+                  (item) =>
+                    `<button type="button" class="tail-chip" data-type="${escapeHtml(row.code)}" ` +
+                    `data-tail="${escapeHtml(item.reg)}" aria-pressed="${chosen.has(normaliseKey(item.reg))}" ` +
+                    `data-ga="tail-chip">${escapeHtml(item.reg)}</button>`
+                )
+                .join('') +
+              '</div>';
+
+        const tailNote =
+          tails.length === 0
+            ? ''
+            : `<p class="small muted tail-note">${
+                chosen.size > 0
+                  ? 'Only the highlighted ones are watched — highlighting a tail number <b>un-favourites the whole type</b>. Press a highlighted one again, or press the button, to go back to all of them.'
+                  : 'Press any of these to watch that aeroplane instead of the whole type. Every tail number here is one that actually transmitted its registration — many transponders never send one, so this is a sample of what identifies itself and not a fleet list.'
+              }</p>`;
 
         return (
           `<div class="typerow${already ? ' typerow-on' : ''}">` +
+          `<div class="typerow-thumb" aria-hidden="true">${thumbSvg(row.code, klass)}</div>` +
           `<div class="typerow-main">` +
           `<b>${escapeHtml(info.name)}</b> <span class="mono muted">${escapeHtml(row.code)}</span> ` +
-          `<span class="tag">${escapeHtml(classLabel(this.klassOf(row.code)))}</span>` +
+          `<span class="tag">${escapeHtml(classLabel(klass))}</span>` +
+          '</div>' +
+          `<div class="typerow-actions">` +
+          `<button type="button" class="ghost chip-small ${wholeType ? 'chip-off' : 'chip-on'} type-toggle" ` +
+          `data-type="${escapeHtml(row.code)}" data-ga="type-favourite">` +
+          `${wholeType ? 'Favourited — remove' : already ? 'Favourite the whole type' : 'Favourite this type'}</button>` +
           '</div>' +
           `<div class="typerow-meta">` +
           `<span class="typerow-bar" aria-hidden="true"><i style="width:${width}%"></i></span>` +
           `<span class="small muted">${row.seen} sighting${row.seen === 1 ? '' : 's'}` +
           (row.operators.length > 0 ? ` · ${escapeHtml(row.operators.slice(0, 4).join(' '))}` : '') +
           (row.airports.length > 1 ? ` · ${row.airports.length} airports` : row.airports.length === 1 ? ` · ${escapeHtml(row.airports[0])}` : '') +
-          (tails.length > 0 ? ` · ${tails.length} tail number${tails.length === 1 ? '' : 's'}` : '') +
           `</span></div>` +
-          `<div class="typerow-actions">` +
-          `<button type="button" class="ghost chip-small type-expand" data-type="${escapeHtml(row.code)}" ` +
-          `aria-expanded="${open}" data-ga="type-expand">${open ? 'Hide tail numbers' : 'Choose tail numbers'}</button>` +
-          `<button type="button" class="ghost ${already ? 'chip-off' : 'chip-on'} type-toggle" data-type="${escapeHtml(row.code)}" data-ga="type-watch">` +
-          `${already ? 'Watching — stop' : 'Watch this type'}</button>` +
-          '</div>' +
-          tailPanel +
+          tailChips +
+          tailNote +
           '</div>'
         );
       })
@@ -906,12 +1029,18 @@ class Page {
     for (const button of host.querySelectorAll<HTMLButtonElement>('.type-toggle')) {
       button.addEventListener('click', () => {
         const code = button.dataset.type ?? '';
-        if (this.typeRules.some((rule) => normaliseKey(rule.type) === normaliseKey(code))) {
-          this.typeRules = this.typeRules.filter((rule) => normaliseKey(rule.type) !== normaliseKey(code));
-        } else {
+        const rule = this.typeRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
+        if (!rule) {
           // New rules start WIDE — tails empty means every aircraft of the type.
           this.typeRules.push({ type: code, tails: [] });
-          track('type_watched', { code, total: this.typeRules.length });
+          track('type_favourited', { code, total: this.typeRules.length });
+        } else if (rule.tails.length > 0) {
+          // Nothing narrowed any more: the whole type is favourited again.
+          rule.tails = [];
+          track('type_widened', { code });
+        } else {
+          this.typeRules = this.typeRules.filter((candidate) => normaliseKey(candidate.type) !== normaliseKey(code));
+          track('type_unfavourited', { code });
         }
         this.saveTypeRules();
         this.renderWatchlist();
@@ -919,36 +1048,25 @@ class Page {
       });
     }
 
-    for (const button of host.querySelectorAll<HTMLButtonElement>('.type-expand')) {
-      button.addEventListener('click', () => {
-        const code = (button.dataset.type ?? '').toUpperCase();
-        if (this.expandedTypes.has(code)) this.expandedTypes.delete(code);
-        else this.expandedTypes.add(code);
-        track('type_expanded', { code, open: this.expandedTypes.has(code) });
-        this.renderTypeList();
-      });
-    }
-
-    for (const box of host.querySelectorAll<HTMLInputElement>('.tail-box input')) {
-      box.addEventListener('change', () => {
-        const code = box.dataset.type ?? '';
-        const tail = box.dataset.tail ?? '';
+    // 🔴 HIGHLIGHTING A TAIL UN-FAVOURITES THE WHOLE TYPE, by construction: the
+    // first tick on an un-narrowed rule fills `tails`, and a rule with tails is
+    // by definition not the whole type. No separate step, nothing to forget.
+    for (const chip of host.querySelectorAll<HTMLButtonElement>('.tail-chip')) {
+      chip.addEventListener('click', () => {
+        const code = chip.dataset.type ?? '';
+        const tail = chip.dataset.tail ?? '';
         let rule = this.typeRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
         if (!rule) {
-          // Ticking a tail inside an unwatched type is a decision to watch it, so
-          // the rule is created rather than the tick being quietly discarded.
           rule = { type: code, tails: [] };
           this.typeRules.push(rule);
         }
-        if (box.checked) {
-          if (!rule.tails.some((item) => normaliseKey(item) === normaliseKey(tail))) rule.tails.push(tail);
-        } else {
-          rule.tails = rule.tails.filter((item) => normaliseKey(item) !== normaliseKey(tail));
-        }
+        const on = rule.tails.some((item) => normaliseKey(item) === normaliseKey(tail));
+        if (on) rule.tails = rule.tails.filter((item) => normaliseKey(item) !== normaliseKey(tail));
+        else rule.tails.push(tail);
         this.saveTypeRules();
         this.renderWatchlist();
         this.renderTypeList();
-        track('tail_toggled', { code, on: box.checked, tails: rule.tails.length });
+        track('tail_highlighted', { code, highlighted: !on, tails: rule.tails.length });
       });
     }
 
@@ -956,25 +1074,23 @@ class Page {
       button.addEventListener('click', () => {
         const keys = [button.dataset.reg ?? '', ...(button.dataset.also ?? '').split(',')].filter(Boolean);
         const code = (button.dataset.type ?? '').trim();
-        const watching = keys.some((key) =>
-          this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key))
-        );
+        const watching =
+          keys.some((key) => this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key))) ||
+          (code !== '' && this.typeRules.some((rule) => normaliseKey(rule.type) === normaliseKey(code)));
         if (watching) {
           this.watchlist = this.watchlist.filter(
             (item) => !keys.some((key) => normaliseKey(item) === normaliseKey(key))
           );
-          // The type rule goes too, or "stop watching" would leave half the
-          // watch behind and the button would flip straight back to "watching".
           if (code) {
             this.typeRules = this.typeRules.filter((rule) => normaliseKey(rule.type) !== normaliseKey(code));
             this.saveTypeRules();
           }
         } else {
-          // 🔴 BOTH KEYS, ON PURPOSE. The registration catches the aeroplane when
-          // it is painted with that registration; the type code catches it
-          // whichever markings it wears that week — and the museum's Lancaster is
-          // painted RCAF KB726, not C-GVRA. Watching only one of the two would
-          // mean watching the aeroplane on some days and not others.
+          // 🔴 BOTH KEYS, ON PURPOSE. The registration catches the aeroplane when it
+          // is painted with that registration; the type code catches it whichever
+          // markings it wears that week — and the museum's Lancaster is painted
+          // RCAF KB726, not C-GVRA. Watching only one would watch the aeroplane on
+          // some days and not others.
           for (const key of keys) {
             if (!this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key))) this.watchlist.push(key);
           }
@@ -982,7 +1098,7 @@ class Page {
             this.typeRules.push({ type: code, tails: [] });
             this.saveTypeRules();
           }
-          track('resident_watched', { reg: button.dataset.reg ?? '', type: code });
+          track('resident_favourited', { reg: button.dataset.reg ?? '', type: code });
         }
         this.saveWatchlist();
         this.renderWatchlist();
@@ -990,6 +1106,7 @@ class Page {
       });
     }
   }
+
 
   private renderWatchlist(): void {
     const host = byId('watchList');
@@ -1084,6 +1201,8 @@ class Page {
     for (const button of host.querySelectorAll<HTMLButtonElement>('.watch-remove')) {
       button.addEventListener('click', () => this.removeWatch(button.dataset.key ?? ''));
     }
+
+    this.updateSteps();
   }
 
   private renderWatchButton(): void {
@@ -1210,7 +1329,13 @@ class Page {
       .map((airport) => ({ airport, km: nmToKm(distanceNm(lat, lon, airport.lat, airport.lon)) }))
       .filter((row) => row.km <= 400)
       .sort((a, b) => a.km - b.km);
+    // 🔴 THE READER'S PLACE IS NOW THE CENTRE OF EVERYTHING — the fence, the
+    // chart and the airport order all hang off it, because the question is what
+    // is in the air around THEM.
+    this.centre = { lat, lon };
     this.renderNearby();
+    if (this.airport) this.rearm();
+    this.updateSteps();
     track('nearby_computed', { count: this.nearby.length });
   }
 
@@ -1337,7 +1462,8 @@ class Page {
    * chart and the table can never disagree about the same aircraft.
    */
   private matchedAirborne(): LiveAircraft[] {
-    if (!this.engine || !this.airport) return [];
+    const at = this.point();
+    if (!this.engine || !this.airport || !at) return [];
     const out: LiveAircraft[] = [];
     for (const reading of this.lastReadings) {
       if (typeof reading.lat !== 'number' || typeof reading.lon !== 'number') continue;
@@ -1354,8 +1480,8 @@ class Page {
         altitudeFt: typeof reading.alt_baro === 'number' ? reading.alt_baro : null,
         climbFpm: typeof reading.baro_rate === 'number' ? reading.baro_rate : null,
         speedKt: typeof reading.gs === 'number' ? reading.gs : null,
-        km: nmToKm(distanceNm(this.airport.lat, this.airport.lon, reading.lat, reading.lon)),
-        bearingDeg: bearingDeg(this.airport.lat, this.airport.lon, reading.lat, reading.lon),
+        km: nmToKm(distanceNm(at.lat, at.lon, reading.lat, reading.lon)),
+        bearingDeg: bearingDeg(at.lat, at.lon, reading.lat, reading.lon),
         matchedBy: match.label,
         watched: true,
       });

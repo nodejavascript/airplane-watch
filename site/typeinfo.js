@@ -28,6 +28,38 @@ export function classLabel(klass) {
     return CLASS_LABEL[klass] ?? CLASS_LABEL.other;
 }
 /**
+ * 🔴 THE CLASSES THAT ARE CIVIL, AND WHY THIS LIST HAS TO EXIST.
+ *
+ * `site/military.json` is harvested from the feed's own MILITARY feed — a
+ * **global** query that takes no point and no radius, as its own `covers` field
+ * says out loud. So any type that *any* air force anywhere flies appears in it,
+ * and a type-level "military" flag taken from that file reclassifies the ordinary
+ * fleet.
+ *
+ * Measured on the files in this repository, 20 Sep 2026: the global military feed
+ * flags **11 of the 62 types the station survey actually sees** — `C172`, `DH8D`,
+ * `A320`, `A319`, `C182`, `A21N`, `B737`, `C560`, `A139`, `PC12`, `BE9L`. Applied
+ * naively, that put the Cessna 172 and the Dash 8 Q400 under **Warplanes** and hid
+ * the Boeing 737 and the Airbus A320 from **Airliner**. That is the defect this
+ * list closes.
+ *
+ * The rule that follows: a type the table already knows to be a civil aircraft is
+ * NEVER reclassified by the feed's global military flag. The flag may only classify
+ * a code this table does not place — which is how the C-17, the C-130 and the
+ * Chinook still land under Warplanes.
+ */
+const CIVIL_CLASSES = new Set([
+    'airliner',
+    'regional',
+    'business',
+    'light',
+    'helicopter',
+]);
+/** True when this site already knows the code as a civil aircraft. */
+export function isCivilClass(klass) {
+    return CIVIL_CLASSES.has(klass);
+}
+/**
  * code -> [name, class]. Grouped by class so the list can be read, and so an
  * omission is obvious: a code sitting under the wrong heading is a mistake you
  * can see.
@@ -109,14 +141,30 @@ const TABLE = {
     CRJ7: ['Bombardier CRJ-700', 'regional'],
     CRJ9: ['Bombardier CRJ-900', 'regional'],
     E145: ['Embraer ERJ 145', 'regional'],
+    E135: ['Embraer ERJ 135', 'regional'],
     E170: ['Embraer 170', 'regional'],
     E75L: ['Embraer 175', 'regional'],
     E75S: ['Embraer 175', 'regional'],
     E190: ['Embraer 190', 'regional'],
     E195: ['Embraer 195', 'regional'],
-    DH8A: ['Bombardier Dash 8-100', 'regional'],
-    DH8C: ['Bombardier Dash 8-300', 'regional'],
-    DH8D: ['Bombardier Dash 8 Q400', 'regional'],
+    /* 🔴 THE DASH 8 IS NOT CALLED A "BOMBARDIER" ANY MORE, AND THE NAME A VISITOR
+     * KNOWS IS "DASH 8". George, 20 Sep 2026: *"**Bombardier Dash 8 Q400** is there
+     * another description that is more common to the average user"*. Two things were
+     * wrong with the old name and only one of them was the maker:
+     *
+     *   1. de Havilland Canada built it, Bombardier only owned the programme from
+     *      1992 to 2019, and it has been de Havilland Canada again since — so
+     *      "Bombardier" dates the aeroplane to a window most of its life is outside.
+     *   2. Nobody at an airport says "Dash 8 Q400". They say **the Dash 8**, because
+     *      it is the aeroplane that lands at Hamilton several times a day.
+     *
+     * So the maker is right, the family name leads, and the marketing suffix stays in
+     * brackets for anybody who knows it by that. Change the SORT NAME with it or the
+     * alphabetical list lies about where the row is. */
+    DH8A: ['Dash 8-100', 'regional'],
+    DH8B: ['Dash 8-200', 'regional'],
+    DH8C: ['Dash 8-300', 'regional'],
+    DH8D: ['Dash 8-400 (Q400)', 'regional'],
     DH3T: ['de Havilland Canada DHC-3 Turbo Otter', 'regional'],
     SF34: ['Saab 340', 'regional'],
     B190: ['Beechcraft 1900', 'regional'],
@@ -149,6 +197,16 @@ const TABLE = {
     PC24: ['Pilatus PC-24', 'business'],
     BE20: ['Beechcraft King Air 200', 'business'],
     BE30: ['Beechcraft King Air 300', 'business'],
+    /* 🔴 THE CODES BELOW WERE ADDED ON 20 Sep 2026 FOR ONE REASON: THE FEED'S
+     * GLOBAL MILITARY FEED LISTS EVERY ONE OF THEM, AND EVERY ONE OF THEM IS AN
+     * ORDINARY CIVIL AEROPLANE. A King Air 350, a King Air 90, a Falcon 50, an
+     * AW169, a Dauphin and a Bell 212 are all flown by air forces somewhere — so
+     * before this they were reclassified as warplanes and the airliners they were
+     * parked beside vanished from the Airliner filter with them. Naming them here
+     * is what makes the civil classes win. */
+    B350: ['Beechcraft King Air 350', 'business'],
+    BE9L: ['Beechcraft King Air 90', 'business'],
+    FA50: ['Dassault Falcon 50', 'business'],
     BE40: ['Beechcraft 400 Beechjet', 'business'],
     BE58: ['Beechcraft Baron 58', 'business'],
     TBM8: ['Socata TBM 850', 'business'],
@@ -201,6 +259,9 @@ const TABLE = {
     EC45: ['Airbus H145', 'helicopter'],
     A139: ['Leonardo AW139', 'helicopter'],
     A109: ['Leonardo A109', 'helicopter'],
+    A169: ['Leonardo AW169', 'helicopter'],
+    AS65: ['Airbus AS365 Dauphin', 'helicopter'],
+    B212: ['Bell 212', 'helicopter'],
     S76: ['Sikorsky S-76', 'helicopter'],
     S92: ['Sikorsky S-92', 'helicopter'],
 };
@@ -218,13 +279,22 @@ export function describeType(code) {
 export function knownTypeCount() {
     return Object.keys(TABLE).length;
 }
-/** The order the classes are shown in, commonest first for a Canadian airport. */
+/**
+ * The order the classes are offered in.
+ *
+ * 🔴 WARPLANES IS FIRST, AND THAT IS GEORGE'S INSTRUCTION, NOT AN ACCIDENT OF
+ * SORTING. 20 Sep 2026: *"war plans should be first option"*. It is deliberately
+ * not "commonest first" — the commonest aircraft at these airports is an airliner
+ * and the reader can already see a hundred of those in the live list without
+ * filtering for them. The rare thing is what a filter is for, so the rare thing
+ * goes first.
+ */
 export const CLASS_ORDER = [
+    'military',
     'airliner',
     'regional',
     'business',
     'light',
     'helicopter',
-    'military',
     'other',
 ];

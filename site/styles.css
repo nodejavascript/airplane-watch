@@ -1069,3 +1069,182 @@ main > #status {
   stroke: rgba(4, 16, 26, 0.9);
   stroke-width: 1.2;
 }
+
+/* ======================= third pass, 20 Sep 2026 ============================
+ * The reader's own words drove every rule below: find the airports first, the
+ * distance is from THEIR code, warplanes first, one word for watching a type,
+ * tail numbers as chips rather than behind a button, descriptions that use the
+ * width they have, a spinner while an airport loads, and the later steps kept
+ * out of the way until the first one is answered.
+ */
+
+/* ---------------------------------------------------- where are you first --- */
+.subhead {
+  margin: 18px 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.fallback {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.fallback summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted, #8aa6b8);
+}
+
+.fallback summary:hover {
+  color: var(--theme);
+}
+
+/* ------------------------------------------------------ the steps reveal --- */
+/* 🔴 THE GLIDE DOWN. A step that appears instantly reads as a page that was
+ * always there and merely redrawn; a step that settles into place reads as the
+ * page responding to what was just done. Slow and small on purpose — 620ms, and
+ * a move of 18px — because anything faster looks like a jolt and anything
+ * larger looks like a slide. */
+@keyframes step-glide {
+  from {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.step-arrive {
+  animation: step-glide 620ms cubic-bezier(0.22, 0.7, 0.3, 1) both;
+}
+
+/* The steps that are waiting are simply not rendered — `[hidden]` is already in
+ * force from the base sheet, and this keeps the gap out of the layout too. */
+.step-gated[hidden] {
+  display: none !important;
+}
+
+/* A spinner ON the button, because an airport lookup takes a moment and a button
+ * that does nothing for a second gets pressed twice.
+ * 🔴 SETTLED THE MOMENT THE LOOKUP ENDS — a spinner that outlives its request is
+ * a lie about where the work is. */
+.chip[aria-busy='true'] {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.chip[aria-busy='true']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(56, 189, 248, 0.28);
+  border-top-color: var(--theme);
+  border-radius: 50%;
+  animation: chip-spin 700ms linear infinite;
+}
+
+@keyframes chip-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ------------------------------------------------------------- the rows --- */
+/* Three columns now: the drawing, the words, the buttons. */
+.typerow {
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+}
+
+.typerow-thumb {
+  grid-column: 1;
+  grid-row: 1;
+  color: var(--theme);
+  opacity: 0.62;
+  line-height: 0;
+}
+
+.typerow-thumb svg {
+  width: 34px;
+  height: 34px;
+}
+
+/* 🔴 THE DESCRIPTIONS NOW USE THE WIDTH THEY HAVE. They were in a grid cell that
+ * ended before the buttons, so a full sentence wrapped early and read as a
+ * narrow column of text beside a lot of empty card. */
+.typerow .typerow-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.typerow .typerow-actions {
+  grid-column: 3;
+  grid-row: 1;
+  flex-direction: row;
+  align-items: center;
+}
+
+.typerow-curated .typerow-thumb {
+  color: #f0be5a;
+  opacity: 0.85;
+}
+
+/* ------------------------------------------------------ tail numbers --- */
+/* Chips in the card, always visible, no disclosure button: the reader asked for
+ * the tail numbers to BE there rather than hidden one press away. */
+.tail-chips {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tail-chip {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 12px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(4, 16, 26, 0.5);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.tail-chip:hover {
+  border-color: var(--theme);
+}
+
+/* A highlighted tail is a rule of its own, and it is drawn in the same colour as
+ * a favourited type so the two read as the same kind of thing. */
+.tail-chip[aria-pressed='true'] {
+  border-color: var(--theme);
+  background: rgba(56, 189, 248, 0.2);
+  color: var(--ink);
+}
+
+.tail-note {
+  grid-column: 1 / -1;
+  margin: 8px 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-arrive {
+    animation: none;
+  }
+  .chip[aria-busy='true']::after {
+    animation-duration: 1.6s;
+  }
+}

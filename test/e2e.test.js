@@ -807,3 +807,118 @@ test('the type list is in alphabetical order', async () => {
 
   await context.close();
 });
+
+/* ============================================ 20 Sep 2026, third pass ======== */
+
+test('the later steps are hidden until the first one is answered, then glide in', async () => {
+  const { context, page } = await openPage([[[]]]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#step-1');
+
+  // Before an airport resolves, the reader sees the first step and nothing else.
+  // The lookup is in flight at this point, so this is the true opening state.
+  const before = await page.$$eval('.step-gated', (items) => items.map((item) => item.hidden));
+  assert.equal(before.some((hidden) => hidden === false), false, 'a later step is showing before step 1 is answered');
+
+  await page.waitForFunction(() => document.querySelector('#step-3')?.hidden === false, null, { timeout: 20000 });
+  assert.equal(await page.$eval('#step-2', (element) => element.hidden), false, 'step 2 did not arrive with step 3');
+  assert.equal(await page.$eval('#step-4', (element) => element.hidden), true, 'the watchlist showed before anything was picked');
+
+  // A step that arrives is animated; the animation is removed again so a
+  // re-render every ten seconds does not make the page twitch.
+  await page.waitForTimeout(1200);
+  assert.equal(await page.$eval('#step-3', (element) => element.classList.contains('step-arrive')), false,
+    'the glide class is left on the step');
+
+  await context.close();
+});
+
+test('the Warplanes filter is warplanes — the Cessna and the Dash 8 are NOT in it', async () => {
+  const { context, page } = await openPage([[[]]]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  await page.$$eval('#typeFilter .chip', (items) => {
+    items.find((item) => /Warplanes/i.test(item.textContent))?.click();
+  });
+  await page.waitForTimeout(400);
+
+  const filtered = await page.$eval('#typeList', (element) => element.textContent);
+  assert.match(filtered, /Lancaster/, 'the Lancaster is missing from Warplanes');
+
+  // 🔴 THE BUG THE READER SPOTTED. Both of these are in the feed's worldwide
+  // military feed because some air force somewhere flies one, and both are in the
+  // measured survey at Hamilton. Neither is a warplane.
+  assert.equal(/Cessna 172/.test(filtered), false, 'the Cessna 172 is classified as a warplane');
+  assert.equal(/Dash 8/.test(filtered), false, 'the Dash 8 is classified as a warplane');
+
+  // And the other direction: a type the flag stole from Airliner must be back.
+  await page.$$eval('#typeFilter .chip', (items) => {
+    items.find((item) => /^Airliner$/.test(item.textContent.trim()))?.click();
+  });
+  await page.waitForTimeout(400);
+  const airliners = await page.$eval('#typeList', (element) => element.textContent);
+  assert.match(airliners, /Boeing 737 MAX 8/, 'the Boeing 737 did not come back to Airliner');
+  assert.equal(/Cessna 172/.test(airliners), false, 'a Cessna is showing under Airliner');
+
+  await context.close();
+});
+
+test('tail numbers are chips on the row, and highlighting one unfavourites the whole type', async () => {
+  const { context, page } = await openPage([[[]]]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  // The chips are there without pressing anything at all.
+  const chips = await page.$$('#typeList .tail-chip');
+  assert.ok(chips.length > 3, `the tail numbers are not listed as chips, found ${chips.length}`);
+
+  await page.$$eval('#typeList .typerow', (items) => {
+    items.find((item) => /Dash 8-400/.test(item.textContent))?.querySelector('.type-toggle').click();
+  });
+  await page.waitForTimeout(300);
+  assert.match(await page.$eval('#watchList', (element) => element.textContent), /every one of them/,
+    'favouriting a type did not watch the whole type');
+
+  await page.$eval('#typeList .typerow .tail-chip', (element) => element.click());
+  await page.waitForTimeout(300);
+
+  const watch = await page.$eval('#watchList', (element) => element.textContent);
+  assert.match(watch, /1 tail number/, `highlighting a tail did not narrow the rule: ${watch.slice(0, 200)}`);
+
+  const pressed = await page.$$eval('#typeList .tail-chip[aria-pressed="true"]', (items) => items.length);
+  assert.equal(pressed, 1, 'the highlighted chip does not show as highlighted');
+
+  const button = await page.$$eval('#typeList .typerow', (items) =>
+    items.find((item) => /Dash 8-400/.test(item.textContent))?.querySelector('.type-toggle').textContent
+  );
+  assert.match(button, /Favourite the whole type/,
+    `the row still claims to watch the whole type after a tail was highlighted: ${button}`);
+
+  await context.close();
+});
+
+test('the readability of a Dash 8 name, and a drawing beside every type', async () => {
+  const { context, page } = await openPage([[[]]]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+
+  const list = await page.$eval('#typeList', (element) => element.textContent);
+  assert.match(list, /Dash 8/, 'the Dash 8 is not named');
+  assert.equal(/Bombardier Dash 8/.test(list), false, 'the long name the reader asked to change is still there');
+  assert.equal(/de Havilland Canada Dash/.test(list), false, 'the name still leads with the maker and the full series');
+
+  const drawings = await page.$$eval('#typeList .typerow-thumb svg', (items) => items.length);
+  const rows = await page.$$eval('#typeList .typerow', (items) => items.length);
+  assert.equal(drawings, rows, `only ${drawings} of ${rows} rows have a drawing`);
+
+  await context.close();
+});

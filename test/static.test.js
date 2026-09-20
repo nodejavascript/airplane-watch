@@ -629,3 +629,98 @@ test('military.json says what it is and what it is not, and its codes are shaped
   }
   assert.equal(/TWR|GRND/.test(doc.codes.map((r) => r.code).join(',')), false, 'a ground station is in the aircraft list');
 });
+
+/* ============================================ 20 Sep 2026, third pass ======== */
+
+test('a civil type is NEVER reclassified by the feed global military flag', () => {
+  const source = readSrc('src/app.ts');
+  const marker = source.indexOf('private klassOf(');
+  assert.ok(marker > -1);
+  const body = source.slice(marker, marker + 900);
+
+  assert.match(body, /isCivilClass\(known\)/, 'the class method does not consult the civil guard');
+  assert.match(body, /if \(isCivilClass\(known\)\) return known;/, 'a civil type can still be overridden by the flag');
+  assert.ok(
+    body.indexOf('isCivilClass(known)') < body.indexOf('militaryCodes.has'),
+    'the military set is consulted BEFORE the civil guard, which is the bug: it put the Cessna 172 and the ' +
+      'Dash 8 under Warplanes and took the Boeing 737 and the Airbus A320 out of Airliner'
+  );
+  assert.match(readSrc('src/typeinfo.ts'), /export function isCivilClass/, 'the guard does not exist');
+});
+
+test('Warplanes is the first filter option', () => {
+  const source = readSrc('src/app.ts');
+  const start = source.indexOf('const options: { key: AircraftClass');
+  const block = source.slice(start, start + 400);
+  const warplanes = block.indexOf("classLabel('military')");
+  const everything = block.indexOf("label: 'Everything'");
+  assert.ok(warplanes > -1, 'the warplanes option is not built');
+  assert.ok(everything > -1);
+  assert.ok(warplanes < everything, 'Warplanes is not the first option');
+});
+
+test('tail numbers are chips in the card, and the disclosure button is gone', () => {
+  const source = readSrc('src/app.ts');
+  assert.equal(/Choose tail numbers/.test(source), false, 'the disclosure button is still there');
+  assert.equal(/type-expand/.test(source), false, 'the expand button is still bound');
+  assert.equal(/expandedTypes/.test(source), false, 'the disclosure state is still kept');
+  assert.match(source, /class="tail-chip"/, 'the tail chips are not rendered');
+  assert.match(source, /aria-pressed="\$\{chosen\.has/, 'a tail chip does not carry its highlighted state');
+  // The un-favouriting is a consequence of the rule, not a separate step. If a
+  // future edit adds a second mechanism they will drift apart.
+  assert.match(source, /un-favourites the whole type/, 'the row does not say what highlighting a tail does');
+});
+
+test('the word is FAVOURITE, and the row offers the right thing in each state', () => {
+  const source = readSrc('src/app.ts');
+  assert.match(source, /'Favourite this type'/, 'no favourite action on a type');
+  assert.match(source, /'Favourite the whole type'/, 'a narrowed type has no way back to all of them');
+  assert.match(source, /'Favourited — remove'/, 'a favourited type cannot be removed');
+  assert.equal(/Watch this type/.test(source), false, 'the old wording is still in the page');
+  assert.equal(/Watching — stop/.test(source), false, 'the old removal wording is still in the page');
+});
+
+test('later steps are held back, and arrive with the glide', () => {
+  const html = read('index.html');
+  for (const n of [2, 3, 4, 5]) {
+    assert.match(html, new RegExp(`id="step-${n}"[^>]*hidden`), `step ${n} is visible before step 1 is answered`);
+    assert.match(html, new RegExp(`data-step="${n}"`), `step ${n} carries no number for the gate to read`);
+  }
+  assert.match(html, /id="step-1" data-step="1"/, 'step 1 must be visible and numbered');
+  assert.match(html, /id="step-1"[^>]*>[\s\S]{0,80}Where are you\?/, 'the first step is not the one that asks where the reader is');
+
+  const css = read(SITE, 'styles.css');
+  assert.match(css, /@keyframes step-glide/, 'there is no glide');
+  assert.match(css, /animation: step-glide 620ms/, 'the glide is missing or not slow');
+  assert.match(css, /\.step-gated\[hidden\][\s\S]{0,80}display: none/, 'a held-back step is still laid out');
+  assert.match(css, /prefers-reduced-motion: reduce[\s\S]{0,200}step-arrive[\s\S]{0,120}animation: none/,
+    'the glide is not switched off for a reader who asked for less motion');
+
+  const source = readSrc('src/app.ts');
+  assert.match(source, /classList\.add\('step-arrive'\)/, 'a revealed step never gets the glide');
+  assert.match(source, /classList\.remove\('step-arrive'\)/,
+    'the glide class is left on, so the step would replay on every re-render');
+});
+
+test('the airport spinner is cleared on every way out of the lookup', () => {
+  const source = readSrc('src/app.ts');
+  const start = source.indexOf('private async chooseAirport');
+  const end = source.indexOf('private stop(');
+  const body = source.slice(start, end);
+  assert.match(body, /this\.setBusy\(icao, true\)/, 'the button never shows it is working');
+  const clears = body.match(/this\.setBusy\(icao, false\)/g) ?? [];
+  assert.ok(clears.length >= 3,
+    `the spinner is cleared on ${clears.length} path(s); it must be cleared on the rate limit, on an error, and on success`);
+  assert.match(readSrc('src/app.ts'), /aria-busy/, 'nothing sets the busy attribute the spinner is drawn from');
+});
+
+test('the fence is measured from the reader, not from the airport', () => {
+  const source = readSrc('src/app.ts');
+  assert.match(source, /private centre: \{ lat: number; lon: number \} \| null = null;/, 'there is nowhere to keep the reader position');
+  assert.match(source, /private point\(\): \{ lat: number; lon: number \} \| null \{/, 'there is no single source for the fence centre');
+  assert.match(source, /const at = this\.point\(\);\n    if \(!at \|\| !this\.engine\) return;/, 'the poll does not use it');
+  assert.equal(/point\/\$\{this\.airport\.lat\}/.test(source), false, 'the poll still asks the feed about the airport');
+  assert.match(source, /this\.centre = \{ lat, lon \};/, 'a postal code never becomes the centre');
+  assert.match(source, /out from \$\{this\.centre \? 'your own position' : 'the airport'\}/,
+    'the page does not say which point the distance is from');
+});

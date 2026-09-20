@@ -180,56 +180,58 @@
 
       <div id="selectView">
 
-      <section class="card" id="step-1">
-        <h2><span class="step">1</span> Choose the airport</h2>
+      <section class="card" id="step-1" data-step="1">
+        <h2><span class="step">1</span> Where are you?</h2>
         <p class="sub">
-          The position is looked up from the feed each time rather than typed into this page — a hard-coded latitude is
-          a fact that goes wrong silently, and a fence drawn around the wrong piece of sky still looks fine.
+          The number that decides everything else is <b>how far it is from you</b>, so the page asks for that first and
+          works outward. Give it a postal code, or let the browser say where you are, and it finds the airports around
+          you and orders them by distance. A code is looked up by this site's own server, so the lookup service never
+          sees you, and nothing is remembered after you close the tab.
         </p>
-        <div class="chips" id="airportButtons" role="group" aria-label="Choose an airport"></div>
-        <p class="small muted" id="airportWhere"></p>
 
-        <div class="nearby">
-          <div class="nearby-head">
-            <b>Airports around you</b>
-            <button type="button" class="ghost chip-small" id="locateBtn" data-ga="locate">Find airports near me</button>
-          </div>
-          <p class="small muted" id="locateNote">
-            Asking the browser for a position is the only way to know which airports are actually near you. It is
-            optional — the seven named above work without it.
-          </p>
+        <form id="postalForm" class="watch-form" autocomplete="off">
+          <label class="field">
+            <span class="label">Postal code or ZIP</span>
+            <input id="postalInput" name="postal" type="text" placeholder="[redacted], or a ZIP such as 14201" spellcheck="false" inputmode="text" />
+          </label>
+          <button class="ghost" type="submit" data-ga="postal">Use this code</button>
+          <button type="button" class="ghost" id="locateBtn" data-ga="locate">Or find me</button>
+        </form>
+        <p class="small muted" id="postalNote">
+          A Canadian code is looked up on its first three characters, because that is how postal areas are actually
+          defined — <span class="mono">L8E</span> is enough. Both buttons do the same job; neither is required, and the
+          named airports below always work.
+        </p>
+        <p class="small muted" id="locateNote"></p>
 
-          <form id="postalForm" class="watch-form" autocomplete="off">
-            <label class="field">
-              <span class="label">Or give a postal code</span>
-              <input id="postalInput" name="postal" type="text" placeholder="[redacted], or a ZIP such as 14201" spellcheck="false" inputmode="text" />
-            </label>
-            <button class="ghost" type="submit" data-ga="postal">Use this code</button>
-          </form>
-          <p class="small muted" id="postalNote">
-            Typing a code is an alternative to the browser prompt — nothing is remembered, and a Canadian code is looked
-            up on its first three characters, which is how postal areas are actually defined.
-          </p>
+        <h3 class="subhead" id="nearbyHead">Airports around you</h3>
+        <div class="chips" id="nearbyList" role="group" aria-label="Airports near you"></div>
+        <p class="small muted" id="nearbyNote">Loading the airport list…</p>
 
-          <div class="chips" id="nearbyList" role="group" aria-label="Airports near you"></div>
-          <p class="small muted" id="nearbyNote">Loading the airport list…</p>
-        </div>
+        <details class="fallback">
+          <summary>Or pick one of the airports this site starts with</summary>
+          <div class="chips" id="airportButtons" role="group" aria-label="A well-known airport"></div>
+          <p class="small muted" id="airportWhere"></p>
+        </details>
       </section>
 
-      <section class="card" id="step-2">
-        <h2><span class="step">2</span> Choose how far out to look</h2>
+      <section class="card step-gated" id="step-2" data-step="2" hidden>
+        <h2><span class="step">2</span> How far out from you?</h2>
         <p class="sub">
-          Distances are in kilometres, because nautical miles are an aviation unit and nobody arriving here is
-          obliged to know one. This is a real trade and there is no right answer: a short distance is the best chance
-          of catching an aircraft <em>while it is still on the ground</em> — which is what makes a departure a fact
-          rather than a good guess — and the worst chance of seeing anything else. A long one sees more aircraft and
-          sees fewer of them on the ground.
+          This is the distance from <b>your</b> postal code or position — not from the airport. Everything inside the
+          circle is what you will see in the air around you, which is the question this site exists to answer.
+          Kilometres, because nautical miles are an aviation unit and nobody arriving here is obliged to know one.
+        </p>
+        <p class="sub">
+          It is a real trade and there is no right answer. A short distance is the best chance of catching an aircraft
+          <em>while it is still on the ground</em> — which is what makes a departure a fact rather than a good guess —
+          and the worst chance of seeing anything else. A long one sees more traffic and sees less of it on the ground.
         </p>
         <div class="chips" id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
         <p class="small muted" id="fenceNote"></p>
       </section>
 
-      <section class="card" id="step-3">
+      <section class="card step-gated" id="step-3" data-step="3" hidden>
         <h2><span class="step">3</span> Pick an aircraft type</h2>
         <p class="sub">
           This list is <b>measured, not remembered</b>: it comes from reading the feed around these airports and
@@ -250,7 +252,7 @@
         <p class="small muted" id="typeNote">Loading what the feed has been showing…</p>
       </section>
 
-      <section class="card" id="step-4">
+      <section class="card step-gated" id="step-4" data-step="4" hidden>
         <h2><span class="step">4</span> What you are watching</h2>
         <p class="sub">
           A type is watched whole until you narrow it. A tail number on its own still works, for when you know the
@@ -259,7 +261,7 @@
         <ul class="watchlist" id="watchList"></ul>
       </section>
 
-      <section class="card" id="step-5">
+      <section class="card step-gated" id="step-5" data-step="5" hidden>
         <h2><span class="step">5</span> Or name one aircraft</h2>
         <p class="sub">
           A tail number such as <span class="mono">C-GXXX</span>, a callsign such as <span class="mono">ACA123</span>,
@@ -280,7 +282,7 @@
         </div>
       </section>
 
-      <section class="card" id="departures">
+      <section class="card step-gated" id="departures" data-step="6" hidden>
         <h2>Departures seen in this session</h2>
         <p class="sub">
           Kept in this browser, so closing the tab and coming back keeps the board you had. Each line says which of
