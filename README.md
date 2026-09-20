@@ -114,6 +114,11 @@ node tools/load-historic.mjs            # read the operator's next 28 days
 node tools/load-historic.mjs --check    # what the database already holds
 ```
 
+**It runs by itself, once a day.** `aircraft-historic.timer` fires at **07:40** — after the 07:20
+survey round, so the two do not queue behind each other — and re-reads the whole 28-day window every
+time, so the schedule is always a month deep and a day fresh. A run takes about a minute. The units
+are versioned in `~/preferences/aircraft/` because a systemd unit is not part of this repo.
+
 The museum is at **CYHM** — the airport this page already watches, 15 km from Hamilton — and the
 museum names it itself: *"We are located at 9280 Airport Road in Mount Hope, Ontario right at the
 Hamilton International Airport."* So the panel reads *"flies from CYHM, 15 km from you"*, and the

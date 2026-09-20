@@ -86,9 +86,25 @@ name and no code, because giving the Harvard a code on the grounds that a Harvar
 the kind of guess that puts the wrong aeroplane in front of a reader. The trap that makes this
 concrete: the survey's own 129 types include **`LNC4`, which is a Lancair, not a Lancaster**.
 
-**⚠️ AND A TIMER IS DELIBERATELY NOT INSTALLED YET.** The schedule changes rarely, and a daily job
-would mean calling somebody else's server every day for the rest of this site's life. It is one unit
-file away (`aircraft-survey.timer` is the pattern) but it is a cadence decision, not an oversight.
+**🟢 THE TIMER IS INSTALLED, AND GEORGE RULED THE CADENCE: ONCE A DAY.** His words, 20 Sep 2026:
+**"one day is fine"**. So `aircraft-historic.timer` reads the operator's window **once a day at
+07:40** — after the 07:20 survey round, so the two do not queue behind each other while both want the
+database. `Persistent=true`, so a machine that was asleep still catches up; and unlike the survey
+there is only ever one run to catch up, so there is no burst to worry about.
+
+**What a run costs, measured rather than estimated:** **exactly 60 seconds** for the default 28-day
+window — about 28 requests to the museum and 27 two-second pauses — and it left **151 flights across
+15 days** in the database. That is the whole reason the cadence is daily and not hourly: an impatient
+reader of somebody else's calendar is how a free page gets closed.
+
+```bash
+systemctl --user list-timers 'aircraft-*'      # both timers, and when they next fire
+systemctl --user status aircraft-historic.service
+journalctl --user -u aircraft-historic.service -n 20
+```
+
+⚠️ **The service needs `node_modules/` — it runs `node tools/load-historic.mjs`, which imports `pg`.**
+A checkout without `npm install` is a unit that fails every morning at 07:40.
 
 ## The rounds, and why there is a timer
 
