@@ -227,6 +227,7 @@ class Page {
         this.bindNotify();
         this.renderWatchButton();
         this.bindStepToggles();
+        this.bindStartOver();
         this.bindLocate();
         const saved = readStore(AIRPORT_KEY, DEFAULT_AIRPORT);
         void this.chooseAirport(saved);
@@ -833,6 +834,38 @@ class Page {
      * steps that existed at load. That is the same mistake that made the cookie gate's
      * footer door dead on the other sites in this family.
      */
+    /**
+     * 🔴 START OVER, BECAUSE THERE IS NO OTHER WAY TO GET RID OF A STALE PAGE.
+     *
+     * George, 20 Sep 2026: *"maybe you need a start over that deletes my cookie or
+     * something, i steill see all cards open"*. It was not a cookie — the served page
+     * carries `hidden` on every step after the first, and the bundle on disk has the
+     * sequential gate. What he was looking at was a TAB: opening the same address
+     * again only focuses a tab that already has it, so the page he was reading was
+     * the one from before the fixes, and no reload of the address would be reached.
+     *
+     * So this clears everything the page has kept in this browser — the watchlist,
+     * the type rules, the departures board, the chosen airport — and reloads. It is
+     * the reader's own reset, and it also happens to be the honest answer to "I still
+     * see the old thing": a page that keeps state must offer a way to drop it.
+     */
+    bindStartOver() {
+        const button = byId('startOver');
+        if (!button)
+            return;
+        button.addEventListener('click', () => {
+            for (const key of [WATCH_KEY, TYPES_KEY, BOARD_KEY, AIRPORT_KEY]) {
+                try {
+                    localStorage.removeItem(key);
+                }
+                catch {
+                    /* private mode refuses to remove as well as to store */
+                }
+            }
+            track('start_over', {});
+            window.location.reload();
+        });
+    }
     bindStepToggles() {
         document.addEventListener('click', (event) => {
             // 🔴 A DESCENDANT SELECTOR, NOT A CHILD ONE. `closest` matches a selector
