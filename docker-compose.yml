@@ -1,0 +1,32 @@
+# aircraft-demo — local services
+
+# 🔴 ITS OWN POSTGRES, NOT SOMEBODY ELSE'S. `shoplist-pg` was already listening on
+# 5432 for a different project, and putting this site's tables in that database
+# would make two projects share a life they have nothing to do with. So this is a
+# second container on 5433 with its own volume, and it can be dropped and rebuilt
+# without touching anything else on the machine.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: aircraft-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aircraft
+      POSTGRES_USER: aircraft
+      # From db/.env, which is gitignored. Never a password in a tracked file.
+      POSTGRES_PASSWORD: ${AIRCRAFT_DB_PASSWORD:?set AIRCRAFT_DB_PASSWORD in db/.env}
+    ports:
+      - '127.0.0.1:5433:5432'
+    volumes:
+      - aircraft_pgdata:/var/lib/postgresql/data
+      # Applied only when the volume is empty — a first-run convenience, not a
+      # migration path. Every later change is run by hand and written down.
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U aircraft -d aircraft']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  aircraft_pgdata:

@@ -27,6 +27,7 @@
  */
 
 import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -119,6 +120,260 @@ function resolvePath(urlPath) {
   }
   const relative = normalize(clean).replace(/^(\.\.[/\\])+/, '');
   return { file: join(ROOT, relative === '/' ? 'index.html' : relative.replace(/^\//, '')) };
+}
+
+/**
+ * 🔴 THE SITE'S OWN DATA NOW COMES FROM ITS OWN DATABASE.
+ *
+ * George, 20 Sep 2026: *"should be be using postgres so we can reli less on the api
+ * unless we want to fetch current data, and we can associate the images and last seen
+ * in the db too"*.
+ *
+ * So the four files this page reads — the airports, the types, the years and the
+ * photographs — are answered from Postgres when it is there, and from the files when it
+ * is not. The page does not change at all: it still asks for `/types.json` and gets the
+ * same document. What changed is where the answer is composed, and the fact that
+ * `lastSeen` is now a `max()` over every survey run rather than a field somebody has to
+ * remember to carry forward.
+ *
+ * 🔴 AND THE FALLBACK IS NOT DECORATION. The database is a container on this machine;
+ * the files are what gets deployed, because a Cloudflare Worker cannot reach it. A site
+ * that breaks when a local container is down would be a worse site, so the file path
+ * stays and the header says which one answered.
+ */
+const DATA_PATHS = new Set(['/airports.json', '/types.json', '/years.json', '/photos.json']);
+/** Assembled documents are held briefly, so a poll storm cannot hammer the database. */
+const CATALOGUE_MS = 30_000;
+const catalogueCache = new Map();
+
+function settings() {
+  // 🔴 ROOT IS `site/`, AND THE ENV FILE IS NOT IN IT. Reading ROOT/db/.env looked for
+  // `site/db/.env`, the catch below swallowed the miss, the password arrived undefined,
+  // and Postgres answered `SASL: client password must be a string` — a message about
+  // SASL for a fault in a path. Every fallback in this file was reached for that reason.
+  const file = resolve(fileURLToPath(new URL('../db/.env', import.meta.url)));
+  const fromFile = {};
+  try {
+    for (const line of readFileSync(file, 'utf8').split('\n')) {
+      const match = /^([A-Z_]+)=(.*)$/.exec(line.trim());
+      if (match) fromFile[match[1]] = match[2];
+    }
+  } catch {
+    // No db/.env is a normal state — it means Postgres was never set up here.
+  }
+  return {
+    host: process.env.PGHOST ?? fromFile.PGHOST ?? '127.0.0.1',
+    port: Number(process.env.PGPORT ?? fromFile.PGPORT ?? 5433),
+    database: process.env.PGDATABASE ?? fromFile.PGDATABASE ?? 'aircraft',
+    user: process.env.PGUSER ?? fromFile.PGUSER ?? 'aircraft',
+    password: process.env.PGPASSWORD ?? fromFile.AIRCRAFT_DB_PASSWORD,
+    max: 4,
+    // 🔴 A DATABASE THAT IS NOT THERE MUST NOT HANG THE PAGE. Five seconds, then the
+    // files answer, which is the whole point of having a fallback.
+    connectionTimeoutMillis: 5_000,
+  };
+}
+
+let pool = null;
+async function db() {
+  if (pool === null) {
+    const module = await import('pg');
+    pool = new module.default.Pool(settings());
+    // A pool that has lost its connection must not take the server down with it.
+    pool.on('error', () => {});
+  }
+  return pool;
+}
+
+async function buildAirports() {
+  const { rows } = await db().then((p) =>
+    p.query(
+      `select icao, name, location, iata, lat, lon, elevation_ft
+         from airports order by icao`
+    )
+  );
+  return {
+    generated: new Date().toISOString(),
+    source: 'the site\'s own database',
+    method: 'positions confirmed by asking the feed, then kept here',
+    kept: rows.length,
+    dropped: [],
+    airports: rows.map((row) => ({
+      icao: row.icao,
+      name: row.name,
+      location: row.location ?? '',
+      iata: row.iata ?? '',
+      lat: row.lat,
+      lon: row.lon,
+      elevationFt: row.elevation_ft,
+    })),
+  };
+}
+
+async function buildTypes() {
+  const p = await db();
+  const run = await p.query('select id, started_at, method, aircraft_inspected from survey_runs order by started_at desc limit 1');
+  if (run.rows.length === 0) throw new Error('no survey run has been loaded');
+  const latest = run.rows[0];
+  const types = await p.query(
+    `select t.code, t.sightings, t.airports, t.operators, t.categories,
+            l.last_seen, l.runs_seen
+       from types t
+       left join type_last_seen l on l.code = t.code
+      order by t.sightings desc, t.code`
+  );
+  const regs = await p.query('select code, reg, airports from registrations order by code, reg');
+  const byCode = new Map();
+  for (const row of regs.rows) {
+    if (!byCode.has(row.code)) byCode.set(row.code, []);
+    byCode.get(row.code).push({ reg: row.reg, airports: row.airports ?? [] });
+  }
+  return {
+    generated: new Date(latest.started_at).toISOString(),
+    method: latest.method ?? '',
+    aircraftInspected: latest.aircraft_inspected ?? 0,
+    counted: 'sightings (one per aircraft per round)',
+    registrationsNote:
+      'Up to 40 registrations per type, from aircraft that actually transmitted one. Many transponders never send a registration, so this is a sample of what identifies itself, not a fleet list.',
+    historyNote:
+      'lastSeen is the most recent time each type was seen, carried forward across every survey run; runsSeen is how many runs have recorded it. seen is the frequency within THIS run only.',
+    airports: [...new Set(types.rows.flatMap((row) => row.airports ?? []))].sort().map((icao) => ({ icao })),
+    types: types.rows.map((row) => ({
+      code: row.code,
+      seen: row.sightings,
+      airports: row.airports ?? [],
+      operators: row.operators ?? [],
+      categories: row.categories ?? [],
+      registrations: byCode.get(row.code) ?? [],
+      lastSeen: row.last_seen === null ? null : new Date(row.last_seen).toISOString(),
+      runsSeen: row.runs_seen ?? 1,
+    })),
+  };
+}
+
+async function buildYears() {
+  const p = await db();
+  const { rows } = await p.query(
+    `select code, year, basis, item, matched_name, asked, exact from type_years order by code`
+  );
+  const years = {};
+  for (const row of rows) {
+    years[row.code] = {
+      year: row.year,
+      basis: row.basis,
+      item: row.item ?? '',
+      name: row.matched_name ?? '',
+      asked: row.asked ?? '',
+      exact: row.exact,
+    };
+  }
+  return {
+    generated: new Date().toISOString(),
+    source: 'Wikidata (CC0) — https://www.wikidata.org',
+    method: 'searched Wikidata for each type name, then read P606 (first flight), else P729 (service entry)',
+    acceptance:
+      "Three guards, measured against real failures: the item's label must be EXACTLY the name asked about, it " +
+      'must carry a first-flight date, and it must be a kind of aircraft (checked by walking its instance-of up the ' +
+      'subclass chain). A type that fails any of them gets no year rather than a guessed one.',
+    scope:
+      "The year the TYPE was first flown, not the year the individual airframe was built. No free source publishes " +
+      'a build year per airframe.',
+    asked: rows.length,
+    resolved: rows.length,
+    unmatched: [],
+    years,
+  };
+}
+
+async function buildPhotos() {
+  const { rows } = await db().then((p) =>
+    p.query(`select code, name, title, src, artist, licence, reason, confident from photos order by code`)
+  );
+  const found = {};
+  for (const row of rows) {
+    found[row.code] = {
+      code: row.code,
+      name: row.name ?? '',
+      title: row.title,
+      src: row.src,
+      artist: row.artist ?? '',
+      licence: row.licence ?? '',
+      reason: row.reason ?? '',
+      confident: row.confident,
+    };
+  }
+  return {
+    generated: new Date().toISOString(),
+    source: 'Wikimedia Commons (free licences, credit printed on every row)',
+    found,
+    missing: [],
+  };
+}
+
+const BUILDERS = {
+  '/airports.json': buildAirports,
+  '/types.json': buildTypes,
+  '/years.json': buildYears,
+  '/photos.json': buildPhotos,
+};
+
+/**
+ * Answer one of the four data paths — from the database when it can, from the file when
+ * it cannot, and SAY WHICH in `x-data-source` so a wrong answer is never silent.
+ */
+async function serveData(path, response) {
+  const cached = catalogueCache.get(path);
+  if (cached && Date.now() - cached.at < CATALOGUE_MS) {
+    response.writeHead(200, {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-data-source': 'database-cached',
+    });
+    response.end(cached.body);
+    return;
+  }
+
+  try {
+    const document = await BUILDERS[path]();
+    const body = JSON.stringify(document, null, 2) + '\n';
+    catalogueCache.set(path, { at: Date.now(), body });
+    response.writeHead(200, {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-data-source': 'database',
+    });
+    response.end(body);
+    return;
+  } catch (error) {
+    // The file path, which is also the deploy artefact. A reader must not see a broken
+    // page because a container on somebody's laptop is stopped.
+    //
+    // 🔴 ROOT IS ALREADY `site/`, so the path is joined to it directly. The first
+    // version joined `site` on again and every fallback looked for
+    // `site/site/types.json` — which turned a working database into a 503 that named
+    // the FILE's error and hid the database's.
+    try {
+      const body = await readFile(join(ROOT, path.replace(/^\//, '')));
+      response.writeHead(200, {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store',
+        'x-data-source': 'file',
+        'x-data-warning': String(error.message).slice(0, 120),
+      });
+      response.end(body);
+    } catch (fileError) {
+      response.writeHead(503, { 'content-type': 'application/json; charset=utf-8' });
+      response.end(
+        JSON.stringify({
+          ok: false,
+          // 🔴 BOTH ERRORS, OR THE ONE THAT MATTERS IS THE ONE YOU CANNOT SEE.
+          error:
+            `Neither the database nor the file answered for ${path}. ` +
+            `Database: ${error.message} File: ${fileError.message}`,
+        })
+      );
+    }
+  }
 }
 
 async function serveStatic(request, response) {
@@ -486,6 +741,11 @@ const server = createServer((request, response) => {
 
   if ((request.url || '').startsWith('/api/')) {
     guard(serveApi(request, response));
+    return;
+  }
+  const dataPath = new URL(request.url, 'http://localhost').pathname;
+  if (DATA_PATHS.has(dataPath)) {
+    guard(serveData(dataPath, response));
     return;
   }
   guard(serveStatic(request, response));

@@ -579,6 +579,7 @@ class Page {
     this.buildRadiusButtons();
     this.buildTypeFilter();
     this.buildSeenFilter();
+    this.renderPlace();
     this.renderWatchlist();
     this.renderBoard();
     this.bindWatchForm();
@@ -587,6 +588,7 @@ class Page {
     this.bindStepToggles();
     this.bindStartOver();
     this.bindLocate();
+    this.bindChangePlace();
     this.bindVisibility();
     this.bindMapResize();
 
@@ -919,41 +921,25 @@ class Page {
    */
   private afterAirportChange(): void {
     writeStore(AIRPORT_KEY, this.chosenIcaos().join(','));
-    this.renderAirportPanel();
+    // 🔴 THERE IS NO SUMMARY LINE ANY MORE. George, 20 Sep 2026: *"you can remove this
+    // 5 airports watched: CYHM — Hamilton · CYSN — St Catharines ..."*. The chips are
+    // gold when they are picked and the map draws them; a sentence repeating the list
+    // underneath the list was the same fact told three times.
+    this.renderFenceNote();
     // Redraws the chips AND the map — `renderNearby` draws the map too — so the
     // stars and the map agree with the list in the same frame.
     this.renderNearby();
+    // 🔴 AND THE TYPE LIST, WHICH IS FILTERED BY THESE AIRPORTS. George, 20 Sep 2026:
+    // *"the selections will always be filtered by their selected airports"*. Without
+    // this line the list was drawn once when the survey loaded and never again, so
+    // picking an airport changed nothing — and on a reload it depended on which of
+    // two async loads happened to finish first. Found by counting: 32 of the 62 types
+    // were not seen at CYHM, and the page still showed all 62.
+    this.renderTypeList();
     // A restore re-aims once, at the end — see loadChosenAirports().
     if (this.restoring) return;
     this.rearm();
     this.updateSteps();
-  }
-
-  /**
-   * 🔴 WHICH AIRPORTS ARE PICKED, SAID IN WORDS, BESIDE THE MAP.
-   *
-   * The stars show it and this states it. Both are needed: a star is a mark you have
-   * to already understand, and somebody who has just pressed three chips wants to see
-   * the three named once rather than counted.
-   */
-  private renderAirportPanel(): void {
-    const where = byId('airportWhere');
-    if (!where) return;
-    const count = this.airports.length;
-    if (count === 0) {
-      where.textContent =
-        'No airport picked yet. Press one of the airports above — you can pick as many as you like.';
-    } else if (count === 1) {
-      const one = this.airports[0];
-      where.textContent =
-        `${one.name} (${one.icao}) · ${one.location || '—'} · ${one.lat.toFixed(4)}, ${one.lon.toFixed(4)}` +
-        (one.elevationFt !== null ? ` · field elevation ${one.elevationFt} ft` : '');
-    } else {
-      where.textContent =
-        `${count} airports watched: ` +
-        this.airports.map((one) => `${one.icao} — ${one.location || one.name}`).join(' · ');
-    }
-    this.renderFenceNote();
   }
 
   /**
@@ -1442,21 +1428,83 @@ class Page {
   }
 
   /**
-   * 🔴 WHICH TYPE CODES SURVIVE THE THREE FILTERS, AND WHY SOME DO NOT.
-   *
-   * The kind, the era and the last sighting all narrow, and they narrow together —
-   * "war planes first flown before 1970 that have been seen this week" is a question
-   * this answers. A type with NO year is dropped under an era filter and counted,
-   * because a filter must not answer "before 1970" with something nobody measured;
-   * and a type with no recent sighting is dropped under a last-seen filter, which is
-   * the whole point of having one.
+   * 🔴 ONE OR THE OTHER, NEVER BOTH. George, 20 Sep 2026: *"if i refresh and my
+   * location is know. i dont want to see this A postal code, or let the browser find
+   * you ... but if a user want to change their location, delete thier location and
+   * bring it back up"*.
    */
-  private typeRows(): { rows: ReturnType<Page['combinedTypes']>; undated: number; stale: number } {
+  private renderPlace(): void {
+    const ask = byId('placeAsk');
+    const known = byId('placeKnown');
+    const name = byId('placeName');
+    const have = this.centre !== null;
+    if (ask) ask.hidden = have;
+    if (known) known.hidden = !have;
+    if (name) name.textContent = this.placeLabel || 'your position';
+  }
+
+  /**
+   * 🔴 CHANGING YOUR LOCATION MEANS GIVING IT UP FIRST. The store is CLEARED rather
+   * than overwritten, so the next load has no place either — anything else and
+   * "change location" would look as though it had worked and then come back on a
+   * refresh. The airports and the types are NOT touched: George, 20 Sep 2026, *"i
+   * suppose selected airports can stay along with selected airplane selections"*.
+   */
+  private bindChangePlace(): void {
+    const button = byId('changePlace');
+    if (!button) return;
+    button.addEventListener('click', () => {
+      this.centre = null;
+      this.placeLabel = '';
+      this.nearby = [];
+      writeStore(CENTRE_KEY, '');
+      this.renderPlace();
+      // The list is emptied and the map redrawn by hand, because `renderNearby` stops
+      // at its "type a postal code" line and would leave the old map and its "you"
+      // marker standing.
+      this.renderNearby();
+      this.renderMap();
+      this.renderFenceNote();
+      // The fence falls back to the airports still picked — see point() — so the page
+      // keeps working while it waits to be told where the reader is.
+      this.rearm();
+      this.updateSteps();
+      track('place_cleared', { airports: this.airports.length });
+    });
+  }
+
+  /**
+   * 🔴 WHICH TYPE CODES SURVIVE THE FILTERS, AND WHY SOME DO NOT.
+   *
+   * The airports, the kind, the era and the last sighting all narrow, and they narrow
+   * together. A type with NO year is dropped under an era filter and counted, because a
+   * filter must not answer "before 1970" with something nobody measured.
+   */
+  private typeRows(): {
+    rows: ReturnType<Page['combinedTypes']>;
+    undated: number;
+    stale: number;
+    elsewhere: number;
+  } {
     const era = ERAS.find((candidate) => candidate.key === this.eraFilter) ?? ERAS[0];
     const seen = SEEN_CHOICES.find((candidate) => candidate.key === this.seenFilter) ?? SEEN_CHOICES[2];
+    const picked = new Set(this.chosenIcaos());
     let undated = 0;
     let stale = 0;
+    let elsewhere = 0;
     const rows = this.combinedTypes().filter((row) => {
+      // 🔴 ALWAYS FILTERED BY THE AIRPORTS YOU PICKED. George, 20 Sep 2026: *"the
+      // selections will always be filtered by their selected airports"*. A type is
+      // offered only when the feed has actually been seen showing it at one of them.
+      //
+      // 🔴 A TYPE WITH NO AIRPORT ATTRIBUTION STAYS. That means either an aircraft in
+      // the air in front of the reader right now, or a type the survey caught
+      // somewhere it could not place — and hiding what is flying past would be the
+      // wrong kind of tidy.
+      if (picked.size > 0 && row.airports.length > 0 && !row.airports.some((icao) => picked.has(icao))) {
+        elsewhere += 1;
+        return false;
+      }
       if (this.typeFilter !== 'all' && this.klassOf(row.code) !== this.typeFilter) return false;
       if (era.key !== 'all') {
         const entry = this.yearOf(row.code);
@@ -1475,7 +1523,7 @@ class Page {
       }
       return true;
     });
-    return { rows, undated, stale };
+    return { rows, undated, stale, elsewhere };
   }
 
   /**
@@ -1859,7 +1907,7 @@ class Page {
     const host = byId('typeList');
     if (!host) return;
 
-    const { rows, undated, stale } = this.typeRows();
+    const { rows, undated, stale, elsewhere } = this.typeRows();
 
     if (rows.length === 0) {
       // 🔴 A FILTER THAT HIDES TYPES SAYS HOW MANY IT HID, AND WHY. Otherwise an era
@@ -1984,9 +2032,12 @@ class Page {
 
     host.innerHTML =
       measuredHtml +
-      (undated > 0 || stale > 0
+      (undated > 0 || stale > 0 || elsewhere > 0
         ? `<p class="small muted">${
             [
+              elsewhere > 0
+                ? `${elsewhere} more ${elsewhere === 1 ? 'type has' : 'types have'} been seen around here, but not at the airports you picked.`
+                : '',
               undated > 0
                 ? `${undated} type${undated === 1 ? '' : 's'} here ${
                     undated === 1 ? 'has' : 'have'
@@ -2552,6 +2603,7 @@ class Page {
     // coordinates is not.
     this.placeLabel = label;
     writeStore(CENTRE_KEY, JSON.stringify({ lat, lon, label }));
+    this.renderPlace();
     this.renderNearby();
     // 🔴 RE-ARMED EVEN WITH NO AIRPORT. `this.point()` falls back to the centre, and
     // the poll only ever needed a point — so a reader whose airport lookup failed

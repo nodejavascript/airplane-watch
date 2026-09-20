@@ -179,21 +179,34 @@
 
       <section class="card step-gated" id="step-1" data-step="1">
         <h2><span class="step">1</span> Where you are, and how far out</h2>
-        <p class="sub">A postal code, or let the browser find you. Then pick the airports you care about and how far out to look — the circle on the map <b>is</b> that distance, and the map is zoomed to fit exactly the airports you picked.</p>
-        <form id="postalForm" class="watch-form" autocomplete="off">
-          <label class="field">
-            <span class="label">Postal code or ZIP</span>
-            <input id="postalInput" name="postal" type="text" placeholder="[redacted], or a ZIP such as 14201" spellcheck="false" inputmode="text" />
-          </label>
-          <button class="ghost" type="submit" data-ga="postal">Use this code</button>
-          <button type="button" class="ghost" id="locateBtn" data-ga="locate">Or find me</button>
-        </form>
-        <p class="small muted" id="postalNote">
-          A Canadian code is looked up on its first three characters, because that is how postal areas are actually
-          defined — <span class="mono">L8E</span> is enough. Both buttons do the same job; neither is required, and the
-          airports below always work.
+        <div id="placeAsk">
+          <p class="sub" id="placeSub">A postal code, or let the browser find you — everything below follows from it, and the map is zoomed to fit the airports you pick.</p>
+          <form id="postalForm" class="watch-form" autocomplete="off">
+            <label class="field">
+              <span class="label">Postal code or ZIP</span>
+              <input id="postalInput" name="postal" type="text" placeholder="[redacted], or a ZIP such as 14201" spellcheck="false" inputmode="text" />
+            </label>
+            <button class="ghost" type="submit" data-ga="postal">Use this code</button>
+            <button type="button" class="ghost" id="locateBtn" data-ga="locate">Or find me</button>
+          </form>
+          <p class="small muted" id="postalNote">
+            A Canadian code is looked up on its first three characters, because that is how postal areas are actually
+            defined — <span class="mono">L8E</span> is enough. Both buttons do the same job; neither is required, and the
+            airports below always work.
+          </p>
+          <p class="small muted" id="locateNote"></p>
+        </div>
+        <!--
+          🔴 NOTHING ASKS FOR A LOCATION IT ALREADY HAS. George, 20 Sep 2026: *"if i
+          refresh and my location is know. i dont want to see this A postal code, or let
+          the browser find you ... but if a user want to change their location, delete
+          thier location and bring it back up"*. So the two versions are one line or the
+          other, and the way back is a button on the line that says where you are.
+        -->
+        <p class="small muted" id="placeKnown" hidden>
+          Around <b id="placeName"></b>
+          <button type="button" class="linkish" id="changePlace" data-ga="change-place">change location</button>
         </p>
-        <p class="small muted" id="locateNote"></p>
 
         <h3 class="subhead" id="nearbyHead">Airports around you</h3>
         <div class="chips" id="nearbyList" role="group" aria-label="Airports near you"></div>
@@ -204,8 +217,6 @@
         <p class="small muted" id="fenceNote"></p>
 
         <div id="locMap"></div>
-
-        <p class="small muted" id="airportWhere"></p>
       </section>
 
       <section class="card step-gated" id="step-3" data-step="3" hidden>
@@ -217,29 +228,6 @@
         <p class="small muted" id="filterNote">Loading what the feed has been showing…</p>
         <div class="typelist" id="typeList"></div>
         <p class="small muted" id="typeNote">Loading what the feed has been showing…</p>
-      </section>
-
-      <section class="card step-gated" id="step-4" data-step="4" hidden>
-        <h2><span class="step">4</span> What you are watching</h2>
-        <p class="sub">Exactly what you starred above, and nothing else. Press a star or a tail number above to change it.</p>
-        <ul class="watchlist" id="watchList"></ul>
-      </section>
-
-      <section class="card step-gated" id="step-5" data-step="5" hidden>
-        <h2><span class="step">5</span> Or name one aircraft</h2>
-        <p class="sub">A tail number, a callsign, or a transponder address.</p>
-        <form id="watchForm" class="watch-form" autocomplete="off">
-          <label class="field">
-            <span class="label">Aircraft</span>
-            <input id="watchInput" name="aircraft" type="text" placeholder="C-GXXX" spellcheck="false" />
-          </label>
-          <button class="ghost" type="submit" data-ga="watch-add">Watch it</button>
-        </form>
-
-        <div class="notify">
-          <button id="notifyBtn" class="ghost" type="button" data-ga="notify">Tell me when they leave</button>
-          <p class="small muted" id="notifyNote"></p>
-        </div>
       </section>
 
       <section class="card step-gated" id="departures" data-step="6" hidden>
@@ -254,6 +242,19 @@
       <section class="card" id="live">
         <h2>What the feed can see right now</h2>
         <p class="sub">Every aircraft the feed can see around you right now.</p>
+
+        <!--
+          🔴 THE ALERT BUTTON LIVES HERE NOW, BECAUSE THE CARD THAT HELD IT IS GONE.
+          George, 20 Sep 2026: *"i dont want to see the #4 card or #5"* — and card 5
+          was where "tell me when they leave" sat. Removing the card must not remove
+          the alert: *"the goal is to alert people when their selected aircrafts are in
+          the air around them"* is his own sentence, and a page that can no longer ask
+          for a notification has dropped the thing it is for.
+        -->
+        <div class="notify">
+          <button id="notifyBtn" class="ghost" type="button" data-ga="notify">Tell me when they leave</button>
+          <p class="small muted" id="notifyNote"></p>
+        </div>
         
         <div class="table-wrap">
           <table class="aircraft">

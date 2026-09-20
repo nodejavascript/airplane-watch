@@ -12,6 +12,9 @@
     "test:all": "npm run build && node --test test/*.test.js",
     "test:live": "node tools/live-check.mjs",
     "survey": "node tools/survey-types.mjs",
+    "db:up": "docker compose --env-file db/.env up -d",
+    "db:load": "node tools/load-db.mjs",
+    "db:check": "node tools/load-db.mjs --check",
     "icons": "python3 tools/make-icons.py",
     "deploy": "bash tools/deploy.sh"
   },
@@ -19,6 +22,7 @@
     "node": "22"
   },
   "devDependencies": {
+    "pg": "^8.23.0",
     "playwright": "^1.63.0",
     "typescript": "^5.9.3"
   }
