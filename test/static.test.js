@@ -824,10 +824,11 @@ test('the page says what it means and keeps the type list short', () => {
   assert.equal(/poll \$\{this\.polls\}/.test(source), false, 'the status line still counts polls');
   assert.equal(/in the fence · poll/.test(source), false, 'the status line still uses jargon');
 
-  // Short view buttons.
-  assert.equal(/Choose what to watch/.test(html), false, 'the old view button wording is still there');
-  assert.equal(/Chart what is in the air now/.test(html), false, 'the old view button wording is still there');
-  assert.match(html, /Pick what to watch/, 'the first view has no plain name');
+  // No mode switch: the page is the picking flow, and the chart is a step in it.
+  assert.equal(/Pick what to watch/.test(html), false, 'the view switch is back on the page');
+  assert.equal(/In the air now<\/button>/.test(html), false, 'the view switch is back on the page');
+  assert.equal(/view-switch|viewbar/.test(html + css), false, 'the switch is gone from the page but not from the styles');
+  assert.match(html, /id="liveView"[^>]*data-step="7"[^>]*hidden/, 'the chart is not a step in the flow');
 
   // Heritage and war planes sit between Everything and Airliner.
   const start = source.indexOf('const options: { key: AircraftClass');
@@ -842,6 +843,9 @@ test('the page says what it means and keeps the type list short', () => {
   const rule = css.slice(css.indexOf('\n.typelist {'), css.indexOf('}', css.indexOf('\n.typelist {')));
   assert.match(rule, /max-height:\s*\d+px/, 'the type list has no height limit');
   assert.match(rule, /overflow-y:\s*auto/, 'the type list cannot scroll');
+  // And the mark the reader makes is yellow, not the site's own blue.
+  assert.match(css, /\.star\[[^\]]*aria-pressed='true'\][\s\S]{0,160}#f0be5a/, 'a starred type is not yellow');
+  assert.match(css, /\.tail-chip\[aria-pressed='true'\][\s\S]{0,160}#f0be5a/, 'a starred tail number is not yellow');
 
   // The descriptions are one or two lines, not paragraphs.
   for (const match of html.matchAll(/<p class="sub">([\s\S]*?)<\/p>/g)) {
@@ -859,9 +863,11 @@ test('the later steps do not exist until the first is answered', () => {
   assert.match(html, /id="step-1" data-step="1"/, 'step 1 must be visible — it is the one that asks');
 
   const source = readSrc('src/app.ts');
-  assert.match(source, /step === '4' \|\| step === '6' \? place && picked : place/,
-    'the gate does not require a place before anything else appears');
-  // The dimmed-but-present approach is gone; so is the note it needed.
+  // The gate is sequential: 1 unlocks 2, 2 is answered on arrival and unlocks 3,
+  // 3 unlocks the rest. Steps 3 and 5 are staggered so it reads in order.
+  assert.match(source, /const wantsPlace = step <= 5;/, 'the gate does not run in step order');
+  assert.match(source, /const show = wantsPlace \? place : place && picked;/, 'a watchlist or a chart can appear before anything is picked');
+  assert.match(source, /const delay = step === 3 \|\| step === 5 \? 420 : 0;/, 'the steps land together instead of one after another');
   assert.equal(/data-waiting/.test(source), false, 'the waiting mechanism is still in the app');
   assert.equal(/step-why/.test(html), false, 'a waiting note is still on the page');
 });
