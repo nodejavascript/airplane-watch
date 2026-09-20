@@ -359,9 +359,18 @@ main {
   background: rgba(4, 16, 26, 0.55);
 }
 
+/* 🔴 YELLOW, AND THE SAME YELLOW AS THE STAR. George, 20 Sep 2026: *"why are some
+ * aircraft have highlighted cards?"* — which is the answer to the question, not a
+ * separate request. A starred row was tinted the site BLUE while the star beside it
+ * was YELLOW, so the tint and the mark disagreed about what they meant, and a row
+ * that was highlighted for one reason was indistinguishable from a row highlighted
+ * for another.
+ *
+ * It means one thing: this row is yours. A starred type is highlighted here in the
+ * same gold the star is drawn in. */
 .typerow-on {
-  border-color: var(--theme);
-  background: rgba(56, 189, 248, 0.1);
+  border-color: #f0be5a;
+  background: rgba(240, 190, 90, 0.1);
 }
 
 .typerow-main {
@@ -568,8 +577,8 @@ main {
 }
 
 .departure-watched {
-  border-color: var(--theme);
-  background: rgba(56, 189, 248, 0.1);
+  border-color: #f0be5a;
+  background: rgba(240, 190, 90, 0.1);
 }
 
 .departure-time {
@@ -651,8 +660,10 @@ main {
   letter-spacing: 0.5px;
 }
 
+/* The same gold as the star and the type row, for the same reason: this aircraft
+ * is one of yours. */
 .watched-row {
-  background: rgba(56, 189, 248, 0.08);
+  background: rgba(240, 190, 90, 0.1);
 }
 
 /* -------------------------------------------------------------- lists --- */
@@ -999,17 +1010,11 @@ main > #status {
   accent-color: var(--theme);
 }
 
-/* A curated aircraft is not a measured one, and the styling says so: gold
- * rather than the site blue, so it never reads as another row of statistics. */
-.typerow-curated {
-  border-color: rgba(240, 190, 90, 0.55);
-  background: rgba(240, 190, 90, 0.07);
-}
-
-.tag-curated {
-  border-color: rgba(240, 190, 90, 0.5);
-  color: #f0be5a;
-}
+/* REMOVED 20 Sep 2026: `.typerow-curated` and `.tag-curated` styled a hand-written
+ * list of aircraft that no longer exists — the page lists only what the feed was
+ * seen showing. Nothing had emitted either class for some time, so they were rules
+ * for a thing that was not on the page. Measured before deleting: zero occurrences
+ * in src/, site/*.js and site/*.html. */
 
 /* ------------------------------------------------------ the live chart --- */
 .radar-wrap {
@@ -1184,10 +1189,8 @@ main > #status {
   align-items: center;
 }
 
-.typerow-curated .typerow-thumb {
-  color: #f0be5a;
-  opacity: 0.85;
-}
+/* Removed 20 Sep 2026 with the rest of the curated styling — see the note further
+ * up the file. Nothing emitted `.typerow-curated`. */
 
 /* ------------------------------------------------------ tail numbers --- */
 /* Chips in the card, always visible, no disclosure button: the reader asked for
@@ -1216,11 +1219,17 @@ main > #status {
 }
 
 /* A highlighted tail is a rule of its own, and it is drawn in the same colour as
- * a favourited type so the two read as the same kind of thing. */
+ * a favourited type so the two read as the same kind of thing.
+ *
+ * 🔴 AND THE STAR INSIDE IT IS YELLOW TOO. George, 20 Sep 2026: *"the star for
+ * selecting a tail should be yelow like airport"*. This rule said `var(--ink)`,
+ * which is what the little star inherits through `currentColor` — so the same mark
+ * came out near-white on a tail number and yellow on an airport, one card apart,
+ * and two colours for one meaning is a reader having to learn the page twice. */
 .tail-chip[aria-pressed='true'] {
   border-color: #f0be5a;
   background: rgba(240, 190, 90, 0.16);
-  color: var(--ink);
+  color: #f0be5a;
 }
 
 .tail-note {
@@ -1384,8 +1393,13 @@ main > #status {
   fill: var(--theme);
 }
 
+/* 🔴 GREY IS AN AIRPORT YOU HAVE NOT PICKED. Every marker on this map used to be
+ * gold, so the airport the page was watching looked exactly like the thirteen it
+ * was not — and now that several can be picked at once, the picked ones have to be
+ * the ones that stand out. The chosen markers and their codes are set at the end of
+ * this file, after the `.locmap` block that the picked airports are drawn inside. */
 .locmap-airport {
-  fill: #f0be5a;
+  fill: #7d97a8;
 }
 
 .locmap-line {
@@ -1580,6 +1594,62 @@ main > #status {
 /* Everything except the heading folds away — the h2 is the handle. */
 .step-gated.step-folded > *:not(h2) {
   display: none !important;
+}
+
+/* ------------------------------------------------------ the picked airports --- */
+/* 🔴 THE ONE AIRPORT YOU PICKED, IN THE ONE COLOUR THAT MEANS YOU PICKED IT. George,
+ * 20 Sep 2026: *"selecting an airport should hava star and yellow hue"* — and then
+ * *"i should also be able to select multiple airport ... make sure all are viewable
+ * in the maps"*. These are drawn last, over every other marker, and the map's zoom
+ * is chosen to fit all of them, so no picked airport can be off the view. */
+.locmap-airport-chosen {
+  fill: #f0be5a;
+  stroke: rgba(4, 16, 26, 0.65);
+  stroke-width: 1.4;
+}
+
+.locmap-label-chosen {
+  fill: #f0be5a;
+  font-weight: 600;
+}
+
+.locmap-line-chosen {
+  stroke: rgba(240, 190, 90, 0.5);
+  stroke-dasharray: none;
+}
+
+/* ------------------------------------------------------------- the year --- */
+/* 🔴 A YEAR IS A SMALL QUIET NUMBER, AND IT MUST NOT READ AS A COUNT. Every other
+ * number on a type row is how MANY — sightings, airports, operators — so the year
+ * gets its own mark in the same gold the page uses for marks, and the sentence
+ * behind it (including that it is the TYPE's year and not the airframe's) is on its
+ * tooltip rather than in the row. */
+.year-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid rgba(240, 190, 90, 0.4);
+  border-radius: 999px;
+  color: #f0be5a;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
+  cursor: help;
+}
+
+/* ------------------------------------------------- what you are watching --- */
+/* 🔴 ONE LINE PER CHOICE, STAR FIRST. The panel used to be a row of nested boxes
+ * with a "narrow to a tail number" form inside each one. George, 20 Sep 2026:
+ * *"what you are watching, only list was was selected above, no more features"*. */
+.watch-what {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+}
+
+.watch-what .mark-star {
+  fill: #f0be5a;
+  align-self: center;
 }
 
 /* The folded state must not be re-opened behind the reader's back by the gate,

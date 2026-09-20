@@ -1,0 +1,365 @@
+{
+  "generated": "2026-09-20T18:04:47.329Z",
+  "source": "Wikidata (CC0) — https://www.wikidata.org",
+  "method": "searched Wikidata for each type name, then read P606 (first flight), else P729 (service entry)",
+  "acceptance": "Three guards, all measured against real failures. The item's label must be EXACTLY the name asked about — a \"begins with\" test gave the A319 the A319neo, the A330 the A330neo, and the 737-800 an individual airframe. The item must carry a first-flight date. And the item must be a kind of aircraft, checked by walking its instance-of up the subclass chain to aircraft, aircraft family or aircraft type (Q11436 / Q15056993 / Q45296117) — the earlier manufacturer-and-operator test let through a Swedish motor torpedo boat, a hand-written list of classes threw away a third of the good years, and walking to `aircraft` ALONE threw away all but four, because a family of aircraft is not itself an aircraft. A type that fails any guard gets NO year rather than a guessed one.",
+  "scope": "The year the TYPE was first flown, not the year the individual airframe was built. No free source publishes a build year per airframe — the feed's own 617,361-row airframe database has no year field.",
+  "asked": 93,
+  "resolved": 37,
+  "unmatched": [
+    "A139",
+    "A169",
+    "A400",
+    "AS21",
+    "AS65",
+    "B350",
+    "B733",
+    "B734",
+    "B762",
+    "B789",
+    "BE20",
+    "C130",
+    "C152",
+    "C17",
+    "C25B",
+    "C27J",
+    "C295",
+    "C30J",
+    "C414",
+    "C68A",
+    "C750",
+    "C82R",
+    "CL35",
+    "CL60",
+    "CN35",
+    "CRJ9",
+    "DHC2",
+    "DHC6",
+    "E135",
+    "E295",
+    "E550",
+    "EC35",
+    "EC45",
+    "EVSS",
+    "GL5T",
+    "GL7T",
+    "GLF6",
+    "GLID",
+    "H47",
+    "H500",
+    "HAWK",
+    "K35R",
+    "LA4",
+    "LJ75",
+    "P28A",
+    "P28R",
+    "P8",
+    "PA27",
+    "PA34",
+    "PA44",
+    "S76",
+    "SW4",
+    "T206",
+    "T38",
+    "TEX2",
+    "V22"
+  ],
+  "years": {
+    "A21N": {
+      "year": 2016,
+      "basis": "first flight",
+      "item": "Q30914140",
+      "name": "Airbus A321neo",
+      "asked": "Airbus A321neo",
+      "exact": true
+    },
+    "A319": {
+      "year": 1995,
+      "basis": "first flight",
+      "item": "Q3317803",
+      "name": "Airbus A319",
+      "asked": "Airbus A319",
+      "exact": true
+    },
+    "A320": {
+      "year": 1987,
+      "basis": "first flight",
+      "item": "Q6475",
+      "name": "Airbus A320 family",
+      "asked": "Airbus A320 family",
+      "exact": false
+    },
+    "A321": {
+      "year": 1993,
+      "basis": "first flight",
+      "item": "Q3278675",
+      "name": "Airbus A321",
+      "asked": "Airbus A321",
+      "exact": true
+    },
+    "A332": {
+      "year": 1992,
+      "basis": "first flight",
+      "item": "Q6478",
+      "name": "Airbus A330",
+      "asked": "Airbus A330",
+      "exact": false
+    },
+    "A333": {
+      "year": 1992,
+      "basis": "first flight",
+      "item": "Q6478",
+      "name": "Airbus A330",
+      "asked": "Airbus A330",
+      "exact": false
+    },
+    "A359": {
+      "year": 2013,
+      "basis": "first flight",
+      "item": "Q6484",
+      "name": "Airbus A350",
+      "asked": "Airbus A350",
+      "exact": false
+    },
+    "B190": {
+      "year": 1982,
+      "basis": "first flight",
+      "item": "Q661819",
+      "name": "Beechcraft 1900",
+      "asked": "Beechcraft 1900",
+      "exact": true
+    },
+    "B212": {
+      "year": 1965,
+      "basis": "first flight",
+      "item": "Q698242",
+      "name": "Bell 212",
+      "asked": "Bell 212",
+      "exact": true
+    },
+    "B38M": {
+      "year": 2016,
+      "basis": "first flight",
+      "item": "Q106340166",
+      "name": "Boeing 737 MAX 8",
+      "asked": "Boeing 737 MAX 8",
+      "exact": true
+    },
+    "B737": {
+      "year": 1967,
+      "basis": "first flight",
+      "item": "Q6387",
+      "name": "Boeing 737",
+      "asked": "Boeing 737",
+      "exact": false
+    },
+    "B738": {
+      "year": 1997,
+      "basis": "first flight",
+      "item": "Q12476717",
+      "name": "Boeing 737-800",
+      "asked": "Boeing 737-800",
+      "exact": true
+    },
+    "B739": {
+      "year": 2000,
+      "basis": "first flight",
+      "item": "Q15623378",
+      "name": "Boeing 737-900",
+      "asked": "Boeing 737-900",
+      "exact": true
+    },
+    "B752": {
+      "year": 1982,
+      "basis": "first flight",
+      "item": "Q90133051",
+      "name": "Boeing 757-200",
+      "asked": "Boeing 757-200",
+      "exact": true
+    },
+    "B763": {
+      "year": 1986,
+      "basis": "first flight",
+      "item": "Q15623997",
+      "name": "Boeing 767-300",
+      "asked": "Boeing 767-300",
+      "exact": true
+    },
+    "B77L": {
+      "year": 1994,
+      "basis": "first flight",
+      "item": "Q6425",
+      "name": "Boeing 777",
+      "asked": "Boeing 777",
+      "exact": false
+    },
+    "BCS1": {
+      "year": 2015,
+      "basis": "first flight",
+      "item": "Q426074",
+      "name": "Airbus A220",
+      "asked": "Airbus A220",
+      "exact": false
+    },
+    "BCS3": {
+      "year": 2015,
+      "basis": "first flight",
+      "item": "Q426074",
+      "name": "Airbus A220",
+      "asked": "Airbus A220",
+      "exact": false
+    },
+    "BE9L": {
+      "year": 1963,
+      "basis": "first flight",
+      "item": "Q15838655",
+      "name": "Beechcraft King Air 90",
+      "asked": "Beechcraft King Air 90",
+      "exact": true
+    },
+    "C150": {
+      "year": 1957,
+      "basis": "first flight",
+      "item": "Q1057117",
+      "name": "Cessna 150",
+      "asked": "Cessna 150",
+      "exact": true
+    },
+    "C172": {
+      "year": 1955,
+      "basis": "first flight",
+      "item": "Q244479",
+      "name": "Cessna 172 Skyhawk",
+      "asked": "Cessna 172 Skyhawk",
+      "exact": true
+    },
+    "C182": {
+      "year": 1956,
+      "basis": "first flight",
+      "item": "Q686708",
+      "name": "Cessna 182 Skylane",
+      "asked": "Cessna 182 Skylane",
+      "exact": true
+    },
+    "C208": {
+      "year": 1982,
+      "basis": "first flight",
+      "item": "Q1056131",
+      "name": "Cessna 208 Caravan",
+      "asked": "Cessna 208 Caravan",
+      "exact": true
+    },
+    "C560": {
+      "year": 1987,
+      "basis": "first flight",
+      "item": "Q911668",
+      "name": "Cessna Citation V",
+      "asked": "Cessna Citation V",
+      "exact": true
+    },
+    "DH3T": {
+      "year": 1951,
+      "basis": "first flight",
+      "item": "Q309792",
+      "name": "De Havilland Canada DHC-3 Otter",
+      "asked": "de Havilland Canada DHC-3 Otter",
+      "exact": false
+    },
+    "DH8A": {
+      "year": 1983,
+      "basis": "first flight",
+      "item": "Q15624289",
+      "name": "de Havilland Canada DHC-8-100",
+      "asked": "de Havilland Canada DHC-8-100",
+      "exact": false
+    },
+    "DH8B": {
+      "year": 1983,
+      "basis": "first flight",
+      "item": "Q736765",
+      "name": "de Havilland Canada DHC-8",
+      "asked": "de Havilland Canada DHC-8",
+      "exact": false
+    },
+    "DH8D": {
+      "year": 1998,
+      "basis": "first flight",
+      "item": "Q2909633",
+      "name": "de Havilland Canada DHC-8-400",
+      "asked": "de Havilland Canada DHC-8-400",
+      "exact": false
+    },
+    "E145": {
+      "year": 1995,
+      "basis": "first flight",
+      "item": "Q913114",
+      "name": "Embraer ERJ 145",
+      "asked": "Embraer ERJ 145",
+      "exact": true
+    },
+    "E170": {
+      "year": 2002,
+      "basis": "first flight",
+      "item": "Q18572652",
+      "name": "Embraer 170",
+      "asked": "Embraer 170",
+      "exact": true
+    },
+    "E75L": {
+      "year": 2003,
+      "basis": "first flight",
+      "item": "Q3052079",
+      "name": "Embraer 175",
+      "asked": "Embraer 175",
+      "exact": true
+    },
+    "E75S": {
+      "year": 2003,
+      "basis": "first flight",
+      "item": "Q3052079",
+      "name": "Embraer 175",
+      "asked": "Embraer 175",
+      "exact": true
+    },
+    "F900": {
+      "year": 1984,
+      "basis": "first flight",
+      "item": "Q1141409",
+      "name": "Dassault Falcon 900",
+      "asked": "Dassault Falcon 900",
+      "exact": true
+    },
+    "FA50": {
+      "year": 1976,
+      "basis": "first flight",
+      "item": "Q684763",
+      "name": "Dassault Falcon 50",
+      "asked": "Dassault Falcon 50",
+      "exact": true
+    },
+    "GLEX": {
+      "year": 1996,
+      "basis": "first flight",
+      "item": "Q373171",
+      "name": "Bombardier Global Express",
+      "asked": "Bombardier Global Express",
+      "exact": true
+    },
+    "H60": {
+      "year": 1974,
+      "basis": "first flight",
+      "item": "Q189491",
+      "name": "Sikorsky UH-60 Black Hawk",
+      "asked": "Sikorsky UH-60 Black Hawk",
+      "exact": true
+    },
+    "PC12": {
+      "year": 1991,
+      "basis": "first flight",
+      "item": "Q685211",
+      "name": "Pilatus PC-12",
+      "asked": "Pilatus PC-12",
+      "exact": true
+    }
+  }
+}

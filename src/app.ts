@@ -82,6 +82,30 @@ const DISTANCES: { km: number; label: string; blurb: string }[] = [
   { km: 50, label: 'The whole region', blurb: 'everything passing over' },
 ];
 
+/**
+ * 🔴 AN ERA IS A FILTER A READER ACTUALLY REACHES FOR. George, 20 Sep 2026: *"i
+ * want you to know the year each aircraft was made so it helps you filter more"*.
+ *
+ * Four choices, not eight. 1970 and 2000 are the two lines that mean something to
+ * somebody looking at a screen full of type codes — the jet age arriving in
+ * earnest, and the generation being built now — and a longer list of them would be
+ * a taxonomy rather than a filter.
+ *
+ * 🔴 THE YEAR IS THE TYPE'S, NOT THE AIRFRAME'S, and every label says "first
+ * flown" rather than "built" for that reason. Nothing free publishes a build year
+ * per airframe: measured 20 Sep 2026, the feed's own 617,361-row airframe database
+ * has no year field, hexdb.io returns owner and type but no year, and the
+ * planespotters photo API returns photographs and no year.
+ */
+type EraKey = 'all' | 'before1970' | '1970to1999' | 'since2000';
+
+const ERAS: { key: EraKey; label: string; from: number; to: number }[] = [
+  { key: 'all', label: 'Any year', from: 0, to: 9999 },
+  { key: 'before1970', label: 'first flown before 1970', from: 0, to: 1969 },
+  { key: '1970to1999', label: 'first flown 1970–1999', from: 1970, to: 1999 },
+  { key: 'since2000', label: 'first flown 2000 or later', from: 2000, to: 9999 },
+];
+
 /** One measured type, as tools/survey-types.mjs writes it. */
 interface SurveyedType {
   code: string;
@@ -101,6 +125,33 @@ interface TypesDocument {
   /** Said out loud: a registration is only in here if one was transmitted. */
   registrationsNote?: string;
   types: SurveyedType[];
+}
+
+/** One type's first flight, as tools/survey-years.mjs measured it from Wikidata. */
+interface YearEntry {
+  year: number;
+  /** `first flight`, or `service entry` when that was the only dated fact. */
+  basis: string;
+  item: string;
+  /** The label of the item that answered — which may be the family, not the variant. */
+  name: string;
+  /** The string that was searched for. */
+  asked: string;
+  /** True when the item's label was exactly the name the type table gives. */
+  exact: boolean;
+}
+
+interface YearsDocument {
+  generated: string;
+  source: string;
+  method: string;
+  acceptance: string;
+  /** What the year is a year OF — repeated on the page, never left in the file. */
+  scope: string;
+  asked: number;
+  resolved: number;
+  unmatched: string[];
+  years: Record<string, YearEntry>;
 }
 
 /** One airport, as tools/verify-airports.mjs writes it after asking the feed. */
@@ -320,7 +371,53 @@ function escapeHtml(value: string): string {
 }
 
 class Page {
-  private airport: ResolvedAirport | null = null;
+  /**
+   * 🔴 MORE THAN ONE AIRPORT, BECAUSE A READER USUALLY CARES ABOUT MORE THAN ONE.
+   * George, 20 Sep 2026: *"i should also be able to select multiple airport. if i
+   * select multiple, make sure all are viewable in the maps"*.
+   *
+   * It is a LIST and not a single slot. Before this, picking a second airport
+   * silently dropped the first — so there was no way to watch Hamilton and Toronto
+   * at once, which is the ordinary thing to want when you live between them.
+   */
+  private airports: ResolvedAirport[] = [];
+
+  /**
+   * The first airport picked, for the places with room for only one.
+   *
+   * 🔴 IT IS THE FIRST PICKED, NOT THE ALPHABETICALLY FIRST. The airport somebody
+   * chose first is the one they came for, so it keeps the heading, the centre of
+   * the radar and the notification rather than being displaced by a code that
+   * happens to sort earlier.
+   */
+  private get airport(): ResolvedAirport | null {
+    return this.airports[0] ?? null;
+  }
+
+  private isChosen(icao: string): boolean {
+    return this.airports.some((one) => one.icao === icao);
+  }
+
+  private chosenIcaos(): string[] {
+    return this.airports.map((one) => one.icao);
+  }
+
+  /** How to name the airports being watched, where a sentence has room for a few. */
+  private airportPhrase(): string {
+    const codes = this.chosenIcaos();
+    if (codes.length === 0) return 'the airport';
+    if (codes.length <= 3) return codes.join(' / ');
+    return `${codes.slice(0, 3).join(' / ')} +${codes.length - 3} more`;
+  }
+
+  /** The same, where there is room for almost nothing — the middle of the radar. */
+  private airportCentreLabel(): string {
+    const codes = this.chosenIcaos();
+    if (codes.length === 0) return this.centre ? 'you' : '';
+    if (codes.length <= 2) return codes.join(' / ');
+    return `${codes.length} airports`;
+  }
+
   private engine: DetectionEngine | null = null;
   private watchlist: string[] = [];
   private typeRules: TypeRule[] = [];
@@ -340,6 +437,11 @@ class Page {
 
   /** Photographs and their credits, keyed by type code — see `tools/survey-photos.mjs`. */
   private photos: Record<string, PhotoEntry> = {};
+
+  /** First-flown years, keyed by type code — see `tools/survey-years.mjs`. */
+  private yearsDoc: YearsDocument | null = null;
+  /** Which era the type list is narrowed to. Not presellected into anything narrower. */
+  private eraFilter: EraKey = 'all';
 
   /**
    * Where the reader actually is, once they have said. Everything else — the
@@ -409,9 +511,16 @@ class Page {
     this.bindStartOver();
     this.bindLocate();
 
-    const saved = readStore(AIRPORT_KEY, DEFAULT_AIRPORT);
-    void this.chooseAirport(saved);
+    // 🔴 A COMMA-SEPARATED LIST, BECAUSE SEVERAL CAN BE PICKED NOW. A value written
+    // before this change is a single identifier, which splits to a list of one — so
+    // a session saved by the older page comes back rather than being discarded.
+    const saved = readStore(AIRPORT_KEY, DEFAULT_AIRPORT)
+      .split(',')
+      .map((code) => code.trim().toUpperCase())
+      .filter((code) => /^[A-Z0-9]{3,4}$/.test(code));
+    void this.loadChosenAirports(saved.length > 0 ? saved : [DEFAULT_AIRPORT]);
     void this.loadSurvey();
+    void this.loadYears();
     void this.loadMilitary();
     void this.loadPhotos();
     void this.loadAirports();
@@ -513,8 +622,10 @@ class Page {
         // Step 2 is answered, so step 3 may arrive — and the fence is (re)aimed
         // with the distance they actually chose.
         this.updateSteps();
-        if (this.airport) void this.chooseAirport(this.airport.icao);
-        else this.rearm();
+        // Re-aimed with the distance they actually chose. Nothing is re-fetched:
+        // `point()` already falls back to the airports that are picked, so this is
+        // the same point at a new radius rather than a new question.
+        this.rearm();
         track('distance_chosen', { km: choice.km, nm: kmToNm(choice.km), first });
       });
       host.appendChild(button);
@@ -619,80 +730,163 @@ class Page {
     return null;
   }
 
-  private async chooseAirport(icao: string): Promise<void> {
-    this.stop();
-    this.setBusy(icao, true);
-    this.setStatus(`Looking up ${icao}…`, 'working');
-    try {
-      const response = await fetch(`/api/0/airport/${encodeURIComponent(icao)}`, {
-        headers: { accept: 'application/json' },
-      });
-      // Same order as the poll, through the same helper: an error status arrives as
-      // an HTML page, so it is caught by its status and never by trying to parse it.
-      const trouble = this.feedTrouble(response);
-      if (trouble) {
-        this.airport = null;
-        this.setBusy(icao, false);
-        this.setStatus(trouble, 'error');
-        return;
-      }
-      const payload = await readJson(response);
-      if (!response.ok) throw new Error(`The feed answered ${response.status} for ${icao}.`);
-      this.airport = parseAirport(icao, payload);
-    } catch (error) {
-      this.airport = null;
-      this.lastError = error instanceof Error ? error.message : String(error);
-      this.setBusy(icao, false);
-      this.setStatus(this.lastError, 'error');
+  /**
+   * 🔴 PICKING AN AIRPORT IS A TOGGLE, NOT A SLOT.
+   *
+   * George, 20 Sep 2026: *"i should also be able to select multiple airport"*.
+   * Pressing one that is already picked now unpicks it and the star comes off,
+   * which is what a star means everywhere else on this page.
+   *
+   * 🔴 AND A FAILED LOOKUP NO LONGER UNPICKS ANYTHING. The old code set the airport
+   * to null on every error path, so a moment of rate limiting at the feed threw away
+   * a choice the reader had already made. An error now means only that the airport
+   * was not ADDED — what was picked before is untouched.
+   */
+  private async toggleAirport(icao: string): Promise<void> {
+    if (this.isChosen(icao)) {
+      this.airports = this.airports.filter((one) => one.icao !== icao);
+      this.afterAirportChange();
+      track('airport_unpicked', { airport: icao, count: this.airports.length });
       return;
     }
 
-    writeStore(AIRPORT_KEY, this.airport.icao);
-
-    const title = byId('airportTitle');
-    if (title) title.textContent = `${this.airport.name} (${this.airport.icao})`;
-    const where = byId('airportWhere');
-    if (where) {
-      where.textContent =
-        `${this.airport.location || '—'} · ${this.airport.lat.toFixed(4)}, ${this.airport.lon.toFixed(4)}` +
-        (this.airport.elevationFt !== null ? ` · field elevation ${this.airport.elevationFt} ft` : '');
+    // 🔴 AN AIRPORT FROM THE LIST BESIDE THE MAP COSTS NO REQUEST AT ALL. That list
+    // came from the feed's own airport file, so its position is already on the page;
+    // asking the feed again for something we are holding would be a wasted request
+    // against a service that rate-limits.
+    const listed = this.nearby.find((row) => row.airport.icao === icao)?.airport;
+    let resolved: ResolvedAirport;
+    if (listed) {
+      resolved = {
+        icao: listed.icao,
+        label: listed.location || listed.name,
+        name: listed.name,
+        location: listed.location,
+        iata: listed.iata ?? '',
+        lat: listed.lat,
+        lon: listed.lon,
+        elevationFt: listed.elevationFt,
+      };
+    } else {
+      this.setBusy(icao, true);
+      this.setStatus(`Looking up ${icao}…`, 'working');
+      try {
+        const response = await fetch(`/api/0/airport/${encodeURIComponent(icao)}`, {
+          headers: { accept: 'application/json' },
+        });
+        // Same order as the poll, through the same helper: an error status arrives
+        // as an HTML page, so it is caught by its status and never by trying to
+        // parse it.
+        const trouble = this.feedTrouble(response);
+        if (trouble) {
+          this.setBusy(icao, false);
+          this.setStatus(trouble, 'error');
+          return;
+        }
+        const payload = await readJson(response);
+        if (!response.ok) throw new Error(`The feed answered ${response.status} for ${icao}.`);
+        resolved = parseAirport(icao, payload);
+      } catch (error) {
+        this.lastError = error instanceof Error ? error.message : String(error);
+        this.setBusy(icao, false);
+        this.setStatus(this.lastError, 'error');
+        return;
+      }
+      this.setBusy(icao, false);
     }
 
-    const fence = byId('fenceNote');
-    if (fence) {
-      const km = nmToKm(kmToNm(this.radiusKm));
-      fence.textContent =
-        `Looking ${this.radiusKm} km out from ${this.centre ? 'your own position' : 'the airport'} — ` +
-        `${kmToNm(this.radiusKm)} nautical miles, which is the unit the feed takes. ` +
-        (this.radiusKm <= 10
-          ? 'A short distance is the best chance of catching an aircraft on the ground, and the least notice of anything else.'
-          : this.radiusKm >= 50
-            ? 'A long distance sees a great deal of traffic, and very little of it on the ground — the two pull in opposite directions.'
-            : `Climb-out and approach both fall inside it, and about ${km} km is what most aircraft cover in the first minute after leaving.`);
+    this.airports = [...this.airports, resolved];
+    this.afterAirportChange();
+    track('airport_picked', {
+      airport: resolved.icao,
+      count: this.airports.length,
+      km: this.radiusKm,
+      nm: kmToNm(this.radiusKm),
+    });
+  }
+
+  /**
+   * Bring back the airports a previous visit picked.
+   *
+   * It goes through the same toggle as a press does, so a restored session and a
+   * fresh one cannot end up in different states — and an identifier the feed cannot
+   * place is dropped rather than listed as if it were real.
+   */
+  private async loadChosenAirports(list: string[]): Promise<void> {
+    // Capped, because this is one feed request each and the feed rate-limits. A
+    // stored list never grows past this, so the cap is a guard rather than a limit
+    // anybody will meet.
+    for (const icao of list.slice(0, 8)) {
+      if (!this.isChosen(icao)) await this.toggleAirport(icao);
     }
-
-    const at = this.point() ?? { lat: this.airport.lat, lon: this.airport.lon };
-    this.engine = new DetectionEngine(
-      {
-        lat: at.lat,
-        lon: at.lon,
-        radiusNm: kmToNm(this.radiusKm),
-        now: Date.now(),
-        staleAfterSec: DEFAULTS.staleAfterSec,
-        cooldownMs: DEFAULTS.cooldownMs,
-      },
-      this.watchlist
-    );
-    this.engine.setTypeRules(this.typeRules);
-
-    track('airport_chosen', { airport: this.airport.icao, km: this.radiusKm, nm: kmToNm(this.radiusKm) });
-    // The chips and the map are redrawn so the airport just picked is the one
-    // carrying the mark — `renderNearby` draws the map too.
-    this.renderNearby();
-    this.setBusy(icao, false);
-    await this.poll();
     this.updateSteps();
-    this.timer = window.setInterval(() => void this.poll(), POLL_MS);
+  }
+
+  /**
+   * Everything that has to happen once the set of picked airports changes.
+   *
+   * It is in one place on purpose: the star, the sentence, the map and the fence are
+   * four views of the same fact, and a change that updated three of them would leave
+   * the page disagreeing with itself.
+   */
+  private afterAirportChange(): void {
+    writeStore(AIRPORT_KEY, this.chosenIcaos().join(','));
+    this.renderAirportPanel();
+    // Redraws the chips AND the map — `renderNearby` draws the map too — so the
+    // stars and the map agree with the list in the same frame.
+    this.renderNearby();
+    this.rearm();
+    this.updateSteps();
+  }
+
+  /**
+   * 🔴 WHICH AIRPORTS ARE PICKED, SAID IN WORDS, BESIDE THE MAP.
+   *
+   * The stars show it and this states it. Both are needed: a star is a mark you have
+   * to already understand, and somebody who has just pressed three chips wants to see
+   * the three named once rather than counted.
+   */
+  private renderAirportPanel(): void {
+    const where = byId('airportWhere');
+    if (!where) return;
+    const count = this.airports.length;
+    if (count === 0) {
+      where.textContent =
+        'No airport picked yet. Press one of the airports above — you can pick as many as you like.';
+    } else if (count === 1) {
+      const one = this.airports[0];
+      where.textContent =
+        `${one.name} (${one.icao}) · ${one.location || '—'} · ${one.lat.toFixed(4)}, ${one.lon.toFixed(4)}` +
+        (one.elevationFt !== null ? ` · field elevation ${one.elevationFt} ft` : '');
+    } else {
+      where.textContent =
+        `${count} airports watched: ` +
+        this.airports.map((one) => `${one.icao} — ${one.location || one.name}`).join(' · ');
+    }
+    this.renderFenceNote();
+  }
+
+  /**
+   * What the fence is drawn round — which changed the moment several airports could
+   * be picked at once, so the sentence has to be able to say "the middle of them".
+   */
+  private renderFenceNote(): void {
+    const fence = byId('fenceNote');
+    if (!fence) return;
+    const km = nmToKm(kmToNm(this.radiusKm));
+    const from = this.centre
+      ? 'your own position'
+      : this.airports.length > 1
+        ? 'the middle of the airports you picked'
+        : 'the airport';
+    fence.textContent =
+      `Looking ${this.radiusKm} km out from ${from} — ` +
+      `${kmToNm(this.radiusKm)} nautical miles, which is the unit the feed takes. ` +
+      (this.radiusKm <= 10
+        ? 'A short distance is the best chance of catching an aircraft on the ground, and the least notice of anything else.'
+        : this.radiusKm >= 50
+          ? 'A long distance sees a great deal of traffic, and very little of it on the ground — the two pull in opposite directions.'
+          : `Climb-out and approach both fall inside it, and about ${km} km is what most aircraft cover in the first minute after leaving.`);
   }
 
   private stop(): void {
@@ -816,7 +1010,6 @@ class Page {
     body.innerHTML = rows
       .map((state) => {
         const label = state.callsign || state.registration || state.hex;
-        const info = describeType(state.type);
         const phase =
           state.phase === 'ground'
             ? '<span class="tag tag-ground">on the ground</span>'
@@ -827,7 +1020,7 @@ class Page {
           `<tr${state.watched ? ' class="watched-row"' : ''}>` +
           `<td class="mono">${escapeHtml(state.hex)}</td>` +
           `<td><b>${escapeHtml(label)}</b></td>` +
-          `<td class="mono" title="${escapeHtml(info.name)}">${escapeHtml(state.type || '—')}</td>` +
+          (state.type ? this.typeCell(state.type) : '<td class="mono">—</td>') +
           `<td>${phase}</td>` +
           `<td class="mono">${formatClock(state.observedAt)}</td>` +
           `<td><button type="button" class="linkish watch-toggle" data-key="${escapeHtml(label)}" ` +
@@ -926,6 +1119,116 @@ class Page {
     this.renderTypeList();
   }
 
+  /**
+   * Read `years.json`, which `tools/survey-years.mjs` measured and wrote.
+   *
+   * 🔴 SAME SHAPE AS EVERY OTHER LIST ON THIS PAGE: a measured file, with its date,
+   * its method and its source, so the year can be refreshed by re-running one
+   * script rather than by editing the site. If it cannot be read the page shows NO
+   * years and says so — it does not fall back to a number somebody typed once.
+   */
+  private async loadYears(): Promise<void> {
+    try {
+      const response = await fetch('/years.json', { headers: { accept: 'application/json' } });
+      this.yearsDoc = (await readJson(response)) as YearsDocument;
+    } catch {
+      this.yearsDoc = null;
+    }
+    this.buildYearFilter();
+    this.renderTypeList();
+  }
+
+  private yearOf(code: string): YearEntry | null {
+    return this.yearsDoc?.years?.[String(code).toUpperCase()] ?? null;
+  }
+
+  /** The sentence behind a year, for the tooltip — the row itself carries only the number. */
+  private yearTitle(entry: YearEntry): string {
+    return (
+      `${entry.year}: the year the ${entry.name} was first ${entry.basis === 'first flight' ? 'flown' : 'in service'}. ` +
+      (entry.exact ? '' : `Matched on the ${entry.name}, so this may be the family's year rather than this variant's. `) +
+      'From Wikidata (CC0). ' +
+      "It is the TYPE's year, not the year the individual airframe was built — nothing free publishes a build year " +
+      'for a single airframe.'
+    );
+  }
+
+  private buildYearFilter(): void {
+    const host = byId('yearFilter');
+    const note = byId('yearNote');
+    if (!host) return;
+    host.innerHTML = '';
+    for (const era of ERAS) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'chip chip-small';
+      button.textContent = era.label;
+      button.dataset.era = era.key;
+      button.setAttribute('aria-pressed', String(era.key === this.eraFilter));
+      button.addEventListener('click', () => {
+        this.eraFilter = era.key;
+        for (const other of host.querySelectorAll('button')) {
+          other.setAttribute('aria-pressed', String(other === button));
+        }
+        this.renderTypeList();
+        track('era_chosen', { era: era.key });
+      });
+      host.appendChild(button);
+    }
+    if (!note) return;
+    if (this.yearsDoc === null) {
+      note.textContent =
+        'The first-flown years could not be read, so no year is shown anywhere and these filters do nothing.';
+      return;
+    }
+    note.textContent =
+      `First-flown years for ${this.yearsDoc.resolved} of the ${this.yearsDoc.asked} type codes this site can ` +
+      `name, read from ${this.yearsDoc.source}. ${this.yearsDoc.scope} ` +
+      'A type with no year is left out of these filters rather than guessed at.';
+  }
+
+  /**
+   * 🔴 WHICH TYPE CODES SURVIVE THE TWO FILTERS, AND WHY SOME DO NOT.
+   *
+   * The kind and the era both narrow, and they narrow together — "war planes first
+   * flown before 1970" is a question this answers. A type with NO year is dropped
+   * under an era filter and counted, because a filter must not answer "before 1970"
+   * with something nobody measured.
+   */
+  private typeRows(): { rows: ReturnType<Page['combinedTypes']>; undated: number } {
+    const era = ERAS.find((candidate) => candidate.key === this.eraFilter) ?? ERAS[0];
+    let undated = 0;
+    const rows = this.combinedTypes().filter((row) => {
+      if (this.typeFilter !== 'all' && this.klassOf(row.code) !== this.typeFilter) return false;
+      if (era.key === 'all') return true;
+      const entry = this.yearOf(row.code);
+      if (entry === null) {
+        undated += 1;
+        return false;
+      }
+      return entry.year >= era.from && entry.year <= era.to;
+    });
+    return { rows, undated };
+  }
+
+  /**
+   * One type's code and its year, as a table cell can carry them.
+   *
+   * 🔴 THE NUMBER ALONE WOULD BE MISTAKEN FOR A COUNT. Every other number in this
+   * table is how MANY — readings, aircraft, kilometres — so the year goes in its own
+   * mark, and the sentence behind it (including what it is a year OF) is on the
+   * tooltip rather than in the cell.
+   */
+  private typeCell(code: string): string {
+    const entry = this.yearOf(code);
+    return (
+      `<td class="mono" title="${escapeHtml(entry ? this.yearTitle(entry) : describeType(code).name)}">` +
+      escapeHtml(code) +
+      (entry ? ` <span class="year-tag">${entry.year}</span>` : '') +
+      '</td>'
+    );
+  }
+
   /** The survey's types, with anything newer that this session saw merged in. */
   private combinedTypes(): {
     code: string;
@@ -973,14 +1276,40 @@ class Page {
    */
   private point(): { lat: number; lon: number } | null {
     if (this.centre) return this.centre;
-    if (this.airport) return { lat: this.airport.lat, lon: this.airport.lon };
+    const picked = this.airports;
+    if (picked.length === 1) return { lat: picked[0].lat, lon: picked[0].lon };
+    if (picked.length > 1) {
+      // 🔴 THE MIDDLE OF THE AIRPORTS PICKED, WHEN THERE IS NO PLACE TO STAND.
+      // A reader who has picked Hamilton and Toronto but not said where they are
+      // has asked about both, so aiming at the first would quietly ignore the
+      // second. The average of the latitudes and the longitudes is the centre of
+      // the box they span — good to a few kilometres over the distances this page
+      // works in, and honest about being a centre rather than pretending to be one
+      // of the airports.
+      return {
+        lat: picked.reduce((sum, one) => sum + one.lat, 0) / picked.length,
+        lon: picked.reduce((sum, one) => sum + one.lon, 0) / picked.length,
+      };
+    }
     return null;
   }
 
-  /** Re-aim the fence and start polling again — used when the reader moves. */
+  /** Re-aim the fence and start polling again — used when the reader moves or picks. */
   private rearm(): void {
+    // Said here rather than where a distance is pressed, because this is the one
+    // place that runs for every reason the fence can change — a new distance, a new
+    // place, a new airport — so the sentence cannot fall out of step with the fence.
+    this.renderFenceNote();
     const at = this.point();
-    if (!at) return;
+    if (!at) {
+      // 🔴 NOTHING TO AIM AT: no place given and no airport picked. Polling on would
+      // ask the feed about a point that does not exist. The table keeps its last
+      // reading rather than being emptied, because an empty table says "nothing is
+      // flying" when the truth is "nothing has been asked for yet".
+      this.stop();
+      this.setStatus('Pick an airport above, or say where you are, and this fills in.', 'working');
+      return;
+    }
     this.engine = new DetectionEngine(
       {
         lat: at.lat,
@@ -1253,13 +1582,19 @@ class Page {
     const host = byId('typeList');
     if (!host) return;
 
-    const rows = this.combinedTypes().filter((row) => {
-      if (this.typeFilter === 'all') return true;
-      return this.klassOf(row.code) === this.typeFilter;
-    });
+    const { rows, undated } = this.typeRows();
 
     if (rows.length === 0) {
-      host.innerHTML = `<p class="muted small">${escapeHtml(this.emptyMessage())}</p>`;
+      // 🔴 A FILTER THAT HIDES TYPES SAYS HOW MANY IT HID, AND WHY. Otherwise an era
+      // filter over a list where a third of the codes have no year looks as though
+      // the types have gone, rather than as though the years are missing.
+      const hidden =
+        undated > 0
+          ? ` ${undated} type${undated === 1 ? '' : 's'} in this view ${
+              undated === 1 ? 'has' : 'have'
+            } no first-flown year, so ${undated === 1 ? 'it is' : 'they are'} left out of a year filter rather than guessed at.`
+          : '';
+      host.innerHTML = `<p class="muted small">${escapeHtml(this.emptyMessage() + hidden)}</p>`;
       return;
     }
 
@@ -1287,6 +1622,7 @@ class Page {
         const chosen = new Set((rule?.tails ?? []).map((tail) => normaliseKey(tail)));
         const width = Math.max(2, Math.round((row.seen / maxima) * 100));
         const tails = (row.registrations ?? []).slice(0, 24);
+        const entry = this.yearOf(row.code);
 
         // 🔴 CHIPS IN THE CARD, NOTHING BEHIND A BUTTON. George, 20 Sep 2026: *"i
         // dont want the button choose tail numbers, list the tail numbers as chips
@@ -1297,12 +1633,25 @@ class Page {
             : '<div class="tail-chips">' +
               tails
                 .map((item) => {
-                  const on = chosen.has(normaliseKey(item.reg));
-                  // 🔴 THE STAR LEADS THE CHIP. See the note on MARK_STAR.
+                  // 🔴 STARRING THE WHOLE TYPE STARS EVERY TAIL UNDER IT. George, 20
+                  // Sep 2026: *"if i favorite a whole airplay type, put stars for all
+                  // the tail numbers"*. A rule with no tail numbers means every
+                  // aircraft of that type is watched, so every chip in the row IS
+                  // watched and must say so — the old version read the star from the
+                  // narrowed list alone, which is empty for a whole-type rule, so a
+                  // row you had favourited showed a star at the top and not one
+                  // anywhere below it.
+                  const on = wholeType || chosen.has(normaliseKey(item.reg));
                   return (
                     `<button type="button" class="tail-chip" data-type="${escapeHtml(row.code)}" ` +
                     `data-tail="${escapeHtml(item.reg)}" aria-pressed="${on}" ` +
-                    `title="${on ? 'Watching only this one' : 'Watch only this one'}" ` +
+                    `title="${
+                      wholeType
+                        ? 'The whole type is watched, so this one is too — press to watch only this aeroplane'
+                        : on
+                          ? 'Watching only this one'
+                          : 'Watch only this one'
+                    }" ` +
                     `data-ga="tail-chip">${on ? MARK_STAR : ''}${escapeHtml(item.reg)}</button>`
                   );
                 })
@@ -1313,9 +1662,11 @@ class Page {
           tails.length === 0
             ? ''
             : `<p class="small muted tail-note">${
-                chosen.size > 0
-                  ? 'Only the highlighted ones are watched — highlighting a tail number <b>un-favourites the whole type</b>. Press a highlighted one again, or press the button, to go back to all of them.'
-                  : 'Press any of these to watch that aeroplane instead of the whole type. Every tail number here is one that actually transmitted its registration — many transponders never send one, so this is a sample of what identifies itself and not a fleet list.'
+                wholeType
+                  ? 'The whole type is starred, so every one of these is watched. Press one to watch only that aeroplane instead.'
+                  : chosen.size > 0
+                    ? 'Only the starred ones are watched — starring a tail number <b>un-favourites the whole type</b>. Press a starred one again, or press the star on the row, to go back to all of them.'
+                    : 'Press any of these to watch that aeroplane instead of the whole type. Every tail number here is one that actually transmitted its registration — many transponders never send one, so this is a sample of what identifies itself and not a fleet list.'
               }</p>`;
 
         return (
@@ -1324,6 +1675,12 @@ class Page {
           `<div class="typerow-main">` +
           `<b>${escapeHtml(info.name)}</b> <span class="mono muted">${escapeHtml(row.code)}</span> ` +
           `<span class="tag">${escapeHtml(classLabel(klass))}</span>` +
+          // The year sits where the eye already looks for what a type IS, and its
+          // tooltip carries the whole sentence including the caveat about whose year
+          // it is.
+          (entry
+            ? ` <span class="year-tag" title="${escapeHtml(this.yearTitle(entry))}">${entry.year}</span>`
+            : '') +
           '</div>' +
           `<div class="typerow-actions">` +
           starButton(row.code, wholeType, already && !wholeType) +
@@ -1341,7 +1698,13 @@ class Page {
       })
       .join('');
 
-    host.innerHTML = measuredHtml;
+    host.innerHTML =
+      measuredHtml +
+      (undated > 0
+        ? `<p class="small muted">${undated} type${undated === 1 ? '' : 's'} in this view ${
+            undated === 1 ? 'has' : 'have'
+          } no first-flown year, so ${undated === 1 ? 'it is' : 'they are'} left out while a year filter is on.</p>`
+        : '');
 
     for (const button of host.querySelectorAll<HTMLButtonElement>('.type-toggle')) {
       button.addEventListener('click', () => {
@@ -1392,14 +1755,28 @@ class Page {
     this.updateSteps();
   }
 
+  /**
+   * 🔴 THIS PANEL IS A LIST OF WHAT WAS PICKED, NOT A SECOND PLACE TO PICK IT.
+   *
+   * George, 20 Sep 2026: *"what you are watching, only list was was selected above,
+   * no more features"*. So the box that used to sit in every row — "narrow to a tail
+   * number, Add" — is gone, and so is the text telling the reader which controls to
+   * use: the stars and the tail chips above are the way in, and this says back what
+   * they did. Every row carries the same star, because that is how the choice is
+   * drawn everywhere else on the page.
+   *
+   * 🔴 AND THE TWO WAYS OUT STAY, BECAUSE THEY ARE NOT "FEATURES". Pressing a star
+   * or a chip again removes a TYPE, but an aircraft named by hand — in step 5, or
+   * with the watch button on the live table — has nothing above to un-press. Without
+   * a remove here it could never be undone at all, which is a dead end rather than a
+   * tidier page.
+   */
   private renderWatchlist(): void {
     const host = byId('watchList');
     if (!host) return;
 
     if (this.typeRules.length === 0 && this.watchlist.length === 0) {
-      host.innerHTML =
-        '<li class="muted">Nothing watched yet. Pick a type above, press <b>watch</b> on an aircraft in the ' +
-        'live list, or type a tail number.</li>';
+      host.innerHTML = '<li class="muted">Nothing watched yet. Star a type above, and it appears here.</li>';
       return;
     }
 
@@ -1407,27 +1784,21 @@ class Page {
       .map((rule) => {
         const info = describeType(rule.type);
         const narrowed = rule.tails.length > 0;
-        const tails = rule.tails
-          .map(
-            (tail) =>
-              `<span class="tail"><span class="mono">${escapeHtml(tail)}</span> ` +
-              `<button type="button" class="linkish tail-remove" data-type="${escapeHtml(rule.type)}" ` +
-              `data-tail="${escapeHtml(tail)}" data-ga="tail-remove">×</button></span>`
-          )
-          .join(' ');
+        const entry = this.yearOf(rule.type);
         return (
           `<li class="watch-type">` +
-          `<div class="watch-type-head">` +
-          `<span><b>${escapeHtml(info.name)}</b> <span class="mono muted">${escapeHtml(rule.type)}</span> — ` +
-          `<b>${narrowed ? `${rule.tails.length} tail number${rule.tails.length === 1 ? '' : 's'}` : 'every one of them'}</b></span>` +
+          `<span class="watch-what">${MARK_STAR}<b>${escapeHtml(info.name)}</b> ` +
+          `<span class="mono muted">${escapeHtml(rule.type)}</span>` +
+          (entry ? ` <span class="year-tag">${entry.year}</span>` : '') +
+          ` — <b>${
+            narrowed
+              ? `${rule.tails.length} tail number${rule.tails.length === 1 ? '' : 's'}`
+              : 'every one of them'
+          }</b>` +
+          (narrowed ? ` <span class="mono muted">${escapeHtml(rule.tails.join(', '))}</span>` : '') +
+          '</span>' +
           `<button type="button" class="linkish type-remove" data-type="${escapeHtml(rule.type)}" ` +
           `data-ga="type-unwatch">stop watching</button>` +
-          '</div>' +
-          `<div class="watch-type-tails">${narrowed ? tails : '<span class="muted small">No tail numbers — every aircraft of this type is watched.</span>'}</div>` +
-          `<form class="tail-form" data-type="${escapeHtml(rule.type)}" autocomplete="off">` +
-          `<input type="text" name="tail" placeholder="Narrow to a tail number — C-GXXX" spellcheck="false" />` +
-          `<button class="ghost chip-small" type="submit">Add</button>` +
-          '</form>' +
           '</li>'
         );
       })
@@ -1436,7 +1807,8 @@ class Page {
     const namedItems = this.watchlist
       .map(
         (item) =>
-          `<li><span class="mono">${escapeHtml(item)}</span> ` +
+          `<li class="watch-type"><span class="watch-what">${MARK_STAR}` +
+          `<span class="mono">${escapeHtml(item)}</span> — <b>this aircraft</b></span>` +
           `<button type="button" class="linkish watch-remove" data-key="${escapeHtml(item)}" ` +
           `data-ga="unwatch">remove</button></li>`
       )
@@ -1451,34 +1823,6 @@ class Page {
         this.saveTypeRules();
         this.renderWatchlist();
         this.renderTypeList();
-      });
-    }
-
-    for (const button of host.querySelectorAll<HTMLButtonElement>('.tail-remove')) {
-      button.addEventListener('click', () => {
-        const code = button.dataset.type ?? '';
-        const tail = button.dataset.tail ?? '';
-        const rule = this.typeRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
-        if (!rule) return;
-        rule.tails = rule.tails.filter((item) => normaliseKey(item) !== normaliseKey(tail));
-        this.saveTypeRules();
-        this.renderWatchlist();
-      });
-    }
-
-    for (const form of host.querySelectorAll<HTMLFormElement>('.tail-form')) {
-      form.addEventListener('submit', (event) => {
-        event.preventDefault();
-        const input = form.querySelector<HTMLInputElement>('input[name="tail"]');
-        const value = input?.value.trim() ?? '';
-        if (!value) return;
-        const code = form.dataset.type ?? '';
-        const rule = this.typeRules.find((candidate) => normaliseKey(candidate.type) === normaliseKey(code));
-        if (!rule) return;
-        if (!rule.tails.some((item) => normaliseKey(item) === normaliseKey(value))) rule.tails.push(value);
-        this.saveTypeRules();
-        this.renderWatchlist();
-        track('tail_narrowed', { code, tails: rule.tails.length });
       });
     }
 
@@ -1530,7 +1874,7 @@ class Page {
     const label = departure.callsign || departure.registration || departure.hex;
     const climb = departure.climbFpm !== null ? `, ${departure.climbFpm} ft/min` : '';
     try {
-      new Notification(`${label} has left ${this.airport?.icao ?? 'the airport'}`, {
+      new Notification(`${label} has left ${this.airportPhrase()}`, {
         body:
           `${departure.verdict === 'confirmed' ? 'It was on the ground and it is not now' : 'It was first seen already climbing'}` +
           ` — ${departure.altitudeFt ?? '?'} ft${climb}, ${Math.round(nmToKm(departure.distanceNm))} km out.`,
@@ -1571,6 +1915,7 @@ class Page {
       const dropped = this.listedAirports.dropped ?? [];
       note.textContent =
         `${this.listedAirports.kept} airports, every one of them confirmed by asking the feed where it is. ` +
+        'Press as many as you like: each one you press is watched, and the map is drawn to fit all of them. ' +
         (dropped.length > 0
           ? `${dropped.length} identifier was dropped because the feed could not place it: ${dropped.join(', ')}.`
           : 'Nothing was dropped.');
@@ -1624,12 +1969,24 @@ class Page {
    * The fence, the nearest airports and their codes are drawn on top in SVG, in
    * the same pixel space as the tiles, so they cannot drift out of step with the
    * map underneath them.
+   *
+   * 🔴 AND THE ZOOM IS CHOSEN TO FIT EVERY AIRPORT THAT WAS PICKED. George, 20 Sep
+   * 2026: *"if i select multiple, make sure all are viewable in the maps"*. The
+   * old zoom was derived from the fence radius around the reader alone, so an
+   * airport outside that circle — which is exactly what a second airport usually
+   * is — was drawn off the edge of the view and vanished. A map showing two of the
+   * three airports you picked is worse than no map, because it looks complete.
    */
   private renderMap(): void {
     const host = byId('locMap');
     if (!host) return;
     const at = this.centre;
-    if (!at || this.nearby.length === 0) {
+
+    const needed: { lat: number; lon: number }[] = [
+      ...(at ? [at] : []),
+      ...this.airports.map((one) => ({ lat: one.lat, lon: one.lon })),
+    ];
+    if (needed.length === 0) {
       host.innerHTML = '';
       return;
     }
@@ -1637,21 +1994,61 @@ class Page {
     const TILE = 256;
     const VIEW_W = 512;
     const VIEW_H = 448;
+    // Room for a code label to the right of a mark, so nothing that fits the box is
+    // drawn with its label running off the edge of the view.
+    const PAD = 40;
 
-    // The closest zoom at which the fence still fits inside the view.
-    let zoom = 4;
-    for (let candidate = 14; candidate >= 4; candidate -= 1) {
-      const scale = (156543.03392 * Math.cos((at.lat * Math.PI) / 180)) / 2 ** candidate;
-      if ((this.radiusKm * 1000) / scale <= VIEW_H / 2 - 26) {
+    // The box that has to fit, in degrees.
+    let minLat = 90;
+    let maxLat = -90;
+    let minLon = 180;
+    let maxLon = -180;
+    for (const point of needed) {
+      minLat = Math.min(minLat, point.lat);
+      maxLat = Math.max(maxLat, point.lat);
+      minLon = Math.min(minLon, point.lon);
+      maxLon = Math.max(maxLon, point.lon);
+    }
+    if (at) {
+      // The fence is what this page is watching, so the whole circle goes in the box
+      // too — folded in as a SQUARE around the reader, which is larger than the
+      // circle and therefore always holds it.
+      const dLat = this.radiusKm / 111.32;
+      const dLon = this.radiusKm / (111.32 * Math.max(0.2, Math.cos((at.lat * Math.PI) / 180)));
+      minLat = Math.min(minLat, at.lat - dLat);
+      maxLat = Math.max(maxLat, at.lat + dLat);
+      minLon = Math.min(minLon, at.lon - dLon);
+      maxLon = Math.max(maxLon, at.lon + dLon);
+    }
+    const midLat = (minLat + maxLat) / 2;
+    const midLon = (minLon + maxLon) / 2;
+    // A floor of half a thousandth of a degree, so one airport on its own does not
+    // ask for an infinite zoom.
+    const spanLat = Math.max(maxLat - minLat, 5e-4);
+    const spanLon = Math.max(maxLon - minLon, 5e-4);
+    const metresPerDegLat = 110_574;
+    const metresPerDegLon = 111_320 * Math.max(0.2, Math.cos((midLat * Math.PI) / 180));
+
+    // 🔴 THE ZOOM ANSWERS ONE QUESTION: at this zoom, does the WHOLE box fit? The
+    // loop walks in from the closest zoom the tile service has and stops at the
+    // first that fits, which is the tightest view that still shows everything — so
+    // one airport looks like a neighbourhood and three across a hundred kilometres
+    // look like a region, without either being a special case.
+    let zoom = 3;
+    for (let candidate = 15; candidate >= 3; candidate -= 1) {
+      const candidateScale = (156543.03392 * Math.cos((midLat * Math.PI) / 180)) / 2 ** candidate;
+      const wide = (spanLon * metresPerDegLon) / candidateScale;
+      const tall = (spanLat * metresPerDegLat) / candidateScale;
+      if (wide <= VIEW_W - PAD * 2 && tall <= VIEW_H - PAD * 2) {
         zoom = candidate;
         break;
       }
     }
-    const scale = (156543.03392 * Math.cos((at.lat * Math.PI) / 180)) / 2 ** zoom;
+    const scale = (156543.03392 * Math.cos((midLat * Math.PI) / 180)) / 2 ** zoom;
 
     const span = 2 ** zoom;
-    const middleX = lonToTile(at.lon, zoom) * TILE;
-    const middleY = latToTile(at.lat, zoom) * TILE;
+    const middleX = lonToTile(midLon, zoom) * TILE;
+    const middleY = latToTile(midLat, zoom) * TILE;
     const left = middleX - VIEW_W / 2;
     const top = middleY - VIEW_H / 2;
 
@@ -1678,40 +2075,75 @@ class Page {
       x: lonToTile(lon, zoom) * TILE - left,
       y: latToTile(lat, zoom) * TILE - top,
     });
-    const middle = spotOf(at.lat, at.lon);
+    const you = at ? spotOf(at.lat, at.lon) : null;
     const fencePx = (this.radiusKm * 1000) / scale;
 
     let marks = '';
-    for (const row of this.nearby.slice(0, 10)) {
-      const spot = spotOf(row.airport.lat, row.airport.lon);
-      // Off the view is off the view — a marker drawn outside would be clipped
-      // anyway, and its label would run back into the map.
-      if (spot.x < -30 || spot.x > VIEW_W + 30 || spot.y < -30 || spot.y > VIEW_H + 30) continue;
-      const chosen = row.airport.icao === this.airport?.icao;
-      marks +=
-        `<line class="locmap-line" x1="${middle.x.toFixed(1)}" y1="${middle.y.toFixed(1)}" ` +
-        `x2="${spot.x.toFixed(1)}" y2="${spot.y.toFixed(1)}" />` +
-        `<circle class="locmap-airport" cx="${spot.x.toFixed(1)}" cy="${spot.y.toFixed(1)}" ` +
-        `r="${chosen ? 5.5 : 3.4}" />` +
-        `<text class="locmap-label" x="${(spot.x + 8).toFixed(1)}" ` +
-        `y="${(spot.y + 3.5).toFixed(1)}">${escapeHtml(row.airport.icao)}</text>`;
+    // The nearest airports, small and grey, with a line back to the reader. A picked
+    // one is skipped here and drawn in its own pass below, so it can never be drawn
+    // twice or have something laid over it.
+    if (you) {
+      for (const row of this.nearby.slice(0, 10)) {
+        if (this.isChosen(row.airport.icao)) continue;
+        const spot = spotOf(row.airport.lat, row.airport.lon);
+        // Off the view is off the view — a marker drawn outside would be clipped
+        // anyway, and its label would run back into the map.
+        if (spot.x < -30 || spot.x > VIEW_W + 30 || spot.y < -30 || spot.y > VIEW_H + 30) continue;
+        marks +=
+          `<line class="locmap-line" x1="${you.x.toFixed(1)}" y1="${you.y.toFixed(1)}" ` +
+          `x2="${spot.x.toFixed(1)}" y2="${spot.y.toFixed(1)}" />` +
+          `<circle class="locmap-airport" cx="${spot.x.toFixed(1)}" cy="${spot.y.toFixed(1)}" r="3.4" />` +
+          `<text class="locmap-label" x="${(spot.x + 8).toFixed(1)}" ` +
+          `y="${(spot.y + 3.5).toFixed(1)}">${escapeHtml(row.airport.icao)}</text>`;
+      }
     }
+
+    // 🔴 EVERY PICKED AIRPORT, DRAWN LAST SO NOTHING IS LAID OVER IT, AND NEVER
+    // SKIPPED BY THE OFF-VIEW GUARD THE OTHERS USE. The zoom above was chosen to fit
+    // them all, so a picked airport outside the view would mean the arithmetic was
+    // wrong — and quietly hiding it is how a wrong zoom stays wrong.
+    for (const one of this.airports) {
+      const spot = spotOf(one.lat, one.lon);
+      if (you) {
+        marks +=
+          `<line class="locmap-line locmap-line-chosen" x1="${you.x.toFixed(1)}" y1="${you.y.toFixed(1)}" ` +
+          `x2="${spot.x.toFixed(1)}" y2="${spot.y.toFixed(1)}" />`;
+      }
+      marks +=
+        `<circle class="locmap-airport locmap-airport-chosen" cx="${spot.x.toFixed(1)}" ` +
+        `cy="${spot.y.toFixed(1)}" r="6" />` +
+        `<text class="locmap-label locmap-label-chosen" x="${(spot.x + 9).toFixed(1)}" ` +
+        `y="${(spot.y + 3.5).toFixed(1)}">${escapeHtml(one.icao)}</text>`;
+    }
+
+    const described =
+      this.airports.length === 1
+        ? `the airport you picked (${this.airports[0].icao})`
+        : `${this.airports.length} airports you picked (${this.chosenIcaos().join(', ')})`;
 
     host.innerHTML =
       `<div class="locmap" style="width:${VIEW_W}px;height:${VIEW_H}px">` +
       tiles +
       `<svg class="locmap-over" viewBox="0 0 ${VIEW_W} ${VIEW_H}" role="img" ` +
-      `aria-label="A map with a ${this.radiusKm} kilometre circle around your position, and the nearest airports marked with their codes">` +
-      `<circle class="locmap-fence" cx="${middle.x.toFixed(1)}" cy="${middle.y.toFixed(1)}" r="${fencePx.toFixed(1)}" />` +
+      `aria-label="A map showing ${escapeHtml(described)}` +
+      (you ? `, a ${this.radiusKm} kilometre circle around your position` : '') +
+      `, and the nearest other airports marked with their codes">` +
+      (you
+        ? `<circle class="locmap-fence" cx="${you.x.toFixed(1)}" cy="${you.y.toFixed(1)}" r="${fencePx.toFixed(1)}" />`
+        : '') +
       marks +
-      `<circle class="locmap-you" cx="${middle.x.toFixed(1)}" cy="${middle.y.toFixed(1)}" r="5" />` +
-      `<text class="locmap-you-label" x="${middle.x.toFixed(1)}" ` +
-      `y="${(middle.y + 18).toFixed(1)}" text-anchor="middle">you</text>` +
+      (you
+        ? `<circle class="locmap-you" cx="${you.x.toFixed(1)}" cy="${you.y.toFixed(1)}" r="5" />` +
+          `<text class="locmap-you-label" x="${you.x.toFixed(1)}" ` +
+          `y="${(you.y + 18).toFixed(1)}" text-anchor="middle">you</text>`
+        : '') +
       '</svg></div>' +
       '<p class="small muted locmap-note">The map is ' +
-      '<a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, free and with no API key, ' +
-      `and the circle is the ${this.radiusKm} km fence this page is watching. The tiles are fetched by this site's own ` +
-      'server rather than by your browser, so the map service never sees you — the same way the flight feed is handled.' +
+      '<a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, free and with no API key. ' +
+      'It is zoomed so that every airport you picked is on it' +
+      (you ? `, and the circle is the ${this.radiusKm} km fence this page is watching` : '') +
+      '. The tiles are fetched by this site\'s own server rather than by your browser, so the map service never ' +
+      'sees you — the same way the flight feed is handled.' +
       '</p>';
   }
 
@@ -1733,12 +2165,17 @@ class Page {
           // this, the airport you had picked looked exactly like the thirteen you
           // had not — the only difference was which one the page happened to be
           // watching, which a reader has no way to see.
-          const chosenAirport = airport.icao === this.airport?.icao;
+          //
+          // 🔴 AND IT IS A TOGGLE. George, 20 Sep 2026: *"i should also be able to
+          // select multiple airport"*. The label says what pressing it will do
+          // rather than what the airport is, because that is the question a reader
+          // has while their pointer is over it.
+          const picked = this.isChosen(airport.icao);
           return (
             `<button type="button" class="ghost chip near-chip" data-icao="${escapeHtml(airport.icao)}" ` +
-            `aria-pressed="${chosenAirport}" title="${chosenAirport ? 'Watching this airport' : `Watch ${airport.icao}`}" ` +
+            `aria-pressed="${picked}" title="${picked ? `Stop watching ${airport.icao}` : `Also watch ${airport.icao}`}" ` +
             `data-ga="airport-near">` +
-            `${chosenAirport ? MARK_STAR : ''}` +
+            `${picked ? MARK_STAR : ''}` +
             `<span class="mono">${escapeHtml(airport.icao)}</span> ${escapeHtml(airport.location || airport.name)}` +
             `<span class="near-km">${Math.round(km)} km</span></button>`
           );
@@ -1746,7 +2183,7 @@ class Page {
       )
       .join('');
     for (const button of host.querySelectorAll<HTMLButtonElement>('.near-chip')) {
-      button.addEventListener('click', () => void this.chooseAirport(button.dataset.icao ?? ''));
+      button.addEventListener('click', () => void this.toggleAirport(button.dataset.icao ?? ''));
     }
     // Said back to the reader, because a place they gave once and cannot see again
     // is indistinguishable from a place the page forgot.
@@ -1965,7 +2402,7 @@ class Page {
     const maxKm = Math.max(this.radiusKm, ...rows.map((row) => row.km));
     const toPx = (km: number): number => (km / maxKm) * radius;
 
-    let svg = `<svg viewBox="0 0 ${size} ${size}" class="radar" role="img" aria-label="Aircraft in the air, drawn by direction and distance from ${escapeHtml(this.airport?.icao ?? 'the airport')}">`;
+    let svg = `<svg viewBox="0 0 ${size} ${size}" class="radar" role="img" aria-label="Aircraft in the air, drawn by direction and distance from ${escapeHtml(this.airportPhrase())}">`;
     svg += `<circle cx="${centre}" cy="${centre}" r="${radius.toFixed(1)}" class="radar-edge" />`;
     for (const ring of [maxKm / 3, (maxKm * 2) / 3, maxKm]) {
       svg += `<circle cx="${centre}" cy="${centre}" r="${toPx(ring).toFixed(1)}" class="radar-ring" />`;
@@ -1981,7 +2418,7 @@ class Page {
       svg += `<text x="${(centre + Math.sin(rad) * (radius + 12)).toFixed(1)}" y="${(centre - Math.cos(rad) * (radius + 12) + 4).toFixed(1)}" class="radar-compass" text-anchor="middle">${name}</text>`;
     }
     svg += `<circle cx="${centre}" cy="${centre}" r="3" class="radar-field" />`;
-    svg += `<text x="${centre}" y="${centre + 16}" class="radar-label" text-anchor="middle">${escapeHtml(this.airport?.icao ?? '')}</text>`;
+    svg += `<text x="${centre}" y="${centre + 16}" class="radar-label" text-anchor="middle">${escapeHtml(this.airportCentreLabel())}</text>`;
     for (const row of rows) {
       const rad = (row.bearingDeg * Math.PI) / 180;
       const x = centre + Math.sin(rad) * toPx(row.km);

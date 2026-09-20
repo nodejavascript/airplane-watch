@@ -1,0 +1,11 @@
+{
+  "note": "Type codes whose name on the page is written for a reader and therefore matches nothing on Wikidata. Each entry is tried BEFORE the page's own name, and the result still has to pass every guard \u2014 the item's label must be exactly this string, it must carry a first-flight date, and it must be a kind of aircraft. Kept deliberately tiny: a code belongs here only when the page's own label cannot match anything, which is why the reader-friendly compound names below are in it and nothing else is.",
+  "aliases": {
+    "DH8A": "de Havilland Canada DHC-8-100",
+    "DH8B": "de Havilland Canada DHC-8",
+    "DH8C": "de Havilland Canada DHC-8",
+    "DH8D": "de Havilland Canada DHC-8-400",
+    "DH3T": "de Havilland Canada DHC-3 Otter",
+    "A320": "Airbus A320 family"
+  }
+}

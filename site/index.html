@@ -213,15 +213,17 @@
 
       <section class="card step-gated" id="step-3" data-step="3" hidden>
         <h2><span class="step">3</span> Pick an aircraft type</h2>
-        <p class="sub">The aircraft that actually fly here, measured from the feed. Star the ones you care about. <b>Heritage &amp; war planes</b> is deliberately short: many military aircraft never transmit at all.</p>
+        <p class="sub">The aircraft that actually fly here, measured from the feed. Star the ones you care about. Each row carries the year its type first flew. <b>Heritage &amp; war planes</b> is deliberately short: many military aircraft never transmit at all.</p>
         <div class="chips" id="typeFilter" role="group" aria-label="Filter the type list by kind"></div>
+        <div class="chips" id="yearFilter" role="group" aria-label="Filter the type list by the year the type first flew"></div>
+        <p class="small muted" id="yearNote">Loading the years each type first flew…</p>
         <div class="typelist" id="typeList"></div>
         <p class="small muted" id="typeNote">Loading what the feed has been showing…</p>
       </section>
 
       <section class="card step-gated" id="step-4" data-step="4" hidden>
         <h2><span class="step">4</span> What you are watching</h2>
-        <p class="sub">Star a type to watch all of it, or tap tail numbers to watch only those.</p>
+        <p class="sub">Exactly what you starred above, and nothing else. Press a star or a tail number above to change it.</p>
         <ul class="watchlist" id="watchList"></ul>
       </section>
 
