@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://aircraft-demo.nodejavascript.com/sitemap.xml

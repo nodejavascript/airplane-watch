@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    // DOM only. Adding "WebWorker" alongside it makes TypeScript load both
+    // definition sets, and they declare the same 150-odd names — which is a wall
+    // of TS6200/TS2374 errors that have nothing to do with this site's code.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": false,
+    "outDir": "site",
+    "rootDir": "src",
+    "sourceMap": false,
+    "declaration": false,
+    "removeComments": false,
+    "types": []
+  },
+  "include": ["src/**/*.ts"]
+}

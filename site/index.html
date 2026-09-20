@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>aircraft-demo.nodejavascript.com</title>
+    <meta
+      name="description"
+      content="Watch a named aircraft leave a named airport and be told when it does — live from a public flight feed, in your browser, from a handful of Canadian and US airports."
+    />
+    <link rel="canonical" href="https://aircraft-demo.nodejavascript.com/" />
+    <meta name="theme-color" content="#38bdf8" />
+    <meta name="color-scheme" content="dark" />
+
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="aircraft-demo.nodejavascript.com" />
+    <meta property="og:title" content="Watch a plane leave" />
+    <meta
+      property="og:description"
+      content="A live page that watches one airport and tells you when an aircraft you named leaves it."
+    />
+    <meta property="og:url" content="https://aircraft-demo.nodejavascript.com/" />
+    <meta property="og:image" content="https://aircraft-demo.nodejavascript.com/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Watch a plane leave" />
+    <meta
+      name="twitter:description"
+      content="A live page that watches one airport and tells you when an aircraft you named leaves it."
+    />
+    <meta name="twitter:image" content="https://aircraft-demo.nodejavascript.com/og.png" />
+
+    <link rel="stylesheet" href="./styles.css" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebApplication",
+            "name": "aircraft-demo — watch a plane leave",
+            "url": "https://aircraft-demo.nodejavascript.com/",
+            "applicationCategory": "UtilitiesApplication",
+            "operatingSystem": "Any browser",
+            "browserRequirements": "JavaScript, Notification API for alerts",
+            "description": "Watch one airport on a public ADS-B feed, name the aircraft you care about, and be told when one of them leaves.",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CAD" },
+            "isAccessibleForFree": true
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Will it tell me the moment the wheels leave the runway?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No, and no free service can. An aircraft on the apron is only received by a receiver within a few kilometres of it, because buildings and the curve of the earth block the signal. So most departures are detected a few seconds after the aircraft is airborne and has been heard climbing, not at the moment of rotation. The page labels every departure as either 'seen on the ground first' or 'first seen climbing', so you always know which one you got."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Where does the data come from?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The adsb.lol community network, which publishes unfiltered ADS-B data under the Open Database License. A small proxy on this domain sits in front of it because the feed does not send the cross-origin headers a browser needs."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I watch a private or military aircraft?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Only if it is transmitting ADS-B and putting its position out publicly. Aircraft that have asked not to be shown, and aircraft with no ADS-B at all, will simply never appear here."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does the tail number I type get sent anywhere?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. The watchlist is matched inside your own browser and kept in your own browser's storage. It is never sent to this site, and it is never sent to Google — the analytics events name the controls that were pressed and nothing that was typed into them."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+
+    <!-- NOTHING FROM GOOGLE IS IN THIS PAGE.
+
+         There is no gtag script here and no inline analytics block, which is the
+         whole point: consent.js appends the tag only after a visitor says yes, so
+         a visit that refuses makes no request to Google at all and gets no cookie.
+         The measurement id rides on the consent script as an attribute, and a
+         browser with scripting off contacts nobody.
+
+         🔴 THE ID BELOW IS A PLACEHOLDER, AND A TEST REFUSES TO LET IT SHIP.
+         The house standard says the Analytics property is created on the day a
+         site goes live, together with the DNS record — so a demo that has no
+         hostname yet has no property yet. test/static.test.js fails while this
+         reads G-PENDING, which means `npm test` cannot pass against a deployed
+         site whose property was never made. That is the gate, not an oversight. -->
+    <script src="./consent.js" data-ga-id="G-PENDING" defer></script>
+    <script type="module" src="./app.js"></script>
+  </head>
+
+  <body>
+    <!-- 🔴 THE ABSTRACT LAYER — this site's own drawing, and it is not a tint of
+         a neighbour's. The family already paints a square grid, concentric rings,
+         a crosshatch, vertical bars, a sudoku board, a 45° hatch, a dot matrix,
+         graph paper, an arc fan and a street grid. This one paints BEARING TICKS:
+         a ring of short radial marks, like the compass rose printed on a chart or
+         the bearing scale around a radar — which is the one drawing an
+         aircraft-tracking page has some reason to own. Drawn in styles.css on its
+         own fixed layer and faded by a mask, so nothing has an edge. -->
+    <div class="dvs-pattern" aria-hidden="true"></div>
+    <a class="skip" href="#departures">Skip to the departures board</a>
+
+    <!-- 🔴 THE HEADER IS THE BRAND BAR AND NOTHING ELSE — NO NAV.
+         George, 19 Sep 2026, verbatim: *"the rule for header is that it should
+         look like http://127.0.0.1:4330/ but without the More detail link"*. That
+         page's header is the brand plus one link, so removing the link leaves the
+         brand alone: the site is one page, and a nav beside the name is clutter at
+         the top of every page.
+
+         🔴 AND THE BRAND GOES TO THIS SITE, NOT TO nodejavascript.com. George,
+         19 Sep 2026, verbatim: *"new rule for header when clicking on the top left
+         site name and icon, it should go to self, not nodejavascript.com"*. The
+         reader who wants the family is served by the footer's brand line. -->
+    <header class="top">
+      <a class="brand" href="/">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="26" height="26">
+            <g fill="none" stroke="currentColor" stroke-width="1.7">
+              <circle cx="6" cy="10" r="3" />
+              <circle cx="6" cy="22" r="3" />
+              <circle cx="16" cy="16" r="3" />
+              <circle cx="26" cy="10" r="3" />
+              <circle cx="26" cy="22" r="3" />
+              <path d="M8.6 11.5 13.4 15M8.6 20.5 13.4 17M18.6 15 23.5 11.6M18.6 17 23.5 20.4" />
+            </g>
+          </svg>
+        </span>
+        <span>
+          <b>aircraft-demo</b>
+          <small>nodejavascript.com</small>
+        </span>
+      </a>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>Watch a named aircraft leave a named airport</h1>
+        <p class="lede">
+          Pick an airport, point a fence at it, and name the aircraft you care about by tail number or callsign. The
+          page reads a public flight feed every ten seconds and tells you the moment one of yours is airborne — with a
+          browser notification if you want one. Everything runs in this tab. There is no account, no key, and nothing
+          to install.
+        </p>
+        <ul class="facts">
+          <li><b>It is honest about the hard part.</b> An aircraft sitting on the apron is only heard by a receiver a few kilometres away, so a departure is usually detected seconds after it is airborne, not at the moment of rotation. Every line on the board says which of the two you got.</li>
+          <li><b>Your watchlist stays in your browser.</b> Tail numbers you type are matched locally and never sent here or to Google.</li>
+          <li><b>Free and open data.</b> The feed is <a href="https://adsb.lol/" rel="noopener">adsb.lol</a>, published under the Open Database License.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="step-1">
+        <h2><span class="step">1</span> Choose the airport</h2>
+        <p class="sub">
+          The position is looked up from the feed each time rather than typed into this page — a hard-coded latitude is
+          a fact that goes wrong silently, and a fence drawn around the wrong piece of sky still looks fine.
+        </p>
+        <div class="chips" id="airportButtons" role="group" aria-label="Choose an airport"></div>
+        <p class="small muted" id="airportWhere"></p>
+      </section>
+
+      <section class="card" id="step-2">
+        <h2><span class="step">2</span> Choose how far out to look</h2>
+        <p class="sub">
+          This is a real trade and there is no right answer. A tight fence is the best chance of catching an aircraft
+          while it is still on the ground — which is what makes a departure certain rather than probable — and the
+          worst chance of seeing anything else. A wide fence sees more aircraft and sees fewer of them on the ground.
+        </p>
+        <div class="chips" id="radiusButtons" role="group" aria-label="Choose the radius of the fence"></div>
+        <p class="small muted" id="fenceNote"></p>
+      </section>
+
+      <section class="card" id="step-3">
+        <h2><span class="step">3</span> Name what you are watching</h2>
+        <p class="sub">
+          A tail number such as <span class="mono">C-GXXX</span>, a callsign such as <span class="mono">ACA123</span>,
+          or a transponder address such as <span class="mono">c011e4</span>. Case, spaces and hyphens do not matter.
+          You can also press <b>watch</b> on any aircraft in the live list below.
+        </p>
+        <form id="watchForm" class="watch-form" autocomplete="off">
+          <label class="field">
+            <span class="label">Aircraft</span>
+            <input id="watchInput" name="aircraft" type="text" placeholder="C-GXXX" spellcheck="false" />
+          </label>
+          <button class="ghost" type="submit" data-ga="watch-add">Watch it</button>
+        </form>
+        <ul class="watchlist" id="watchList"></ul>
+
+        <div class="notify">
+          <button id="notifyBtn" class="ghost" type="button" data-ga="notify">Tell me when they leave</button>
+          <p class="small muted" id="notifyNote"></p>
+        </div>
+      </section>
+
+      <section class="card" id="departures">
+        <h2>Departures seen in this session</h2>
+        <p class="sub">
+          Kept in this browser, so closing the tab and coming back keeps the board you had. A watched aircraft also
+          raises a notification, if you allowed one.
+        </p>
+        <p class="empty" id="departuresEmpty">
+          Nothing yet. A departure appears here the moment an aircraft inside the fence is first seen airborne.
+        </p>
+        <ol class="departures" id="departures"></ol>
+        <p class="small muted" id="status" data-kind="working">Starting…</p>
+      </section>
+
+      <section class="card" id="live">
+        <h2>What the feed can see right now</h2>
+        <p class="sub" id="airportTitle">
+          Waiting for the feed…
+        </p>
+        <div class="table-wrap">
+          <table class="aircraft">
+            <caption class="visually-hidden">Aircraft currently inside the fence</caption>
+            <thead>
+              <tr>
+                <th scope="col">Address</th>
+                <th scope="col">Callsign</th>
+                <th scope="col">Type</th>
+                <th scope="col">Phase</th>
+                <th scope="col">Last reading</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody id="aircraftBody">
+              <tr><td colspan="6" class="muted">Waiting for the first poll…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" id="honesty">
+        <h2>What this cannot see — read this before you rely on it</h2>
+        <ul class="limits">
+          <li>
+            <b>It cannot tell you the wheels are leaving the ground.</b> It tells you an aircraft that was in the fence
+            is airborne. Surface coverage from a receiver far away is poor, so the usual case is a departure noticed a
+            few seconds late. The board marks each one as <b>seen on the ground first</b> (a fact) or <b>first seen
+            climbing</b> (a strong inference).
+          </li>
+          <li>
+            <b>Only aircraft that transmit ADS-B appear.</b> Aircraft that have asked not to be published, and older
+            aircraft that only carry Mode S, are either absent or arrive without a position. An aircraft missing from
+            this page is not an aircraft that is not flying.
+          </li>
+          <li>
+            <b>A missing altitude is not an aircraft on the ground.</b> Some transponders send position without
+            altitude, and those readings are shown as <b>no altitude</b> and are never used to decide a departure.
+          </li>
+          <li>
+            <b>A flyover is not a departure.</b> An aircraft already known to be airborne that enters the fence is
+            ignored, however low it is — which means a genuine departure from a neighbouring airfield, climbing through
+            the fence, will not be reported. That is the deliberate cost of not crying wolf.
+          </li>
+          <li>
+            <b>The fence is a circle, and reception is not.</b> A receiver's range depends on the aircraft's altitude,
+            the terrain and the weather, so what the page shows you is what one network could hear, not what is up
+            there.
+          </li>
+          <li>
+            <b>Positions are approximate and delayed.</b> The feed updates in seconds, and the map-precision of a
+            position derived by multilateration is worse than one the aircraft reported itself.
+          </li>
+        </ul>
+      </section>
+
+      <section class="card" id="how">
+        <h2>How it works</h2>
+        <ol class="howto">
+          <li>
+            <b>Where the position comes from.</b> Aircraft broadcast their identity, position and altitude over
+            1090 MHz. Volunteers with a cheap receiver and an antenna hear those broadcasts and send them to
+            <a href="https://adsb.lol/" rel="noopener">adsb.lol</a>, which republishes the merged picture for anyone
+            to read.
+          </li>
+          <li>
+            <b>Why there is a proxy in the middle.</b> The feed sends no cross-origin headers, so a browser is not
+            allowed to read it directly — the request goes out, the answer comes back, and the browser discards it.
+            Every call from this page therefore goes to <span class="mono">/api/…</span> on this domain, and a small
+            proxy passes it on and adds the header the browser needs.
+          </li>
+          <li>
+            <b>How a departure is decided.</b> Once every ten seconds the page asks for every aircraft inside the
+            fence. Each reading is classified as on the ground, airborne, or unknown, and compared with the same
+            aircraft's previous reading. Ground to airborne inside the fence is a departure; seen only after it is
+            already climbing is a probable one; already airborne is ignored; a stale reading proves nothing.
+          </li>
+          <li>
+            <b>Where it is kept.</b> Nowhere on a server. The watchlist, the chosen airport and the board live in this
+            browser's own storage and are removed when you clear site data.
+          </li>
+        </ol>
+      </section>
+
+      <section class="card" id="privacy">
+        <h2>Privacy</h2>
+        <p>
+          This policy governs <span class="mono">aircraft-demo.nodejavascript.com</span>, and it is written from what
+          the code does rather than from a template. It was last changed on 20 September 2026.
+        </p>
+        <ul class="limits">
+          <li>
+            <b>There is no account and no server-side store.</b> Nothing you type is sent to this site. Your watchlist,
+            your chosen airport and your departures board are kept in your own browser's storage and are never
+            transmitted anywhere.
+          </li>
+          <li>
+            <b>Google Analytics loads only after you say yes.</b> Google's script is not in the page. It is added by
+            <span class="mono">consent.js</span> when you press Accept all, and if you press Reject all then
+            <b>no request is made to Google at all</b> and no cookie is set. What it would record is anonymous: the
+            page you are on, which controls you press, how far down you scroll, and which airport and radius you
+            chose. It never records a tail number, a callsign or anything else you type.
+          </li>
+          <li>
+            <b>The only cookie is the analytics one</b>, and it exists only if you accepted. Your answer itself is
+            remembered in your browser's local storage, not in a cookie — setting a cookie to record a cookie
+            decision would be its own small joke.
+          </li>
+          <li>
+            <b>You can change your answer at any time</b> with the <b>Cookie settings</b> button in the footer.
+            Rejecting after accepting reloads the page so that counting genuinely stops.
+          </li>
+          <li>
+            <b>What leaves this machine while the page is open:</b> a request every ten seconds to
+            <span class="mono">/api/…</span> on this domain, which is passed to the third-party feed
+            <a href="https://adsb.lol/" rel="noopener">adsb.lol</a>. That request contains the airport and radius you
+            chose and your IP address, and no identifier for you. The feed's own terms and licence are the
+            Open Database License, and its site explains what it does with requests.
+          </li>
+          <li>
+            <b>Aircraft data is about aircraft, not about people.</b> The feed carries no passenger information, and
+            none is available from it.
+          </li>
+          <li>
+            <b>Notifications</b> are sent by your own browser, from your own machine, and only if you pressed the
+            button that asks for permission. Declining them changes nothing else on the page.
+          </li>
+          <li>
+            <b>To contact anyone about this site, or to ask what is held about you:</b> the answer is nothing, and the
+            way to prove it is to clear this site's data in your browser. Questions can be raised through the contact
+            form on <a href="https://nodejavascript.com/">nodejavascript.com</a>.
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <div class="consent" id="consentBar" role="dialog" aria-labelledby="consentTitle" hidden>
+      <div class="consentAsk" id="consentAsk">
+        <h2 class="consentTitle" id="consentTitle">Cookies are your call</h2>
+        <p class="consentText">
+          <b>Accept all to help decide what gets built next.</b> The numbers show which parts people actually use, and
+          that is what the work follows. Analytics is the only cookie here, it is not loaded until you say yes, and
+          nothing you type — a tail number, a callsign — is ever sent anywhere.
+          <a href="#privacy">See Privacy</a>
+        </p>
+      </div>
+
+      <!-- 🔴 THE PANEL NAMES THE ONE REAL CHOICE AND NOTHING ELSE.
+           There is exactly one row here, because this site has exactly one
+           optional thing. There is deliberately NO "this device / count my
+           visits" row: George ruled it out on 19 Sep 2026, verbatim: *"new rule
+           i dont want count my visits in the cookie settings"*. The owner's
+           switch is ?ga=off in the address bar, and a visitor has no reason to
+           look for it. -->
+      <div class="consentPrefs" id="consentPrefs" hidden>
+        <div class="consentHead">
+          <h2 class="consentTitle">Cookie preferences</h2>
+          <button id="consentClose" class="consentClose" type="button" aria-label="Close cookie preferences">
+            &times;
+          </button>
+        </div>
+        <ul class="consentList">
+          <li class="consentRow">
+            <div>
+              <p class="consentRowName">Analytics</p>
+              <p class="consentRowWhy">
+                Google Analytics. It sets its own cookies and sends your page views, which controls you press and how
+                far down a page you read to Google in the United States — never a tail number, never a callsign, and
+                never your watchlist. Off unless you turn it on.
+              </p>
+            </div>
+            <button
+              id="consentAnalytics"
+              class="consentSwitch"
+              type="button"
+              role="switch"
+              aria-checked="false"
+              aria-label="Analytics cookies"
+            >
+              <span class="consentDot" aria-hidden="true"></span><span id="consentAnalyticsWord">Off</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- 🔴 THE COPY MAY MAKE THE CASE FOR ACCEPTING. THE CONTROLS MAY NOT.
+           A site is entitled to say why it wants the answer it wants; a bar that
+           pretends to be indifferent is not more honest, only vaguer. What is not
+           allowed is stacking the deck: Reject all keeps the same class, the same
+           size, the same weight and the same distance from the edge, and neither
+           button is drawn with a focus ring when the bar opens. Inviting a yes is
+           honest. Obstructing the refusal is not. -->
+      <div class="consentActions">
+        <button id="consentAccept" class="ghost" type="button">Accept all</button>
+        <button id="consentDecline" class="ghost" type="button">Reject all</button>
+      </div>
+      <button id="consentSettings" class="linkish consentSettings" type="button">Settings</button>
+    </div>
+
+    <!-- 🔴 THREE LINES, IN THIS ORDER: brand · links · copyright.
+         The brand line carries the mother-site link ONCE — this is a child site,
+         so it links home, and the links line does not repeat it. The links line
+         carries only what the brand line does not: this site's own policy, and the
+         door to the cookie answer. There is NO privacy.html anywhere — the policy
+         is the #privacy section of this page — and NO "Back to top".
+
+         The repository is NOT linked, because it is private, and no repository is
+         ever made public to satisfy a footer. -->
+    <footer class="site-footer">
+      <div class="footer-brand">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="22" height="22">
+            <g fill="none" stroke="currentColor" stroke-width="1.7">
+              <circle cx="6" cy="10" r="3" />
+              <circle cx="6" cy="22" r="3" />
+              <circle cx="16" cy="16" r="3" />
+              <circle cx="26" cy="10" r="3" />
+              <circle cx="26" cy="22" r="3" />
+              <path d="M8.6 11.5 13.4 15M8.6 20.5 13.4 17M18.6 15 23.5 11.6M18.6 17 23.5 20.4" />
+            </g>
+          </svg>
+        </span>
+        <span><b>aircraft-demo</b> · <a href="https://nodejavascript.com/">nodejavascript.com</a></span>
+      </div>
+      <p class="footer-links">
+        <a href="#privacy">Privacy</a> ·
+        <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> ·
+        <button id="consentBtn" class="linkish" type="button">Cookie settings</button>
+      </p>
+      <p class="footer-copy">© 2026 aircraft-demo.nodejavascript.com. All rights reserved.</p>
+    </footer>
+  </body>
+</html>

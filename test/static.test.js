@@ -1,0 +1,360 @@
+/**
+ * static.test.js — what only READING can settle.
+ *
+ * House standard part 6: a unit suite earns its place on the things behaviour
+ * cannot show — that the Google tag is not in the page, that the title IS the
+ * host, that the footer door is delegated rather than bound. The end-to-end
+ * suite proves behaviour; this one proves the shape.
+ *
+ * 🔴 COMMENTS ARE STRIPPED BEFORE ANY CODE IS READ, AND THAT IS NOT TIDINESS.
+ * On 19 Sep 2026 four checks in this family were written wrong and every one of
+ * them reported a failure against code that was correct. One counted `<h1>` in
+ * the raw source and found three, because the file's own COMMENTS discuss
+ * `<h1>`. A false failure is the expensive kind: it teaches the reader to
+ * distrust the gate, and then a real failure is ignored. So the helpers below
+ * strip comments first, and every pattern is run against the artefact the test
+ * actually opens.
+ */
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(HERE, '..');
+const SITE = join(ROOT, 'site');
+
+const HOST = 'aircraft-demo.nodejavascript.com';
+const THEME = '#38bdf8';
+const BACKGROUND = '#04101a';
+
+const read = (...parts) => readFileSync(join(...parts), 'utf8');
+
+/** Strip /* *\/ and // from JavaScript, so a comment cannot fail a code check. */
+function stripJs(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
+
+/** Strip <!-- --> from HTML, for the same reason. */
+function stripHtml(source) {
+  return source.replace(/<!--[\s\S]*?-->/g, '');
+}
+
+const html = read(SITE, 'index.html');
+const htmlCode = stripHtml(html);
+const css = read(SITE, 'styles.css');
+const consentJs = stripJs(read(SITE, 'consent.js'));
+const appJs = stripJs(read(SITE, 'app.js'));
+const detectJs = stripJs(read(SITE, 'detect.js'));
+
+/* --------------------------------------------------------- part 1 · title --- */
+
+test('1 · the title IS the host — equality, not containment', () => {
+  const match = htmlCode.match(/<title>([^<]*)<\/title>/);
+  assert.ok(match, 'there is no <title>');
+  // `title.includes(host)` is what let a half-right version ship once: a title
+  // that CONTAINED the host passed while the title was a marketing sentence.
+  assert.equal(match[1].trim(), HOST);
+});
+
+test('1 · og:site_name is the host as well', () => {
+  assert.match(htmlCode, new RegExp(`<meta property="og:site_name" content="${HOST}"`));
+});
+
+/* ------------------------------------------------------ part 1b · no .html --- */
+
+test('1b · no href on the page ends in .html', () => {
+  const hrefs = [...htmlCode.matchAll(/href="([^"]+)"/g)].map((match) => match[1]);
+  const bad = hrefs.filter((href) => /\.html?$/i.test(href));
+  assert.deepEqual(bad, [], `these hrefs end in .html: ${bad.join(', ')}`);
+});
+
+test('1b · the sitemap lists no .html URL', () => {
+  const sitemap = read(SITE, 'sitemap.xml');
+  const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+  assert.ok(locs.length > 0, 'the sitemap lists nothing');
+  assert.deepEqual(locs.filter((loc) => /\.html?$/i.test(loc)), []);
+});
+
+/* ----------------------------------------------- part 2 · the cookie gate --- */
+
+test('2 · NOTHING from Google is in the page', () => {
+  // Not even in a comment — the file must not carry the tag in any form, and
+  // this is checked on the RAW source for exactly that reason.
+  assert.equal(/googletagmanager/i.test(html), false, 'the page mentions googletagmanager');
+  assert.equal(/gtag\s*\(/.test(htmlCode), false, 'the page calls gtag directly');
+});
+
+test('2 · the measurement id rides on the consent script, not on the page', () => {
+  assert.match(htmlCode, /<script src="\.\/consent\.js" data-ga-id="[^"]+" defer><\/script>/);
+});
+
+test('2 · consent.js is never looked up by the footer door — the door is DELEGATED', () => {
+  // The wrong version binds `#consentBtn` once as the script runs. It works on a
+  // static footer and fails on a React footer, where no listener is ever
+  // attached: the button renders, looks right in every screenshot, and does
+  // nothing. A delegated gate therefore has no reason to look the door up by id,
+  // and its absence is the assertion.
+  assert.equal(
+    /getElementById\(\s*['"]consentBtn['"]\s*\)/.test(consentJs),
+    false,
+    'consent.js looks up #consentBtn by id, so the door cannot be delegated'
+  );
+  assert.match(consentJs, /closest\?\.\(\s*['"]#consentBtn['"]\s*\)/, 'the delegated door is missing');
+});
+
+test('2 · the panel names ONE choice and does NOT offer the owner his own switch', () => {
+  // George, 19 Sep 2026: *"new rule i dont want count my visits in the cookie
+  // settings"*. `?ga=off` still works from the address bar; it is not surfaced
+  // to a visitor.
+  assert.equal(/consentDeviceRow/.test(htmlCode), false, 'the banned "This device" row is in the page');
+  assert.equal(/countToggle/.test(htmlCode), false, 'the banned owner toggle is in the page');
+  assert.equal(/countToggle|consentDeviceRow/.test(consentJs), false, 'the banned owner switch is still in the gate');
+  // …but the owner's address-bar switch must still exist, or the rule has been
+  // obeyed by deleting the feature rather than by hiding it.
+  assert.match(consentJs, /'ga'/, 'the ?ga= switch is gone entirely');
+  assert.match(consentJs, /ga_opt_out/);
+});
+
+test('2 · [hidden] wins over a class that declares display', () => {
+  // The gate swaps the question for the panel by setting `.hidden`, and the
+  // user-agent rule for `[hidden]` is a DEFAULT — any author rule overrides it,
+  // so `.consentAsk { display: flex }` kept the question on screen underneath
+  // its own settings panel. Readable in behaviour, invisible in a screenshot.
+  assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important/, 'the global [hidden] rule is missing');
+});
+
+test('2 · the bar reserves its height on <body>, not inside the footer', () => {
+  // Padding is INSIDE the box, so padding on the footer does not lift the
+  // footer's own bottom edge clear of a bar fixed to the bottom of the window.
+  assert.match(css, /body\s*\{[^}]*padding-bottom:\s*var\(--consent-height\)/s);
+});
+
+/* ------------------------------------------------------------- part 3 · bar --- */
+
+test('3 · the header is the brand and NOTHING ELSE — no nav', () => {
+  const header = htmlCode.match(/<header[\s\S]*?<\/header>/);
+  assert.ok(header, 'there is no <header>');
+  assert.equal(/<nav[\s>]/.test(header[0]), false, 'the header carries a nav');
+  assert.match(header[0], /class="brand"/);
+});
+
+test('3 · the brand goes to THIS SITE, not to nodejavascript.com', () => {
+  const header = htmlCode.match(/<header[\s\S]*?<\/header>/)[0];
+  const brandHref = header.match(/<a class="brand" href="([^"]*)"/);
+  assert.ok(brandHref, 'the brand is not a link');
+  assert.equal(brandHref[1], '/', 'the brand points somewhere other than this site');
+  assert.equal(/nodejavascript\.com/.test(header.replace(/<small>[\s\S]*?<\/small>/g, '')), false);
+});
+
+test('3 · the mark, the label and the parent name are all in the bar', () => {
+  const header = htmlCode.match(/<header[\s\S]*?<\/header>/)[0];
+  assert.match(header, /class="mark"/);
+  assert.match(header, /<b>aircraft-demo<\/b>/);
+  assert.match(header, /<small>nodejavascript\.com<\/small>/);
+});
+
+/* ---------------------------------------------------------- part 4 · footer --- */
+
+test('4 · the footer has three lines in order: brand, links, copyright', () => {
+  const footer = htmlCode.match(/<footer[\s\S]*?<\/footer>/);
+  assert.ok(footer, 'there is no <footer>');
+  const order = ['footer-brand', 'footer-links', 'footer-copy'].map((name) => footer[0].indexOf(name));
+  assert.ok(order.every((index) => index !== -1), 'a footer line is missing');
+  assert.deepEqual([...order].sort((a, b) => a - b), order, 'the footer lines are out of order');
+});
+
+test('4 · the mother-site link appears EXACTLY ONCE, on the brand line', () => {
+  // George, 19 Sep 2026: *"there is too much redunderncy here … i like the top
+  // line, the second line remove nodejavascript between privacy and cookie
+  // settings"*.
+  const footer = htmlCode.match(/<footer[\s\S]*?<\/footer>/)[0];
+  const links = [...footer.matchAll(/<a[^>]*href="https:\/\/nodejavascript\.com\/"[^>]*>/g)];
+  assert.equal(links.length, 1, `the mother-site link appears ${links.length} times`);
+  const brandLine = footer.slice(0, footer.indexOf('footer-links'));
+  assert.match(brandLine, /nodejavascript\.com/, 'the mother-site link is not on the brand line');
+});
+
+test('4 · the copyright carries the full domain name', () => {
+  assert.match(htmlCode, new RegExp(`© 2026 ${HOST.replace(/\./g, '\\.')}\\.`));
+});
+
+test('4 · the privacy link is an in-page #privacy anchor and the section exists', () => {
+  assert.match(htmlCode, /<a href="#privacy">Privacy<\/a>/);
+  assert.match(htmlCode, /<section class="card" id="privacy">/);
+});
+
+test('4 · NO privacy page exists anywhere in the repository', () => {
+  // George, 19 Sep 2026, verbatim: *"i dont like privacy html anywhere remember
+  // that for the rules"*. The policy is a section of the page it belongs to.
+  const walk = (dir) =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      if (entry.name === 'node_modules' || entry.name === '.git') return [];
+      const path = join(dir, entry.name);
+      return entry.isDirectory() ? walk(path) : [path];
+    });
+  const bad = walk(ROOT).filter((path) => /privacy.*\.(html?|md)$/i.test(path));
+  assert.deepEqual(bad, [], `a privacy page exists: ${bad.join(', ')}`);
+});
+
+test('4 · the cookie door is in the footer', () => {
+  assert.match(htmlCode, /<button id="consentBtn"[^>]*>Cookie settings<\/button>/);
+});
+
+test('4 · NO "Back to top" anywhere', () => {
+  // George, 19 Sep 2026: *"remeber this, to remove · back to top from footers"*.
+  assert.equal(/back to top/i.test(htmlCode), false);
+});
+
+/* ------------------------------------------------------ part 5 · identity --- */
+
+test('5 · the theme colour is the declared, unique value', () => {
+  assert.match(htmlCode, new RegExp(`<meta name="theme-color" content="${THEME}"`));
+  assert.match(css, new RegExp(`--theme:\\s*${THEME}`));
+});
+
+test('5 · the background is the declared, unique value', () => {
+  assert.match(css, new RegExp(`--bg:\\s*${BACKGROUND}`));
+  assert.match(css, /background-color:\s*var\(--bg\)/);
+});
+
+test('5 · the background image is ONE radial plus TWO linear — a count nothing else has', () => {
+  const body = css.match(/^body\s*\{[\s\S]*?\n\}/m);
+  assert.ok(body, 'no body rule');
+  assert.match(body[0], /background-image:/);
+  const radial = (body[0].match(/radial-gradient\(/g) || []).length;
+  const linear = (body[0].match(/linear-gradient\(/g) || []).length;
+  const conic = (body[0].match(/conic-gradient\(/g) || []).length;
+  assert.equal(radial, 1, `expected one radial gradient, found ${radial}`);
+  assert.equal(linear, 2, `expected two linear gradients, found ${linear}`);
+  assert.equal(conic, 0, 'a conic step is a band, which is the thing that was rejected');
+});
+
+test('5d-ii · the abstract is the page\u2019s OWN geometry, and it FADES', () => {
+  // A gradient wash is not a drawing: nine of ten sites in this family passed
+  // part 5d for weeks while painting no geometry at all.
+  const layer = htmlCode.match(/<div class="dvs-pattern"[^>]*><\/div>/);
+  assert.ok(layer, 'the abstract layer is not in the page');
+
+  const rule = css.match(/\.dvs-pattern\s*\{[\s\S]*?\n\}/);
+  assert.ok(rule, '.dvs-pattern has no rule');
+  assert.match(rule[0], /position:\s*fixed/);
+  assert.match(rule[0], /pointer-events:\s*none/);
+  assert.match(rule[0], /repeating-conic-gradient\(/, 'the geometry must REPEAT — bearing ticks do');
+  // It must be masked, and both spellings, or Safari paints hard edges.
+  assert.match(rule[0], /mask-image:/);
+  assert.match(rule[0], /-webkit-mask-image:/);
+});
+
+test('5 · the Analytics id does not clash with the family register, when one is readable', () => {
+  const registerPath = join(process.env.HOME || '', '.nodejs_theme_register.json');
+  if (!existsSync(registerPath)) return; // nothing to compare against; not a failure
+  const register = JSON.parse(readFileSync(registerPath, 'utf8'));
+  const rows = Array.isArray(register) ? register : register.sites || [];
+  if (rows.length === 0) return;
+
+  const clashes = [];
+  if (rows.some((row) => String(row.theme).toLowerCase() === THEME)) clashes.push(`theme colour ${THEME}`);
+  if (rows.some((row) => String(row.background).toLowerCase() === BACKGROUND)) clashes.push(`background ${BACKGROUND}`);
+  const myTexture = '1 radial + 2 linear';
+  if (rows.some((row) => String(row.texture).toLowerCase() === myTexture)) clashes.push(`background image (${myTexture})`);
+  assert.deepEqual(clashes, [], `these are already taken by a live site: ${clashes.join(', ')}`);
+});
+
+/* -------------------------------------------------------------- part 6 --- */
+
+test('6 · all three kinds of test exist in the repository', () => {
+  for (const path of ['test/detect.test.js', 'test/static.test.js', 'test/e2e.test.js']) {
+    assert.ok(existsSync(join(ROOT, path)), `missing ${path}`);
+  }
+  assert.ok(
+    existsSync(join(ROOT, 'tools/live-check.mjs')),
+    'missing the live check — a local build cannot prove what a visitor receives'
+  );
+});
+
+/* --------------------------------------------------- the deploy-time gate --- */
+
+test('the Analytics id is REAL — this site cannot be deployed without its own property', () => {
+  // 🔴 THIS TEST IS MEANT TO FAIL UNTIL THE SITE GOES LIVE, AND IT IS A GATE, NOT
+  // A BUG. House rule parts 5c and 7a: the Analytics property is created on the
+  // day the site goes live, together with the DNS record. This demo has no
+  // hostname yet, so it has no property yet, and `G-PENDING` is honest.
+  //
+  // What it stops is a site that gets deployed and quietly never gets a
+  // property: `npm test` runs inside `npm run deploy`, so the deploy cannot
+  // complete while the id is a placeholder. Fix it by creating the GA4 property
+  // in the `mcp` account (84487458), named with the FULL domain, and pasting its
+  // measurement id into site/index.html.
+  const id = htmlCode.match(/data-ga-id="([^"]+)"/)[1];
+  assert.match(id, /^G-[A-Z0-9]{10}$/, `"${id}" is a placeholder — create the GA4 property at deploy time`);
+});
+
+/* ------------------------------------------------- what must NOT have crept in --- */
+
+test('no response is parsed blind — every fetch goes through readJson', () => {
+  // A bare `response.json()` trusts the other end to be the feed. The moment
+  // anything answers in front of it, the reader gets a JavaScript parser
+  // complaint in place of the sentence written for them. That is exactly what
+  // happened on rag-demo on 19 Sep 2026, and it is checked on the BUILT code,
+  // because that is what a browser runs.
+  assert.match(appJs, /async function readJson/);
+  assert.equal(
+    /\.json\(\)/.test(appJs.replace(/JSON\.parse|readJson[\s\S]{0,200}/g, '')),
+    false,
+    'app.js calls .json() directly somewhere'
+  );
+});
+
+test('the proxy never answers 502 — the edge would delete the body', () => {
+  const worker = stripJs(read(ROOT, 'worker', 'index.js'));
+  assert.equal(/502/.test(worker), false, 'the worker can answer 502, whose body Cloudflare destroys');
+  assert.match(worker, /503/);
+});
+
+test('production does NOT send a wildcard CORS header', () => {
+  // Same-origin needs none, and a wildcard would make this Worker an open relay
+  // for anybody's browser to spend the feed's bandwidth through. The local dev
+  // server sends one on purpose; production must not.
+  const worker = stripJs(read(ROOT, 'worker', 'index.js'));
+  assert.equal(/access-control-allow-origin/i.test(worker), false, 'the worker sends a CORS header');
+});
+
+test('the dev server is on the reserved port and knows the DNS rule', () => {
+  const serve = stripJs(read(ROOT, 'tools', 'serve.mjs'));
+  assert.match(serve, /4340/);
+  // 8080 is PM2's, and nine of this machine's own scripts sat on it by accident.
+  assert.equal(/8080/.test(serve), false, 'something defaults to port 8080, which PM2 owns');
+});
+
+test('the theme colour in the stylesheet and the manifest agree', () => {
+  const manifest = JSON.parse(read(SITE, 'manifest.webmanifest'));
+  assert.equal(manifest.theme_color, THEME);
+  assert.equal(manifest.background_color, BACKGROUND);
+});
+
+test('robots.txt carries the Sitemap line', () => {
+  const robots = read(SITE, 'robots.txt');
+  assert.match(robots, new RegExp(`^Sitemap: https://${HOST.replace(/\./g, '\\.')}/sitemap\\.xml$`, 'm'));
+});
+
+test('there is NO www anywhere in this site\u2019s own material', () => {
+  // The rule governs OUR hostnames, never the string — so this looks for a www
+  // form OF OUR DOMAIN, not for the word.
+  const offenders = ['site/index.html', 'site/sitemap.xml', 'site/robots.txt', 'site/manifest.webmanifest']
+    .map((path) => read(ROOT, path))
+    .join('\n');
+  assert.equal(/www\.nodejavascript\.com/i.test(offenders), false);
+});
+
+test('detect.js ships as plain JavaScript the browser can run', () => {
+  // The page is a static site; `site/*.js` is GENERATED by tsc from `src/*.ts`,
+  // and the unit tests import the generated file. If the build did not run, the
+  // tests would pass against a file that does not exist.
+  assert.match(detectJs, /export function phaseOf/);
+  assert.match(detectJs, /export class DetectionEngine/);
+});

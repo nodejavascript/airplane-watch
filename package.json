@@ -1,0 +1,24 @@
+{
+  "name": "aircraft-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Watch a named aircraft leave a named airport, and be told when it does. Static site for aircraft-demo.nodejavascript.com",
+  "scripts": {
+    "build": "tsc",
+    "serve": "npm run build && node tools/serve.mjs",
+    "test": "npm run build && node --test test/detect.test.js test/static.test.js",
+    "test:e2e": "npm run build && node --test test/e2e.test.js",
+    "test:all": "npm run build && node --test test/*.test.js",
+    "test:live": "node tools/live-check.mjs",
+    "icons": "python3 tools/make-icons.py",
+    "deploy": "bash tools/deploy.sh"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0",
+    "typescript": "^5.9.3"
+  }
+}

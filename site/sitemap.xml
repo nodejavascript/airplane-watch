@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 🔴 ONE URL, AND IT DOES NOT END IN .html. The site is one document; the
+     policy is a #privacy section of it, not a page of its own, so there is
+     nothing else to list. A sitemap is a list of the site's pages, and a
+     fragment is not a page. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://aircraft-demo.nodejavascript.com/</loc>
+    <lastmod>2026-09-20</lastmod>
+    <changefreq>weekly</changefreq>
+  </url>
+</urlset>
