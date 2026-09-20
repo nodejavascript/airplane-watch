@@ -500,7 +500,7 @@ test('the page has two views and the header still has no nav', () => {
   assert.equal((html.match(/data-view="live"/g) ?? []).length, 1);
   assert.equal((html.match(/data-view="select"/g) ?? []).length, 2);
 
-  // The status line had to move OUT of the departures card, or a feed error
+  // The status line had to move OUT of a card that was gated, or a feed error
   // would be invisible to a reader who is on the other view.
   const statusIndex = html.indexOf('id="status"');
   assert.ok(statusIndex > -1);
@@ -764,7 +764,6 @@ test('a step that waits on a place is SHOWN with the reason, not hidden', () => 
     assert.match(html, new RegExp(`id="step-${n}"[\\s\\S]{0,600}class="step-why"`), `step ${n} has no note saying what to do`);
   }
   assert.match(html, /id="step-4"[^>]*hidden/, 'the watchlist is shown before anything is picked');
-  assert.match(html, /id="departures"[^>]*hidden/, 'the board is shown before anything is picked');
 
   const css = read(SITE, 'styles.css');
   assert.match(css, /\.step-why\b/, 'the note has no style');
@@ -859,7 +858,6 @@ test('the later steps do not exist until the first is answered', () => {
   for (const n of [2, 3, 4, 5]) {
     assert.match(html, new RegExp(`id="step-${n}"[^>]*hidden`), `step ${n} is on the page before step 1 is answered`);
   }
-  assert.match(html, /id="departures"[^>]*hidden/, 'the board is on the page before anything is picked');
   assert.match(html, /id="step-1" data-step="1"/, 'step 1 must be visible — it is the one that asks');
 
   const source = readSrc('src/app.ts');

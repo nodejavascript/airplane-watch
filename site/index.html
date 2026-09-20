@@ -60,7 +60,7 @@
                 "name": "Will it tell me the moment the wheels leave the runway?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "No, and no free service can. An aircraft on the apron is only received by a receiver within a few kilometres of it, because buildings and the curve of the earth block the signal. So most departures are detected a few seconds after the aircraft is airborne and has been heard climbing, not at the moment of rotation. The page labels every departure as either 'seen on the ground first' or 'first seen climbing', so you always know which one you got."
+                  "text": "No, and no free service can. An aircraft on the apron is only received by a receiver within a few kilometres of it, because buildings and the curve of the earth block the signal. So most departures are detected a few seconds after the aircraft is airborne and has been heard climbing, not at the moment of rotation. When the alert tells you an aircraft you asked about has left, it says which of the two it was — seen on the ground first, or first seen climbing — so you always know whether it was watched or inferred."
                 }
               },
               {
@@ -121,7 +121,7 @@
          aircraft-tracking page has some reason to own. Drawn in styles.css on its
          own fixed layer and faded by a mask, so nothing has an edge. -->
     <div class="dvs-pattern" aria-hidden="true"></div>
-    <a class="skip" href="#departures">Skip to the departures board</a>
+    <a class="skip" href="#step-1">Skip to the first step</a>
 
     <!-- 🔴 THE HEADER IS THE BRAND BAR AND NOTHING ELSE — NO NAV.
          George, 19 Sep 2026, verbatim: *"the rule for header is that it should
@@ -229,15 +229,6 @@
         <p class="small muted" id="filterNote">Loading what the feed has been showing…</p>
         <div class="typelist" id="typeList"></div>
         <p class="small muted" id="typeNote">Loading what the feed has been showing…</p>
-      </section>
-
-      <section class="card step-gated" id="departures" data-step="6" hidden>
-        <h2>Departures seen in this session</h2>
-        <p class="sub">Kept in this browser. Closing the tab and coming back keeps the board you had.</p>
-        <p class="empty" id="departuresEmpty">
-          Nothing yet. A departure appears here the moment an aircraft inside the fence is first seen airborne.
-        </p>
-        <ol class="departures" id="departures"></ol>
       </section>
 
       <section class="card" id="live">
@@ -383,8 +374,8 @@
         <ul class="limits">
           <li>
             <b>There is no account and no server-side store.</b> Nothing you type is sent to this site. Your watchlist,
-            your chosen airport and your departures board are kept in your own browser's storage and are never
-            transmitted anywhere.
+            your chosen airport, the aircraft types you picked and the distance you set are kept in your own browser's
+            storage and are never transmitted anywhere.
           </li>
           <li>
             <b>Google Analytics loads only after you say yes.</b> Google's script is not in the page. It is added by

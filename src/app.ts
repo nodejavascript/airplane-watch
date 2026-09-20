@@ -7,7 +7,7 @@
  *   1. asks the feed where the airport is, and keeps asking the feed for the
  *      aircraft near it;
  *   2. hands each poll to the DetectionEngine and renders what comes back;
- *   3. keeps the reader's watchlist and their own departures board in
+ *   3. keeps the reader's watchlist and the aircraft types they picked in
  *      localStorage, so closing the tab does not lose the session;
  *   4. fires a browser notification when something they asked about leaves.
  *
@@ -49,7 +49,6 @@ import {
 
 const WATCH_KEY = 'aircraft_watchlist';
 const TYPES_KEY = 'aircraft_types';
-const BOARD_KEY = 'aircraft_departures';
 const AIRPORT_KEY = 'aircraft_airport';
 /**
  * 🔴 THE READER'S PLACE AND THEIR DISTANCE ARE KEPT TOO. George, 20 Sep 2026:
@@ -489,7 +488,6 @@ class Page {
   private engine: DetectionEngine | null = null;
   private watchlist: string[] = [];
   private typeRules: TypeRule[] = [];
-  private board: Departure[] = [];
   private timer: number | null = null;
   /** How long until the next look at the feed. Moves — see the note on POLL_START_MS. */
   private pollMs = POLL_START_MS;
@@ -562,7 +560,6 @@ class Page {
   start(): void {
     this.watchlist = this.loadList(WATCH_KEY);
     this.typeRules = this.loadTypeRules();
-    this.board = this.loadBoard();
 
     // 🔴 WHAT WAS KEPT COMES BACK BEFORE ANYTHING IS BUILT FROM IT. The distance
     // buttons read their pressed state from `this.radiusKm`, so restoring after
@@ -589,7 +586,6 @@ class Page {
     this.buildSeenFilter();
     this.renderPlace();
     this.renderWatchlist();
-    this.renderBoard();
     this.bindWatchForm();
     this.bindNotify();
     this.renderWatchButton();
@@ -618,7 +614,7 @@ class Page {
     const notice = byId('notifyNote');
     if (notice && !('Notification' in window)) {
       notice.textContent =
-        'This browser has no notification support. Departures will still appear on the board below.';
+        'This browser has no notification support, so there is no way to tell you when one leaves.';
     }
   }
 
@@ -628,18 +624,6 @@ class Page {
     try {
       const raw = JSON.parse(readStore(key, '[]'));
       return Array.isArray(raw) ? raw.filter((item) => typeof item === 'string') : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private loadBoard(): Departure[] {
-    try {
-      const raw = JSON.parse(readStore(BOARD_KEY, '[]'));
-      if (!Array.isArray(raw)) return [];
-      // A board that grows without limit is a slow page. The session is what
-      // matters, and a hundred departures is more than one sitting.
-      return (raw as Departure[]).slice(0, 100);
     } catch {
       return [];
     }
@@ -674,10 +658,6 @@ class Page {
   private saveWatchlist(): void {
     writeStore(WATCH_KEY, JSON.stringify(this.watchlist));
     this.engine?.setWatchlist(this.watchlist);
-  }
-
-  private saveBoard(): void {
-    writeStore(BOARD_KEY, JSON.stringify(this.board.slice(0, 100)));
   }
 
   /* ------------------------------------------------------------ the airport */
@@ -1129,7 +1109,7 @@ class Page {
       this.lastPollAt = Date.now();
       this.lastError = '';
 
-      if (departures.length > 0) this.recordDepartures(departures);
+      if (departures.length > 0) this.alertOnDepartures(departures);
       this.renderAircraft();
       this.renderLive();
       // Plain words. George, 20 Sep 2026: *"i dont like ... 2 aircraft in the fence
@@ -1150,9 +1130,24 @@ class Page {
     }
   }
 
-  private recordDepartures(departures: Departure[]): void {
+  /**
+   * 🔴 THE DEPARTURES BOARD IS GONE, AND THIS IS WHAT IS LEFT OF IT. George, 20 Sep
+   * 2026, pasting the list: *"remove all of this"*. The board was a card of every
+   * aircraft first seen climbing, kept in the browser, and it was removed along with
+   * its card.
+   *
+   * 🔴 THE ALERT SURVIVES IT, AND THAT IS NOT AN ACCIDENT — IT IS THE POINT. The
+   * notification for a watched aircraft fired from INSIDE the board's write, so
+   * deleting the board wholesale would have deleted the one thing George said the page
+   * is for: *"the goal is to alert people when their selected aircrafts are in the air
+   * around them"*. Removing a feature must not quietly remove the reason for the page.
+   *
+   * The detection itself is untouched — `engine.ingest()` still decides what a departure
+   * is, which is what the tests in `test/detect.test.js` are about. Only the list, its
+   * storage and its rendering are gone; nothing accumulates any more.
+   */
+  private alertOnDepartures(departures: Departure[]): void {
     for (const departure of departures) {
-      this.board.unshift(departure);
       if (departure.watched) this.notify(departure);
       track('departure_detected', {
         verdict: departure.verdict,
@@ -1161,9 +1156,6 @@ class Page {
         aircraft_type: departure.type,
       });
     }
-    this.board = this.board.slice(0, 100);
-    this.saveBoard();
-    this.renderBoard();
   }
 
   /* --------------------------------------------------------------- the view */
@@ -1189,6 +1181,14 @@ class Page {
     body.innerHTML = rows
       .map((state) => {
         const label = state.callsign || state.registration || state.hex;
+        // 🔴 WATCHED IS ASKED, NOT REMEMBERED. Measured on 20 Sep 2026: the button read
+        // "watch" for a full poll cycle after it was pressed, because `state.watched`
+        // was written by the last `ingest()` and `setWatchlist` does not rewrite the
+        // states already stored. So the reader pressed watch, the write succeeded, and
+        // the page showed them nothing for twenty seconds — the shape of a control that
+        // does not work. The engine already owns the rule for what matches (matchOf),
+        // so the table asks it at render time instead of holding a stale copy.
+        const watched = this.isWatchedNow(state);
         const phase =
           state.phase === 'ground'
             ? '<span class="tag tag-ground">on the ground</span>'
@@ -1196,7 +1196,7 @@ class Page {
               ? '<span class="tag tag-air">airborne</span>'
               : '<span class="tag tag-unknown">no altitude</span>';
         return (
-          `<tr${state.watched ? ' class="watched-row"' : ''}>` +
+          `<tr${watched ? ' class="watched-row"' : ''}>` +
           `<td class="mono">${escapeHtml(state.hex)}</td>` +
           `<td><b>${escapeHtml(label)}</b></td>` +
           (state.type ? this.typeCell(state.type) : '<td class="mono">—</td>') +
@@ -1204,7 +1204,7 @@ class Page {
           `<td class="mono">${formatClock(state.observedAt)}</td>` +
           `<td><button type="button" class="linkish watch-toggle" data-key="${escapeHtml(label)}" ` +
           `data-type="${escapeHtml(state.type || '')}" ` +
-          `data-ga="watch">${state.watched ? 'unwatch' : 'watch'}</button></td>` +
+          `data-ga="watch">${watched ? 'unwatch' : 'watch'}</button></td>` +
           '</tr>'
         );
       })
@@ -1222,41 +1222,24 @@ class Page {
     }
   }
 
-  private renderBoard(): void {
-    const list = byId('departures');
-    const empty = byId('departuresEmpty');
-    if (!list || !empty) return;
-
-    empty.hidden = this.board.length > 0;
-
-    list.innerHTML = this.board
-      .map((departure) => {
-        const label = departure.callsign || departure.registration || departure.hex;
-        const climb = departure.climbFpm !== null ? `${departure.climbFpm} ft/min` : 'rate unknown';
-        const altitude = departure.altitudeFt !== null ? `${departure.altitudeFt} ft` : 'altitude unknown';
-        const kind = describeType(departure.type);
-        const typeText = departure.type
-          ? `<span class="mono">${escapeHtml(departure.type)}</span> <span class="muted">${escapeHtml(kind.name)}</span>`
-          : '';
-        return (
-          `<li class="departure${departure.watched ? ' departure-watched' : ''}">` +
-          `<span class="departure-time mono">${formatClock(departure.at)}</span>` +
-          `<span class="departure-what"><b>${escapeHtml(label)}</b>` +
-          (typeText ? ` <span class="departure-type">${typeText}</span>` : '') +
-          (departure.watched ? ' <span class="tag tag-watched">watched</span>' : '') +
-          '</span>' +
-          `<span class="departure-how">${escapeHtml(altitude)} · ${escapeHtml(climb)} · ` +
-          `${nmToKm(departure.distanceNm)} km out</span>` +
-          `<span class="departure-verdict tag tag-${departure.verdict}">` +
-          `${departure.verdict === 'confirmed' ? 'seen on the ground first' : 'first seen climbing'}</span>` +
-          (departure.matchedLabel
-            ? `<span class="departure-why muted">caught by: ${escapeHtml(departure.matchedLabel)} · ` +
-              `${escapeHtml(departure.reason)}</span>`
-            : `<span class="departure-why muted">${escapeHtml(departure.reason)}</span>`) +
-          '</li>'
-        );
-      })
-      .join('');
+  /**
+   * Does this aircraft match something the reader asked about — right now?
+   *
+   * 🔴 THE ENGINE ANSWERS THIS, NOT THE PAGE. `matchOf` is the one place the rule for
+   * "watched by name" and "caught by a type rule" lives, and test/detect.test.js covers
+   * it directly. Restating it here so the table could skip a poll cycle would have been a
+   * second copy of the rule, and the second copy is the one that goes stale.
+   */
+  private isWatchedNow(state: { hex: string; callsign: string; registration: string; type: string }): boolean {
+    if (!this.engine) return false;
+    return (
+      this.engine.matchOf({
+        hex: state.hex,
+        flight: state.callsign || undefined,
+        r: state.registration || undefined,
+        t: state.type || undefined,
+      }) !== null
+    );
   }
 
   /* -------------------------------------------------- the measured types --- */
@@ -1775,7 +1758,7 @@ class Page {
    * the one from before the fixes, and no reload of the address would be reached.
    *
    * So this clears everything the page has kept in this browser — the watchlist,
-   * the type rules, the departures board, the chosen airport — and reloads. It is
+   * the type rules, the chosen airport — and reloads. It is
    * the reader's own reset, and it also happens to be the honest answer to "I still
    * see the old thing": a page that keeps state must offer a way to drop it.
    */
@@ -1783,7 +1766,7 @@ class Page {
     const button = byId('startOver');
     if (!button) return;
     button.addEventListener('click', () => {
-      for (const key of [WATCH_KEY, TYPES_KEY, BOARD_KEY, AIRPORT_KEY, CENTRE_KEY, RADIUS_KEY]) {
+      for (const key of [WATCH_KEY, TYPES_KEY, AIRPORT_KEY, CENTRE_KEY, RADIUS_KEY]) {
         try {
           localStorage.removeItem(key);
         } catch {
@@ -2886,7 +2869,7 @@ class Page {
    * to pick so remove Pick what to watch / In the air now"*. Two buttons offering
    * "choose" and "look" put a mode in front of the thing the page is actually for.
    * So there is one flow: pick, and the chart arrives as the step AFTER the picking
-   * — the same way the departures board does, because it is the same kind of thing.
+   * — which is the order the questions are actually asked in.
    *
    * The chart is drawn when its step arrives (see updateSteps), not when it was last
    * polled, or it would show whatever was in the air a moment before it appeared.
@@ -2895,10 +2878,9 @@ class Page {
   /**
    * Aircraft matching the selection that are in the air at this moment.
    *
-   * This is deliberately NOT the departures board. The board is a record of what
-   * has already left; this is a picture of what is up there now, so a person can
-   * look up at a contrail and find it. Both are read from the same poll, so the
-   * chart and the table can never disagree about the same aircraft.
+   * A picture of what is up there NOW, so a person can look up at a contrail and
+   * find it. It is read from the same poll as the table, so the chart and the table
+   * can never disagree about the same aircraft.
    */
   private matchedAirborne(): LiveAircraft[] {
     const at = this.point();

@@ -4,8 +4,8 @@
  * House standard part 6: the unit suite proves the shape, this one proves what
  * happens. Three things are only visible here — that a refusal makes ZERO
  * requests to Google (not "few", not "none of the ones we thought of"), that the
- * footer door actually opens the panel, and that a ground-to-air transition puts
- * a line on the board.
+ * footer door actually opens the panel, and that a watched departure still raises
+ * the alert now that the board it used to fire from is gone.
  *
  * 🔴 THE FEED IS STUBBED, AND THAT IS DELIBERATE. These tests must be runnable
  * offline and must not depend on whether an aircraft happens to be climbing over
@@ -70,6 +70,19 @@ function feedStub(aircraftByPoll) {
         }),
       });
     }
+    // 🔴 ONLY THE AIRCRAFT QUERY ADVANCES THE SCRIPTED SEQUENCE, AND THAT IS THE FIX
+    // FOR A HARNESS THAT COULD NOT HAVE WORKED. This stub used to answer EVERY
+    // `/api/**` request that was not the airport lookup with the next set of aircraft —
+    // and the page's own map asks for tiles under `/api/tiles/…`, thirty of them on a
+    // single render (measured on the page: 31 requests before step 1 is even answered).
+    // So each tile request ate one step of the sequence, the aircraft query kept being
+    // handed the FIRST set of readings, and a test waiting for a ground-to-air
+    // transition waited for a transition the page had no way to see. The failure read as
+    // "the alert is broken" and was nothing of the kind.
+    if (!url.includes('/api/v2/point/')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    }
+
     const rows = aircraftByPoll[Math.min(poll, aircraftByPoll.length - 1)];
     poll += 1;
     return route.fulfill({
@@ -261,58 +274,66 @@ test('the page names the airport it looked up, and lists what the feed can see',
   await context.close();
 });
 
-test('a ground-to-air transition puts a CONFIRMED departure on the board', async () => {
-  const { context, page } = await openPage([
+test('a watched departure raises the alert — the board went, the alert stayed', async () => {
+  const polls = [
     [{ hex: 'c011e4', flight: 'ACA123', t: 'B738', alt_baro: 'ground', gs: 0, lat: 43.18, lon: -79.94 }],
     [{ hex: 'c011e4', flight: 'ACA123', t: 'B738', alt_baro: 1400, baro_rate: 2300, lat: 43.19, lon: -79.93 }],
-  ]);
+  ];
+  const { context, page } = await openPage(polls);
+
+  // 🔴 THIS TEST EXISTS BECAUSE THE ALERT FIRED FROM INSIDE THE BOARD.
+  //
+  // The departures board was removed on George's instruction (20 Sep 2026, pasting
+  // the list: *"remove all of this"*) — and the notification for a watched aircraft
+  // was raised from the board's own write. Deleting the board the obvious way would
+  // have deleted the alert, which is the thing he said the page is FOR: *"the goal is
+  // to alert people when their selected aircrafts are in the air around them"*.
+  //
+  // A screenshot cannot see this: with the board gone there is nothing on the page
+  // that shows whether the alert still fires. So `Notification` is stubbed before any
+  // script runs, and the promise is that a watched ground-to-air transition raises
+  // exactly one.
+  await page.addInitScript(() => {
+    window.__alerts = [];
+    class StubNotification {
+      static permission = 'granted';
+      constructor(title, options) {
+        window.__alerts.push({ title: String(title), body: String((options && options.body) || '') });
+      }
+    }
+    Object.defineProperty(window, 'Notification', { value: StubNotification, writable: true });
+  });
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
 
-  await page.waitForFunction(
-    () => document.querySelectorAll('#departures .departure').length > 0,
-    null,
-    { timeout: 30_000 }
-  );
+  // 🔴 WATCHED FROM THE AIRCRAFT TABLE, BECAUSE THE WATCH FORM IS GONE. An earlier
+  // version of this test filled `#watchInput` — and that box, and the `#watchList`
+  // card beside it, went when George asked for the choosing flow to be the only
+  // flow. Both ids are now absent from the page, so a test that typed into one of
+  // them failed on a 30-second timeout waiting for an element that no longer exists,
+  // which reads exactly like a broken alert and is not one. The table's own watch
+  // control is the way a reader asks about an aircraft now.
+  //
+  // 🔴 AND STEP 1 HAS TO BE ANSWERED BEFORE THE PAGE ASKS THE FEED FOR ANYTHING.
+  // Measured on the page rather than guessed: with no distance chosen the table still
+  // reads *"Waiting for the first poll…"* and the status line says *"Choose how far out
+  // to look in step 2, and this fills in."* The page deliberately sends nothing until
+  // the reader has said where and how far — so a test that expects aircraft has to
+  // press a distance first, or it is waiting for a request the page will never make.
+  await page.$eval('#radiusButtons button', (element) => element.click());
+  await page.waitForSelector('#aircraftBody .watch-toggle', { timeout: 30_000 });
+  await page.$eval('#aircraftBody .watch-toggle', (element) => element.click());
 
-  const rows = await page.$$eval('#departures .departure', (items) =>
-    items.map((item) => item.textContent.replace(/\s+/g, ' ').trim())
-  );
-  assert.equal(rows.length, 1, `expected one departure, got ${rows.length}: ${rows.join(' | ')}`);
-  assert.match(rows[0], /ACA123/);
-  assert.match(rows[0], /seen on the ground first/, 'a ground-to-air transition must never be reported as a guess');
-  assert.match(rows[0], /1400 ft/);
-  assert.match(rows[0], /2300 ft\/min/);
-
-  const emptyHidden = await page.$eval('#departuresEmpty', (element) => element.hidden);
-  assert.equal(emptyHidden, true, 'the empty message is still showing over a populated board');
-
-  await context.close();
-});
-
-test('a first sighting already climbing is labelled a guess, not a fact', async () => {
-  const { context, page } = await openPage([
-    [{ hex: 'a1b2c3', flight: 'WJA456', t: 'B737', alt_baro: 4100, baro_rate: 2100, lat: 43.20, lon: -79.92 }],
-  ]);
-
-  await page.goto(BASE, { waitUntil: 'load' });
-  await page.$eval('#consentDecline', (element) => element.click());
-
-  await page.waitForFunction(
-    () => document.querySelectorAll('#departures .departure').length > 0,
-    null,
-    { timeout: 30_000 }
-  );
-
-  const row = await page.$eval('#departures .departure', (element) => element.textContent);
-  assert.match(row, /first seen climbing/);
-  assert.match(row, /already climbing/);
+  await page.waitForFunction(() => window.__alerts.length > 0, null, { timeout: 45_000 });
+  const alerts = await page.evaluate(() => window.__alerts);
+  assert.equal(alerts.length, 1, `expected one alert, got ${alerts.length}: ${JSON.stringify(alerts)}`);
+  assert.match(alerts[0].title, /ACA123/, 'the alert must name the aircraft that left');
 
   await context.close();
 });
 
-test('a watched aircraft is marked on the board, and the watchlist survives a reload', async () => {
+test('the watchlist survives a reload', async () => {
   const polls = [
     [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B738', alt_baro: 'ground', gs: 0, lat: 43.18, lon: -79.94 }],
     [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B738', alt_baro: 1600, baro_rate: 2400, lat: 43.19, lon: -79.93 }],
@@ -322,26 +343,16 @@ test('a watched aircraft is marked on the board, and the watchlist survives a re
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
 
-  // Typed without the hyphen, watched and matched anyway — registrations are
-  // written with one and transmitted without one.
-  await page.fill('#watchInput', 'cgxxx');
-  await page.$eval('#watchForm button[type="submit"]', (element) => element.click());
+  // A distance first — the page asks the feed for nothing until step 1 is answered.
+  await page.$eval('#radiusButtons button', (element) => element.click());
 
   const watchlist = await page.$eval('#watchList', (element) => element.textContent);
   assert.match(watchlist, /cgxxx/);
-
-  await page.waitForFunction(
-    () => document.querySelectorAll('#departures .departure-watched').length > 0,
-    null,
-    { timeout: 30_000 }
-  );
 
   await page.reload({ waitUntil: 'load' });
   await page.waitForTimeout(300);
   const afterReload = await page.$eval('#watchList', (element) => element.textContent);
   assert.match(afterReload, /cgxxx/, 'the watchlist did not survive a reload');
-  const board = await page.$eval('#departures', (element) => element.textContent);
-  assert.match(board, /ACA123/, 'the board did not survive a reload');
 
   await context.close();
 });
@@ -353,13 +364,20 @@ test('the aircraft table offers a watch control, and it works without typing', a
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
-  await page.waitForSelector('#aircraftBody .watch-toggle');
+  // A distance has to be chosen first: the page asks the feed for nothing until
+  // step 1 is answered (see the note on the alert test above).
+  await page.$eval('#radiusButtons button', (element) => element.click());
+  await page.waitForSelector('#aircraftBody .watch-toggle', { timeout: 30_000 });
 
   await page.$eval('#aircraftBody .watch-toggle', (element) => element.click());
   await page.waitForTimeout(200);
 
-  const watchlist = await page.$eval('#watchList', (element) => element.textContent);
-  assert.match(watchlist, /ACA123/);
+  // 🔴 THE WATCHLIST CARD IS GONE, SO THE BUTTON'S OWN STATE IS THE PROOF. This used
+  // to read `#watchList`, which no longer exists — the same stale-UI failure as the
+  // alert test above, and the same reason it has to assert on what is actually on the
+  // page.
+  const label = await page.$eval('#aircraftBody .watch-toggle', (element) => element.textContent.trim());
+  assert.equal(label, 'unwatch', 'the control must show that this aircraft is now watched');
 
   await context.close();
 });
@@ -500,14 +518,11 @@ test('a type can be watched whole, and then narrowed to tail numbers', async () 
   assert.match(watchlist, /Boeing 737 MAX 8/);
   assert.match(watchlist, /every one of them/, 'a new type rule must start WIDE');
 
-  // The departure it catches says which rule caught it.
-  await page.waitForFunction(
-    () => document.querySelectorAll('#departures .departure').length > 0,
-    null,
-    { timeout: 30_000 }
-  );
-  let board = await page.$eval('#departures .departure', (element) => element.textContent);
-  assert.match(board, /caught by: any B38M/);
+  // 🔴 THE LINE THAT USED TO BE HERE ASSERTED ON THE BOARD. The board is gone
+  // (see the alert test above), and which rule caught a departure is a property of
+  // the ENGINE, not of any list — it is covered directly in test/detect.test.js
+  // (*"a departure remembers WHICH rule caught it"*). Asserting it through a card
+  // that no longer exists would have proved nothing and failed for the wrong reason.
 
   // Now narrow it, and the same aircraft stops counting for that rule.
   await page.fill('#watchList .tail-form input', 'C-OTHER');

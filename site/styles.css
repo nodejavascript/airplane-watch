@@ -551,53 +551,14 @@ main {
 }
 
 /* --------------------------------------------------------- departures --- */
+/* 🔴 THE DEPARTURE BOARD'S STYLES ARE GONE WITH THE BOARD. George, 20 Sep 2026,
+ * pasting the list: *"remove all of this"*. `.empty` STAYS — it was written beside
+ * the board's styles but it is used by every empty-state on the page, so removing
+ * the block wholesale would have taken it with them. */
 .empty {
   color: var(--muted);
   font-size: 15px;
   margin: 0 0 10px;
-}
-
-.departures {
-  list-style: none;
-  padding: 0;
-  margin: 14px 0;
-  display: grid;
-  gap: 8px;
-}
-
-.departure {
-  display: grid;
-  grid-template-columns: 84px 1fr;
-  gap: 2px 12px;
-  padding: 11px 13px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: rgba(4, 16, 26, 0.55);
-  font-size: 14.5px;
-}
-
-.departure-watched {
-  border-color: #f0be5a;
-  background: rgba(240, 190, 90, 0.1);
-}
-
-.departure-time {
-  color: var(--muted);
-  grid-row: span 3;
-}
-
-.departure-how,
-.departure-why {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.departure-type {
-  font-size: 13.5px;
-}
-
-.departure-verdict {
-  justify-self: start;
 }
 
 .tag {
@@ -876,12 +837,6 @@ main {
 }
 
 @media (max-width: 560px) {
-  .departure {
-    grid-template-columns: 1fr;
-  }
-  .departure-time {
-    grid-row: auto;
-  }
   .consentRow {
     flex-direction: column;
   }
