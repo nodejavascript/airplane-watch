@@ -1450,9 +1450,11 @@ main > #status {
  * drawing and capped it at 340px, which would clamp this one short.
  * ══════════════════════════════════════════════════════════════════════════ */
 #locMap {
-  /* A narrow screen can pan the map rather than being shown a clipped corner of
-   * it. The tiles are placed by pixel, so they cannot reflow to fit. */
-  overflow-x: auto;
+  /* 🔴 THE MAP FILLS THE CARD NOW. George, 20 Sep 2026: *"use the full available
+   * width for the map"*. It was a fixed 512-pixel box with a horizontal scrollbar
+   * for anything wider, which is what made a wide card look half empty. The box is
+   * measured from this element, so it must be free to be as wide as the card. */
+  overflow: hidden;
   margin: 14px 0 4px;
 }
 
@@ -1464,6 +1466,12 @@ main > #status {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: #0d1a24;
+}
+
+/* The second question inside step 1 — how far out — needs air above it, or the
+ * airport chips read as part of the distance choice. */
+#radiusHead {
+  margin-top: 18px;
 }
 
 .locmap-tile {

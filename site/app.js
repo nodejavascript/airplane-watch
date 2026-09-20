@@ -90,6 +90,14 @@ const ERAS = [
     { key: '1970to1999', label: 'first flown 1970–1999', from: 1970, to: 1999 },
     { key: 'since2000', label: 'first flown 2000 or later', from: 2000, to: 9999 },
 ];
+const SEEN_CHOICES = [
+    { key: 'day', label: 'seen in the last day', days: 1 },
+    { key: 'week', label: 'seen this week', days: 7 },
+    { key: 'month', label: 'seen this month', days: 30 },
+    { key: 'ever', label: 'seen at any time', days: Number.POSITIVE_INFINITY },
+];
+/** The window the list opens on. Wide enough to survive a survey a week old. */
+const SEEN_DEFAULT = 'month';
 /**
  * How far round the compass one point is from another, in degrees from north.
  *
@@ -313,6 +321,8 @@ class Page {
     yearsDoc = null;
     /** Which era the type list is narrowed to. Not presellected into anything narrower. */
     eraFilter = 'all';
+    /** How recently a type must have been seen to stay on the list. */
+    seenFilter = SEEN_DEFAULT;
     /**
      * Where the reader actually is, once they have said. Everything else — the
      * fence, the airports list, the chart — hangs off this rather than off the
@@ -366,6 +376,7 @@ class Page {
         }
         this.buildRadiusButtons();
         this.buildTypeFilter();
+        this.buildSeenFilter();
         this.renderWatchlist();
         this.renderBoard();
         this.bindWatchForm();
@@ -375,6 +386,7 @@ class Page {
         this.bindStartOver();
         this.bindLocate();
         this.bindVisibility();
+        this.bindMapResize();
         // 🔴 A COMMA-SEPARATED LIST, BECAUSE SEVERAL CAN BE PICKED NOW. A value written
         // before this change is a single identifier, which splits to a list of one — so
         // a session saved by the older page comes back rather than being discarded.
@@ -1033,6 +1045,7 @@ class Page {
                     'The measured type list could not be read, so this shows only the types seen in this session. ' +
                         (error instanceof Error ? error.message : '');
             }
+            this.renderFilterNote();
             this.renderTypeList();
             return;
         }
@@ -1045,6 +1058,7 @@ class Page {
                     `its raw code rather than guessed at.` +
                     (refused > 0 ? ` ${refused} round(s) were refused by the feed's own rate limit.` : '');
         }
+        this.renderFilterNote();
         this.renderTypeList();
     }
     /**
@@ -1064,10 +1078,99 @@ class Page {
             this.yearsDoc = null;
         }
         this.buildYearFilter();
+        this.renderFilterNote();
         this.renderTypeList();
     }
     yearOf(code) {
         return this.yearsDoc?.years?.[String(code).toUpperCase()] ?? null;
+    }
+    /**
+     * 🔴 WHEN WAS THIS TYPE LAST SEEN HERE — and a type on the screen RIGHT NOW counts
+     * as now. The survey records the last time each type was seen, merged across every
+     * run it has made, but this session's own sightings are newer than any file, so
+     * they win. Nothing here guesses: a type with no record and nothing in the air has
+     * NO date, and the page says so rather than inventing one.
+     */
+    lastSeenOf(code) {
+        const upper = code.toUpperCase();
+        if (this.liveTypes.has(upper))
+            return new Date();
+        const row = this.survey?.types.find((one) => one.code === upper);
+        if (!row?.lastSeen)
+            return null;
+        const at = new Date(row.lastSeen);
+        return Number.isNaN(at.getTime()) ? null : at;
+    }
+    /** "seen just now" / "seen 3 hours ago" / "seen 12 days ago", in plain words. */
+    sinceText(at) {
+        if (at === null)
+            return 'not seen here yet';
+        const minutes = (Date.now() - at.getTime()) / 60_000;
+        if (minutes < 2)
+            return 'seen just now';
+        if (minutes < 60)
+            return `seen ${Math.round(minutes)} minutes ago`;
+        const hours = minutes / 60;
+        if (hours < 24)
+            return `seen ${Math.round(hours)} hour${Math.round(hours) === 1 ? '' : 's'} ago`;
+        const days = Math.round(hours / 24);
+        if (days <= 45)
+            return `seen ${days} day${days === 1 ? '' : 's'} ago`;
+        return `seen ${Math.round(days / 30)} months ago`;
+    }
+    /**
+     * 🔴 THE FILTER THAT MAKES THE LIST WORTH READING. See the note on SEEN_CHOICES:
+     * a type that never flies near you is not a choice worth offering, and a filter
+     * nobody presses does not stop anybody picking one.
+     */
+    buildSeenFilter() {
+        const host = byId('seenFilter');
+        if (!host)
+            return;
+        host.innerHTML = '';
+        for (const choice of SEEN_CHOICES) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'chip chip-small';
+            button.textContent = choice.label;
+            button.dataset.seen = choice.key;
+            button.setAttribute('aria-pressed', String(choice.key === this.seenFilter));
+            button.addEventListener('click', () => {
+                this.seenFilter = choice.key;
+                for (const other of host.querySelectorAll('button')) {
+                    other.setAttribute('aria-pressed', String(other === button));
+                }
+                this.renderTypeList();
+                track('seen_chosen', { seen: choice.key });
+            });
+            host.appendChild(button);
+        }
+    }
+    /**
+     * 🔴 ONE SENTENCE FOR BOTH FILTERS, because they answer one question: what have you
+     * hidden, and why. Two notes stacked under three rows of chips is a wall of small
+     * grey text, which is the thing George has asked me to stop doing twice.
+     */
+    renderFilterNote() {
+        const note = byId('filterNote');
+        if (!note)
+            return;
+        const parts = [];
+        if (this.yearsDoc === null) {
+            parts.push('The first-flown years could not be read, so no year is shown and the year filter does nothing.');
+        }
+        else {
+            parts.push(`First-flown years for ${this.yearsDoc.resolved} of the ${this.yearsDoc.asked} type codes this site can ` +
+                `name, from ${this.yearsDoc.source}. ${this.yearsDoc.scope}`);
+        }
+        const rows = this.survey?.types ?? [];
+        if (rows.length > 0) {
+            const runs = Math.max(1, ...rows.map((row) => row.runsSeen ?? 1));
+            parts.push(`Last seen: ${runs} survey run${runs === 1 ? '' : 's'} recorded so far. A type that has not been seen ` +
+                'inside the window you choose is hidden rather than offered — an aircraft that does not fly near you is ' +
+                'not a choice worth making.');
+        }
+        note.textContent = parts.join(' ');
     }
     /** The sentence behind a year, for the tooltip — the row itself carries only the number. */
     yearTitle(entry) {
@@ -1079,7 +1182,6 @@ class Page {
     }
     buildYearFilter() {
         const host = byId('yearFilter');
-        const note = byId('yearNote');
         if (!host)
             return;
         host.innerHTML = '';
@@ -1100,42 +1202,44 @@ class Page {
             });
             host.appendChild(button);
         }
-        if (!note)
-            return;
-        if (this.yearsDoc === null) {
-            note.textContent =
-                'The first-flown years could not be read, so no year is shown anywhere and these filters do nothing.';
-            return;
-        }
-        note.textContent =
-            `First-flown years for ${this.yearsDoc.resolved} of the ${this.yearsDoc.asked} type codes this site can ` +
-                `name, read from ${this.yearsDoc.source}. ${this.yearsDoc.scope} ` +
-                'A type with no year is left out of these filters rather than guessed at.';
     }
     /**
-     * 🔴 WHICH TYPE CODES SURVIVE THE TWO FILTERS, AND WHY SOME DO NOT.
+     * 🔴 WHICH TYPE CODES SURVIVE THE THREE FILTERS, AND WHY SOME DO NOT.
      *
-     * The kind and the era both narrow, and they narrow together — "war planes first
-     * flown before 1970" is a question this answers. A type with NO year is dropped
-     * under an era filter and counted, because a filter must not answer "before 1970"
-     * with something nobody measured.
+     * The kind, the era and the last sighting all narrow, and they narrow together —
+     * "war planes first flown before 1970 that have been seen this week" is a question
+     * this answers. A type with NO year is dropped under an era filter and counted,
+     * because a filter must not answer "before 1970" with something nobody measured;
+     * and a type with no recent sighting is dropped under a last-seen filter, which is
+     * the whole point of having one.
      */
     typeRows() {
         const era = ERAS.find((candidate) => candidate.key === this.eraFilter) ?? ERAS[0];
+        const seen = SEEN_CHOICES.find((candidate) => candidate.key === this.seenFilter) ?? SEEN_CHOICES[2];
         let undated = 0;
+        let stale = 0;
         const rows = this.combinedTypes().filter((row) => {
             if (this.typeFilter !== 'all' && this.klassOf(row.code) !== this.typeFilter)
                 return false;
-            if (era.key === 'all')
-                return true;
-            const entry = this.yearOf(row.code);
-            if (entry === null) {
-                undated += 1;
-                return false;
+            if (era.key !== 'all') {
+                const entry = this.yearOf(row.code);
+                if (entry === null) {
+                    undated += 1;
+                    return false;
+                }
+                if (entry.year < era.from || entry.year > era.to)
+                    return false;
             }
-            return entry.year >= era.from && entry.year <= era.to;
+            if (seen.days !== Number.POSITIVE_INFINITY) {
+                const at = this.lastSeenOf(row.code);
+                if (at === null || Date.now() - at.getTime() > seen.days * 86_400_000) {
+                    stale += 1;
+                    return false;
+                }
+            }
+            return true;
         });
-        return { rows, undated };
+        return { rows, undated, stale };
     }
     /**
      * One type's code and its year, as a table cell can carry them.
@@ -1162,6 +1266,7 @@ class Page {
                 airports: [...(row.airports ?? [])],
                 operators: [...(row.operators ?? [])],
                 registrations: [...(row.registrations ?? [])],
+                lastSeen: row.lastSeen ?? null,
             });
         }
         for (const [code, seen] of this.liveTypes) {
@@ -1171,7 +1276,7 @@ class Page {
             if (existing)
                 existing.seen += seen;
             else
-                rows.set(code, { code, seen, airports: [], operators: [], registrations: [] });
+                rows.set(code, { code, seen, airports: [], operators: [], registrations: [], lastSeen: null });
         }
         // 🔴 ALPHABETICAL BY NAME, NOT BY HOW OFTEN IT WAS SEEN. George, 20 Sep 2026:
         // *"maybe list the airplane types in alpha order"*. The sighting count is
@@ -1216,6 +1321,13 @@ class Page {
         // place that runs for every reason the fence can change — a new distance, a new
         // place, a new airport — so the sentence cannot fall out of step with the fence.
         this.renderFenceNote();
+        // 🔴 AND THE MAP IS REDRAWN HERE TOO, WHICH IT WAS NOT UNTIL 20 SEP 2026. The
+        // circle IS the distance, and the distance chips used to live in their own card
+        // where nothing on the map appeared to depend on them — so pressing 50 km redrew
+        // the sentence and left the circle exactly where it was. Now that the chips and
+        // the map share one card that is plainly a bug, and it was found by driving the
+        // page and reading the circle's radius back: it sat at 20 km for every setting.
+        this.renderMap();
         const at = this.point();
         if (!at) {
             // 🔴 NOTHING TO AIM AT: no place given and no airport picked. Polling on would
@@ -1262,20 +1374,22 @@ class Page {
             // a third of a second apart, *"you didnt do the collpase / expand like i
             // asked"*. He was right: a stagger is not a sequence.
             //
-            //   1  where you are      → ANSWERED when a place is known        → unlocks 2
-            //   2  how far out        → ANSWERED when a distance is chosen    → unlocks 3
-            //   3  the aircraft types → ANSWERED when something is starred    → unlocks 4
-            //   5  name one aircraft  → the alternative to 3, so it rides with it
-            //   4, 6, 7               → a watchlist, a board and a chart are all empty
-            //                           until something has actually been picked
-            const answered1 = place;
-            const answered2 = place && this.radiusChosen;
-            const answered3 = answered2 && picked;
-            // 🔴 STEP 4 IS NOT THE SAME AS STEPS 3 AND 5. The first version of this said
-            // `step <= 5 ? answered2`, which put the watchlist on the page the moment a
-            // distance was chosen — before anything had been starred. Caught by driving
-            // the page rather than by reading the expression.
-            const show = step === 1 ? true : step === 2 ? answered1 : step === 3 || step === 5 ? answered2 : answered3;
+            // 🔴 THE DISTANCE STEP IS GONE, FOLDED INTO STEP 1. George, 20 Sep 2026: *"the
+            // circle in the map should be based on the how far out from you distance, so
+            // lets combine those cards nicely"*. They are one question — where you are, and
+            // how far out from there — so they are one card, and the circle now sits
+            // directly under the chips that decide it.
+            //
+            //   1  where you are + how far out → ANSWERED by a place AND a distance
+            //                                    → unlocks 3
+            //   3  the aircraft types          → ANSWERED when something is starred
+            //                                    → unlocks 4
+            //   5  name one aircraft           → the alternative to 3, so it rides with it
+            //   4, 6, 7                        → a watchlist, a board and a chart are all
+            //                                    empty until something has been picked
+            const answered1 = place && this.radiusChosen;
+            const answered2 = answered1 && picked;
+            const show = step === 1 ? true : step === 3 || step === 5 ? answered1 : answered2;
             if (show && section.hidden) {
                 section.hidden = false;
                 section.classList.add('step-arrive');
@@ -1487,7 +1601,7 @@ class Page {
         const host = byId('typeList');
         if (!host)
             return;
-        const { rows, undated } = this.typeRows();
+        const { rows, undated, stale } = this.typeRows();
         if (rows.length === 0) {
             // 🔴 A FILTER THAT HIDES TYPES SAYS HOW MANY IT HID, AND WHY. Otherwise an era
             // filter over a list where a third of the codes have no year looks as though
@@ -1538,6 +1652,12 @@ class Page {
                         // narrowed list alone, which is empty for a whole-type rule, so a
                         // row you had favourited showed a star at the top and not one
                         // anywhere below it.
+                        //
+                        // 🔴 AND THE CHIP CARRIES NO STAR AT ALL — JUST THE YELLOW. George,
+                        // 20 Sep 2026: *"remove start that are in chip, i just want the
+                        // yellow hue only"*. Six little stars down a row of tail numbers
+                        // was decoration on top of a colour that already said the same
+                        // thing; the colour is the mark.
                         const on = wholeType || chosen.has(normaliseKey(item.reg));
                         return (`<button type="button" class="tail-chip" data-type="${escapeHtml(row.code)}" ` +
                             `data-tail="${escapeHtml(item.reg)}" aria-pressed="${on}" ` +
@@ -1546,7 +1666,7 @@ class Page {
                                 : on
                                     ? 'Watching only this one'
                                     : 'Watch only this one'}" ` +
-                            `data-ga="tail-chip">${on ? MARK_STAR : ''}${escapeHtml(item.reg)}</button>`);
+                            `data-ga="tail-chip">${escapeHtml(item.reg)}</button>`);
                     })
                         .join('') +
                     '</div>';
@@ -1575,6 +1695,7 @@ class Page {
                 `<div class="typerow-meta">` +
                 `<span class="typerow-bar" aria-hidden="true"><i style="width:${width}%"></i></span>` +
                 `<span class="small muted">${row.seen} sighting${row.seen === 1 ? '' : 's'}` +
+                ` · ${escapeHtml(this.sinceText(this.lastSeenOf(row.code)))}` +
                 (row.operators.length > 0 ? ` · ${escapeHtml(row.operators.slice(0, 4).join(' '))}` : '') +
                 (row.airports.length > 1 ? ` · ${row.airports.length} airports` : row.airports.length === 1 ? ` · ${escapeHtml(row.airports[0])}` : '') +
                 `${escapeHtml(this.creditOf(row.code))}</span></div>` +
@@ -1585,8 +1706,17 @@ class Page {
             .join('');
         host.innerHTML =
             measuredHtml +
-                (undated > 0
-                    ? `<p class="small muted">${undated} type${undated === 1 ? '' : 's'} in this view ${undated === 1 ? 'has' : 'have'} no first-flown year, so ${undated === 1 ? 'it is' : 'they are'} left out while a year filter is on.</p>`
+                (undated > 0 || stale > 0
+                    ? `<p class="small muted">${[
+                        undated > 0
+                            ? `${undated} type${undated === 1 ? '' : 's'} here ${undated === 1 ? 'has' : 'have'} no first-flown year, so ${undated === 1 ? 'it is' : 'they are'} left out while a year filter is on.`
+                            : '',
+                        stale > 0
+                            ? `${stale} more ${stale === 1 ? 'type was' : 'types were'} seen here, but not inside the window you chose.`
+                            : '',
+                    ]
+                        .filter(Boolean)
+                        .join(' ')}</p>`
                     : '');
         for (const button of host.querySelectorAll('.type-toggle')) {
             button.addEventListener('click', () => {
@@ -1860,8 +1990,13 @@ class Page {
             return;
         }
         const TILE = 256;
-        const VIEW_W = 512;
-        const VIEW_H = 448;
+        // 🔴 THE MAP TAKES THE WIDTH IT IS GIVEN. George, 20 Sep 2026: *"i like the zoom
+        // out, but use the full available width for the map"*. It was a fixed 512-pixel
+        // box inside a card twice that wide, so half the card sat empty — and worse, the
+        // zoom was chosen for a NARROW view, which is half of why it had to zoom out
+        // further than it needed to for the same airports to fit.
+        const VIEW_W = Math.max(280, Math.round(host.clientWidth) || 512);
+        const VIEW_H = Math.round(Math.min(VIEW_W * 0.66, 460));
         // Room for a code label to the right of a mark, so nothing that fits the box is
         // drawn with its label running off the edge of the view.
         const PAD = 40;
@@ -1876,10 +2011,16 @@ class Page {
             minLon = Math.min(minLon, point.lon);
             maxLon = Math.max(maxLon, point.lon);
         }
-        if (at) {
-            // The fence is what this page is watching, so the whole circle goes in the box
-            // too — folded in as a SQUARE around the reader, which is larger than the
-            // circle and therefore always holds it.
+        // 🔴 THE FENCE IS DRAWN, NOT FITTED — UNLESS THERE IS NOTHING ELSE TO SHOW.
+        // George, 20 Sep 2026: *"only the required zoom out where airports can be seen"*.
+        // Folding the whole circle into the box meant a 50 km setting zoomed the map out
+        // to 50 km of mostly empty ground and shrank the airports just picked to dots.
+        // The airports are what was asked for, so the zoom is chosen for THEM and the
+        // reader's own point; the circle is drawn at its true size, and a circle running
+        // off the edge of a map is an ordinary thing for a circle to do.
+        if (at && this.airports.length === 0) {
+            // Nothing picked yet, so the circle is the only thing on the map and there is
+            // no such thing as too zoomed out for it.
             const dLat = this.radiusKm / 111.32;
             const dLon = this.radiusKm / (111.32 * Math.max(0.2, Math.cos((at.lat * Math.PI) / 180)));
             minLat = Math.min(minLat, at.lat - dLat);
@@ -1889,17 +2030,31 @@ class Page {
         }
         const midLat = (minLat + maxLat) / 2;
         const midLon = (minLon + maxLon) / 2;
-        // A floor of half a thousandth of a degree, so one airport on its own does not
-        // ask for an infinite zoom.
-        const spanLat = Math.max(maxLat - minLat, 5e-4);
-        const spanLon = Math.max(maxLon - minLon, 5e-4);
+        // 🔴 A FLOOR OF ABOUT TWO KILOMETRES, not half a thousandth of a degree. One
+        // airport picked on top of the reader spans almost nothing, and the old floor
+        // asked for the closest zoom the tile service has — a satellite view of a car
+        // park with a code label on it.
+        const spanLat = Math.max(maxLat - minLat, 0.02);
+        const spanLon = Math.max(maxLon - minLon, 0.02);
+        // 🔴 THE ZOOM IS CHOSEN FOR THE AIRPORTS YOU PICKED, AND FOR NOTHING ELSE.
+        //
+        // George, 20 Sep 2026: *"only the required zoom out where airports can be seen"*,
+        // and separately *"the circle in the map should be based on the how far out from
+        // you distance"*.
+        //
+        // 🔴 I TRIED TO SATISFY BOTH AND IT PRODUCED SOMETHING WORSE, which the
+        // measurement caught: an ease-out of up to two steps aimed at bringing the
+        // circle's edge into view gave **zoom 11 at 10 km, zoom 10 at 20 km and zoom 12 at
+        // 50 km** — a LARGER radius producing a CLOSER view, because the easing succeeded
+        // at the small radii and failed at the large one. A rule that makes the map jump
+        // about as you change a number is worse than a circle whose edge is off-screen.
+        //
+        // So the rule is now one sentence: **the zoom depends only on the airports you
+        // picked and where you are.** The same picks give the same view at every distance.
+        // The circle is drawn at its true size, so a radius larger than the airports need
+        // runs past the edge of the map — and the note on the map says exactly that.
         const metresPerDegLat = 110_574;
         const metresPerDegLon = 111_320 * Math.max(0.2, Math.cos((midLat * Math.PI) / 180));
-        // 🔴 THE ZOOM ANSWERS ONE QUESTION: at this zoom, does the WHOLE box fit? The
-        // loop walks in from the closest zoom the tile service has and stops at the
-        // first that fits, which is the tightest view that still shows everything — so
-        // one airport looks like a neighbourhood and three across a hundred kilometres
-        // look like a region, without either being a special case.
         let zoom = 3;
         for (let candidate = 15; candidate >= 3; candidate -= 1) {
             const candidateScale = (156543.03392 * Math.cos((midLat * Math.PI) / 180)) / 2 ** candidate;
@@ -1999,11 +2154,33 @@ class Page {
                 '</svg></div>' +
                 '<p class="small muted locmap-note">The map is ' +
                 '<a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, free and with no API key. ' +
-                'It is zoomed so that every airport you picked is on it' +
-                (you ? `, and the circle is the ${this.radiusKm} km fence this page is watching` : '') +
+                'It is zoomed to fit exactly the airports you picked, no further out than that needs' +
+                (you ? `, and the circle is the ${this.radiusKm} km distance you chose — drawn to scale, so it can run past the edge of the map` : '') +
                 '. The tiles are fetched by this site\'s own server rather than by your browser, so the map service never ' +
                 'sees you — the same way the flight feed is handled.' +
                 '</p>';
+    }
+    /**
+     * 🔴 THE MAP IS REDRAWN WHEN THE BOX CHANGES SIZE. The tiles are placed by pixel,
+     * so a wider card cannot reflow the drawing to fit — the box has to be measured and
+     * the map drawn again. A resize listener on the window would miss the case that
+     * matters most here: a step that was folded open, or a card that grew when a note
+     * filled in. A ResizeObserver sees all of them.
+     */
+    bindMapResize() {
+        const host = byId('locMap');
+        if (!host || typeof ResizeObserver === 'undefined')
+            return;
+        let last = host.clientWidth;
+        new ResizeObserver(() => {
+            const width = Math.round(host.clientWidth);
+            // A folded-away card measures zero, and redrawing on zero would throw the map
+            // away and not bring it back.
+            if (width === 0 || Math.abs(width - last) < 24)
+                return;
+            last = width;
+            this.renderMap();
+        }).observe(host);
     }
     renderNearby() {
         const host = byId('nearbyList');
@@ -2011,18 +2188,18 @@ class Page {
             return;
         if (this.nearby.length === 0) {
             host.innerHTML =
-                '<p class="muted small">Press <b>find airports near me</b> and this list is ordered by how far each one is ' +
-                    'from where you are.</p>';
+                '<p class="muted small">Type a postal code above — or press <b>find me</b> — and this list is ordered by ' +
+                    'how far each airport is from where you are.</p>';
             return;
         }
         host.innerHTML = this.nearby
             .slice(0, 14)
             .map(({ airport, km }) => {
-            // 🔴 AN AIRPORT IS A CHOICE, SO IT CARRIES THE SAME MARK. George, 20 Sep
-            // 2026: *"selecting an airport should hava star and yellow hue"*. Before
-            // this, the airport you had picked looked exactly like the thirteen you
-            // had not — the only difference was which one the page happened to be
-            // watching, which a reader has no way to see.
+            // 🔴 AN AIRPORT IS A CHOICE, SO IT TAKES THE YELLOW — AND NOTHING ELSE.
+            // George, 20 Sep 2026: *"selecting an airport should hava star and yellow
+            // hue"*, then *"remove start that are in chip, i just want the yellow hue
+            // only"*. The colour is the mark; a star repeated on every chip is the
+            // same fact drawn twice.
             //
             // 🔴 AND IT IS A TOGGLE. George, 20 Sep 2026: *"i should also be able to
             // select multiple airport"*. The label says what pressing it will do
@@ -2032,7 +2209,6 @@ class Page {
             return (`<button type="button" class="ghost chip near-chip" data-icao="${escapeHtml(airport.icao)}" ` +
                 `aria-pressed="${picked}" title="${picked ? `Stop watching ${airport.icao}` : `Also watch ${airport.icao}`}" ` +
                 `data-ga="airport-near">` +
-                `${picked ? MARK_STAR : ''}` +
                 `<span class="mono">${escapeHtml(airport.icao)}</span> ${escapeHtml(airport.location || airport.name)}` +
                 `<span class="near-km">${Math.round(km)} km</span></button>`);
         })

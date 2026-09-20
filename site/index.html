@@ -178,8 +178,8 @@
       <div id="selectView">
 
       <section class="card step-gated" id="step-1" data-step="1">
-        <h2><span class="step">1</span> Where are you?</h2>
-        <p class="sub">A postal code, or let the browser find you. Everything after this follows from where you are.</p>
+        <h2><span class="step">1</span> Where you are, and how far out</h2>
+        <p class="sub">A postal code, or let the browser find you. Then pick the airports you care about and how far out to look — the circle on the map <b>is</b> that distance, and the map is zoomed to fit exactly the airports you picked.</p>
         <form id="postalForm" class="watch-form" autocomplete="off">
           <label class="field">
             <span class="label">Postal code or ZIP</span>
@@ -191,7 +191,7 @@
         <p class="small muted" id="postalNote">
           A Canadian code is looked up on its first three characters, because that is how postal areas are actually
           defined — <span class="mono">L8E</span> is enough. Both buttons do the same job; neither is required, and the
-          named airports below always work.
+          airports below always work.
         </p>
         <p class="small muted" id="locateNote"></p>
 
@@ -199,24 +199,22 @@
         <div class="chips" id="nearbyList" role="group" aria-label="Airports near you"></div>
         <p class="small muted" id="nearbyNote">Loading the airport list…</p>
 
+        <h3 class="subhead" id="radiusHead">How far out from you?</h3>
+        <div class="chips" id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
+        <p class="small muted" id="fenceNote"></p>
+
         <div id="locMap"></div>
 
         <p class="small muted" id="airportWhere"></p>
       </section>
 
-      <section class="card step-gated" id="step-2" data-step="2" hidden>
-        <h2><span class="step">2</span> How far out from you?</h2>
-        <p class="sub">How far out from your code to look. A shorter distance is more likely to catch an aircraft on the ground.</p>
-        <div class="chips" id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
-        <p class="small muted" id="fenceNote"></p>
-      </section>
-
       <section class="card step-gated" id="step-3" data-step="3" hidden>
         <h2><span class="step">3</span> Pick an aircraft type</h2>
-        <p class="sub">The aircraft that actually fly here, measured from the feed. Star the ones you care about. Each row carries the year its type first flew. <b>Heritage &amp; war planes</b> is deliberately short: many military aircraft never transmit at all.</p>
+        <p class="sub">The aircraft that actually fly here, measured from the feed. Star the ones you care about. Each row carries the year its type first flew and when it was last seen here. <b>Heritage &amp; war planes</b> is deliberately short: many military aircraft never transmit at all.</p>
         <div class="chips" id="typeFilter" role="group" aria-label="Filter the type list by kind"></div>
         <div class="chips" id="yearFilter" role="group" aria-label="Filter the type list by the year the type first flew"></div>
-        <p class="small muted" id="yearNote">Loading the years each type first flew…</p>
+        <div class="chips" id="seenFilter" role="group" aria-label="Filter the type list by when it was last seen"></div>
+        <p class="small muted" id="filterNote">Loading what the feed has been showing…</p>
         <div class="typelist" id="typeList"></div>
         <p class="small muted" id="typeNote">Loading what the feed has been showing…</p>
       </section>
