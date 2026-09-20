@@ -1422,3 +1422,87 @@ main > #status {
   width: 100%;
   margin: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * THE MAP IS NOW A REAL MAP — a free one, fetched by our own server.
+ *
+ * George, 20 Sep 2026: *"instead of ggoogle maps, use a free service"*.
+ * OpenStreetMap, measured first: 200 with no key. The tiles are 256px squares
+ * absolutely placed in one box, and the fence and the airport codes are drawn in
+ * an SVG laid over the SAME box in the SAME pixel space — so the circle cannot
+ * drift off the map it is drawn on.
+ *
+ * These rules sit last on purpose: the earlier `.locmap` rule was written for a
+ * drawing and capped it at 340px, which would clamp this one short.
+ * ══════════════════════════════════════════════════════════════════════════ */
+#locMap {
+  /* A narrow screen can pan the map rather than being shown a clipped corner of
+   * it. The tiles are placed by pixel, so they cannot reflow to fit. */
+  overflow-x: auto;
+  margin: 14px 0 4px;
+}
+
+.locmap {
+  position: relative;
+  overflow: hidden;
+  margin: 0 auto;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #0d1a24;
+}
+
+.locmap-tile {
+  position: absolute;
+  width: 256px;
+  height: 256px;
+  /* Tuned so the map reads as a dark base under the overlay rather than as a
+   * bright sheet with marks on it. */
+  opacity: 0.8;
+  filter: grayscale(0.3) brightness(0.68) contrast(1.08);
+}
+
+.locmap-over {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.locmap-fence {
+  fill: rgba(56, 189, 248, 0.1);
+  stroke: var(--theme);
+  stroke-width: 1.6;
+}
+
+.locmap-you-label {
+  fill: var(--theme);
+  font-size: 9px;
+  font-family: var(--mono, ui-monospace, monospace);
+}
+
+.locmap-note a {
+  color: var(--theme);
+}
+
+/* ------------------------------------------------------ the photograph --- */
+/* 🔴 A REAL PHOTOGRAPH, FROM A FREE SOURCE, WITH ITS CREDIT ON THE ROW. George,
+ * 20 Sep 2026: *"where are the photos. there are free opensource photos online"*.
+ * Wikimedia Commons, fetched through this site's own server so the image host
+ * never sees the reader. The credit sits on the row rather than only in a tooltip,
+ * because every licence these files carry requires the attribution to be visible —
+ * an uncredited photograph is a licence breach, not a missing nicety. */
+.typerow-photo {
+  width: 76px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: rgba(4, 16, 26, 0.6);
+}
+
+.typerow-thumb {
+  grid-column: 1;
+  grid-row: 1;
+  line-height: 0;
+}

@@ -34,6 +34,55 @@ const CACHE_SECONDS = 5;
 /** The postal-code lookup. Free, no key, and it sends `access-control-allow-origin: *`. */
 const GEO = 'https://api.zippopotam.us';
 
+/** 🔴 THE FREE MAP, ASKED FOR BY US AND NEVER BY THE VISITOR. See the note in
+ * tools/serve.mjs — same decision, same reasons. A tile at a given z/x/y never
+ * changes, so it is cached at the edge for a month, which is what the tile
+ * server's own usage policy asks for. */
+const TILES = 'https://tile.openstreetmap.org';
+
+/** 🔴 A CLOSED LIST, NOT AN OPEN RELAY. `/photo?src=…` fetches from Wikimedia's
+ * two media hosts and nowhere else — a proxy that fetches whatever URL it is
+ * handed is a service for other people's traffic. Same rule as tools/serve.mjs. */
+const PHOTO_HOSTS = ['upload.wikimedia.org', 'thumb.wikimedia.org'];
+
+function photoTarget(raw) {
+  if (!raw) return null;
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:') return null;
+  if (!PHOTO_HOSTS.includes(url.hostname)) return null;
+  if (!url.pathname.startsWith('/wikipedia/commons/')) return null;
+  return url;
+}
+
+async function servePhoto(raw) {
+  const url = photoTarget(raw);
+  if (!url) return json(400, { ok: false, error: 'Only photographs from Wikimedia Commons are served here.' });
+  try {
+    const upstream = await fetch(url.toString(), {
+      headers: { 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!upstream.ok) throw new Error(`the image host answered ${upstream.status}`);
+    return new Response(upstream.body, {
+      status: 200,
+      headers: {
+        'content-type': upstream.headers.get('content-type') || 'image/jpeg',
+        'cache-control': 'public, max-age=2592000, immutable',
+        'cdn-cache-control': 'max-age=2592000',
+        'x-proxied-from': 'wikimedia.org',
+      },
+    });
+  } catch (error) {
+    // 503, never 502 — see the note at the top of this file.
+    return json(503, { ok: false, error: `A photograph could not be fetched. ${error.message}` });
+  }
+}
+
 /**
  * 🔴 EVERY OUTBOUND REQUEST MUST NAME ITSELF — measured 20 Sep 2026. Fetched five
  * ways from one machine in one second: no user-agent header → 403 Forbidden,
@@ -144,6 +193,45 @@ function upstreamPath(url) {
   return (rest.startsWith('/0/') ? `/api${rest}` : rest) + (url.search || '');
 }
 
+/** Only the shapes the page uses, and only within its zoom range. */
+function tilePath(path) {
+  const match = /^\/tiles\/(\d{1,2})\/(\d+)\/(\d+)\.png$/.exec(path);
+  if (!match) return null;
+  const z = Number(match[1]);
+  const x = Number(match[2]);
+  const y = Number(match[3]);
+  const span = 2 ** z;
+  if (!Number.isInteger(z) || z < 3 || z > 16) return null;
+  if (!Number.isInteger(x) || x < 0 || x >= span) return null;
+  if (!Number.isInteger(y) || y < 0 || y >= span) return null;
+  return { z, x, y };
+}
+
+async function serveTile(path) {
+  const tile = tilePath(path);
+  if (!tile) return json(404, { ok: false, error: 'Not a tile this proxy serves.' });
+  const target = `${TILES}/${tile.z}/${tile.x}/${tile.y}.png`;
+  try {
+    const upstream = await fetch(target, {
+      headers: { 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!upstream.ok) throw new Error(`the tile server answered ${upstream.status}`);
+    return new Response(upstream.body, {
+      status: 200,
+      headers: {
+        'content-type': upstream.headers.get('content-type') || 'image/png',
+        'cache-control': 'public, max-age=2592000, immutable',
+        'cdn-cache-control': 'max-age=2592000',
+        'x-proxied-from': 'openstreetmap.org',
+      },
+    });
+  } catch (error) {
+    // 503, never 502 — see the note at the top of this file.
+    return json(503, { ok: false, error: `A map tile could not be fetched. ${error.message}` });
+  }
+}
+
 export default {
   async fetch(request) {
     const url = new URL(request.url);
@@ -156,6 +244,14 @@ export default {
     // The postal lookup is a different upstream with a different answer shape,
     // so it is handled before the path allow-list — which would otherwise refuse
     // it, correctly, because it is not a feed path.
+    if (path.startsWith('/photo')) {
+      return servePhoto(url.searchParams.get('src'));
+    }
+
+    if (path.startsWith('/tiles/')) {
+      return serveTile(path);
+    }
+
     if (path.startsWith('/geo/postal/')) {
       return servePostal(decodeURIComponent(path.slice('/geo/postal/'.length)));
     }

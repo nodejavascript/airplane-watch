@@ -518,12 +518,14 @@ test('the live view draws matches from the last reading, never everything', () =
   assert.match(source, /row\.km <= 400/, 'there must be a distance filter, with its reason written down');
 });
 
-test('the Lancaster is listed as a curated aircraft, with a source that is not Wikipedia', () => {
-  const source = readSrc('src/region.ts');
-  assert.match(source, /C-GVRA/, 'the resident list has lost the one aircraft this was built for');
-  assert.match(source, /KB726/, 'the alternate marking it is painted with must be watched too');
-  assert.match(source, /warplane\.com/, 'the source must be the museum\'s own record');
-  assert.equal(/wikipedia/i.test(source), false, 'a curated fact must cite the operator, not an encyclopaedia');
+test('nothing on this page is listed by hand', () => {
+  const source = readSrc('src/app.ts');
+  assert.equal(/RESIDENTS/.test(source), false, 'the hand-written residents layer is back in the page');
+  assert.equal(/listed by hand/.test(read(SITE, 'index.html')), false, 'a row still says it was listed by hand');
+  assert.equal(/resident-toggle/.test(source), false, 'a hand-listed row is still rendered');
+  // 🔴 And it is gone from the source of truth too, not merely unused.
+  assert.equal(/export const RESIDENTS/.test(readSrc('src/region.ts')), false,
+    'the hand-written aircraft list is still in region.ts');
 });
 
 test('the new controls have styles, so they do not arrive unstyled', () => {
@@ -648,15 +650,16 @@ test('a civil type is NEVER reclassified by the feed global military flag', () =
   assert.match(readSrc('src/typeinfo.ts'), /export function isCivilClass/, 'the guard does not exist');
 });
 
-test('Warplanes is the first filter option', () => {
+test('Everything comes first and Warplanes last', () => {
   const source = readSrc('src/app.ts');
   const start = source.indexOf('const options: { key: AircraftClass');
-  const block = source.slice(start, start + 400);
-  const warplanes = block.indexOf("classLabel('military')");
+  const block = source.slice(start, start + 500);
   const everything = block.indexOf("label: 'Everything'");
-  assert.ok(warplanes > -1, 'the warplanes option is not built');
-  assert.ok(everything > -1);
-  assert.ok(warplanes < everything, 'Warplanes is not the first option');
+  const warplanes = block.indexOf("classLabel('military')");
+  assert.ok(everything > -1 && warplanes > -1);
+  assert.ok(everything < warplanes, 'Warplanes is not after Everything — the reader asked for the opposite order');
+  // The default has to be the first chip, or the pressed state reads as the second.
+  assert.ok(everything < block.indexOf('...CLASS_ORDER'), 'Everything is not the first option');
 });
 
 test('tail numbers are chips in the card, and the disclosure button is gone', () => {

@@ -642,26 +642,6 @@ test('ticking a tail number inside a type narrows the rule, and unticking widens
   await context.close();
 });
 
-test('a curated aircraft can be watched even though it has no type code to match', async () => {
-  const { context, page } = await openPage([[[]]]);
-
-  await page.goto(BASE, { waitUntil: 'load' });
-  await page.$eval('#consentDecline', (element) => element.click());
-  await page.waitForSelector('#typeList .typerow');
-
-  const curated = await page.$eval('#typeList', (element) => element.textContent);
-  assert.match(curated, /Lancaster/, 'the one aircraft this site was asked for is not on the list');
-  assert.match(curated, /C-GVRA/);
-
-  await page.$eval('#typeList .resident-toggle', (element) => element.click());
-  await page.waitForTimeout(250);
-
-  const watch = await page.$eval('#watchList', (element) => element.textContent);
-  assert.match(watch, /C-GVRA/, 'watching the curated aircraft did not add its registration');
-  assert.match(watch, /KB726/, 'the alternate marking it is painted with was not watched too');
-
-  await context.close();
-});
 
 test('refusing the position request leaves a usable page', async () => {
   const { context, page } = await openPage([[[]]]);
@@ -766,28 +746,6 @@ test('a postal code that is not one is refused with a sentence, and the page sti
   await context.close();
 });
 
-test('the Warplanes filter shows the Lancaster, and it is not hidden behind a filter', async () => {
-  const { context, page } = await openPage([[[]]]);
-
-  await page.goto(BASE, { waitUntil: 'load' });
-  await page.$eval('#consentDecline', (element) => element.click());
-  await page.waitForSelector('#typeList .typerow');
-
-  // It is on the list under "everything" without touching a filter.
-  assert.match(await page.$eval('#typeList', (element) => element.textContent), /Lancaster/);
-
-  await page.$$eval('#typeFilter .chip', (items) => {
-    items.find((item) => /Warplanes/i.test(item.textContent))?.click();
-  });
-  await page.waitForTimeout(300);
-
-  const filtered = await page.$eval('#typeList', (element) => element.textContent);
-  assert.match(filtered, /Lancaster/, 'the Lancaster vanished when the warplanes filter was applied');
-  assert.match(filtered, /LANC/, 'the Lancaster row does not show its real type code');
-  assert.equal(/Boeing 737 MAX 8/.test(filtered), false, 'an airliner is showing under the warplanes filter');
-
-  await context.close();
-});
 
 test('the type list is in alphabetical order', async () => {
   const { context, page } = await openPage([[[]]]);
@@ -1008,6 +966,74 @@ test('the map draws the reader, the circle and the airport codes', async () => {
   assert.ok(labels.includes('CYHM'), `the airport codes are not on the map: ${labels.join(' ')}`);
   assert.equal(await page.$$eval('#locMap [src], #locMap iframe', (items) => items.length), 0,
     'the map loads something from somewhere instead of drawing it');
+
+  await context.close();
+});
+
+
+test('every row shows a free photograph with its credit, or a drawing and no claim', async () => {
+  const { context, page } = await openPage([[[]]]);
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+  await page.waitForTimeout(900);
+
+  const rows = await page.$$eval('#typeList .typerow', (items) =>
+    items.map((item) => ({
+      text: item.textContent,
+      photos: item.querySelectorAll('img.typerow-photo').length,
+      drawings: item.querySelectorAll('.typerow-thumb svg').length,
+      src: item.querySelector('img.typerow-photo')?.getAttribute('src') ?? '',
+    }))
+  );
+  assert.ok(rows.length > 5, 'no types to check');
+  assert.ok(rows.some((r) => r.photos === 1), 'not one row shows a photograph');
+
+  for (const row of rows) {
+    // Exactly one of the two, never neither and never both.
+    assert.equal(row.photos + row.drawings, 1, `a row has ${row.photos} photo(s) and ${row.drawings} drawing(s)`);
+  }
+
+  for (const row of rows.filter((r) => r.photos === 1)) {
+    // 🔴 The credit has to be ON THE ROW, because every licence these files carry
+    // requires the attribution to be visible — and a row that shows a photograph
+    // without one is a licence breach, not a missing nicety.
+    assert.match(row.text, /photo .+ \(/, `a photographed row carries no credit: ${row.text.slice(0, 120)}`);
+    // 🔴 And the image must come from our own origin, never from Wikimedia direct.
+    assert.ok(row.src.startsWith('/api/photo?src='), `the image is fetched from somewhere else: ${row.src}`);
+  }
+
+  await context.close();
+});
+
+test('a type whose search match was weak gets a drawing instead of a wrong picture', async () => {
+  const { context, page } = await openPage([[[]]]);
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await page.waitForSelector('#typeList .typerow');
+  await page.waitForTimeout(900);
+
+  const photos = await page.evaluate(async () => (await (await fetch('/photos.json')).json()).found);
+  const weak = Object.values(photos).filter((r) => !r.confident);
+  assert.ok(weak.length > 0, 'the survey found no weak matches, so this test proves nothing');
+
+  // The measured examples: a list page, an armoured vehicle, a microphone company.
+  const byCode = await page.$$eval('#typeList .typerow', (items) =>
+    Object.fromEntries(
+      items.map((item) => [
+        item.querySelector('.typerow-main .mono')?.textContent ?? '',
+        { photo: item.querySelectorAll('img.typerow-photo').length, text: item.textContent },
+      ])
+    )
+  );
+  let checked = 0;
+  for (const row of weak) {
+    const shown = byCode[row.code];
+    if (!shown) continue;
+    assert.equal(shown.photo, 0, `${row.code} showed a photograph from a weak match (${row.title})`);
+    checked += 1;
+  }
+  assert.ok(checked > 0, 'no weak-match type was on the visible list to check');
 
   await context.close();
 });

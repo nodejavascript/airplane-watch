@@ -63,46 +63,18 @@ export const REGION_AIRPORTS: string[] = [
  * sourced does not belong here, and an unsourced one would be exactly the kind of
  * "plausible-sounding fact" this project keeps having to remove.
  */
-export interface Resident {
-  /** The type, in words — this is the thing the visitor picks. */
-  name: string;
-  /**
-   * The key used to match it in the feed. Registrations are how a warbird or a
-   * rare airframe is actually watched.
-   */
-  registration: string;
-  /**
-   * The ICAO type code the aircraft transmits, where one is known.
-   *
-   * 🔴 THIS IS NOT INVENTED, AND THE COMMENT ABOVE USED TO SAY THE OPPOSITE —
-   * that a warbird "usually has no current ICAO type designator to match on".
-   * That is wrong, and it was wrong in the way that matters: it was a claim about
-   * the world made from assumption rather than from a source. Read 20 Sep 2026
-   * out of the aircraft database the feed itself uses (617,361 airframes):
-   * `C07DD7;C-GVRA;LANC;00;AVRO Lancaster`. The Lancaster's designator is `LANC`,
-   * the same one the RAF's PA474 carries. So a type watch on `LANC` works, and a
-   * reader can ask for the aeroplane by name rather than by tail number.
-   */
-  typeCode?: string;
-  /** Also matched, when the feed reports any of these. */
-  alsoMatch?: string[];
-  note: string;
-  source: string;
-}
-
-export const RESIDENTS: Record<string, Resident[]> = {
-  CYHM: [
-    {
-      name: 'Avro Lancaster Mk. X',
-      registration: 'C-GVRA',
-      typeCode: 'LANC',
-      // The museum's own page gives the markings, which is what gets painted on
-      // the aeroplane and sometimes what a radio operator reads out.
-      alsoMatch: ['KB726', 'VR-A'],
-      note:
-        'The Mynarski Memorial Lancaster, marked RCAF KB726 / “VeRA” — built at Malton in 1945, and one of only two airworthy Lancasters left in the world. It flies a handful of times a year, which is exactly why a three-round survey of 720 sightings never once saw it.',
-      source:
-        'https://www.warplane.com/aircraft/collection/details.aspx?aircraftId=4 — Canadian Warplane Heritage Museum, 9280 Airport Road, Mount Hope, ON. Read 20 Sep 2026: serial RCAF FM213, construction number 3414, civil registration C-GVRA, status “Airworthy (flown regularly)”, current markings RCAF KB726.',
-    },
-  ],
-};
+/*
+ * 🔴 THE HAND-LISTED AIRCRAFT THAT USED TO LIVE HERE IS GONE. George,
+ * 20 Sep 2026: *"i dont want to list by hand"*. It held Hamilton's Lancaster as a
+ * curated entry, worked out by hand from the museum's own record, because a survey
+ * of one afternoon can never see an aeroplane that flies a handful of times a
+ * year. The reasoning was sound and the instruction is the instruction, and the
+ * Lancaster is not lost with it: `LANC` is a named type in `typeinfo.ts`, read out
+ * of the feed's own aircraft database, so it appears under Warplanes the moment it
+ * transmits — which is the honest way for it to arrive, and the only way that
+ * cannot go stale.
+ *
+ * What remains here is a list of IDENTIFIERS. Nothing in it is a claim about the
+ * world; every one is checked against the feed by `tools/verify-airports.mjs`
+ * before it reaches the page.
+ */

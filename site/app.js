@@ -24,7 +24,6 @@ import { DEFAULT_AIRPORT, parseAirport, } from './airports.js';
 import { thumbSvg } from './thumbs.js';
 import { DEFAULTS, DetectionEngine, distanceNm, kmToNm, nmToKm, normaliseKey, } from './detect.js';
 import { CLASS_ORDER, classLabel, describeType, isCivilClass, knownTypeCount, } from './typeinfo.js';
-import { RESIDENTS } from './region.js';
 const WATCH_KEY = 'aircraft_watchlist';
 const TYPES_KEY = 'aircraft_types';
 const BOARD_KEY = 'aircraft_departures';
@@ -51,6 +50,22 @@ const DISTANCES = [
  * says an aircraft is 8 km away, and distance with a bearing says it is 8 km to
  * the south-west, which is the direction an aircraft leaves Hamilton for Toronto.
  */
+/**
+ * Web Mercator, the arithmetic every slippy map is built on.
+ *
+ * `lonToTile` and `latToTile` return a position in TILES — fractional, not whole
+ * numbers — and multiplying by 256 turns that into pixels at that zoom. Latitude
+ * is the one that surprises people: it is not linear, because the projection
+ * stretches towards the poles, which is why the same code that puts Hamilton in
+ * the right place would put Iqaluit in the wrong one.
+ */
+function lonToTile(lon, zoom) {
+    return ((lon + 180) / 360) * 2 ** zoom;
+}
+function latToTile(lat, zoom) {
+    const rad = (lat * Math.PI) / 180;
+    return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** zoom;
+}
 function bearingDeg(lat1, lon1, lat2, lon2) {
     const toRad = Math.PI / 180;
     const p1 = lat1 * toRad;
@@ -176,6 +191,8 @@ class Page {
      * `tools/survey-military.mjs`. Empty if that file could not be read.
      */
     militaryCodes = new Set();
+    /** Photographs and their credits, keyed by type code — see `tools/survey-photos.mjs`. */
+    photos = {};
     /**
      * Where the reader actually is, once they have said. Everything else — the
      * fence, the airports list, the chart — hangs off this rather than off the
@@ -208,6 +225,7 @@ class Page {
         void this.chooseAirport(saved);
         void this.loadSurvey();
         void this.loadMilitary();
+        void this.loadPhotos();
         void this.loadAirports();
         this.view = readStore(VIEW_KEY, 'select') === 'live' ? 'live' : 'select';
         this.showView(this.view);
@@ -311,13 +329,18 @@ class Page {
         // option"*. It is the one filter somebody arriving at this page is most
         // likely to be looking for — it is the whole reason the class was asked for —
         // so it leads, and "Everything" follows it as the default that is already on.
+        // 🔴 EVERYTHING FIRST, WARPLANES LAST. George, 20 Sep 2026: *"everything come
+        // before warplane"*. The default belongs at the front, where it is already the
+        // pressed one, and the narrowest filter belongs at the end rather than in the
+        // reader's way. (The rule earlier the same day was the opposite — that is his
+        // to change, and this is what he asked for now.)
         const options = [
-            { key: 'military', label: classLabel('military') },
             { key: 'all', label: 'Everything' },
             ...CLASS_ORDER.filter((klass) => klass !== 'other' && klass !== 'military').map((klass) => ({
                 key: klass,
                 label: classLabel(klass),
             })),
+            { key: 'military', label: classLabel('military') },
         ];
         for (const option of options) {
             const button = document.createElement('button');
@@ -770,6 +793,65 @@ class Page {
             return 'military';
         return known;
     }
+    /**
+     * 🔴 A PHOTOGRAPH WHERE ONE WAS FOUND AND THE MATCH WAS TRUSTED — A DRAWING
+     * OTHERWISE, AND NEVER A GUESS.
+     *
+     * George, 20 Sep 2026: *"where are the photos. there are free opensource photos
+     * online"*. He was right and the earlier answer here was wrong: Wikimedia Commons
+     * is free, its licences are permissive, and the MediaWiki API hands back a page
+     * image AND its credit terms with no key at all. Measured before building on it:
+     * 56 of the 62 types the survey sees have a usable photograph.
+     *
+     * 🔴 BUT 11 OF THOSE MATCHES WERE BAD, WHICH IS WHY `confident` EXISTS. Measured
+     * on the same run: searching "Boeing 737-300" matched **a list of aircraft type
+     * designators**, "AgustaWestland Lynx" matched **an armoured fighting vehicle**,
+     * and "Cessna 414" matched **a microphone company**. Those are not near misses,
+     * they are the wrong subject entirely, and a page that printed them would be
+     * worse than one with no pictures at all. So a weak match gets the drawing — and
+     * the drawing cannot be wrong about which aeroplane it is, because it only ever
+     * claims a KIND of aeroplane.
+     *
+     * 🔴 AND THE PHOTOGRAPH IS FETCHED BY OUR OWN SERVER, never by the reader's
+     * browser, so the image host never sees them. Same shape as the feed and the map.
+     */
+    thumbHtml(code, klass) {
+        const photo = this.photos[code];
+        if (photo && photo.confident) {
+            const src = `/api/photo?src=${encodeURIComponent(photo.src)}`;
+            return (`<img class="typerow-photo" src="${escapeHtml(src)}" alt="" width="76" height="48" ` +
+                `loading="lazy" decoding="async" ` +
+                `title="${escapeHtml(`${photo.title} — photograph by ${photo.artist}, ${photo.licence}`)}" />`);
+        }
+        return thumbSvg(code, klass);
+    }
+    /**
+     * The credit a Commons licence requires, printed on the row.
+     *
+     * 🔴 NOT A TOOLTIP. Every licence these files carry — CC BY, CC BY-SA, GFDL —
+     * requires the attribution to be visible beside the work, and an uncredited
+     * photograph is a licence breach rather than a missing nicety. So it goes in the
+     * row's own text, next to the sighting count.
+     */
+    creditOf(code) {
+        const photo = this.photos[code];
+        if (!photo || !photo.confident)
+            return '';
+        return ` · photo ${photo.artist} (${photo.licence})`;
+    }
+    async loadPhotos() {
+        try {
+            const response = await fetch('/photos.json', { headers: { accept: 'application/json' } });
+            const doc = (await readJson(response));
+            this.photos = doc.found ?? {};
+        }
+        catch {
+            // Not fatal. Without the file every row falls back to its drawing, which is
+            // what a row with no trusted photograph does anyway.
+            this.photos = {};
+        }
+        this.renderTypeList();
+    }
     renderTypeList() {
         const host = byId('typeList');
         if (!host)
@@ -779,46 +861,15 @@ class Page {
                 return true;
             return this.klassOf(row.code) === this.typeFilter;
         });
-        // 🔴 THE AIRCRAFT A SURVEY CAN NEVER SEE. Hamilton's Lancaster flies a handful
-        // of times a year, so a list built from one afternoon of sightings will always
-        // miss exactly the aircraft a person most wants to watch. Curated from the
-        // operator's own record and labelled as curated, never mixed into a count.
-        const curated = this.typeFilter === 'all' || this.typeFilter === 'military' || this.typeFilter === 'other'
-            ? (RESIDENTS[this.airport?.icao ?? ''] ?? [])
-            : [];
-        if (rows.length === 0 && curated.length === 0) {
-            host.innerHTML =
-                '<p class="muted small">Nothing in this group yet. Change the filter, or wait for the page to see something.</p>';
-            return;
-        }
+        // The bar is drawn against the busiest row on the list, so "169 sightings"
+        // and "1 sighting" are not the same shape to the eye.
         const maxima = Math.max(...rows.map((row) => row.seen), 1);
-        const curatedHtml = curated
-            .map((resident) => {
-            const keys = [resident.registration, ...(resident.alsoMatch ?? [])];
-            const code = (resident.typeCode ?? '').toUpperCase();
-            const already = keys.some((key) => this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key))) ||
-                (code !== '' && this.typeRules.some((rule) => normaliseKey(rule.type) === code));
-            return (`<div class="typerow typerow-curated${already ? ' typerow-on' : ''}">` +
-                `<div class="typerow-thumb" aria-hidden="true">${thumbSvg(code || 'ZZZZ', 'military')}</div>` +
-                `<div class="typerow-main">` +
-                `<b>${escapeHtml(resident.name)}</b> ` +
-                `<span class="mono muted">${escapeHtml(code || resident.registration)}</span> ` +
-                `<span class="mono muted">${escapeHtml(resident.registration)}</span> ` +
-                `<span class="tag tag-curated">based here · listed by hand</span>` +
-                '</div>' +
-                `<div class="typerow-actions">` +
-                `<button type="button" class="star resident-toggle" ` +
-                `data-reg="${escapeHtml(resident.registration)}" data-also="${escapeHtml(keys.slice(1).join(','))}" ` +
-                `data-type="${escapeHtml(code)}" aria-pressed="${already}" ` +
-                `title="${already ? 'Favourited — remove' : 'Favourite this aircraft'}" ` +
-                `aria-label="${already ? 'Favourited — remove' : 'Favourite this aircraft'}" ` +
-                `data-ga="resident-favourite">` +
-                `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}"/></svg></button>` +
-                '</div>' +
-                `<p class="small muted typerow-meta">${escapeHtml(resident.note)}</p>` +
-                '</div>');
-        })
-            .join('');
+        // 🔴 NOTHING IS LISTED BY HAND HERE ANY MORE. George, 20 Sep 2026: *"i dont
+        // want to list by hand"* — so the hand-written residents layer is gone and every
+        // row on this page is now something the feed was seen showing. The Lancaster
+        // did not leave with it: `LANC` is a named type in the table, read out of the
+        // feed's own aircraft database, so it appears under Warplanes the moment it
+        // transmits — which is the honest way for it to arrive.
         const measuredHtml = rows
             .map((row) => {
             const info = describeType(row.code);
@@ -859,7 +910,7 @@ class Page {
                     ? 'Only the highlighted ones are watched — highlighting a tail number <b>un-favourites the whole type</b>. Press a highlighted one again, or press the button, to go back to all of them.'
                     : 'Press any of these to watch that aeroplane instead of the whole type. Every tail number here is one that actually transmitted its registration — many transponders never send one, so this is a sample of what identifies itself and not a fleet list.'}</p>`;
             return (`<div class="typerow${already ? ' typerow-on' : ''}">` +
-                `<div class="typerow-thumb" aria-hidden="true">${thumbSvg(row.code, klass)}</div>` +
+                `<div class="typerow-thumb">${this.thumbHtml(row.code, klass)}</div>` +
                 `<div class="typerow-main">` +
                 `<b>${escapeHtml(info.name)}</b> <span class="mono muted">${escapeHtml(row.code)}</span> ` +
                 `<span class="tag">${escapeHtml(classLabel(klass))}</span>` +
@@ -872,13 +923,13 @@ class Page {
                 `<span class="small muted">${row.seen} sighting${row.seen === 1 ? '' : 's'}` +
                 (row.operators.length > 0 ? ` · ${escapeHtml(row.operators.slice(0, 4).join(' '))}` : '') +
                 (row.airports.length > 1 ? ` · ${row.airports.length} airports` : row.airports.length === 1 ? ` · ${escapeHtml(row.airports[0])}` : '') +
-                `</span></div>` +
+                `${escapeHtml(this.creditOf(row.code))}</span></div>` +
                 tailChips +
                 tailNote +
                 '</div>');
         })
             .join('');
-        host.innerHTML = curatedHtml + measuredHtml;
+        host.innerHTML = measuredHtml;
         for (const button of host.querySelectorAll('.type-toggle')) {
             button.addEventListener('click', () => {
                 const code = button.dataset.type ?? '';
@@ -923,40 +974,6 @@ class Page {
                 this.renderWatchlist();
                 this.renderTypeList();
                 track('tail_highlighted', { code, highlighted: !on, tails: rule.tails.length });
-            });
-        }
-        for (const button of host.querySelectorAll('.resident-toggle')) {
-            button.addEventListener('click', () => {
-                const keys = [button.dataset.reg ?? '', ...(button.dataset.also ?? '').split(',')].filter(Boolean);
-                const code = (button.dataset.type ?? '').trim();
-                const watching = keys.some((key) => this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key))) ||
-                    (code !== '' && this.typeRules.some((rule) => normaliseKey(rule.type) === normaliseKey(code)));
-                if (watching) {
-                    this.watchlist = this.watchlist.filter((item) => !keys.some((key) => normaliseKey(item) === normaliseKey(key)));
-                    if (code) {
-                        this.typeRules = this.typeRules.filter((rule) => normaliseKey(rule.type) !== normaliseKey(code));
-                        this.saveTypeRules();
-                    }
-                }
-                else {
-                    // 🔴 BOTH KEYS, ON PURPOSE. The registration catches the aeroplane when it
-                    // is painted with that registration; the type code catches it whichever
-                    // markings it wears that week — and the museum's Lancaster is painted
-                    // RCAF KB726, not C-GVRA. Watching only one would watch the aeroplane on
-                    // some days and not others.
-                    for (const key of keys) {
-                        if (!this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key)))
-                            this.watchlist.push(key);
-                    }
-                    if (code && !this.typeRules.some((rule) => normaliseKey(rule.type) === normaliseKey(code))) {
-                        this.typeRules.push({ type: code, tails: [] });
-                        this.saveTypeRules();
-                    }
-                    track('resident_favourited', { reg: button.dataset.reg ?? '', type: code });
-                }
-                this.saveWatchlist();
-                this.renderWatchlist();
-                this.renderTypeList();
             });
         }
         // The star buttons are rebuilt above, so the waiting gate is re-applied here
@@ -1152,6 +1169,27 @@ class Page {
      * far out the fence reaches. The nearest airports carry their codes, the chosen
      * one is drawn larger, and the rings are the distance they picked in step 2.
      */
+    /**
+     * 🔴 THE MAP IS A FREE SERVICE, AND THE BROWSER NEVER TALKS TO IT.
+     *
+     * George, 20 Sep 2026: *"instead of ggoogle maps, use a free service"*. Chosen
+     * by measuring, with no key: `tile.openstreetmap.org` answered 200 with 39861
+     * bytes of PNG, CARTO answered 200, OpenTopoMap answered 200, and Stadia
+     * answered **401 — it wants a key**. OpenStreetMap is the canonical free one, it
+     * is ODbL-licensed, and its own tile policy asks to be cached and to be told who
+     * is asking.
+     *
+     * 🔴 SO EVERY TILE IS FETCHED BY THIS SITE'S OWN SERVER, at `/api/tiles/z/x/y`,
+     * and the page points at nothing else. Putting an `<img>` straight at the tile
+     * server would work and would be wrong: it hands every reader's address to a
+     * stranger on page load, on a site whose first section promises it does not do
+     * that, before the cookie question has even been answered. Same shape as the
+     * flight feed. Attribution is required by the licence and is printed on the map.
+     *
+     * The fence, the nearest airports and their codes are drawn on top in SVG, in
+     * the same pixel space as the tiles, so they cannot drift out of step with the
+     * map underneath them.
+     */
     renderMap() {
         const host = byId('locMap');
         if (!host)
@@ -1161,48 +1199,79 @@ class Page {
             host.innerHTML = '';
             return;
         }
-        const size = 340;
-        const middle = size / 2;
-        const radius = middle - 32;
-        const near = this.nearby.slice(0, 10);
-        const maxKm = Math.max(this.radiusKm, ...near.map((row) => row.km));
-        const toPx = (km) => (km / maxKm) * radius;
-        const place = (lat, lon) => {
-            const km = nmToKm(distanceNm(at.lat, at.lon, lat, lon));
-            const rad = (bearingDeg(at.lat, at.lon, lat, lon) * Math.PI) / 180;
-            return { x: middle + Math.sin(rad) * toPx(km), y: middle - Math.cos(rad) * toPx(km), km };
-        };
-        let svg = `<svg class="locmap" viewBox="0 0 ${size} ${size}" role="img" ` +
-            `aria-label="A ${this.radiusKm} kilometre circle around your position, with the nearest airports marked with their codes">`;
-        for (const ring of [maxKm / 2, maxKm]) {
-            svg += `<circle class="locmap-ring" cx="${middle}" cy="${middle}" r="${toPx(ring).toFixed(1)}" />`;
-            svg +=
-                `<text class="locmap-small" x="${(middle + 4).toFixed(1)}" ` +
-                    `y="${(middle - toPx(ring) + 12).toFixed(1)}">${Math.round(ring)} km</text>`;
+        const TILE = 256;
+        const VIEW_W = 512;
+        const VIEW_H = 448;
+        // The closest zoom at which the fence still fits inside the view.
+        let zoom = 4;
+        for (let candidate = 14; candidate >= 4; candidate -= 1) {
+            const scale = (156543.03392 * Math.cos((at.lat * Math.PI) / 180)) / 2 ** candidate;
+            if ((this.radiusKm * 1000) / scale <= VIEW_H / 2 - 26) {
+                zoom = candidate;
+                break;
+            }
         }
-        // The reader, at the middle, because everything here is measured from them.
-        svg += `<circle class="locmap-you" cx="${middle}" cy="${middle}" r="4.5" />`;
-        svg += `<text class="locmap-small" x="${middle}" y="${middle + 17}" text-anchor="middle">you</text>`;
-        for (const row of near) {
-            const spot = place(row.airport.lat, row.airport.lon);
-            const chosenAirport = row.airport.icao === this.airport?.icao;
-            svg +=
-                `<line class="locmap-line" x1="${middle}" y1="${middle}" ` +
-                    `x2="${spot.x.toFixed(1)}" y2="${spot.y.toFixed(1)}" />`;
-            svg +=
-                `<circle class="locmap-airport" cx="${spot.x.toFixed(1)}" cy="${spot.y.toFixed(1)}" ` +
-                    `r="${chosenAirport ? 5 : 3.2}" />`;
-            svg +=
-                `<text class="locmap-label" x="${(spot.x + 7).toFixed(1)}" ` +
+        const scale = (156543.03392 * Math.cos((at.lat * Math.PI) / 180)) / 2 ** zoom;
+        const span = 2 ** zoom;
+        const middleX = lonToTile(at.lon, zoom) * TILE;
+        const middleY = latToTile(at.lat, zoom) * TILE;
+        const left = middleX - VIEW_W / 2;
+        const top = middleY - VIEW_H / 2;
+        const x0 = Math.floor(left / TILE);
+        const x1 = Math.floor((left + VIEW_W - 1) / TILE);
+        const y0 = Math.max(0, Math.floor(top / TILE));
+        const y1 = Math.min(span - 1, Math.floor((top + VIEW_H - 1) / TILE));
+        let tiles = '';
+        for (let ty = y0; ty <= y1; ty += 1) {
+            for (let tx = x0; tx <= x1; tx += 1) {
+                // Wrapped across the antimeridian, clamped before the poles — the two
+                // edges of a slippy map are the two places a tile number stops meaning
+                // what it says.
+                const wrapped = ((tx % span) + span) % span;
+                tiles +=
+                    `<img class="locmap-tile" alt="" width="${TILE}" height="${TILE}" ` +
+                        `style="left:${(tx * TILE - left).toFixed(0)}px;top:${(ty * TILE - top).toFixed(0)}px" ` +
+                        `src="/api/tiles/${zoom}/${wrapped}/${ty}.png" decoding="async" />`;
+            }
+        }
+        const spotOf = (lat, lon) => ({
+            x: lonToTile(lon, zoom) * TILE - left,
+            y: latToTile(lat, zoom) * TILE - top,
+        });
+        const middle = spotOf(at.lat, at.lon);
+        const fencePx = (this.radiusKm * 1000) / scale;
+        let marks = '';
+        for (const row of this.nearby.slice(0, 10)) {
+            const spot = spotOf(row.airport.lat, row.airport.lon);
+            // Off the view is off the view — a marker drawn outside would be clipped
+            // anyway, and its label would run back into the map.
+            if (spot.x < -30 || spot.x > VIEW_W + 30 || spot.y < -30 || spot.y > VIEW_H + 30)
+                continue;
+            const chosen = row.airport.icao === this.airport?.icao;
+            marks +=
+                `<line class="locmap-line" x1="${middle.x.toFixed(1)}" y1="${middle.y.toFixed(1)}" ` +
+                    `x2="${spot.x.toFixed(1)}" y2="${spot.y.toFixed(1)}" />` +
+                    `<circle class="locmap-airport" cx="${spot.x.toFixed(1)}" cy="${spot.y.toFixed(1)}" ` +
+                    `r="${chosen ? 5.5 : 3.4}" />` +
+                    `<text class="locmap-label" x="${(spot.x + 8).toFixed(1)}" ` +
                     `y="${(spot.y + 3.5).toFixed(1)}">${escapeHtml(row.airport.icao)}</text>`;
         }
-        svg += '</svg>';
-        svg +=
-            '<p class="small muted locmap-note">You, at the middle, and the ' +
-                `${this.radiusKm} km circle this page is watching. The nearest ten airports are marked with their codes, and ` +
-                'the one you picked is drawn larger. It is drawn rather than embedded: an embedded map is an API key, a ' +
-                'billing account, and a request to Google from every visitor before they have answered the cookie question.</p>';
-        host.innerHTML = svg;
+        host.innerHTML =
+            `<div class="locmap" style="width:${VIEW_W}px;height:${VIEW_H}px">` +
+                tiles +
+                `<svg class="locmap-over" viewBox="0 0 ${VIEW_W} ${VIEW_H}" role="img" ` +
+                `aria-label="A map with a ${this.radiusKm} kilometre circle around your position, and the nearest airports marked with their codes">` +
+                `<circle class="locmap-fence" cx="${middle.x.toFixed(1)}" cy="${middle.y.toFixed(1)}" r="${fencePx.toFixed(1)}" />` +
+                marks +
+                `<circle class="locmap-you" cx="${middle.x.toFixed(1)}" cy="${middle.y.toFixed(1)}" r="5" />` +
+                `<text class="locmap-you-label" x="${middle.x.toFixed(1)}" ` +
+                `y="${(middle.y + 18).toFixed(1)}" text-anchor="middle">you</text>` +
+                '</svg></div>' +
+                '<p class="small muted locmap-note">The map is ' +
+                '<a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, free and with no API key, ' +
+                `and the circle is the ${this.radiusKm} km fence this page is watching. The tiles are fetched by this site's own ` +
+                'server rather than by your browser, so the map service never sees you — the same way the flight feed is handled.' +
+                '</p>';
     }
     renderNearby() {
         const host = byId('nearbyList');

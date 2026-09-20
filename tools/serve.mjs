@@ -209,11 +209,142 @@ async function servePostal(raw, response) {
   }
 }
 
+/**
+ * 🔴 THE MAP IS A FREE SERVICE, AND THE VISITOR NEVER TALKS TO IT.
+ *
+ * George, 20 Sep 2026: *"instead of ggoogle maps, use a free service"*. Measured
+ * before choosing, from this machine, with no key: `tile.openstreetmap.org` 200
+ * (39861 bytes of PNG), CARTO's `basemaps.cartocdn.com` 200, OpenTopoMap 200, and
+ * Stadia **401 — it wants a key**. OpenStreetMap is the canonical free one, it is
+ * ODbL-licensed, and it asks in its own tile policy to be cached and to be told
+ * who is asking.
+ *
+ * 🔴 SO THE BROWSER ASKS *US*, NOT THEM. The page requests
+ * `/api/tiles/{z}/{x}/{y}.png` on its own origin and this route fetches the tile
+ * and passes it back. That is the same shape as the flight feed, and it is what
+ * keeps two promises at once: the map is a free third-party service, and no
+ * visitor's browser has to make a request to a third party before they have
+ * answered the cookie question. The alternative — an `<img>` pointing straight at
+ * the tile server — would put every reader's IP address in a stranger's log on
+ * page load, on a site whose first section says it does not do that.
+ *
+ * Attribution is required by the licence and is printed on the map itself.
+ */
+const TILES = 'https://tile.openstreetmap.org';
+
+/** Only these shapes are proxied, and only within the zoom range the page uses. */
+function tilePath(path) {
+  const match = /^\/api\/tiles\/(\d{1,2})\/(\d+)\/(\d+)\.png$/.exec(path);
+  if (!match) return null;
+  const z = Number(match[1]);
+  const x = Number(match[2]);
+  const y = Number(match[3]);
+  if (!Number.isInteger(z) || z < 3 || z > 16) return null;
+  const span = 2 ** z;
+  if (!Number.isInteger(x) || x < 0 || x >= span) return null;
+  if (!Number.isInteger(y) || y < 0 || y >= span) return null;
+  return { z, x, y };
+}
+
+/**
+ * 🔴 A PHOTOGRAPH, FROM A FREE SOURCE, FETCHED BY US AND NOT BY THE READER.
+ *
+ * Same shape as the map tiles and for the same reason: an `<img>` pointed at
+ * Wikimedia would hand every visitor's address to a third party on page load. So
+ * the page asks its own origin and this route fetches the file.
+ *
+ * 🔴 AND IT IS A CLOSED LIST, NOT AN OPEN RELAY. `/api/photo?src=…` will fetch
+ * from Wikimedia's two media hosts and nowhere else — a proxy that fetches
+ * whatever URL it is handed is a service for other people's traffic, and the
+ * first person to notice would be somebody using it to hide their own.
+ */
+const PHOTO_HOSTS = ['upload.wikimedia.org', 'thumb.wikimedia.org'];
+
+function photoTarget(raw) {
+  if (!raw) return null;
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:') return null;
+  if (!PHOTO_HOSTS.includes(url.hostname)) return null;
+  // Every Commons file lives under these two paths; anything else on the host is
+  // not a photograph and has no business coming through here.
+  if (!url.pathname.startsWith('/wikipedia/commons/')) return null;
+  return url;
+}
+
+async function servePhoto(raw, response) {
+  const url = photoTarget(raw);
+  if (!url) {
+    response.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
+    response.end(
+      JSON.stringify({ ok: false, error: 'Only photographs from Wikimedia Commons are served here.' })
+    );
+    return;
+  }
+  try {
+    const upstream = await fetch(url.toString(), {
+      headers: { 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!upstream.ok) throw new Error(`the image host answered ${upstream.status}`);
+    const body = Buffer.from(await upstream.arrayBuffer());
+    response.writeHead(200, {
+      'content-type': upstream.headers.get('content-type') || 'image/jpeg',
+      // A Commons file at a given name never changes either.
+      'cache-control': 'public, max-age=2592000, immutable',
+    });
+    response.end(body);
+  } catch (error) {
+    response.writeHead(503, { 'content-type': 'application/json; charset=utf-8' });
+    response.end(JSON.stringify({ ok: false, error: `A photograph could not be fetched. ${error.message}` }));
+  }
+}
+
+async function serveTile(path, response) {
+  const tile = tilePath(path);
+  if (!tile) {
+    response.writeHead(404, { 'content-type': 'application/json; charset=utf-8' });
+    response.end(JSON.stringify({ ok: false, error: 'Not a tile this proxy serves.' }));
+    return;
+  }
+  try {
+    const upstream = await fetch(`${TILES}/${tile.z}/${tile.x}/${tile.y}.png`, {
+      headers: { 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!upstream.ok) throw new Error(`the tile server answered ${upstream.status}`);
+    const body = Buffer.from(await upstream.arrayBuffer());
+    response.writeHead(200, {
+      'content-type': upstream.headers.get('content-type') || 'image/png',
+      // A tile at a given z/x/y never changes, so this is cached hard at both
+      // ends. The tile server's own policy asks for exactly this.
+      'cache-control': 'public, max-age=2592000, immutable',
+    });
+    response.end(body);
+  } catch (error) {
+    // 503, never 502 — see the note above `serveApi`.
+    response.writeHead(503, { 'content-type': 'application/json; charset=utf-8' });
+    response.end(JSON.stringify({ ok: false, error: `A map tile could not be fetched. ${error.message}` }));
+  }
+}
+
 async function serveApi(request, response) {
   const path = new URL(request.url, 'http://localhost').pathname;
   // The postal lookup is a DIFFERENT upstream with a different answer shape, so
   // it is normalised here rather than passed through — the page must not depend
   // on the field names of a service that is free and owes us nothing.
+  if (path.startsWith('/api/photo')) {
+    await servePhoto(new URL(request.url, 'http://localhost').searchParams.get('src'), response);
+    return;
+  }
+  if (path.startsWith('/api/tiles/')) {
+    await serveTile(path, response);
+    return;
+  }
   if (path.startsWith('/api/geo/postal/')) {
     await servePostal(decodeURIComponent(path.slice('/api/geo/postal/'.length)), response);
     return;
