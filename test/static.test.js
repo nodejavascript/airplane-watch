@@ -438,13 +438,11 @@ test('the type codes the feed actually sends are the shape the table expects', (
  * the deploy — the house rule for this family.
  */
 
-const strip = (text) => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-const read = (relative) => readFileSync(join(SITE, relative), 'utf8');
-const readSrc = (relative) => strip(readFileSync(join(ROOT, relative), 'utf8'));
+const readSrc = (relative) => stripJs(readFileSync(join(ROOT, relative), 'utf8'));
 
 test('every airport in the list was placed by the feed, and none of them by hand', () => {
   assert.ok(existsSync(join(SITE, 'airports.json')), 'site/airports.json is missing — run tools/verify-airports.mjs');
-  const doc = JSON.parse(read('airports.json'));
+  const doc = JSON.parse(read(SITE, 'airports.json'));
 
   assert.ok(Array.isArray(doc.airports) && doc.airports.length > 20, 'the airport list is too short to be useful');
   assert.equal(doc.kept, doc.airports.length, 'kept does not match the number of airports actually written');
@@ -471,7 +469,7 @@ test('every airport in the list was placed by the feed, and none of them by hand
 });
 
 test('the type list says out loud that its tail numbers are a sample', () => {
-  const doc = JSON.parse(read('types.json'));
+  const doc = JSON.parse(read(SITE, 'types.json'));
   assert.ok(Array.isArray(doc.types) && doc.types.length > 10);
   assert.ok(
     typeof doc.registrationsNote === 'string' && /not a fleet list|sample/i.test(doc.registrationsNote),
@@ -488,7 +486,7 @@ test('the type list says out loud that its tail numbers are a sample', () => {
 });
 
 test('the page has two views and the header still has no nav', () => {
-  const html = read('index.html');
+  const html = read(SITE, 'index.html');
 
   assert.match(html, /id="selectView"/, 'the choosing flow has no container to hide');
   assert.match(html, /id="liveView"[^>]*hidden/, 'the live view must start hidden');
@@ -529,7 +527,7 @@ test('the Lancaster is listed as a curated aircraft, with a source that is not W
 });
 
 test('the new controls have styles, so they do not arrive unstyled', () => {
-  const css = readFileSync(join(SITE, 'styles.css'), 'utf8');
+  const css = read(SITE, 'styles.css');
   for (const selector of ['.viewbar', '.nearby', '.near-chip', '.typerow-actions', '.tail-panel', '.tail-grid', '.tail-box', '.radar', '.radar-dot', '.sr-only']) {
     assert.ok(css.includes(selector), `${selector} has no style`);
   }
