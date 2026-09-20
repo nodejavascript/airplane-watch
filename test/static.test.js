@@ -893,3 +893,28 @@ test('a 502 from the feed own gateway is described as what it is', () => {
     assert.ok(decides < parses, `${name} reads the body before checking the status — the exact fault this fixes`);
   }
 });
+
+test('an empty type list explains itself, and the guard exists at all', () => {
+  const source = readSrc('src/app.ts');
+
+  // 🔴 THE GUARD WENT MISSING AND NOBODY NOTICED. A patch on 20 Sep 2026 removed
+  // the curated-rows block and the empty check went with it, so a filter matching
+  // nothing rendered a blank box — which is exactly what the Heritage & war planes
+  // filter does at Hamilton most days. The first assertion is therefore that the
+  // guard EXISTS, before any assertion about what it says.
+  const list = source.slice(source.indexOf('private renderTypeList(): void {'));
+  assert.match(list.slice(0, 1600), /if \(rows\.length === 0\) \{/, 'the type list has no empty guard');
+  assert.match(source, /private emptyMessage\(\)/, 'there is no message for an empty list');
+
+  const message = source.slice(source.indexOf('private emptyMessage()'), source.indexOf('private renderTypeList(): void {'));
+  assert.match(message, /typeFilter === 'military'/, 'the war planes filter has no message of its own');
+  assert.match(message, /normal state rather than a fault/,
+    'an empty war planes list still reads as a fault rather than as its normal state');
+  assert.match(message, /Lancaster/, 'the empty war planes message does not mention the aircraft that prompted it');
+  assert.match(message, /typeFilter === 'all'/, 'the unfiltered list has no message');
+  // Every other class gets the honest explanation that the list is measured.
+  assert.match(message, /measured from the feed/, 'the other classes have no explanation');
+
+  // And the abandoned dimmed-waiting approach left no CSS behind.
+  assert.equal(/data-waiting/.test(read(SITE, 'styles.css')), false, 'the dead waiting rules are still in the stylesheet');
+});

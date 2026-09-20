@@ -1332,8 +1332,6 @@ main > #status {
   vertical-align: -1px;
 }
 
-/* ------------------------------------------------- a note, not a hiding --- */
-/* 🔴 THE STEP STAYS ON THE PAGE. George, 20 Sep 2026: *"i dont want pick an
  * aircraft to be visible until an airport is selected. maybe make it visible just
  * put note to select airport first"*. So the step is shown with the reason it
  * cannot be used yet, and its controls are inert rather than absent — a page that
@@ -1347,10 +1345,6 @@ main > #status {
   background: rgba(4, 16, 26, 0.4);
   color: var(--muted, #8aa6b8);
   font-size: 14px;
-}
-
-.step-gated[data-waiting='true'] {
-  opacity: 0.62;
 }
 
 .step-gated[data-waiting='true'] .typelist,

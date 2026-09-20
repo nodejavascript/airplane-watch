@@ -882,6 +882,36 @@ class Page {
         }
         this.renderTypeList();
     }
+    /**
+     * 🔴 AN EMPTY LIST HAS TO SAY WHY IT IS EMPTY, OR IT READS AS BROKEN.
+     *
+     * Measured 20 Sep 2026: the **Heritage & war planes** filter — the one asked for
+     * by name, and doubted to be working — shows nothing at all at Hamilton. That is
+     * not a fault in the filter. The class holds the historic types that still fly
+     * (the Lancaster among them) plus whatever the feed flags as military, and the
+     * historic ones fly a handful of times a year, so on any given afternoon they are
+     * not in the feed. "No rows" and "no aeroplanes" are different statements, and a
+     * blank box makes the second one by accident.
+     *
+     * 🔴 AND THIS GUARD HAS TO EXIST AT ALL. A patch earlier the same day removed the
+     * curated-rows block and the empty check went with it, so a filter matching
+     * nothing rendered an empty box. Found by looking at the file, not by reading my
+     * own report of the change.
+     */
+    emptyMessage() {
+        if (this.typeFilter === 'military') {
+            return ("Nothing in this group has been seen here, and that is its normal state rather than a fault. It holds " +
+                "the historic types that still fly — Hamilton's Lancaster among them, one of only two airworthy in the " +
+                "world, which flies a handful of times a year — plus whatever the feed itself flags as military. Most " +
+                "military aircraft never transmit this kind of data at all. An empty list here says nothing about what " +
+                "is overhead; it says these particular aircraft are not.");
+        }
+        if (this.typeFilter === 'all') {
+            return 'Nothing has been seen yet — the page has only just started looking. Give it a minute.';
+        }
+        return (`No ${classLabel(this.typeFilter)} has been seen at this airport. The list is measured from the feed, so ` +
+            'it shows what actually flies here rather than what could. Try another filter, or leave it and watch.');
+    }
     renderTypeList() {
         const host = byId('typeList');
         if (!host)
@@ -891,6 +921,10 @@ class Page {
                 return true;
             return this.klassOf(row.code) === this.typeFilter;
         });
+        if (rows.length === 0) {
+            host.innerHTML = `<p class="muted small">${escapeHtml(this.emptyMessage())}</p>`;
+            return;
+        }
         // The bar is drawn against the busiest row on the list, so "169 sightings"
         // and "1 sighting" are not the same shape to the eye.
         const maxima = Math.max(...rows.map((row) => row.seen), 1);
@@ -1342,8 +1376,12 @@ class Page {
         // is in the air around THEM.
         this.centre = { lat, lon };
         this.renderNearby();
-        if (this.airport)
-            this.rearm();
+        // 🔴 RE-ARMED EVEN WITH NO AIRPORT. `this.point()` falls back to the centre, and
+        // the poll only ever needed a point — so a reader whose airport lookup failed
+        // can still say where they are and be shown what is in the air around them. The
+        // old `if (this.airport)` guard meant the steps appeared with nothing behind
+        // them, which is a dead end dressed as progress.
+        this.rearm();
         this.updateSteps();
         track('nearby_computed', { count: this.nearby.length });
     }
@@ -1464,7 +1502,9 @@ class Page {
      */
     matchedAirborne() {
         const at = this.point();
-        if (!this.engine || !this.airport || !at)
+        // No airport required: the fence is drawn round the READER, so an aircraft can
+        // be in it whether or not an airport lookup ever succeeded.
+        if (!this.engine || !at)
             return [];
         const out = [];
         for (const reading of this.lastReadings) {
