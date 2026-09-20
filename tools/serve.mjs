@@ -537,6 +537,94 @@ async function servePostal(raw, response) {
 }
 
 /**
+ * A coordinate, turned into the name of the place it falls in.
+ *
+ * 🔴 WHY THIS EXISTS AT ALL: "FIND ME" USED TO PRINT A NON-ANSWER. George, 20 Sep 2026:
+ * *"when i clicked find me, it says your position"* — the browser handed the page a pair of
+ * numbers and the page wrote the words "your position" underneath them, which names nothing.
+ * He had already asked the same question about the postal path (*"you should be able to
+ * pinpoint their location a bit better"*), and the answer there was the community chips.
+ *
+ * 🔴 AND WHY IT CANNOT PRINT A COMMUNITY. The chip list comes from the postal service, which
+ * knows a code covers those seven names; a bare coordinate has no code in it, and every free
+ * route was measured before choosing:
+ *
+ *   Nominatim reverse, zoom=10 → "Hamilton"                            (city, correct)
+ *   Nominatim reverse, zoom=14 → suburb: "Kentley Drive"                (a street)
+ *   Nominatim reverse, zoom=18 → "a house — number, street and postal code withheld"           (a house)
+ *   BigDataCloud reverse       → city "Hamilton" at five points around Stoney Creek,
+ *                                never anything finer, and postcode ""
+ *   Photon reverse             → district "Kentley Drive" at one point and
+ *                                district "Battlefield" at another       (street, then a
+ *                                                                        real neighbourhood)
+ *
+ * So the finest thing a free service names reliably for these coordinates is the **town**,
+ * and the district it gives is sometimes a street — printing "Kentley Drive" as where
+ * somebody lives would be worse than printing the city. Photon is used because it returns
+ * both, needs no key, and was the only one that ever named a genuine neighbourhood, so the
+ * district is passed back as a note for a reader who wants it — never as the place name.
+ */
+async function serveReverse(rawLat, rawLon, response) {
+  const json = (status, body) => {
+    response.writeHead(status, {
+      'content-type': 'application/json; charset=utf-8',
+      'access-control-allow-origin': '*',
+      'cache-control': 'no-store',
+    });
+    response.end(JSON.stringify(body));
+  };
+
+  const lat = Number(rawLat);
+  const lon = Number(rawLon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+    json(400, { ok: false, error: 'That is not a latitude and longitude.' });
+    return;
+  }
+
+  try {
+    const upstream = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}&limit=1`, {
+      headers: { accept: 'application/json', 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!upstream.ok) throw new Error(`${upstream.status}`);
+    const body = await upstream.json();
+    const hit = Array.isArray(body.features) ? body.features[0] : null;
+    const properties = hit?.properties ?? {};
+    const town = String(properties.city ?? properties.town ?? properties.village ?? '').trim();
+    const region = String(properties.state ?? '').trim();
+    const district = String(properties.district ?? properties.suburb ?? '').trim();
+
+    if (town === '') {
+      // A named place was asked for and the service did not have one. Saying so is the
+      // honest answer; the page then prints the coordinates it does have.
+      json(404, { ok: false, error: 'That position could not be named.' });
+      return;
+    }
+
+    json(200, {
+      ok: true,
+      place: town,
+      town,
+      region,
+      // 🔴 EMPTY, AND THAT IS THE POINT. The page offers the community chips when this is a
+      // list, and it must not be handed a street as though it were a community.
+      areas: [],
+      district,
+      lat,
+      lon,
+      note:
+        'A coordinate names the town it falls in. The community name inside a town is not in the free map data — ' +
+        'the postal code is what carries that, which is why typing one also offers the communities it covers.',
+    });
+  } catch (error) {
+    json(503, {
+      ok: false,
+      error: `The place lookup could not be reached (${error instanceof Error ? error.message : error}).`,
+    });
+  }
+}
+
+/**
  * 🔴 THE MAP IS A FREE SERVICE, AND THE VISITOR NEVER TALKS TO IT.
  *
  * George, 20 Sep 2026: *"instead of ggoogle maps, use a free service"*. Measured
@@ -674,6 +762,13 @@ async function serveApi(request, response) {
   }
   if (path.startsWith('/api/geo/postal/')) {
     await servePostal(decodeURIComponent(path.slice('/api/geo/postal/'.length)), response);
+    return;
+  }
+  if (path.startsWith('/api/geo/reverse')) {
+    // 🔴 THE COORDINATES ARE IN THE QUERY STRING, NOT THE PATH, because they are two values
+    // and a path segment pair would have to invent an order and a separator for them.
+    const query = new URL(request.url, 'http://localhost').searchParams;
+    await serveReverse(query.get('lat'), query.get('lon'), response);
     return;
   }
 

@@ -622,9 +622,31 @@ main {
 }
 
 /* The same gold as the star and the type row, for the same reason: this aircraft
- * is one of yours. */
+ * is one of yours — and it now means the narrower thing. Every row in this table is
+ * selected (the table only lists what was picked), so the highlight separates the tail
+ * numbers the reader named themself from the aircraft that arrived because a starred type
+ * was up. */
 .watched-row {
   background: rgba(240, 190, 90, 0.1);
+}
+
+/* 🔴 THE AGE OF THE READING, BESIDE THE CLOCK TIME. George, 20 Sep 2026: *"last reading
+ * should include fromnow()"*. It is set back from the time on purpose: the time says when,
+ * and this says whether it still means anything, so it is the quieter of the two and the
+ * eye lands on the clock first. Tabular figures so the column does not twitch sideways every
+ * second as the digits change. */
+.reading-ago {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Where the aircraft is. Set back like the age, because it is a fact to consult rather than
+ * a column to read down — and the airport beside it is the answer most readers want. */
+.aircraft td.pos {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* -------------------------------------------------------------- lists --- */

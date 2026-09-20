@@ -35,6 +35,7 @@ import {
   nmToKm,
   normaliseKey,
   type Departure,
+  type Match,
   type Reading,
   type TypeRule,
 } from './detect.js';
@@ -163,43 +164,57 @@ const ERAS: { key: EraKey; label: string; from: number; to: number }[] = [
  * time it is re-run — and the list opens NARROWED, because a filter nobody presses
  * does not stop anybody picking something dead.
  */
-type SeenKey = 'often' | 'now' | 'day' | 'week' | 'month' | 'ever';
+type SeenKey = 'all' | 'today' | 'week' | 'month' | 'quarter' | 'year';
 
 interface SeenChoice {
   key: SeenKey;
   label: string;
-  /** Calendar reach in days, or infinity for the round-based and "any time" choices. */
-  days: number;
   /**
-   * 🔴 A CALENDAR WINDOW IS ONLY OFFERED ONCE IT CAN CHANGE THE LIST. George, 20 Sep
-   * 2026, after the first version shipped: *"i still want the last seen to work right
-   * now."* He was right and the reason was structural — three rounds inside three hours
-   * put every type inside every window, so day, week and month were the same set and
-   * pressing the chips changed nothing. A chip that cannot change the list teaches the
-   * reader the filter is broken.
+   * The earliest moment this window includes, given a "now".
+   *
+   * Null means there is no floor at all — "all flights" is not a window, it is the absence
+   * of one.
+   *
+   * 🔴 THESE ARE CALENDAR WINDOWS, NOT ROLLING ONES, AND THE DIFFERENCE IS THE WHOLE POINT.
+   * "Last seen today" means today — since midnight — and not "within the last 24 hours". A
+   * reader asking whether something has been up today is asking about the day they are
+   * living in, and a rolling 24-hour window answers a question nobody asked. The note under
+   * the chips prints the exact moment each window starts, so there is nothing to infer.
    */
-  needsDays?: number;
+  since: ((now: Date) => Date) | null;
 }
 
+/**
+ * 🔴 THE SIX CHOICES GEORGE ASKED FOR, IN HIS ORDER. George, 20 Sep 2026: *"all flight, then
+ * last seen today, week, month, quarter, year, and make sure to apply that filter"*.
+ *
+ * This replaced a set of four I had invented — "flies here often", "in the last look", "seen
+ * in the last day", "seen at any time" — built to work around the fact that three rounds of
+ * surveying inside three hours put every type inside every calendar window. I hid the
+ * windows that could not change the list, which is defensible in isolation and was the wrong
+ * call: it meant the reader could not see the filter they were going to want in a month, and
+ * a control that appears one day is a control nobody trusts.
+ *
+ * So all six are always drawn. When a window currently covers everything — which today's
+ * six are — the note says so in as many words, and names the date the recorded history
+ * begins, rather than leaving the reader to conclude the filter is broken.
+ */
 const SEEN_CHOICES: SeenChoice[] = [
-  { key: 'often', label: 'flies here often', days: Number.POSITIVE_INFINITY },
-  { key: 'now', label: 'in the last look', days: Number.POSITIVE_INFINITY },
-  { key: 'day', label: 'seen in the last day', days: 1, needsDays: 1 },
-  { key: 'week', label: 'seen this week', days: 7, needsDays: 7 },
-  { key: 'month', label: 'seen this month', days: 30, needsDays: 30 },
-  { key: 'ever', label: 'seen at any time', days: Number.POSITIVE_INFINITY },
+  { key: 'all', label: 'All flights', since: null },
+  { key: 'today', label: 'Last seen today', since: (now) => startOfDay(now) },
+  { key: 'week', label: 'Last seen this week', since: (now) => startOfWeek(now) },
+  { key: 'month', label: 'Last seen this month', since: (now) => startOfMonth(now) },
+  { key: 'quarter', label: 'Last seen this quarter', since: (now) => startOfQuarter(now) },
+  { key: 'year', label: 'Last seen this year', since: (now) => startOfYear(now) },
 ];
 
 /**
- * 🔴 THE LIST OPENS ON THE USEFUL ANSWER, WHICH IS NOW "FLIES HERE OFTEN".
- *
- * It opened on "seen this month", which on the first day of the site is the same list as
- * "seen at any time" — so the reader's first impression of the filter was that it did
- * nothing. "Often" is the question the page is for: George, 20 Sep 2026, *"something that
- * is never going to fly soon is a useless selection"*. With one round it degrades to
- * everything, and from the second round it starts hiding the one-off visitors.
+ * 🔴 IT OPENS ON "ALL FLIGHTS". George's list puts it first, and it is the honest default on
+ * a list this short: with six rounds of history a window hides most of what has been
+ * measured, and a reader arriving at the page should see what the feed has found before
+ * being handed a filter they did not ask for.
  */
-const SEEN_DEFAULT: SeenKey = 'often';
+const SEEN_DEFAULT: SeenKey = 'all';
 
 /** One measured type, as tools/survey-types.mjs writes it. */
 interface SurveyedType {
@@ -476,13 +491,89 @@ function writeStore(key: string, value: string): void {
   }
 }
 
-/** Send an event only if the visitor allowed analytics. */
+/**
+ * The starts of the calendar windows the "last seen" filter measures against.
+ *
+ * All five are LOCAL time, because the question "has it been up today?" is asked in the
+ * reader's own day and not in UTC. Each returns the first instant of the period, so a
+ * comparison is a plain `>=`.
+ *
+ * The week starts on **Monday**, which is the Canadian convention and matches what a
+ * calendar on the wall shows.
+ */
+function startOfDay(now: Date): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function startOfWeek(now: Date): Date {
+  const day = startOfDay(now);
+  // getDay() is 0 for Sunday; Monday is wanted, so Sunday is six days in and not minus one.
+  const back = (day.getDay() + 6) % 7;
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate() - back);
+}
+
+function startOfMonth(now: Date): Date {
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+function startOfQuarter(now: Date): Date {
+  return new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+}
+
+function startOfYear(now: Date): Date {
+  return new Date(now.getFullYear(), 0, 1);
+}
+
+/** "Fri 18 Sep, 00:00" — the moment a window opens, for the sentence under the chips. */
+function formatWindowStart(at: Date): string {
+  return at.toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+
 function track(name: string, params: Record<string, unknown> = {}): void {
   if (typeof window.aircraftTrack === 'function') window.aircraftTrack(name, params);
 }
 
 function formatClock(ms: number): string {
   return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+/**
+ * How long ago, in the shortest form that is still precise where it matters.
+ *
+ * 🔴 THE FIRST MINUTE IS COUNTED IN SECONDS, BECAUSE THAT IS THE ONE THAT IS READ. George,
+ * 20 Sep 2026: *"last reading should include fromnow()"*. A live feed is judged by whether
+ * it is still moving, and "a minute ago" flattens the difference between a reading taken two
+ * seconds ago and one taken fifty-nine seconds ago — which is the whole range over which a
+ * reader decides whether the page has stalled.
+ *
+ * Past an hour the seconds stop mattering and the answer is rounded to the unit a person
+ * would say out loud. It is never shown as a bare number with no unit.
+ */
+function fromNow(at: number): string {
+  const seconds = Math.max(0, Math.round((Date.now() - at) / 1000));
+  if (seconds < 2) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+/**
+ * Where an aircraft is, to the precision the feed actually means — or a dash.
+ *
+ * Four decimals is roughly eleven metres, which is finer than a position derived by
+ * multilateration deserves; more digits would be precision theatre. A hemisphere is named
+ * because the numbers alone do not tell a reader whether they are looking at their own
+ * half of the world.
+ */
+function positionText(state: { lat?: number; lon?: number }): string {
+  if (typeof state.lat !== 'number' || typeof state.lon !== 'number') {
+    return '<span class="muted">—</span>';
+  }
+  return `${state.lat.toFixed(4)}, ${state.lon.toFixed(4)}`;
 }
 
 function escapeHtml(value: string): string {
@@ -565,6 +656,15 @@ class Page {
   private watchlist: string[] = [];
   private typeRules: TypeRule[] = [];
   private timer: number | null = null;
+  /**
+   * The once-a-second repaint of "· 12s ago" beside each reading.
+   *
+   * 🔴 SEPARATE FROM THE POLL TIMER, AND DELIBERATELY SO. The table is refreshed when the
+   * feed answers, which can be three minutes apart, but a reading's age changes every
+   * second — so the age is repainted on its own clock. One timer, started when the table is
+   * first drawn, and it writes only the age spans.
+   */
+  private ageTicker: number | undefined;
   /** How long until the next look at the feed. Moves — see the note on POLL_START_MS. */
   private pollMs = POLL_START_MS;
   /** True while airports are being restored, when the fence is re-aimed only once. */
@@ -592,7 +692,6 @@ class Page {
   private eraFilter: EraKey = 'all';
   /** How recently a type must have been seen to stay on the list. */
   private seenFilter: SeenKey = SEEN_DEFAULT;
-
   /**
    * Where the reader actually is, once they have said. Everything else — the
    * fence, the airports list, the chart — hangs off this rather than off the
@@ -1280,11 +1379,29 @@ class Page {
   private renderAircraft(): void {
     const body = byId('aircraftBody');
     if (!body || !this.engine) return;
-    const rows = this.engine.snapshot().slice(0, 60);
+
+    // 🔴 ONLY THE AIRCRAFT THE READER ACTUALLY ASKED ABOUT. George, 20 Sep 2026: *"this
+    // should only list the selected flights and or tail"*.
+    //
+    // It listed every aircraft in the fence, which made the card a firehose: a reader who
+    // had starred a helicopter and named one tail number still had to read thirty rows
+    // about airliners passing over. The page already knows what was picked — the starred
+    // types and the named tails are step 3 and step 5 — so the table shows those and
+    // nothing else. `matchOf` decides, and it is the engine's rule rather than a second
+    // copy written here.
+    const all = this.engine.snapshot();
+    const rows = all.filter((state) => this.isWatchedNow(state)).slice(0, 60);
 
     if (rows.length === 0) {
+      // The empty state has to say WHICH empty it is. "Nothing in the fence" over a card
+      // that is deliberately filtered would be a lie: there may be forty aircraft out
+      // there and none of them the reader's.
       body.innerHTML =
-        '<tr><td colspan="5" class="muted">Nothing in the fence at this moment. Aircraft appear and disappear as they pass.</td></tr>';
+        all.length === 0
+          ? '<tr><td colspan="5" class="muted">Nothing in the fence at this moment. Aircraft appear and disappear as they pass.</td></tr>'
+          : '<tr><td colspan="5" class="muted">Nothing in the fence matches what you picked. ' +
+            `The feed can see ${all.length} aircraft right now, and none of them is on your list — ` +
+            'star a type in step 3, or name a tail number, and they will appear here.</td></tr>';
       return;
     }
 
@@ -1324,7 +1441,11 @@ class Page {
       );
       for (const { state, airport } of group.items) {
         const label = state.callsign || state.registration || state.hex;
-        const watched = this.isWatchedNow(state);
+        // 🔴 NAMED BY THE READER, OR CAUGHT BY A TYPE THEY STARRED. Every row here is
+        // selected — that is the whole point of the filter above — so the highlight can no
+        // longer mean "selected". It means the narrower and rarer thing: you named this
+        // tail number yourself, rather than it arriving because a type you starred was up.
+        const byName = this.matchKind(state) === 'aircraft';
         const phase =
           state.phase === 'ground'
             ? '<span class="tag tag-ground">on the ground</span>'
@@ -1332,30 +1453,79 @@ class Page {
               ? '<span class="tag tag-air">airborne</span>'
               : '<span class="tag tag-unknown">no altitude</span>';
         html.push(
-          `<tr${watched ? ' class="watched-row"' : ''}>` +
+          // 🔴 EVERY REAL ROW CARRIES A CLASS OF ITS OWN, BECAUSE "NOT A GROUP ROW" WAS NOT
+          // ENOUGH TO TELL A DATA ROW FROM A PLACEHOLDER. The empty states above are single
+          // `<tr>`s with a `colspan` cell, so `tr:not(.type-group)` matches them too — and a
+          // test waiting for `#aircraftBody tr:not(.type-group)` was satisfied by the sentence
+          // saying there was nothing to show. Measured: one rewritten test passed on the
+          // placeholder alone, which is a false pass, and a false pass is worse than a
+          // failure because it is read as cover.
+          `<tr class="aircraft-row${byName ? ' watched-row' : ''}">` +
           `<td class="mono">${airport ? escapeHtml(airport) : '<span class="muted">not placed</span>'}</td>` +
           `<td><b>${escapeHtml(label)}</b></td>` +
           `<td>${phase}</td>` +
-          `<td class="mono">${formatClock(state.observedAt)}</td>` +
-          `<td><button type="button" class="linkish watch-toggle" data-key="${escapeHtml(label)}" ` +
-          `data-type="${escapeHtml(state.type || '')}" ` +
-          `data-ga="watch">${watched ? 'unwatch' : 'watch'}</button></td>` +
+          // 🔴 THE TIME IS PRINTED TWICE ON PURPOSE, IN THE TWO FORMS THAT ANSWER DIFFERENT
+          // QUESTIONS. George, 20 Sep 2026: *"last reading should include fromnow()"*. A
+          // clock time says WHEN it was; "12s ago" says WHETHER IT STILL MEANS ANYTHING, and
+          // that is the question a reader watching a live feed is actually asking. A cell
+          // that said only "15:04:22" made them do the subtraction themselves, against their
+          // own clock, with no idea whether the page had stalled.
+          `<td class="mono">${formatClock(state.observedAt)}` +
+          `<span class="reading-ago" data-at="${state.observedAt}"> · ${fromNow(state.observedAt)}</span></td>` +
+          // 🔴 THE POSITION, WHERE THE WATCH LINK USED TO BE. George, 20 Sep 2026:
+          // *"remove the watch link, can you put long/lat"*. Watching is done by picking —
+          // a type in step 3 or a tail number in step 5 — so a control on every row was a
+          // second way to do the same thing, in the one place a reader is trying to read.
+          // Four decimals is about eleven metres, which is as much as the position means.
+          `<td class="mono pos">${positionText(state)}</td>` +
           '</tr>'
         );
       }
     }
     body.innerHTML = html.join('');
 
-    for (const button of body.querySelectorAll<HTMLButtonElement>('.watch-toggle')) {
-      button.addEventListener('click', () => {
-        const key = button.dataset.key ?? '';
-        if (this.watchlist.some((item) => normaliseKey(item) === normaliseKey(key))) {
-          this.removeWatch(key);
-        } else {
-          this.addWatch(key);
-        }
-      });
-    }
+    // 🔴 THE AGES ARE UPDATED WITHOUT RE-RENDERING THE TABLE. "12s ago" is wrong a second
+    // after it is written, and the page polls on a schedule that runs from 15 seconds to
+    // three minutes — so a time rendered only on a poll would sit there saying "12s ago"
+    // while the gap grew to two minutes, which is exactly the reassurance a stalled page
+    // should not give. Rewriting the table every second would throw away the reader's
+    // scroll position and their text selection to change a few characters, so only the
+    // age spans are touched.
+    this.tickReadingAges();
+  }
+
+  /**
+   * Keep every "· 12s ago" honest, once a second, without touching the rest of the table.
+   *
+   * The timestamp each one is counting from is carried on the element itself, so this needs
+   * no state of its own and cannot disagree with what was rendered.
+   */
+  private tickReadingAges(): void {
+    const paint = (): void => {
+      for (const spread of Array.from(document.querySelectorAll<HTMLElement>('.reading-ago'))) {
+        const at = Number(spread.dataset.at);
+        if (Number.isFinite(at)) spread.textContent = ` · ${fromNow(at)}`;
+      }
+    };
+    paint();
+    if (this.ageTicker !== undefined) return;
+    this.ageTicker = window.setInterval(paint, 1000);
+  }
+
+  /**
+   * Which rule caught this aircraft, in the engine's own words — `aircraft` for a tail
+   * number the reader named, `type` or `type+tail` for one caught by a starred type.
+   *
+   * Null when nothing matched, which cannot happen for a row in this table.
+   */
+  private matchKind(state: { hex: string; callsign: string; registration: string; type: string }): Match['kind'] | null {
+    if (!this.engine) return null;
+    return this.engine.matchOf({
+      hex: state.hex,
+      flight: state.callsign || undefined,
+      r: state.registration || undefined,
+      t: state.type || undefined,
+    })?.kind ?? null;
   }
 
   /**
@@ -1498,10 +1668,14 @@ class Page {
     const host = byId('seenFilter');
     if (!host) return;
     host.innerHTML = '';
-    // A chip is drawn only when it can change the list — see the note on SeenChoice.
-    const span = this.historySpanDays();
+    // 🔴 EVERY CHOICE IS DRAWN, ALWAYS, AND THERE IS NO CONDITION HERE ANY MORE. This used
+    // to skip a window while the recorded history was shorter than it, on the argument that
+    // a chip which cannot change the list teaches the reader the filter is broken. The
+    // argument was reasonable and the conclusion was wrong: the chips are the promise that
+    // the window will exist, and a reader who cannot see "this year" today has no way to
+    // know it is coming. The note under the chips carries the honesty instead — it says
+    // when a window currently covers everything, and from what date the record starts.
     for (const choice of SEEN_CHOICES) {
-      if (choice.needsDays !== undefined && span < choice.needsDays) continue;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'chip chip-small';
@@ -1557,26 +1731,35 @@ class Page {
       const runs = this.runsRecorded();
       const span = this.historySpanDays();
       const window = SEEN_CHOICES.find((candidate) => candidate.key === this.seenFilter) ?? SEEN_CHOICES[0];
-      // 🔴 THE NOTE HAS TO SAY WHICH KIND OF FILTER IS RUNNING, because there are now two
-      // kinds and they answer different questions. "Flies here often" is about how regular
-      // a type is; "in the last look" is about this afternoon; a calendar window is about
-      // days. Saying which one is on, and how much history stands behind it, is the
-      // difference between a filter and a mystery.
-      const how = window.key === 'often'
-        ? `A type is shown when it has been seen in at least half of them — ${Math.max(1, Math.ceil(runs / 2))} of ${runs} so far.`
-        : window.key === 'now'
-          ? 'A type is shown when the most recent look of the sky found it.'
-          : window.days === Number.POSITIVE_INFINITY
-            ? 'Every type this site has ever seen is shown.'
-            : `A type is shown when it has been seen within ${window.days === 1 ? 'a day' : `${window.days} days`}.`;
+      // 🔴 THE NOTE HAS TO SAY WHAT THE WINDOW IS AND WHEN IT OPENS, because a calendar
+      // window is not self-evident. "This month" could mean since the 1st or within thirty
+      // days, and those are different lists. Naming the exact moment removes the question
+      // instead of arguing about it — and it is the same convention the chips filter by, so
+      // the sentence cannot drift from the behaviour.
+      const start = window.since ? window.since(new Date()) : null;
+      const how = start === null
+        ? 'Every type this site has ever recorded is shown, with no window at all.'
+        : `A type is shown when the last sighting here was at or after ${formatWindowStart(start)} — ` +
+          `${window.label.replace(/^Last seen /, '').toLowerCase()} by the clock on this machine, not the last twenty-four hours.`;
+      // 🔴 HOW MANY IT IS ACTUALLY HIDING, COUNTED RATHER THAN ARGUED. The first version of
+      // this sentence INFERRED the answer — it compared the date the record starts against
+      // the date the window starts, and concluded that the window "currently includes
+      // everything measured". That reasoning is sound on real data and it was still the wrong
+      // shape of check: an inference about a list, printed beside the list, is a second
+      // opinion that can disagree with the thing it describes. This asks the same function
+      // that built the list how many rows it dropped, so the sentence cannot contradict the
+      // page. Measured against a fixture with known ages, the inference was wrong the moment
+      // the fixture disagreed with it — which is exactly how a false reassurance ships.
+      const hidden = this.typeRows().stale;
+      const bite = start === null
+        ? ''
+        : hidden === 0
+          ? ' Nothing is hidden by it at the moment: every sighting on record falls inside this window.'
+          : ` This window is hiding ${hidden} type${hidden === 1 ? '' : 's'} from the list below.`;
       parts.push(
         `Last seen: ${runs} look${runs === 1 ? '' : 's'} at the sky recorded so far` +
           (span > 0 ? `, spanning ${this.spanText(span)}.` : '.') +
-          ` ${how}` +
-          (span > 0 && span < 1
-            ? ' The day, week and month choices are not offered yet: with less than a day of history' +
-              ' every type falls inside all of them, so they could not change the list.'
-            : '') +
+          ` ${how}${bite}` +
           ' A type that does not qualify is hidden rather than offered — an aircraft that does not fly near' +
           ' you is not a choice worth making.'
       );
@@ -1806,29 +1989,20 @@ class Page {
         }
         if (entry.year < era.from || entry.year > era.to) return false;
       }
-      // 🔴 HOW OFTEN, AS WELL AS HOW RECENTLY. The two round-based choices are the ones
-      // that work on the day the site is first watched: with three looks behind it, a
-      // type seen in all three is a different proposition from a type seen once, and no
-      // calendar window can tell them apart yet.
-      if (seen.key === 'often') {
-        const need = Math.max(1, Math.ceil(this.runsRecorded() / 2));
-        // A type in the air right now counts as a regular whatever the history says:
-        // the reader can see it, and hiding what is flying past is the wrong kind of
-        // tidy. It is the same allowance the airport filter makes a few lines up.
-        if ((row.runsSeen ?? 0) < need && (row.seen ?? 0) <= 0) {
-          stale += 1;
-          return false;
-        }
-      } else if (seen.key === 'now') {
-        // `seen` is this run's frequency, from the latest run's own row — so "in the
-        // last look" is a fact about the most recent look and nothing else.
-        if ((row.seen ?? 0) <= 0) {
-          stale += 1;
-          return false;
-        }
-      } else if (seen.days !== Number.POSITIVE_INFINITY) {
+      // 🔴 HOW RECENTLY, AGAINST A WINDOW THAT STARTS AT A KNOWN MOMENT. There used to be
+      // three branches here — a round-based "often", a round-based "now", and a rolling day
+      // count — because with only a few hours of history a calendar window could not tell
+      // anything apart. George replaced that with one plain scale on 20 Sep 2026, so this
+      // is now one comparison against one floor: was the last sighting at or after the
+      // moment the chosen period begins.
+      //
+      // A type in the air right now passes every window, including "today", because
+      // `lastSeenOf` answers `now` for anything in `liveTypes` — the reader can see it, and
+      // no filter should hide what is flying past.
+      const floor = seen.since ? seen.since(new Date()).getTime() : null;
+      if (floor !== null) {
         const at = this.lastSeenOf(row.code);
-        if (at === null || Date.now() - at.getTime() > seen.days * 86_400_000) {
+        if (at === null || at.getTime() < floor) {
           stale += 1;
           return false;
         }
@@ -3169,12 +3343,7 @@ class Page {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           button.disabled = false;
-          this.computeNearby(position.coords.latitude, position.coords.longitude, 'your position');
-          if (note) {
-            note.textContent =
-              'Ordered by distance from your position. Your coordinates are used inside this page and are not sent ' +
-              'anywhere — the feed is only ever told which airport you chose.';
-          }
+          void this.nameMyPosition(position.coords.latitude, position.coords.longitude, note);
         },
         (error) => {
           button.disabled = false;
@@ -3187,6 +3356,63 @@ class Page {
         { timeout: 10_000, maximumAge: 300_000 }
       );
     });
+  }
+
+  /**
+   * Name the place the browser put us, and order the airports from it.
+   *
+   * 🔴 THE PAGE USED TO WRITE "your position" AND LEAVE IT THERE. George, 20 Sep 2026: *"when
+   * i clicked find me, it says your position"*. That is the label directly under the heading
+   * "Your location", and it names nothing — the reader is told where they are in a way that
+   * would be true of anybody standing anywhere.
+   *
+   * So the coordinates go to this site's own server, which asks a free map service to name
+   * the town they fall in. Two things follow from that and both are said on the page: the
+   * coordinates leave the browser (to this server, not to a third party and never to the
+   * feed), and the answer is a TOWN — the community inside it is not in the free map data,
+   * which is why the postal code is still the way to get the community chips.
+   *
+   * If the naming fails the page prints the coordinates it was actually given, rather than
+   * falling back to the empty phrase. A pair of numbers is a worse answer than a name and a
+   * far better one than nothing.
+   */
+  private async nameMyPosition(lat: number, lon: number, note: HTMLElement | null): Promise<void> {
+    const fallback = `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+    try {
+      const response = await fetch(`/api/geo/reverse?lat=${lat}&lon=${lon}`, {
+        headers: { accept: 'application/json' },
+      });
+      const body = (await readJson(response)) as {
+        ok?: boolean;
+        place?: string;
+        town?: string;
+        region?: string;
+        areas?: string[];
+        district?: string;
+        note?: string;
+      };
+      if (!body.ok || !body.town) throw new Error(body.place ?? 'no name');
+      this.computeNearby(lat, lon, body.town, body.town, Array.isArray(body.areas) ? body.areas : []);
+      if (note) {
+        note.textContent =
+          `Ordered by distance from ${body.town}${body.region ? `, ${body.region}` : ''}. ` +
+          (body.note ?? '') +
+          ' Your coordinates are sent to this site’s own server to be named, and are not stored and not given ' +
+          'to the feed — the feed is only ever told which airport you chose.';
+      }
+      track('locate_named', { named: true });
+    } catch {
+      // No name came back. Show the numbers the browser gave us — they are real, and the
+      // reader can see for themselves that the page is not pretending to know more.
+      this.computeNearby(lat, lon, fallback);
+      if (note) {
+        note.textContent =
+          `Ordered by distance from ${fallback} — the position your browser gave, which could not be turned into ` +
+          'a place name just now. Your coordinates are sent to this site’s own server to be named, and are not ' +
+          'stored. Typing a postal code will name the area and offer the communities inside it.';
+      }
+      track('locate_named', { named: false });
+    }
   }
 
   /* --------------------------------------------------------- the live view */

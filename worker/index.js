@@ -128,6 +128,70 @@ function postalTarget(raw) {
 }
 
 /**
+ * 🔴 A COORDINATE, TURNED INTO THE NAME OF THE PLACE IT FALLS IN.
+ *
+ * "Find me" used to print the words "your position" under the numbers the browser gave it,
+ * which names nothing. George, 20 Sep 2026: *"when i clicked find me, it says your
+ * position"*. Photon is used because it is free, needs no key, and was the only service
+ * measured that ever named a real neighbourhood — see the longer note in tools/serve.mjs,
+ * which carries the five measurements behind that choice.
+ *
+ * It answers the same shape as the postal lookup: `town` for the label, `areas` empty on
+ * purpose, because a street named `district` must never arrive where a community is
+ * expected.
+ */
+async function serveReverse(rawLat, rawLon) {
+  const lat = Number(rawLat);
+  const lon = Number(rawLon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+    return json(400, { ok: false, error: 'That is not a latitude and longitude.' });
+  }
+
+  let upstream;
+  try {
+    upstream = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}&limit=1`, {
+      headers: { accept: 'application/json', 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch (error) {
+    // 503, never 502 — the edge replaces a 502 body with its own page and destroys the message.
+    return json(503, { ok: false, error: `The place lookup could not be reached. ${error.message}` });
+  }
+  if (!upstream.ok) return json(503, { ok: false, error: `The place lookup answered ${upstream.status}.` });
+
+  const body = await upstream.json().catch(() => null);
+  const hit = body && Array.isArray(body.features) ? body.features[0] : null;
+  const properties = (hit && hit.properties) || {};
+  const town = String(properties.city ?? properties.town ?? properties.village ?? '').trim();
+  if (town === '') return json(404, { ok: false, error: 'That position could not be named.' });
+
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      place: town,
+      town,
+      region: String(properties.state ?? '').trim(),
+      areas: [],
+      district: String(properties.district ?? properties.suburb ?? '').trim(),
+      lat,
+      lon,
+      note:
+        'A coordinate names the town it falls in. The community name inside a town is not in the free map data — ' +
+        'the postal code is what carries that, which is why typing one also offers the communities it covers.',
+    }),
+    {
+      status: 200,
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        // A coordinate names the same town forever, so this one is worth keeping.
+        'cache-control': 'public, max-age=86400',
+        'x-proxied-from': 'photon.komoot.io',
+      },
+    }
+  );
+}
+
+/**
  * The postal answer is normalised rather than passed through, so the page never
  * depends on the field names of a service that is free and owes us nothing.
  */
@@ -283,6 +347,9 @@ export default {
 
     if (path.startsWith('/geo/postal/')) {
       return servePostal(decodeURIComponent(path.slice('/geo/postal/'.length)));
+    }
+    if (path.startsWith('/geo/reverse')) {
+      return serveReverse(url.searchParams.get('lat'), url.searchParams.get('lon'));
     }
 
     if (!isAllowed(path)) {

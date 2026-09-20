@@ -176,6 +176,26 @@ async function answerStep1(page) {
   await chooseDistance(page);
 }
 
+/**
+ * Select aircraft the way the page now does it: star types in step 3.
+ *
+ * 🔴 THE TABLE'S OWN WATCH LINK IS GONE, SO EVERY TEST THAT USED IT HAD TO MOVE. George,
+ * 20 Sep 2026: *"remove the watch link"*, alongside *"this should only list the selected
+ * flights and or tail"*. Selection now happens where the question is asked — a type starred
+ * in step 3, a tail ticked on that type's row — and the table shows the result.
+ *
+ * Every type is starred rather than one, because which type happens to be overhead is not
+ * knowable from outside the page, and these tests need at least one scripted aircraft to be
+ * on the list. One click per row is enough: the listeners are attached at render time, so a
+ * node detached by the next render still fires when it is clicked.
+ */
+async function starEveryType(page) {
+  await page.waitForSelector('#typeList .typerow', { timeout: 30_000, state: 'attached' });
+  await page.$$eval('#typeList .typerow .type-toggle', (nodes) => {
+    for (const node of nodes) node.click();
+  });
+}
+
 /** The distance the page is currently showing, in km. */
 async function shownDistance(page) {
   return page.$eval('#radiusValue', (element) => element.textContent.trim());
@@ -387,23 +407,18 @@ test('a watched departure raises the alert — the board went, the alert stayed'
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
 
-  // 🔴 WATCHED FROM THE AIRCRAFT TABLE, BECAUSE THE WATCH FORM IS GONE. An earlier
-  // version of this test filled `#watchInput` — and that box, and the `#watchList`
-  // card beside it, went when George asked for the choosing flow to be the only
-  // flow. Both ids are now absent from the page, so a test that typed into one of
-  // them failed on a 30-second timeout waiting for an element that no longer exists,
-  // which reads exactly like a broken alert and is not one. The table's own watch
-  // control is the way a reader asks about an aircraft now.
+  // 🔴 SELECTED BY STARRING A TYPE, BECAUSE THE TABLE'S WATCH LINK IS GONE. An earlier
+  // version of this test filled `#watchInput`, then clicked the table's own watch button;
+  // both controls have since been removed by George, and a test that waits for a removed
+  // selector fails on a 30-second timeout that reads exactly like a broken alert.
   //
   // 🔴 AND STEP 1 HAS TO BE ANSWERED BEFORE THE PAGE ASKS THE FEED FOR ANYTHING.
   // Measured on the page rather than guessed: with no distance chosen the table still
-  // reads *"Waiting for the first poll…"* and the status line says *"Choose how far out
-  // to look in step 2, and this fills in."* The page deliberately sends nothing until
-  // the reader has said where and how far — so a test that expects aircraft has to
-  // press a distance first, or it is waiting for a request the page will never make.
+  // reads *"Waiting for the first poll…"*. The page deliberately sends nothing until the
+  // reader has said where and how far — so a test that expects aircraft has to answer step 1
+  // first, or it is waiting for a request the page will never make.
   await chooseDistance(page);
-  await page.waitForSelector('#aircraftBody .watch-toggle', { timeout: 30_000 });
-  await page.$eval('#aircraftBody .watch-toggle', (element) => element.click());
+  await starEveryType(page);
 
   await page.waitForFunction(() => window.__alerts.length > 0, null, { timeout: 45_000 });
   const alerts = await page.evaluate(() => window.__alerts);
@@ -413,7 +428,7 @@ test('a watched departure raises the alert — the board went, the alert stayed'
   await context.close();
 });
 
-test('the watchlist survives a reload', async () => {
+test('the selection survives a reload', async () => {
   // One set, so every poll returns the same aircraft — the stub clamps at the last entry,
   // which is what makes the row still there to assert on after the reload.
   const polls = [
@@ -421,51 +436,64 @@ test('the watchlist survives a reload', async () => {
   ];
   const { context, page } = await openPage(polls);
 
-  // 🔴 THE PROOF IS THE ROW'S OWN CONTROL, BECAUSE THE CARD THAT USED TO PROVE IT IS GONE.
-  // This test read `#watchList` — a card that no longer exists on the page, so it failed on
-  // a selector with no match while the feature it describes was working. George asked for
-  // the watch form and its list to go (*"the choosing flow is the only flow"*), and what is
-  // left to read is the same button the reader pressed.
-  const watchRow = async () => page.$eval('#aircraftBody .watch-toggle', (element) => element.textContent.trim());
+  // 🔴 WHAT IS ASSERTED IS THE ROW, BECAUSE THE TWO CARDS THAT USED TO PROVE IT ARE GONE.
+  // This test read `#watchList`, and then the table's watch button — both removed by George.
+  // What survives is the guarantee itself: what you picked is still picked after a reload,
+  // and the table still lists it.
+  const rows = async () => page.$$eval('#aircraftBody tr.aircraft-row', (nodes) => nodes.length);
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
   await chooseDistance(page);
-  await page.waitForSelector('#aircraftBody .watch-toggle', { timeout: 30_000 });
-  await page.$eval('#aircraftBody .watch-toggle', (element) => element.click());
-  await page.waitForTimeout(200);
-  assert.equal(await watchRow(), 'unwatch', 'the aircraft was not watched before the reload');
+  await starEveryType(page);
+  await page.waitForSelector('#aircraftBody tr.aircraft-row', { timeout: 45_000 });
+  const before = await rows();
+  assert.ok(before > 0, 'nothing was listed before the reload, so the reload proves nothing');
 
   await page.reload({ waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click()).catch(() => {});
   await chooseDistance(page);
-  await page.waitForSelector('#aircraftBody .watch-toggle', { timeout: 30_000 });
-  assert.equal(await watchRow(), 'unwatch', 'the watchlist did not survive a reload');
+  await page.waitForSelector('#aircraftBody tr.aircraft-row', { timeout: 45_000 });
+  assert.equal(await rows(), before, 'the selection did not survive a reload');
 
   await context.close();
 });
 
-test('the aircraft table offers a watch control, and it works without typing', async () => {
+test('the table lists only the aircraft that were picked', async () => {
   const { context, page } = await openPage([
     [{ hex: 'c011e4', flight: 'ACA123', t: 'B738', alt_baro: 5000, lat: 43.19, lon: -79.93 }],
   ]);
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
-  // A distance has to be chosen first: the page asks the feed for nothing until
-  // step 1 is answered (see the note on the alert test above).
   await chooseDistance(page);
-  await page.waitForSelector('#aircraftBody .watch-toggle', { timeout: 30_000 });
 
-  await page.$eval('#aircraftBody .watch-toggle', (element) => element.click());
-  await page.waitForTimeout(200);
+  // 🔴 THE NEGATIVE CASE FIRST, AND IT HAS TO NAME ITS OWN REASON FOR BEING EMPTY. George,
+  // 20 Sep 2026: *"this should only list the selected flights and or tail"*. Nothing has
+  // been picked yet, so the card must list nothing — and must say which nothing it is,
+  // because "nothing in the fence" over a filtered card would be false while aircraft are
+  // plainly overhead. The message counts them, so this waits for a poll to have happened.
+  await page.waitForFunction(
+    () => /matches what you picked/.test(document.querySelector('#aircraftBody')?.textContent ?? ''),
+    null,
+    { timeout: 45_000 }
+  );
+  const empty = await page.$eval('#aircraftBody', (element) => element.textContent.replace(/\s+/g, ' '));
+  assert.match(empty, /matches what you picked/);
+  assert.match(empty, /The feed can see \d+ aircraft right now/, 'the empty state must say how many it is leaving out');
 
-  // 🔴 THE WATCHLIST CARD IS GONE, SO THE BUTTON'S OWN STATE IS THE PROOF. This used
-  // to read `#watchList`, which no longer exists — the same stale-UI failure as the
-  // alert test above, and the same reason it has to assert on what is actually on the
-  // page.
-  const label = await page.$eval('#aircraftBody .watch-toggle', (element) => element.textContent.trim());
-  assert.equal(label, 'unwatch', 'the control must show that this aircraft is now watched');
+  // And the positive case: pick, and they arrive.
+  await starEveryType(page);
+  await page.waitForSelector('#aircraftBody tr.aircraft-row', { timeout: 45_000 });
+
+  // 🔴 THE CONTROL THAT USED TO BE HERE IS GONE, SO ITS ABSENCE IS ASSERTED. This test
+  // asserted that the table's watch button toggled to "unwatch"; George asked for the link to
+  // be removed and for lat/long to take its place, so the honest version of the test checks
+  // the table has no watch control left and that the position is on every row.
+  assert.equal(await page.$$eval('.watch-toggle', (nodes) => nodes.length), 0, 'the watch link is still on the page');
+  const cells = await page.$$eval('#aircraftBody tr.aircraft-row td', (nodes) => nodes.map((n) => n.textContent.trim()));
+  const positions = cells.filter((cell) => /^-?\d+\.\d{4}, -?\d+\.\d{4}$/.test(cell));
+  assert.ok(positions.length > 0, `no lat/long on any row: ${JSON.stringify(cells.slice(0, 6))}`);
 
   await context.close();
 });
