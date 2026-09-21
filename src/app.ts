@@ -2801,7 +2801,32 @@ class Page {
    * nothing rendered an empty box. Found by looking at the file, not by reading my
    * own report of the change.
    */
-  private emptyMessage(): string {
+  private emptyMessage(counts: {
+    rows: unknown[];
+    total: number;
+    droppedBySeen: number;
+  }): string {
+    const seen = SEEN_CHOICES.find((candidate) => candidate.key === this.seenFilter) ?? SEEN_CHOICES[0];
+    // 🔴 THE WINDOW IS NAMED WHEN THE WINDOW IS THE REASON, AND THIS WAS THE BUG BEHIND
+    // *"all my filters are gone ... and i dont see any airplain type"*. George, 21 Sep 2026.
+    //
+    // The branch below used to answer ANY empty list under the default kind filter with *"Nothing
+    // has been seen yet — the page has only just started looking. Give it a minute."* So a reader
+    // who had chosen **5 minutes** — and whose record held a full day of sightings, all of them
+    // older than five minutes — was told the page had only just started looking. That is false,
+    // it blames the page for a filter doing its job, and it hides the one thing that would fix
+    // it: the choice he made. He then reasonably concluded the page was broken.
+    //
+    // Found by asking whether the list was ON SCREEN and NON-EMPTY under every one of the ten
+    // choices, which no previous test asked — they all reached into the DOM with `$eval`, which
+    // finds rows inside a hidden or empty list perfectly well.
+    if (seen.mode !== 'all' && seen.mode !== 'noData' && counts.rows.length === 0 && counts.droppedBySeen > 0) {
+      return (
+        `Nothing on record has been seen within ${seen.phrase ?? seen.label}, so this window shows no ` +
+        `types at all — all ${counts.total} types this site can name were last seen before it. ` +
+        'This is the last-seen choice doing its job, not an empty list: widen it to see them.'
+      );
+    }
     if (this.typeFilter === 'military') {
       return (
         "Nothing in this group has been seen here, and that is its normal state rather than a fault. It holds " +
@@ -2833,7 +2858,7 @@ class Page {
       // the types have gone, rather than as though the years are missing. The reasons are
       // built by one method and printed here and under the list, so the two cannot disagree.
       const why = this.droppedReasons(counts);
-      host.innerHTML = `<p class="muted small">${escapeHtml(this.emptyMessage() + (why ? ` ${why}.` : ''))}</p>`;
+      host.innerHTML = `<p class="muted small">${escapeHtml(this.emptyMessage(counts) + (why ? ` ${why}.` : ''))}</p>`;
       // 🔴 THE NOTE AND THE GATE ARE RENDERED ON THIS PATH TOO. The early return above used to
       // leave the note showing the PREVIOUS filter's numbers — the same class of fault as the
       // stale note found on 21 Sep 2026, on the one branch where the list is replaced by a

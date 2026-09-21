@@ -1036,3 +1036,69 @@ test('an aircraft whose type code has no source is reported as UNKNOWN, not as n
   assert.equal(/reported !== true/.test(app), false,
     'the page treats anything that is not `true` as never seen, which swallows the unknown case');
 });
+
+/* ============== the filters and the type list can be SEEN, and say why ======
+ *
+ * George, 21 Sep 2026: *"all my filters are gone. fix that. and i dont see any airplain type.
+ * create units and e2e tyestsing too"*. The end-to-end tests prove the behaviour; these prove the
+ * shape it depends on, so a later edit cannot quietly re-break it.
+ */
+
+test('the three filter rows live INSIDE the gated type section, so whatever opens it shows them', () => {
+  // 🔴 THIS IS WHY THE FILTERS "WENT MISSING" AND IT IS NOT A BUG TO FIX BY MOVING THEM. They are
+  // inside `#step-3` on purpose — the section opens on `place && radiusChosen`, and a reader who
+  // has not answered step 1 has nothing for a type filter to act on. What matters is that the
+  // chips and the list share ONE container: if a chip ever leaves it, the filters and the rows
+  // can be shown and hidden independently, which is the state that looks like "my filters are
+  // gone" while the rows are still there.
+  const html = read(SITE, 'index.html');
+  const section = htmlCode.slice(htmlCode.indexOf('id="step-3"'));
+  const end = section.indexOf('</section>');
+  const inner = section.slice(0, end === -1 ? section.length : end);
+
+  for (const id of ['typeFilter', 'yearFilter', 'seenFilter', 'filterNote', 'typeList']) {
+    assert.ok(inner.includes(`id="${id}"`), `${id} is not inside the step-3 section`);
+  }
+  assert.ok(html.includes('class="card step-gated" id="step-3"'), 'step 3 is no longer a gated section');
+  assert.ok(section.length > 0, 'the step-3 section was not found at all');
+});
+
+test('the type section opens on a place AND a distance, and both are restored from storage', () => {
+  const app = readSrc('src/app.ts');
+  // The unlock condition, exactly.
+  assert.match(app, /const answered1 = place && this\.radiusChosen/,
+    'the unlock condition for the type section has changed shape');
+
+  // And BOTH halves have to survive a reload, or a returning reader gets a page with no filters
+  // and no explanation. `radiusChosen` is restored beside the radius; the centre is restored from
+  // its own key. If either stops being restored, step 3 never opens again for that reader.
+  assert.match(app, /this\.radiusKm = keptRadius/, 'the saved distance is no longer restored');
+  assert.match(app, /this\.radiusChosen = true/, 'the saved distance no longer counts as answered');
+  assert.match(app, /JSON\.parse\(readStore\(CENTRE_KEY/, 'the saved location is no longer restored');
+});
+
+test('an empty type list NAMES THE WINDOW when the window is the reason', () => {
+  // 🔴 THE SENTENCE THAT COST GEORGE A MORNING. Any empty list under the default kind filter used
+  // to be answered with *"Nothing has been seen yet — the page has only just started looking. Give
+  // it a minute."* — including a list emptied by a 5-minute last-seen choice over a record holding
+  // a full day of sightings. It is false, it blames the page for a filter doing its job, and it
+  // hides the one thing that would fix it, which is the choice the reader made.
+  const app = readSrc('src/app.ts');
+
+  // The window is checked BEFORE the kind filter, or the generic sentence wins again.
+  const windowCheck = app.indexOf("if (seen.mode !== 'all' && seen.mode !== 'noData' && counts.rows.length === 0");
+  const generic = app.indexOf("'Nothing has been seen yet — the page has only just started looking. Give it a minute.'");
+  assert.ok(windowCheck > -1, 'the empty list no longer checks whether the last-seen window is the reason');
+  assert.ok(generic > -1, 'the fallback sentence has gone, so this test is checking nothing');
+  assert.ok(windowCheck < generic, 'the window check comes AFTER the generic sentence, so it never runs');
+
+  // And the message must name the window and point at the fix rather than only reporting emptiness.
+  const message = app.slice(windowCheck, generic);
+  assert.match(message, /within \$\{seen\.phrase/, 'the empty message does not name the chosen window');
+  assert.match(message, /widen it to see them|widen/i, 'the empty message does not say what to do about it');
+  assert.match(message, /doing its job, not an empty list/, 'the empty message does not say the filter is working');
+
+  // It also has to be given the counts, or it cannot tell an empty window from an empty page.
+  assert.match(app, /private emptyMessage\(counts: \{/, 'emptyMessage no longer receives the counts');
+  assert.match(app, /this\.emptyMessage\(counts\)/, 'the counts are not passed to emptyMessage');
+});

@@ -1474,3 +1474,173 @@ test('the historic panel follows the reader — it goes when the museum is no lo
 
   await context.close();
 });
+
+/* ================= the filters and the type list are ON SCREEN ==============
+ *
+ * George, 21 Sep 2026: *"all my filters are gone. fix that. and i dont see any airplain type."*
+ *
+ * Every test above asks whether something WORKS. None of them asked whether it could be SEEN —
+ * they reached into the DOM with `$eval` and `waitForSelector`, and both of those find an element
+ * inside a `hidden` section perfectly well. That is the blind spot these four close: they assert
+ * the section is open and the list has rows, on a first visit, after a reload, and under every
+ * one of the last-seen choices.
+ */
+
+/** What the reader can actually see, as opposed to what exists in the DOM. */
+async function whatIsOnScreen(page) {
+  return page.evaluate(() => {
+    const vis = (id) => {
+      const el = document.getElementById(id);
+      if (!el) return 'MISSING';
+      return el.hidden ? 'hidden' : el.getClientRects().length > 0 ? 'VISIBLE' : 'not-rendered';
+    };
+    return {
+      step3: vis('step-3'),
+      kind: vis('typeFilter'),
+      year: vis('yearFilter'),
+      seen: vis('seenFilter'),
+      note: vis('filterNote'),
+      list: vis('typeList'),
+      rows: document.querySelectorAll('#typeList .typerow').length,
+      chips: document.querySelectorAll('#typeFilter button, #yearFilter button, #seenFilter button').length,
+      noteText: (document.getElementById('filterNote')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+      rowText: (document.getElementById('typeList')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+    };
+  });
+}
+
+/** One assertion set, used by every case below so they cannot drift apart. */
+function assertOnScreen(state, where, { allowEmpty = false } = {}) {
+  assert.equal(state.step3, 'VISIBLE', `the type section is ${state.step3} ${where}`);
+  assert.equal(state.kind, 'VISIBLE', `the kind filter is ${state.kind} ${where}`);
+  assert.equal(state.year, 'VISIBLE', `the first-flown filter is ${state.year} ${where}`);
+  assert.equal(state.seen, 'VISIBLE', `the last-seen filter is ${state.seen} ${where}`);
+  assert.equal(state.list, 'VISIBLE', `the type list is ${state.list} ${where}`);
+  assert.ok(state.chips > 15, `only ${state.chips} filter chips ${where}, which is not three rows`);
+
+  if (state.rows > 0) return;
+  // 🔴 AN EMPTY LIST IS ONLY ACCEPTABLE IF IT SAYS WHY, AND THE WHY MUST BE THE WINDOW. A narrow
+  // last-seen choice genuinely can have nothing in it — that is the filter working — but the page
+  // then has to name the window as the reason. It used to say *"the page has only just started
+  // looking. Give it a minute."* under any empty list, which is false on a record with a day of
+  // history, blames the page for a filter doing its job, and is what George read as *"i dont see
+  // any airplain type"*. If the list is empty and does NOT name the window, that is a failure.
+  assert.ok(allowEmpty, `no aircraft type is listed ${where} — the list is empty and that choice should have rows`);
+  const rows = state.rowText ?? '';
+  assert.match(
+    rows,
+    /last seen|last-seen|nowhere near|window/i,
+    `the list is empty ${where} and the page does not name the window as the reason: ${rows.slice(0, 200)}`
+  );
+  assert.equal(
+    /only just started looking/i.test(rows) && /widening|widen|last seen/i.test(rows),
+    false,
+    `the page blames itself for an empty list ${where} instead of naming the window: ${rows.slice(0, 200)}`
+  );
+}
+
+test('the filters and the type list are on SCREEN after step 1 — not merely in the DOM', async () => {
+  const { context, page } = await openPage([[[]]]);
+  await page.route('**/api/geo/search**', placeStub);
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+
+  await pickPlace(page, 'Stoney Creek Ontario');
+  await chooseDistance(page);
+  await page.waitForTimeout(900);
+
+  assertOnScreen(await whatIsOnScreen(page), 'after answering step 1');
+  await context.close();
+});
+
+test('the filters and the type list come back after a RELOAD — which is what a fresh tab gives you', async () => {
+  // 🔴 THE RELOAD IS THE POINT. The section opens on `place && radiusChosen`, and BOTH are read
+  // back out of the reader's own storage — so a page with saved state is a different code path
+  // from a first visit, and it is the one every returning reader gets. A test that never reloads
+  // cannot see a restore bug at all.
+  const { context, page } = await openPage([[[]]]);
+  await page.route('**/api/geo/search**', placeStub);
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+
+  await pickPlace(page, 'Stoney Creek Ontario');
+  await chooseDistance(page);
+  await page.waitForTimeout(900);
+  assertOnScreen(await whatIsOnScreen(page), 'before the reload');
+
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  await page.$eval('#consentDecline', (element) => element.click()).catch(() => {});
+  await page.waitForTimeout(900);
+
+  assertOnScreen(await whatIsOnScreen(page), 'after a reload');
+  await context.close();
+});
+
+test('every last-seen choice leaves the filters and a list on screen', async () => {
+  // Ten choices, four different shapes of answer — rolling, calendar, everything, and the
+  // never-caught set. A single broken branch would empty the list under one chip only, which is
+  // exactly the kind of fault a screenshot of one mode cannot find.
+  const { context, page } = await openPage([[[]]]);
+  await page.route('**/api/geo/search**', placeStub);
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+
+  await pickPlace(page, 'Stoney Creek Ontario');
+  await chooseDistance(page);
+  await page.waitForTimeout(900);
+
+  const labels = await page.$$eval('#seenFilter button', (items) => items.map((i) => i.textContent.trim()));
+  assert.ok(labels.length >= 10, `only ${labels.length} last-seen choices are offered`);
+
+  for (const label of labels) {
+    await page.$$eval(
+      '#seenFilter button',
+      (items, wanted) => {
+        const chip = items.find((item) => item.textContent.trim() === wanted);
+        if (chip) chip.click();
+      },
+      label
+    );
+    await page.waitForTimeout(400);
+    // A rolling window can be legitimately empty — the fixture has no aircraft — so it is allowed
+    // here, on condition that the page SAYS the window is the reason. "no data" and "all flights"
+    // can never be empty, so they must have rows.
+    const mayBeEmpty = /minute|hour|today|week|month|quarter|year/i.test(label);
+    assertOnScreen(await whatIsOnScreen(page), `under the "${label}" choice`, { allowEmpty: mayBeEmpty });
+  }
+
+  await context.close();
+});
+
+test('the never-caught choice names the aircraft that have never been seen here', async () => {
+  // The whole point of the choice: a type the page can name and the record has never caught has
+  // no row anywhere else, so this is the only place a Lancaster can be picked before one flies.
+  const { context, page } = await openPage([[[]]]);
+  await page.route('**/api/geo/search**', placeStub);
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+
+  await pickPlace(page, 'Stoney Creek Ontario');
+  await chooseDistance(page);
+  await page.waitForTimeout(900);
+
+  await page.$$eval('#seenFilter button', (items) => {
+    const chip = items.find((item) => /no data/i.test(item.textContent));
+    if (chip) chip.click();
+  });
+  await page.waitForTimeout(700);
+
+  const state = await whatIsOnScreen(page);
+  assertOnScreen(state, 'under the never-caught choice');
+
+  const text = await page.$eval('#typeList', (el) => el.textContent);
+  for (const name of ['Lancaster', 'Mitchell', 'Dakota']) {
+    assert.match(text, new RegExp(name, 'i'), `the never-caught list does not name the ${name}`);
+  }
+  // And it says why they are there, rather than looking like a page with no data.
+  assert.match(state.noteText, /never caught|not available|no date/i,
+    `the never-caught choice does not explain itself: ${state.noteText}`);
+
+  await context.close();
+});
