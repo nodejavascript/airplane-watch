@@ -3930,7 +3930,92 @@ class Page {
           ? 'How far out from the airports you picked?'
           : 'How far out from the airport?';
     }
+    this.renderFenceFrom();
     this.renderMap();
+  }
+
+  /**
+   * 🔴 WHAT THE FENCE IS MEASURED FROM, SAID OUT LOUD.
+   *
+   * George, 21 Sep 2026: *"i wanrt from my location"*.
+   *
+   * The page already aims at the reader once a place is known — `point()` returns
+   * `this.centre` first. The gap is what it does when there is NO place: it falls
+   * back to the airport **silently**, and the only sign is the heading quietly asking
+   * a different question. So a reader who has picked Hamilton and never said where
+   * they are gets a 20 km circle drawn round CYHM, a list of what the feed can see
+   * near the AIRPORT, and a page whose own promise is *"what is in the air around
+   * you"*. The number is right and the centre is wrong, which is the harder kind of
+   * error to notice.
+   *
+   * So the control now names its own centre, and when the centre is not the reader it
+   * offers the one click that makes it so. Nothing is applied without that click: the
+   * site does not ask the browser for a position it was not given.
+   */
+  private renderFenceFrom(): void {
+    const host = byId('fenceFrom');
+    const button = byId<HTMLButtonElement>('fenceFromLocate');
+    const shown = this.centre !== null || this.airports.length > 0;
+    if (host) host.hidden = !shown;
+    if (!shown) {
+      if (button) button.hidden = true;
+      return;
+    }
+
+    if (this.centre) {
+      const { lead, tail } = this.nearbyPlaceLine();
+      const where = [lead, tail].filter(Boolean).join(' · ');
+      if (host) {
+        host.innerHTML =
+          `Every distance here is measured from <b>your location</b>` +
+          (where ? ` — ${escapeHtml(where)}` : '') +
+          `. The circle on the map is centred on you.`;
+      }
+      if (button) button.hidden = true;
+      return;
+    }
+
+    const picked = this.airports;
+    const codes = picked.map((one) => escapeHtml(one.icao)).join(', ');
+    const what = picked.length > 1
+      ? `the middle of the ${picked.length} airports you picked (${codes})`
+      : `the airport you picked (${codes})`;
+    if (host) {
+      host.innerHTML =
+        `Every distance here is measured from <b>${what}</b>, not from you — ` +
+        `and the list below is what the feed can see near there.`;
+    }
+    // Only offered when the browser could actually answer it.
+    if (button) button.hidden = !('geolocation' in navigator);
+  }
+
+  /**
+   * Ask the browser where the reader is, and name the place it gives back.
+   *
+   * Extracted so the distance control's own button and the "Or find me" button by
+   * the place search run the SAME path — two doors to one action, which is how it
+   * stays one action when either of them changes.
+   */
+  private askBrowserForPosition(note: HTMLElement | null): void {
+    if (!('geolocation' in navigator)) {
+      if (note) note.textContent = 'This browser cannot report a position. Search for a place by name instead.';
+      return;
+    }
+    if (note) note.textContent = 'Asking your browser where you are…';
+    track('locate_asked', {});
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        void this.nameMyPosition(position.coords.latitude, position.coords.longitude, note);
+      },
+      (error) => {
+        if (note) {
+          note.textContent =
+            `Your browser did not give a position (${error.message}). ` +
+            'Search for a place by name instead — nothing else on the page depends on knowing where you are.';
+        }
+      },
+      { timeout: 10_000, maximumAge: 300_000 }
+    );
   }
 
   private computeNearby(
@@ -4101,31 +4186,26 @@ class Page {
     this.bindPlaceSearch();
     const button = byId<HTMLButtonElement>('locateBtn');
     const note = byId('locateNote');
-    if (!button) return;
-    button.addEventListener('click', () => {
-      if (!('geolocation' in navigator)) {
-        if (note) note.textContent = 'This browser cannot report a position. Pick an airport by name instead.';
-        return;
-      }
-      button.disabled = true;
-      if (note) note.textContent = 'Asking your browser where you are…';
-      track('locate_asked', {});
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          button.disabled = false;
-          void this.nameMyPosition(position.coords.latitude, position.coords.longitude, note);
-        },
-        (error) => {
-          button.disabled = false;
-          if (note) {
-            note.textContent =
-              `Your browser did not give a position (${error.message}). Pick an airport by name below instead — ` +
-              'nothing else on the page depends on knowing where you are.';
-          }
-        },
-        { timeout: 10_000, maximumAge: 300_000 }
-      );
-    });
+    if (button) {
+      button.addEventListener('click', () => {
+        button.disabled = true;
+        this.askBrowserForPosition(note);
+        // Released straight away: `askBrowserForPosition` owns the pending message,
+        // and a button left disabled after a refusal is a door that looks shut.
+        button.disabled = false;
+      });
+    }
+    // 🔴 THE SAME ACTION, OFFERED WHERE THE READER LEARNS THE CENTRE IS WRONG. The
+    // distance control says what it is measuring from; this is the one click that
+    // changes it. Two doors, one path — so they cannot drift apart.
+    const fromButton = byId<HTMLButtonElement>('fenceFromLocate');
+    if (fromButton) {
+      fromButton.addEventListener('click', () => {
+        fromButton.disabled = true;
+        this.askBrowserForPosition(note);
+        fromButton.disabled = false;
+      });
+    }
   }
 
   /**

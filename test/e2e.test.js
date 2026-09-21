@@ -1644,3 +1644,70 @@ test('the never-caught choice names the aircraft that have never been seen here'
 
   await context.close();
 });
+
+test('the distance control says what it is measured from, and offers the fix when it is not you', async () => {
+  // George, 21 Sep 2026: *"i wanrt from my location"*. Two states, and the point of the
+  // change is that they are now DISTINGUISHABLE on the page. Before it, a reader with
+  // no place was told "How far out from the airport?" and nothing else — the circle on
+  // the map and every distance in the list were measured from an airport, under a page
+  // promising "what is in the air around you".
+  //
+  // 1 · NO PLACE — the line must say so, and offer the one click that fixes it.
+  const a = await openPage([[]]);
+  try {
+    await a.page.addInitScript(() => window.localStorage.clear());
+    await a.page.goto(BASE, { waitUntil: 'load' });
+    await a.page.waitForTimeout(1200);
+
+    const noPlace = await a.page.evaluate(() => {
+      const t = (id) => { const e = document.getElementById(id); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; };
+      return {
+        head: t('radiusHead'),
+        from: t('fenceFrom'),
+        lineHidden: document.getElementById('fenceFrom').hidden,
+        buttonHidden: document.getElementById('fenceFromLocate').hidden,
+        buttonText: t('fenceFromLocate'),
+      };
+    });
+    assert.ok(!noPlace.lineHidden, 'with an airport picked the line must be shown');
+    assert.match(noPlace.from, /not from you/,
+      `with no place the line must say the centre is not the reader, got: ${noPlace.from}`);
+    assert.match(noPlace.from, /CYHM/, 'the line must name the airport it is measuring from');
+    assert.equal(noPlace.buttonHidden, false,
+      'the one-click fix must be offered when the centre is not the reader');
+    assert.match(noPlace.buttonText, /my location/i, 'the button must name the action');
+  } finally {
+    await a.context.close();
+  }
+
+  // 2 · A PLACE IS SET — the line must name it, and the button must go away. A button
+  // offering to fix a centre that is already the reader is a door to nowhere.
+  const b = await openPage([[]]);
+  try {
+    await b.page.addInitScript(() => {
+      window.localStorage.setItem('aircraft_centre',
+        JSON.stringify({ lat: 43.2560802, lon: -79.8728583, label: 'Hamilton' }));
+    });
+    await b.page.goto(BASE, { waitUntil: 'load' });
+    await b.page.waitForTimeout(1500);
+
+    const withPlace = await b.page.evaluate(() => {
+      const t = (id) => { const e = document.getElementById(id); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; };
+      return {
+        head: t('radiusHead'),
+        from: t('fenceFrom'),
+        buttonHidden: document.getElementById('fenceFromLocate').hidden,
+      };
+    });
+    assert.match(withPlace.from, /your location/i,
+      `with a place set the line must name the reader, got: ${withPlace.from}`);
+    assert.match(withPlace.from, /Hamilton/, 'the line must name the place');
+    assert.doesNotMatch(withPlace.from, /not from you/,
+      'the line still claims the centre is not the reader');
+    assert.equal(withPlace.buttonHidden, true,
+      'the fix is still offered after the centre became the reader');
+    assert.match(withPlace.head, /from you/i, 'the heading did not follow the centre');
+  } finally {
+    await b.context.close();
+  }
+});

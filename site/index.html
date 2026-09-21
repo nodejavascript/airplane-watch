@@ -232,6 +232,21 @@
         <h3 class="subhead" id="radiusHead">How far out from you?</h3>
         <div id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
 
+        <!--
+          🔴 WHAT THE FENCE IS MEASURED FROM, SAID OUT LOUD.
+
+          George, 21 Sep 2026: *"i wanrt from my location"*. The page already
+          measures from the reader once a place is known — but with no place it
+          falls back to an AIRPORT, and the only sign is the heading asking a
+          slightly different question. A reader who has picked Hamilton and never
+          said where they are gets a 20 km circle drawn round CYHM and a list of
+          what is near the AIRPORT, which is not the question this site exists to
+          answer. So the distance control now states its own centre, and when that
+          centre is not the reader it offers the one click that makes it so.
+        -->
+        <p class="small muted" id="fenceFrom"></p>
+        <button type="button" class="ghost" id="fenceFromLocate" data-ga="fence-from-locate" hidden>Measure from my location</button>
+
         <div id="locMap"></div>
       </section>
 

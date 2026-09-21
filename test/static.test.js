@@ -1102,3 +1102,53 @@ test('an empty type list NAMES THE WINDOW when the window is the reason', () => 
   assert.match(app, /private emptyMessage\(counts: \{/, 'emptyMessage no longer receives the counts');
   assert.match(app, /this\.emptyMessage\(counts\)/, 'the counts are not passed to emptyMessage');
 });
+
+/* ---------------------------------------- the fence says what it measures from ---
+ */
+
+test('the distance control names its own centre, in the page and in both branches', () => {
+  // George, 21 Sep 2026: *"i wanrt from my location"*. The page already aimed at the
+  // reader once a place was known — the fault was that with NO place it fell back to
+  // an airport silently, so a reader who had picked Hamilton got a 20 km circle round
+  // CYHM and a list of what was near the AIRPORT, under a page whose promise is "what
+  // is in the air around you". The number was right and the centre was wrong.
+  assert.match(htmlCode, /id="fenceFrom"/, 'the fence-origin line is not in the page');
+  const button = htmlCode.match(/<button[^>]*id="fenceFromLocate"[^>]*>/);
+  assert.ok(button, 'the one-click location button is not in the page');
+  // It ships hidden: with no centre AND no airport there is nothing to measure from,
+  // and a button offering to fix a centre that is not being used is noise.
+  assert.match(button[0], /\bhidden\b/, 'the button is not hidden by default');
+  // Both branches must exist as code, not just as prose.
+  assert.match(appJs, /measured from <b>your location<\/b>/, 'the from-you branch is gone');
+  assert.match(appJs, /not from you/, 'the not-from-you branch is gone');
+  assert.match(appJs, /centred on you/, 'the from-you branch no longer says what the circle means');
+});
+
+test('the two location doors share ONE geolocation path', () => {
+  // "Or find me" by the place search and "Measure from my location" under the distance
+  // control are the same action. Two copies of a `getCurrentPosition` call is how the
+  // two doors start behaving differently — and this page has already had a "the same
+  // thing, written twice" defect in the postal work.
+  const calls = (appJs.match(/navigator\.geolocation\.getCurrentPosition/g) || []).length;
+  assert.equal(calls, 1,
+    `getCurrentPosition is called from ${calls} places — the doors have drifted apart`);
+  assert.match(appJs, /askBrowserForPosition/, 'the shared path is gone');
+  const bound = (appJs.match(/this\.askBrowserForPosition\(/g) || []).length;
+  assert.ok(bound >= 2, `only ${bound} button(s) are wired to the shared path`);
+  // 🔴 AND EVERY CALL SITS INSIDE A CLICK. The first cut of this check looked for a
+  // call that STARTS a line, which is not the same thing: the calls are indented two
+  // lines inside their handlers, so the check failed against correct code. A false
+  // failure teaches the reader to distrust the gate, so the assertion is rewritten to
+  // test what it actually means — that each call is reached from an addEventListener,
+  // and none of them runs while the module is loading.
+  const lines = appJs.split('\n');
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!/this\.askBrowserForPosition\(/.test(lines[i])) continue;
+    const above = lines.slice(Math.max(0, i - 6), i).join('\n');
+    assert.match(above, /addEventListener\('click'/,
+      `a call to askBrowserForPosition at line ${i + 1} is not behind a click`);
+    // and it must not be a top-level statement, which would run on load
+    assert.ok(/^\s{6,}/.test(lines[i]),
+      `a call to askBrowserForPosition at line ${i + 1} is not inside a handler`);
+  }
+});
