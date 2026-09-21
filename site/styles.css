@@ -515,10 +515,17 @@ main {
   margin-bottom: 12px;
 }
 
+/* 🔴 THE FIELD CLAIMS THE WHOLE ROW SO THE INPUT CAN BE FULL WIDTH. The form is
+ * a wrapping flex row: a field asking for 100% takes the row, and the two
+ * buttons fall onto the line beneath it instead of squeezing the input into
+ * whatever is left over. `min-width: 0` defeats a flex item's automatic
+ * minimum size, which is what otherwise refuses to let the input shrink. */
 .field {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  flex: 1 1 100%;
+  min-width: 0;
 }
 
 .label {
@@ -535,7 +542,8 @@ main {
   background: rgba(2, 10, 16, 0.7);
   color: var(--ink);
   font: inherit;
-  min-width: 190px;
+  width: 100%;
+  min-width: 0;
 }
 
 .field input:focus {
@@ -1867,6 +1875,28 @@ main > #status {
 .watch-what .mark-star {
   fill: #f0be5a;
   align-self: center;
+}
+
+/* ---------------------------------------------------------------------------
+ * The count that ends the filter note.
+ *
+ * 🔴 ON ITS OWN LINE, AND HIGHLIGHTED. George, 21 Sep 2026: *"and Showing 32 of 143 types.
+ * should be on a new line and highlighted"*. It was the tail of a long grey paragraph, so
+ * the one number the reader actually wants was the least visible thing on the card. It is a
+ * block so it cannot run into the sentence before it, and it takes the theme colour because
+ * a count is a result, not a caveat.
+ * ------------------------------------------------------------------------ */
+.filter-count {
+  display: block;
+  margin-top: 4px;
+  color: var(--theme);
+  font-weight: 600;
+}
+
+/* Nothing is picked yet: the alert line and the table are removed rather than shown
+ * empty — see the note in index.html. */
+#liveAsk {
+  margin: 10px 0 0;
 }
 
 /* The folded state must not be re-opened behind the reader's back by the gate,

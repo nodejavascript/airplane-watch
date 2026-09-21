@@ -44,6 +44,7 @@ import {
   classLabel,
   describeType,
   isCivilClass,
+  knownTypeCodes,
   knownTypeCount,
   type AircraftClass,
 } from './typeinfo.js';
@@ -1555,6 +1556,10 @@ class Page {
   private renderAircraft(): void {
     const body = byId('aircraftBody');
     if (!body || !this.engine) return;
+    // 🔴 THE GATE IS CHECKED ON EVERY DRAW, NOT ONLY WHEN A STAR IS PRESSED. A reload, a restored
+    // selection or a rule removed by clearing storage all land here, and the card must not be
+    // able to show a table whose list is empty because nothing was ever picked.
+    this.renderLiveGate();
 
     // 🔴 ONLY THE AIRCRAFT THE READER ACTUALLY ASKED ABOUT. George, 20 Sep 2026: *"this
     // should only list the selected flights and or tail"*.
@@ -1841,6 +1846,74 @@ class Page {
    * nobody presses does not stop anybody picking one.
    */
   /**
+   * The recorded types, PLUS a row for every code the page can name and the record has never
+   * caught.
+   *
+   * Used by the no-data choice only. The added rows carry zero sightings and a null date, which
+   * is the truth about them rather than a placeholder — the page knows the aeroplane exists and
+   * has never seen it, and that is exactly what "last seen: not available" means.
+   */
+  private withNeverCaught(recorded: ReturnType<Page['combinedTypes']>): ReturnType<Page['combinedTypes']> {
+    type Row = ReturnType<Page['combinedTypes']>[number];
+    const have = new Set(recorded.map((row) => row.code.toUpperCase()));
+    const extra: Row[] = [];
+    for (const code of knownTypeCodes()) {
+      const upper = code.toUpperCase();
+      if (have.has(upper)) continue;
+      extra.push({
+        code: upper,
+        seen: 0,
+        airports: [],
+        operators: [],
+        registrations: [],
+        lastSeen: null,
+        runsSeen: 0,
+        seenInAllRuns: 0,
+      });
+    }
+    return [...recorded, ...extra].sort((a, b) =>
+      describeType(a.code).name.localeCompare(describeType(b.code).name) || a.code.localeCompare(b.code)
+    );
+  }
+
+  /**
+   * 🔴 NOTHING PICKED IS NOT THE SAME AS NOTHING IN THE AIR, AND THE PAGE WAS SAYING THE WRONG ONE.
+   *
+   * George, 21 Sep 2026: *"if i have nothing selected, it should tell the user to select some
+   * first, so all of this ... should be removed and tell a message instead, then show [it] when
+   * airplane types are selected"*. With nothing starred, the card still printed the alert line and
+   * a full table whose only content was the sentence *"Nothing in the fence matches what you
+   * picked ... The feed can see 4 aircraft right now"* — which reads as the feed's shortcoming
+   * when it is the reader's own missing step. So the alert line and the table are REMOVED, not
+   * shown empty, and one sentence stands where they were.
+   *
+   * The test is the STARRED types (`typeRules`), not the bell: the bell is a separate list that
+   * does not change what the table lists, so arming a bell with nothing starred would still leave
+   * an empty table — see the note on `alertRules`.
+   */
+  private renderLiveGate(): void {
+    const ask = byId('liveAsk');
+    const block = byId('notifyBlock');
+    const table = byId('liveTable');
+    if (!ask || !block || !table) return;
+    const picked = this.typeRules.length;
+    if (picked === 0) {
+      block.hidden = true;
+      table.hidden = true;
+      ask.hidden = false;
+      ask.textContent =
+        'Nothing is picked yet, so there is nothing to list. Star the types you care about in ' +
+        'step 3 — or name a tail number — and the aircraft in your fence that match them will ' +
+        'appear here with an alert when one leaves.';
+      return;
+    }
+    block.hidden = false;
+    table.hidden = false;
+    ask.hidden = true;
+    ask.textContent = '';
+  }
+
+  /**
    * Why the type list is shorter than the record, in one clause per reason — or `''`.
    *
    * 🔴 ONE BUILDER, TWO CALL SITES, SO THE REASONS CANNOT DISAGREE. This sentence is printed
@@ -2031,21 +2104,29 @@ class Page {
           : hidden === 0
             ? ' Nothing is hidden by it at the moment: every sighting on record falls inside this window.'
             : ` This window is hiding ${hidden} type${hidden === 1 ? '' : 's'} from the list below.`;
-      // 🔴 THE COUNT GOES LAST. George, 20 Sep 2026: *"nobody reads this ... put the record count
-      // of airplane type after the filtering"*. It used to OPEN the sentence, so the reader met
-      // "25 of 134" before anything had told them what had been filtered out or why — a number
-      // with nothing to hang it on. Now the reason comes first and the number last, which is both
-      // the order it can be understood in and the position the eye finishes on.
+      // 🔴 THE COUNT GOES LAST, ON ITS OWN LINE, AND HIGHLIGHTED. George, 21 Sep 2026:
+      // *"nobody reads this ... put the record count of airplane type after the filtering"*,
+      // then *"and Showing 32 of 143 types. should be on a new line and highlighted"*. It used
+      // to OPEN the sentence, so the reader met a number before anything had told them what had
+      // been filtered out or why — and it was the tail of a long grey paragraph, which made the
+      // one number they actually want the least visible thing on the card. Now the reason comes
+      // first and the number is the last thing, on its own line, in the theme colour.
       //
       // And the trailing homily went with it — *"an aircraft that does not fly near you is not a
       // choice worth making"* explains a decision to a reader who never saw the alternative, and
       // `bite` already says how many were hidden.
-      parts.push(
+      const words =
         `${how}${bite} ` +
-          `${runs} look${runs === 1 ? '' : 's'} at the sky recorded so far` +
-          (span > 0 ? `, spanning ${this.spanText(span)}` : '') +
-          `. Showing ${counts.rows.length} of ${counts.total} type${counts.total === 1 ? '' : 's'}.`
-      );
+        `${runs} look${runs === 1 ? '' : 's'} at the sky recorded so far` +
+        (span > 0 ? `, spanning ${this.spanText(span)}` : '') +
+        '.';
+      // `innerHTML` rather than `textContent` so the count can be its own block. Nothing here is
+      // reader input, and the one interpolated string is the count itself.
+      note.innerHTML =
+        escapeHtml(`${parts.join(' ')} ${words}`) +
+        `<b class="filter-count">Showing ${counts.rows.length} of ${counts.total} ` +
+        `type${counts.total === 1 ? '' : 's'}.</b>`;
+      return;
     }
     note.textContent = parts.join(' ');
   }
@@ -2249,7 +2330,7 @@ class Page {
    */
   private typeRows(): {
     rows: ReturnType<Page['combinedTypes']>;
-    /** 🔴 EVERY TYPE THIS PAGE CAN NAME, SHOWN OR NOT — the denominator of the count. */
+    /** 🔴 EVERY TYPE THIS MODE COULD SHOW, SHOWN OR NOT — the denominator of the count. */
     total: number;
     droppedByAirport: number;
     droppedByKind: number;
@@ -2260,7 +2341,22 @@ class Page {
     const era = ERAS.find((candidate) => candidate.key === this.eraFilter) ?? ERAS[0];
     const seen = SEEN_CHOICES.find((candidate) => candidate.key === this.seenFilter) ?? SEEN_CHOICES[0];
     const picked = new Set(this.chosenIcaos());
-    const all = this.combinedTypes();
+    // 🔴 THE NO-DATA CHOICE GETS A DIFFERENT UNIVERSE, BECAUSE ITS OWN SENTENCE PROMISES ONE.
+    //
+    // George, 21 Sep 2026: *"the no data button shows nothing. it is supposed to show airplane
+    // types where the last seen is null or not available."* He is right, and it was worse than
+    // empty — it was impossible. `combinedTypes()` holds only what the record has SEEN, and every
+    // one of those carries a date: measured 21 Sep 2026, 136 seen and **0 of them with a null
+    // last-seen**, while the page can NAME 151 codes. So this filter could never show a thing.
+    //
+    // The 64 codes the page can name and the record has never caught ARE the set this choice
+    // describes, and they are worth having: almost the whole heritage fleet is in there — `LANC`
+    // (the Lancaster), `B25`, `DC3`, `T6`, `SPIT`, `LYSA`, `HURI`, `P51`, `CORS`. Every other
+    // choice on the row hides them for want of a date to compare, which is what the note already
+    // said. Only the candidate list changes: the airport, kind and year filters below still
+    // apply to these rows exactly as they do to the rest.
+    const recorded = this.combinedTypes();
+    const all = seen.mode === 'noData' ? this.withNeverCaught(recorded) : recorded;
     // 🔴 EVERY REASON IS COUNTED, BECAUSE THE PAGE NOW PRINTS THE COUNT. George, 20 Sep 2026:
     // *"when i updated the filter, i want the count of airplan types"*. A count is only worth
     // showing if it can be accounted for, so each branch below increments its own reason and
@@ -2282,7 +2378,19 @@ class Page {
       // the air in front of the reader right now, or a type the survey caught
       // somewhere it could not place — and hiding what is flying past would be the
       // wrong kind of tidy.
-      if (picked.size > 0 && row.airports.length > 0 && !row.airports.some((icao) => picked.has(icao))) {
+      //
+      // 🔴 AND SO DOES A TYPE THAT IS IN THE AIR NOW, WHATEVER THE SURVEY SAYS. Found
+      // 21 Sep 2026 underneath an end-to-end test that had failed for a reason which
+      // turned out to be data drift — and under that, a real defect. The survey's own
+      // record said `B738` had only ever been seen at **KBUF, Buffalo**, so a 737
+      // climbing over Hamilton at that moment was dropped from this list. A type that is
+      // not on the list cannot be starred, so the reader could not pick the aircraft they
+      // were watching and the live table stayed empty while the feed plainly showed it —
+      // and the row's own text said *"seen just now"* at the same time as the list said
+      // this type had never been here. The rule above already keeps a type overhead; this
+      // is that rule applied when the survey holds a record that disagrees with the sky.
+      const inTheAir = this.liveTypes.has(row.code.toUpperCase());
+      if (!inTheAir && picked.size > 0 && row.airports.length > 0 && !row.airports.some((icao) => picked.has(icao))) {
         droppedByAirport += 1;
         return false;
       }
@@ -2726,6 +2834,12 @@ class Page {
       // built by one method and printed here and under the list, so the two cannot disagree.
       const why = this.droppedReasons(counts);
       host.innerHTML = `<p class="muted small">${escapeHtml(this.emptyMessage() + (why ? ` ${why}.` : ''))}</p>`;
+      // 🔴 THE NOTE AND THE GATE ARE RENDERED ON THIS PATH TOO. The early return above used to
+      // leave the note showing the PREVIOUS filter's numbers — the same class of fault as the
+      // stale note found on 21 Sep 2026, on the one branch where the list is replaced by a
+      // sentence.
+      this.renderFilterNote();
+      this.renderLiveGate();
       return;
     }
 
@@ -2867,6 +2981,17 @@ class Page {
       measuredHtml +
       `<p class="small muted">Showing <b>${rows.length}</b> of ${counts.total} type${counts.total === 1 ? '' : 's'}` +
       `${why ? ` — ${escapeHtml(why)}` : ''}.</p>`;
+
+    // 🔴 THE NOTE ABOVE AND THE LIST BELOW ARE RENDERED FROM ONE CALL, BECAUSE THEY WERE
+    // DISAGREEING. Measured on George's own page, 21 Sep 2026: the note read *"Showing 136 of 136
+    // types"* while the line under the same list read *"Showing 58 of 136 types — 78 types have
+    // been seen around here, but not at the airports you picked."* The cause: the note was
+    // rendered when the survey loaded, BEFORE the saved airports were restored, so it counted a
+    // list with no airport filter applied — and eleven later call sites redrew the list without
+    // redrawing the note, so it never caught up. Anything that changes the list changes both, or
+    // the card contradicts itself.
+    this.renderFilterNote();
+    this.renderLiveGate();
 
     for (const button of host.querySelectorAll<HTMLButtonElement>('.type-toggle')) {
       button.addEventListener('click', () => {
@@ -3293,17 +3418,58 @@ class Page {
     // directly above code that does not do that. Two contradicting paragraphs about the same
     // three lines is how the next change gets made in the wrong direction.
     const metresPerDegLat = 110_574;
-    const metresPerDegLon = 111_320 * Math.max(0.2, Math.cos((midLat * Math.PI) / 180));
-    let zoom = 3;
-    for (let candidate = 15; candidate >= 3; candidate -= 1) {
-      const candidateScale = (156543.03392 * Math.cos((midLat * Math.PI) / 180)) / 2 ** candidate;
-      const wide = (spanLon * metresPerDegLon) / candidateScale;
-      const tall = (spanLat * metresPerDegLat) / candidateScale;
-      if (wide <= VIEW_W - PAD * 2 && tall <= VIEW_H - PAD * 2) {
-        zoom = candidate;
-        break;
+    const cosLat = Math.max(0.2, Math.cos((midLat * Math.PI) / 180));
+    const metresPerDegLon = 111_320 * cosLat;
+    /** The closest zoom at which a box this many degrees across fits the view. */
+    const fittest = (latDeg: number, lonDeg: number): number => {
+      for (let candidate = 15; candidate >= 3; candidate -= 1) {
+        const candidateScale = (156543.03392 * cosLat) / 2 ** candidate;
+        if (
+          (lonDeg * metresPerDegLon) / candidateScale <= VIEW_W - PAD * 2 &&
+          (latDeg * metresPerDegLat) / candidateScale <= VIEW_H - PAD * 2
+        ) {
+          return candidate;
+        }
       }
-    }
+      return 3;
+    };
+
+    // 🔴 THE AIRPORTS MAY WIDEN THE VIEW BY ONE STEP, AND NO MORE. Found by measuring the map
+    // across radius × airports rather than in one case, 21 Sep 2026 — after two rounds of
+    // telling George the map was fine, both of which had only looked at a single airport.
+    //
+    // What the numbers said (852×458 view, PAD 40):
+    //
+    //     8 km · 1 airport   fence 287 px — fills 76% of the usable height
+    //     8 km · 14 airports fence  72 px — fills 19%
+    //     0 km · 14 airports fence  11 px — fills  3%, a dot
+    //
+    // George, 21 Sep 2026: *"the map zoom should change to be zoomed out only to what is
+    // necessary"*. He is right, and this is where his two instructions actually collide:
+    // 20 Sep he asked that *"if i select multiple, make sure all are viewable in the maps"*,
+    // and a far airport can only be viewable by zooming out, which is exactly what shrinks the
+    // fence. Holding all fourteen is "necessary" for one request and absurd for the other.
+    //
+    // So neither is dropped: the fence's own fit is computed, the everything's fit is computed,
+    // and the airports are allowed to take the view exactly ONE zoom step wider than the fence
+    // needs. That still brings in every airport near enough to matter, and it stops a distant
+    // one from turning a 8 km fence into a speck. The reader is who the fence is about, so when
+    // the two disagree the fence wins — and the caption already names what is being watched.
+    //
+    // ⚠️ ONLY WHEN THE READER'S PLACE IS KNOWN. With no place, the fence is aimed at the middle
+    // of the picked airports and there is no "your area" to protect, so the airports keep
+    // setting the view outright — otherwise the circle would be drawn around marks that had
+    // been pushed off the map.
+    const spanForFence = anchor
+      ? {
+          lat: Math.max((this.radiusKm / 111.32) * 2, 0.02),
+          lon: Math.max((this.radiusKm / (111.32 * cosLat)) * 2, 0.02),
+        }
+      : { lat: spanLat, lon: spanLon };
+    const zoomForEverything = fittest(spanLat, spanLon);
+    const zoomForFence = fittest(spanForFence.lat, spanForFence.lon);
+    const zoom =
+      at && anchor ? Math.max(zoomForEverything, zoomForFence - 1) : zoomForEverything;
     const scale = (156543.03392 * Math.cos((midLat * Math.PI) / 180)) / 2 ** zoom;
 
     const span = 2 ** zoom;

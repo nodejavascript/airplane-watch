@@ -307,6 +307,20 @@ export function knownTypeCount(): number {
 }
 
 /**
+ * Every code this site can name.
+ *
+ * 🔴 THE LIST THE no-data CHOICE SHOWS, AND THE ONLY PLACE IT CAN COME FROM. A type the record has
+ * never caught has no row anywhere else — not in `types.json`, not in the live feed — so the only
+ * honest source for "types whose last seen is not available" is the set of codes this site knows
+ * the name of. Measured 21 Sep 2026: 151 codes named, 136 ever seen, 64 of them never caught, and
+ * that 64 is most of the heritage fleet (`LANC`, `B25`, `DC3`, `T6`, `SPIT`, `LYSA`, `HURI`, `P51`,
+ * `CORS`). Returning a copy, because a caller that sorted it in place would be editing the table.
+ */
+export function knownTypeCodes(): string[] {
+  return Object.keys(TABLE);
+}
+
+/**
  * The order the classes are offered in.
  *
  * 🔴 WARPLANES IS FIRST, AND THAT IS GEORGE'S INSTRUCTION, NOT AN ACCIDENT OF

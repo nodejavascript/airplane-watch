@@ -258,12 +258,21 @@
           the air around them"* is his own sentence, and a page that can no longer ask
           for a notification has dropped the thing it is for.
         -->
-        <div class="notify">
+        <div class="notify" id="notifyBlock">
           <button id="notifyBtn" class="ghost" type="button" data-ga="notify">Tell me when they leave</button>
           <p class="small muted" id="notifyNote"></p>
         </div>
+
+        <!--
+          🔴 NOTHING PICKED IS NOT THE SAME AS NOTHING IN THE AIR. George, 21 Sep 2026: *"if i
+          have nothing selected, it should tell the user to select some first, so all of this
+          ... should be removed and tell a message instead, then show [it] when airplane types
+          are selected"*. So the alert line and the table are REMOVED — not shown empty — until
+          something is starred, and this sentence stands in their place.
+        -->
+        <p class="small muted" id="liveAsk" hidden></p>
         
-        <div class="table-wrap">
+        <div class="table-wrap" id="liveTable">
           <table class="aircraft">
             <caption class="visually-hidden">Aircraft currently inside the fence that match the types and tail numbers you picked, grouped by type</caption>
             <thead>
