@@ -1588,12 +1588,14 @@ class Page {
         if (!note)
             return;
         const parts = [];
+        // 🔴 THE YEAR PROVENANCE PARAGRAPH USED TO BE HERE, AND IT IS GONE. George, 20 Sep 2026,
+        // pasting it back: *"nobody reads this"*. He is right, and it was also the same fact twice:
+        // every row carries the source and the type-not-airframe caveat in its own tooltip
+        // (`yearTitle`), so printing it again above the list was a wall of grey text for a reader who
+        // had already been told. What stays is the one case that is NOT a duplicate — when the years
+        // could not be read at all, because then there is nothing on any row to explain why.
         if (this.yearsDoc === null) {
             parts.push('The first-flown years could not be read, so no year is shown and the year filter does nothing.');
-        }
-        else {
-            parts.push(`First-flown years for ${this.yearsDoc.resolved} of the ${this.yearsDoc.asked} type codes this site can ` +
-                `name, from ${this.yearsDoc.source}. ${this.yearsDoc.scope}`);
         }
         const rows = this.survey?.types ?? [];
         if (rows.length > 0) {
@@ -1616,13 +1618,13 @@ class Page {
             const how = window.mode === 'all'
                 ? 'Every type this site has ever recorded is shown, with no window at all.'
                 : window.mode === 'noData'
-                    ? 'A type is shown when NOTHING on record says when it was last seen here — a type this site can name and ' +
-                        'has never actually caught. Every other choice on this row hides these, because they have no date to compare.'
+                    ? 'Nothing on record says when these were last seen here — a type this site can name and has never ' +
+                        'caught. Every other choice on this row hides them, because they have no date to compare.'
                     : window.mode === 'rolling'
-                        ? `A type is shown when the last sighting here was within ${window.phrase ?? window.label} of right now — counted back ` +
-                            `from this moment, not from midnight, so the cut-off moves (it is ${formatWindowStart(start ?? new Date())} as you read this).`
-                        : `A type is shown when the last sighting here was at or after ${formatWindowStart(start ?? new Date())} — ` +
-                            `${window.label} by the clock on this machine, not a rolling count of days.`;
+                        ? `Last seen within ${window.phrase ?? window.label} — counted back from right now, not from midnight, ` +
+                            `so the cut-off moves (it is ${formatWindowStart(start ?? new Date())}).`
+                        : `Last seen at or after ${formatWindowStart(start ?? new Date())} — ${window.label} by the clock on ` +
+                            'this machine, not a rolling count of days.';
             // 🔴 HOW MANY IT IS ACTUALLY HIDING, COUNTED RATHER THAN ARGUED. The first version of
             // this sentence INFERRED the answer — it compared the date the record starts against
             // the date the window starts, and concluded that the window "currently includes
@@ -1637,18 +1639,34 @@ class Page {
             const bite = window.mode === 'all'
                 ? ''
                 : window.mode === 'noData'
-                    ? hidden === 0
+                    // 🔴 THIS SENTENCE PRINTED THE WRONG NUMBER, AND IT PRINTED IT BACKWARDS. In this
+                    // mode `droppedBySeen` counts the types that HAVE a date — precisely the ones NOT in
+                    // this state — so the note read *"59 types are in this state and shown below"*
+                    // immediately above *"Showing 0 of 129 types."* Two sentences in one paragraph
+                    // contradicting each other, which is the fault this whole note keeps having.
+                    //
+                    // The count of types IN this state is the count of ROWS, because keeping them is
+                    // exactly what this choice does. Found by reading the note back off the rendered page
+                    // in all ten modes rather than by reasoning about it.
+                    ? counts.rows.length === 0
                         ? ' Nothing is in this state at the moment: every type this site can name has at least one recorded sighting.'
-                        : ` ${hidden} type${hidden === 1 ? ' is' : 's are'} in this state and shown below.`
+                        : ` ${counts.rows.length} type${counts.rows.length === 1 ? ' is' : 's are'} in this state and shown below.`
                     : hidden === 0
                         ? ' Nothing is hidden by it at the moment: every sighting on record falls inside this window.'
                         : ` This window is hiding ${hidden} type${hidden === 1 ? '' : 's'} from the list below.`;
-            parts.push(`Showing ${counts.rows.length} of ${counts.total} type${counts.total === 1 ? '' : 's'}. ` +
-                `Last seen: ${runs} look${runs === 1 ? '' : 's'} at the sky recorded so far` +
-                (span > 0 ? `, spanning ${this.spanText(span)}.` : '.') +
-                ` ${how}${bite}` +
-                ' A type that does not qualify is hidden rather than offered — an aircraft that does not fly near' +
-                ' you is not a choice worth making.');
+            // 🔴 THE COUNT GOES LAST. George, 20 Sep 2026: *"nobody reads this ... put the record count
+            // of airplane type after the filtering"*. It used to OPEN the sentence, so the reader met
+            // "25 of 134" before anything had told them what had been filtered out or why — a number
+            // with nothing to hang it on. Now the reason comes first and the number last, which is both
+            // the order it can be understood in and the position the eye finishes on.
+            //
+            // And the trailing homily went with it — *"an aircraft that does not fly near you is not a
+            // choice worth making"* explains a decision to a reader who never saw the alternative, and
+            // `bite` already says how many were hidden.
+            parts.push(`${how}${bite} ` +
+                `${runs} look${runs === 1 ? '' : 's'} at the sky recorded so far` +
+                (span > 0 ? `, spanning ${this.spanText(span)}` : '') +
+                `. Showing ${counts.rows.length} of ${counts.total} type${counts.total === 1 ? '' : 's'}.`);
         }
         note.textContent = parts.join(' ');
     }
