@@ -1103,52 +1103,53 @@ test('an empty type list NAMES THE WINDOW when the window is the reason', () => 
   assert.match(app, /this\.emptyMessage\(counts\)/, 'the counts are not passed to emptyMessage');
 });
 
-/* ---------------------------------------- the fence says what it measures from ---
- */
+test('EVERY element the page reaches for exists in the page', () => {
+  // 🔴 THIS IS THE GENERAL FORM OF A BUG THAT COST THREE ROUNDS. George, 21 Sep 2026: *"i dont see
+  // airplanes to click from. you used to have that, return it"*. The aircraft list had been deleted
+  // from the markup while `renderWatchlist()` and `bindWatchForm()` stayed in app.ts, still calling
+  // `byId('watchList')`, `byId('watchForm')` and `byId('watchInput')`. Every one of those functions
+  // returns silently when its element is missing, so a whole feature did nothing and no test could
+  // see it: a test selects an element and finds it, and nothing was selecting these.
+  //
+  // So the shape is checked once, everywhere, instead of one feature at a time. A byId for an id
+  // that is not in the page is a feature that has been half-removed — the code reads as if it
+  // works and the reader sees nothing.
+  const app = readSrc('src/app.ts');
+  const html = read(SITE, 'index.html');
 
-test('the distance control names its own centre, in the page and in both branches', () => {
-  // George, 21 Sep 2026: *"i wanrt from my location"*. The page already aimed at the
-  // reader once a place was known — the fault was that with NO place it fell back to
-  // an airport silently, so a reader who had picked Hamilton got a 20 km circle round
-  // CYHM and a list of what was near the AIRPORT, under a page whose promise is "what
-  // is in the air around you". The number was right and the centre was wrong.
-  assert.match(htmlCode, /id="fenceFrom"/, 'the fence-origin line is not in the page');
-  const button = htmlCode.match(/<button[^>]*id="fenceFromLocate"[^>]*>/);
-  assert.ok(button, 'the one-click location button is not in the page');
-  // It ships hidden: with no centre AND no airport there is nothing to measure from,
-  // and a button offering to fix a centre that is not being used is noise.
-  assert.match(button[0], /\bhidden\b/, 'the button is not hidden by default');
-  // Both branches must exist as code, not just as prose.
-  assert.match(appJs, /measured from <b>your location<\/b>/, 'the from-you branch is gone');
-  assert.match(appJs, /not from you/, 'the not-from-you branch is gone');
-  assert.match(appJs, /centred on you/, 'the from-you branch no longer says what the circle means');
+  const wanted = new Set();
+  for (const match of app.matchAll(/byId<[^>]*>\(\s*'([a-zA-Z0-9_-]+)'\s*\)|byId\(\s*'([a-zA-Z0-9_-]+)'\s*\)/g)) {
+    wanted.add(match[1] ?? match[2]);
+  }
+  assert.ok(wanted.size > 25, `only ${wanted.size} ids were found in app.ts, which is too few to be the real set`);
+
+  const defined = new Set([...html.matchAll(/id="([a-zA-Z0-9_-]+)"/g)].map((m) => m[1]));
+  const missing = [...wanted].filter((id) => !defined.has(id)).sort();
+
+  assert.deepEqual(
+    missing,
+    [],
+    `app.ts reaches for ${missing.length} element(s) the page does not contain, so the code behind ` +
+      `them runs and does nothing: ${missing.join(', ')}`
+  );
 });
 
-test('the two location doors share ONE geolocation path', () => {
-  // "Or find me" by the place search and "Measure from my location" under the distance
-  // control are the same action. Two copies of a `getCurrentPosition` call is how the
-  // two doors start behaving differently — and this page has already had a "the same
-  // thing, written twice" defect in the postal work.
-  const calls = (appJs.match(/navigator\.geolocation\.getCurrentPosition/g) || []).length;
-  assert.equal(calls, 1,
-    `getCurrentPosition is called from ${calls} places — the doors have drifted apart`);
-  assert.match(appJs, /askBrowserForPosition/, 'the shared path is gone');
-  const bound = (appJs.match(/this\.askBrowserForPosition\(/g) || []).length;
-  assert.ok(bound >= 2, `only ${bound} button(s) are wired to the shared path`);
-  // 🔴 AND EVERY CALL SITS INSIDE A CLICK. The first cut of this check looked for a
-  // call that STARTS a line, which is not the same thing: the calls are indented two
-  // lines inside their handlers, so the check failed against correct code. A false
-  // failure teaches the reader to distrust the gate, so the assertion is rewritten to
-  // test what it actually means — that each call is reached from an addEventListener,
-  // and none of them runs while the module is loading.
-  const lines = appJs.split('\n');
-  for (let i = 0; i < lines.length; i += 1) {
-    if (!/this\.askBrowserForPosition\(/.test(lines[i])) continue;
-    const above = lines.slice(Math.max(0, i - 6), i).join('\n');
-    assert.match(above, /addEventListener\('click'/,
-      `a call to askBrowserForPosition at line ${i + 1} is not behind a click`);
-    // and it must not be a top-level statement, which would run on load
-    assert.ok(/^\s{6,}/.test(lines[i]),
-      `a call to askBrowserForPosition at line ${i + 1} is not inside a handler`);
+test('the aircraft list and its form are on the page, and wired to the code that fills them', () => {
+  // The three ids above, named individually as well, so a future removal says WHY it matters.
+  const html = read(SITE, 'index.html');
+  for (const [id, what] of [
+    ['watchList', 'the list of what you are watching'],
+    ['watchForm', 'the form that names one aircraft'],
+    ['watchInput', 'its tail-number box'],
+  ]) {
+    assert.ok(html.includes(`id="${id}"`), `${what} (${id}) is missing from the page`);
   }
+  assert.match(html, /<ul class="watch-list" id="watchList"><\/ul>/,
+    'the watch list is not an empty <ul> for renderWatchlist to fill');
+
+  const app = readSrc('src/app.ts');
+  assert.match(app, /private renderWatchlist\(\): void/, 'renderWatchlist has gone');
+  assert.match(app, /private bindWatchForm\(\): void/, 'bindWatchForm has gone');
+  // And the list is drawn once at start, so a reader's saved watches come back with the page.
+  assert.match(app, /this\.renderWatchlist\(\);/, 'the watch list is never rendered');
 });

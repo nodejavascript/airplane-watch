@@ -259,6 +259,42 @@
         <p class="small muted" id="filterNote">Loading what the feed has been showing…</p>
         <div class="typelist" id="typeList"></div>
         <p class="small muted" id="typeNote">Loading what the feed has been showing…</p>
+
+        <!--
+          🔴 ONE AIRCRAFT BY NAME, WHICH IS THE ALTERNATIVE TO PICKING A TYPE. A reader who knows
+          the tail number of the one aeroplane they care about should not have to hunt for its
+          type first — and this form is why the sentence on the live card can say "or name a tail
+          number" and be telling the truth.
+        -->
+        <h3 class="subhead" id="watchHead">Or one aircraft by name</h3>
+        <form id="watchForm" class="watch-form" autocomplete="off">
+          <label class="field">
+            <span class="label">Tail number</span>
+            <input id="watchInput" name="tail" type="text" placeholder="C-GVRA" spellcheck="false"
+              autocapitalize="characters" aria-describedby="watchNote" />
+          </label>
+          <button class="ghost" type="submit" data-ga="watch-aircraft">Watch this aircraft</button>
+        </form>
+        <p class="small muted" id="watchNote">Case and spacing do not matter. A tail number is
+          matched against what each aircraft transmits, so an airframe that sends no registration
+          cannot be found this way — the type list is the way to those.</p>
+      </section>
+
+      <!--
+        🔴 THE LIST OF WHAT YOU ARE WATCHING, AND IT WAS DELETED FROM THE PAGE WHILE ITS CODE STAYED.
+        George, 21 Sep 2026: *"i dont see airplanes to click from. you used to have that, return it"*.
+        `renderWatchlist()` and `bindWatchForm()` were still in src/app.ts, still reaching for
+        `#watchList`, `#watchForm` and `#watchInput` — three ids that existed nowhere in this file.
+        Both functions return on their first line when their element is missing, so they did
+        nothing at all, silently, and no test could see it: a test selects an element and finds it,
+        and nothing was selecting these. A feature that is half-removed is worse than one that is
+        gone, because the code reads as if it works.
+      -->
+      <section class="card step-gated" id="step-4" data-step="4" hidden>
+        <h2><span class="step">4</span> What you are watching</h2>
+        <p class="sub">Everything you have picked, in one place, with the way to stop watching each
+          one. The table below lists only what is on this list.</p>
+        <ul class="watch-list" id="watchList"></ul>
       </section>
 
       <section class="card" id="live">

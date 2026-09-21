@@ -1907,6 +1907,55 @@ main > #status {
 }
 
 /* ---------------------------------------------------------------------------
+ * "What you are watching" — one row per thing picked, each with its way out.
+ *
+ * 🔴 THE LIST HAD NO RULES AT ALL, because it had no markup: `#watchList` and
+ * `#watchForm` were deleted from the page while `renderWatchlist()` and
+ * `bindWatchForm()` stayed in app.ts reaching for them. `.watch-type`,
+ * `.watch-what` and `.year-tag` survived in here from before, which is how a
+ * deleted feature leaves a footprint — so the list is styled deliberately rather
+ * than being left to the browser's defaults for a `<ul>`.
+ * ------------------------------------------------------------------------ */
+.watch-list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.watch-list > li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+  line-height: 1.5;
+}
+
+.watch-list > li:first-child {
+  border-top: 0;
+}
+
+/* The star marks a row as watched, the same glyph the type row uses — one symbol
+ * for one idea, drawn in one place. */
+.watch-list .mark-star {
+  fill: #f0be5a;
+  flex: 0 0 auto;
+}
+
+.watch-list .watch-what {
+  flex: 1 1 auto;
+}
+
+/* The way out of a watch sits at the end of its own row, so it cannot be pressed
+ * by accident while reading the row. */
+.watch-list .type-remove,
+.watch-list .watch-remove {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* ---------------------------------------------------------------------------
  * The historic aircraft panel — when to look up.
  *
  * 🔴 THIS IS THE ONE PANEL ON THE CARD THAT ANSWERS A DIFFERENT QUESTION. Everything

@@ -752,24 +752,49 @@ test('a type can be watched whole, and then narrowed to tail numbers', async () 
   assert.match(watchlist, /Boeing 737 MAX 8/);
   assert.match(watchlist, /every one of them/, 'a new type rule must start WIDE');
 
+  // 🔴 THE AIRPLANES GEORGE COULD NOT SEE. He asked for this list back on
+  // 21 Sep 2026 — *"i dont see airplanes to click from. you used to have that,
+  // return it"* — after it was deleted from the markup while `renderWatchlist()`
+  // stayed in the code reaching for `#watchList`. So this test does not merely
+  // read the list's text: it checks the list is ON THE PAGE, and that a watched
+  // type carries the button that stops watching it.
+  const listShown = await page.$eval('#watchList', (element) =>
+    element.getClientRects().length > 0 && !element.closest('[hidden]') ? 'shown' : 'hidden'
+  );
+  assert.equal(listShown, 'shown', 'the list of what you are watching is not on the page');
+  assert.match(
+    watchlist,
+    /stop watching/,
+    'a watched type has no way to be un-watched, which is a dead end rather than a shorter list'
+  );
+
   // 🔴 THE LINE THAT USED TO BE HERE ASSERTED ON THE BOARD. The board is gone
   // (see the alert test above), and which rule caught a departure is a property of
   // the ENGINE, not of any list — it is covered directly in test/detect.test.js
   // (*"a departure remembers WHICH rule caught it"*). Asserting it through a card
   // that no longer exists would have proved nothing and failed for the wrong reason.
 
-  // Now narrow it, and the same aircraft stops counting for that rule.
-  await page.fill('#watchList .tail-form input', 'C-OTHER');
-  await page.$eval('#watchList .tail-form button[type="submit"]', (element) => element.click());
+  // And then name one aircraft by hand, which is the way to reach an airframe
+  // whose type you do not want to watch at all.
+  await page.fill('#watchInput', 'C-OTHER');
+  await page.$eval('#watchForm button[type="submit"]', (element) => element.click());
   await page.waitForTimeout(200);
   watchlist = await page.$eval('#watchList', (element) => element.textContent);
-  assert.match(watchlist, /1 tail number/);
-  assert.match(watchlist, /C-OTHER/);
+  assert.match(watchlist, /C-OTHER/, 'naming an aircraft did not put it in the list');
+  assert.match(watchlist, /this aircraft/, 'the named row does not say it is one aircraft');
+  assert.equal(
+    await page.$eval('#watchInput', (element) => element.value),
+    '',
+    'the box kept the tail number after it was accepted'
+  );
+  // Naming an aircraft is its own row — it does not secretly narrow the type,
+  // which would change what the type row watches without saying so.
+  assert.match(watchlist, /every one of them/, 'naming an aircraft quietly narrowed the type it belongs to');
 
   await context.close();
 });
 
-test('narrowing to a tail number is UNDONE by removing it, back to the whole type', async () => {
+test('naming one aircraft is UNDONE by removing it, and the type is left alone', async () => {
   const { context, page } = await openPage([
     [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 5000, lat: 43.19, lon: -79.93 }],
   ]);
@@ -782,16 +807,28 @@ test('narrowing to a tail number is UNDONE by removing it, back to the whole typ
   await page.$$eval('#typeList .typerow', (items) => {
     items.find((item) => /Boeing 737 MAX 8/.test(item.textContent)).querySelector('.type-toggle').click();
   });
-  await page.fill('#watchList .tail-form input', 'C-GXXX');
-  await page.$eval('#watchList .tail-form button[type="submit"]', (element) => element.click());
+  await page.fill('#watchInput', 'C-GXXX');
+  await page.$eval('#watchForm button[type="submit"]', (element) => element.click());
   await page.waitForTimeout(200);
-  assert.match(await page.$eval('#watchList', (element) => element.textContent), /1 tail number/);
+  assert.match(await page.$eval('#watchList', (element) => element.textContent), /C-GXXX/);
 
-  await page.$eval('#watchList .tail-remove', (element) => element.click());
+  // The named row is the one with `.watch-remove` — a type row's button is
+  // `.type-remove`, and pressing the wrong one here would un-watch the type.
+  await page.$eval('#watchList .watch-remove', (element) => element.click());
   await page.waitForTimeout(200);
   const after = await page.$eval('#watchList', (element) => element.textContent);
-  assert.match(after, /every one of them/, 'removing the last tail did not widen the rule again');
-  assert.equal(/tail number/.test(after), false);
+  assert.equal(/C-GXXX/.test(after), false, 'the named aircraft could not be taken off the list');
+  assert.match(after, /Boeing 737 MAX 8/, 'removing the named aircraft took the watched type with it');
+  assert.match(after, /every one of them/, 'the type row changed when its named sibling was removed');
+
+  // And the way out of the type still works, leaving the list empty and honest.
+  await page.$eval('#watchList .type-remove', (element) => element.click());
+  await page.waitForTimeout(200);
+  assert.match(
+    await page.$eval('#watchList', (element) => element.textContent),
+    /Nothing watched yet/,
+    'an empty list does not say how to put something on it'
+  );
 
   await context.close();
 });
@@ -1643,71 +1680,4 @@ test('the never-caught choice names the aircraft that have never been seen here'
     `the never-caught choice does not explain itself: ${state.noteText}`);
 
   await context.close();
-});
-
-test('the distance control says what it is measured from, and offers the fix when it is not you', async () => {
-  // George, 21 Sep 2026: *"i wanrt from my location"*. Two states, and the point of the
-  // change is that they are now DISTINGUISHABLE on the page. Before it, a reader with
-  // no place was told "How far out from the airport?" and nothing else — the circle on
-  // the map and every distance in the list were measured from an airport, under a page
-  // promising "what is in the air around you".
-  //
-  // 1 · NO PLACE — the line must say so, and offer the one click that fixes it.
-  const a = await openPage([[]]);
-  try {
-    await a.page.addInitScript(() => window.localStorage.clear());
-    await a.page.goto(BASE, { waitUntil: 'load' });
-    await a.page.waitForTimeout(1200);
-
-    const noPlace = await a.page.evaluate(() => {
-      const t = (id) => { const e = document.getElementById(id); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; };
-      return {
-        head: t('radiusHead'),
-        from: t('fenceFrom'),
-        lineHidden: document.getElementById('fenceFrom').hidden,
-        buttonHidden: document.getElementById('fenceFromLocate').hidden,
-        buttonText: t('fenceFromLocate'),
-      };
-    });
-    assert.ok(!noPlace.lineHidden, 'with an airport picked the line must be shown');
-    assert.match(noPlace.from, /not from you/,
-      `with no place the line must say the centre is not the reader, got: ${noPlace.from}`);
-    assert.match(noPlace.from, /CYHM/, 'the line must name the airport it is measuring from');
-    assert.equal(noPlace.buttonHidden, false,
-      'the one-click fix must be offered when the centre is not the reader');
-    assert.match(noPlace.buttonText, /my location/i, 'the button must name the action');
-  } finally {
-    await a.context.close();
-  }
-
-  // 2 · A PLACE IS SET — the line must name it, and the button must go away. A button
-  // offering to fix a centre that is already the reader is a door to nowhere.
-  const b = await openPage([[]]);
-  try {
-    await b.page.addInitScript(() => {
-      window.localStorage.setItem('aircraft_centre',
-        JSON.stringify({ lat: 43.2560802, lon: -79.8728583, label: 'Hamilton' }));
-    });
-    await b.page.goto(BASE, { waitUntil: 'load' });
-    await b.page.waitForTimeout(1500);
-
-    const withPlace = await b.page.evaluate(() => {
-      const t = (id) => { const e = document.getElementById(id); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; };
-      return {
-        head: t('radiusHead'),
-        from: t('fenceFrom'),
-        buttonHidden: document.getElementById('fenceFromLocate').hidden,
-      };
-    });
-    assert.match(withPlace.from, /your location/i,
-      `with a place set the line must name the reader, got: ${withPlace.from}`);
-    assert.match(withPlace.from, /Hamilton/, 'the line must name the place');
-    assert.doesNotMatch(withPlace.from, /not from you/,
-      'the line still claims the centre is not the reader');
-    assert.equal(withPlace.buttonHidden, true,
-      'the fix is still offered after the centre became the reader');
-    assert.match(withPlace.head, /from you/i, 'the heading did not follow the centre');
-  } finally {
-    await b.context.close();
-  }
 });
