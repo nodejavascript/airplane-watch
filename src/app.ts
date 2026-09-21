@@ -2124,7 +2124,7 @@ class Page {
       // reader input, and the one interpolated string is the count itself.
       note.innerHTML =
         escapeHtml(`${parts.join(' ')} ${words}`) +
-        `<b class="filter-count">Showing ${counts.rows.length} of ${counts.total} ` +
+        ` <b class="filter-count">Showing ${counts.rows.length} of ${counts.total} ` +
         `type${counts.total === 1 ? '' : 's'}.</b>`;
       return;
     }
