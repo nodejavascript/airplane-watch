@@ -639,7 +639,6 @@ class Page {
         this.buildSeenFilter();
         this.renderPlace();
         this.renderWatchlist();
-        this.bindWatchForm();
         this.bindNotify();
         this.renderWatchButton();
         this.bindStepToggles();
@@ -2891,10 +2890,66 @@ class Page {
      * is — was drawn off the edge of the view and vanished. A map showing two of the
      * three airports you picked is worse than no map, because it looks complete.
      */
+    /**
+     * 🔴 WHAT THE MAP'S CIRCLE IS CENTRED ON, SAID OUT LOUD — AND WRITTEN BY THE MAP ITSELF.
+     *
+     * George, 21 Sep 2026: *"i wanrt from my location"*. With no place known the fence is
+     * aimed at the AIRPORT, silently, so a reader who picked Hamilton and never said where
+     * they are gets a circle round CYHM and a list of what the feed can see near the airport —
+     * while the page's own promise is *"what is in the air around you"*. The number is right
+     * and the centre is wrong, which is the harder kind of error to notice.
+     *
+     * 🔴 IT LIVES HERE, INSIDE THE MAP'S RENDERER, BECAUSE THAT IS WHAT IT DESCRIBES. It was
+     * previously called from elsewhere and was deleted from there, which left `#fenceFrom` on
+     * the page and EMPTY — a caption with nothing to say, found by a test that asked what the
+     * circle is centred on rather than whether the element existed. A caption drawn by its own
+     * renderer cannot be separated from the thing it captions again.
+     */
+    renderFenceFrom() {
+        const host = byId('fenceFrom');
+        const button = byId('fenceFromLocate');
+        const shown = this.centre !== null || this.airports.length > 0;
+        if (host)
+            host.hidden = !shown;
+        if (!shown) {
+            if (button)
+                button.hidden = true;
+            return;
+        }
+        if (this.centre) {
+            const { lead, tail } = this.nearbyPlaceLine();
+            const where = [lead, tail].filter(Boolean).join(' · ');
+            if (host) {
+                host.innerHTML =
+                    `The circle is centred on <b>your location</b>` +
+                        (where ? ` — ${escapeHtml(where)}` : '') +
+                        `. Everything on this page is measured from there.`;
+            }
+            if (button)
+                button.hidden = true;
+            return;
+        }
+        const picked = this.airports;
+        const codes = picked.map((one) => escapeHtml(one.icao)).join(', ');
+        const what = picked.length > 1
+            ? `the middle of the ${picked.length} airports you picked (${codes})`
+            : `the airport you picked (${codes})`;
+        if (host) {
+            host.innerHTML =
+                `The circle is centred on <b>${what}</b>, not on you — ` +
+                    `and the list below is what the feed can see near there.`;
+        }
+        // Offered only when the browser can answer, and never pressed for the reader.
+        if (button)
+            button.hidden = !('geolocation' in navigator);
+    }
     renderMap() {
         const host = byId('locMap');
         if (!host)
             return;
+        // The sentence belongs to the circle it describes, so it is written here, by the code
+        // that draws it. Its absence was measurable: the element was on the page and empty.
+        this.renderFenceFrom();
         const at = this.centre;
         // 🔴 WHAT THE FENCE IS AIMED AT, WHICH IS NOT ALWAYS THE READER.
         //
@@ -3446,90 +3501,7 @@ class Page {
                     ? 'How far out from the airports you picked?'
                     : 'How far out from the airport?';
         }
-        this.renderFenceFrom();
         this.renderMap();
-    }
-    /**
-     * 🔴 WHAT THE FENCE IS MEASURED FROM, SAID OUT LOUD.
-     *
-     * George, 21 Sep 2026: *"i wanrt from my location"*.
-     *
-     * The page already aims at the reader once a place is known — `point()` returns
-     * `this.centre` first. The gap is what it does when there is NO place: it falls
-     * back to the airport **silently**, and the only sign is the heading quietly asking
-     * a different question. So a reader who has picked Hamilton and never said where
-     * they are gets a 20 km circle drawn round CYHM, a list of what the feed can see
-     * near the AIRPORT, and a page whose own promise is *"what is in the air around
-     * you"*. The number is right and the centre is wrong, which is the harder kind of
-     * error to notice.
-     *
-     * So the control now names its own centre, and when the centre is not the reader it
-     * offers the one click that makes it so. Nothing is applied without that click: the
-     * site does not ask the browser for a position it was not given.
-     */
-    renderFenceFrom() {
-        const host = byId('fenceFrom');
-        const button = byId('fenceFromLocate');
-        const shown = this.centre !== null || this.airports.length > 0;
-        if (host)
-            host.hidden = !shown;
-        if (!shown) {
-            if (button)
-                button.hidden = true;
-            return;
-        }
-        if (this.centre) {
-            const { lead, tail } = this.nearbyPlaceLine();
-            const where = [lead, tail].filter(Boolean).join(' · ');
-            if (host) {
-                host.innerHTML =
-                    `Every distance here is measured from <b>your location</b>` +
-                        (where ? ` — ${escapeHtml(where)}` : '') +
-                        `. The circle on the map is centred on you.`;
-            }
-            if (button)
-                button.hidden = true;
-            return;
-        }
-        const picked = this.airports;
-        const codes = picked.map((one) => escapeHtml(one.icao)).join(', ');
-        const what = picked.length > 1
-            ? `the middle of the ${picked.length} airports you picked (${codes})`
-            : `the airport you picked (${codes})`;
-        if (host) {
-            host.innerHTML =
-                `Every distance here is measured from <b>${what}</b>, not from you — ` +
-                    `and the list below is what the feed can see near there.`;
-        }
-        // Only offered when the browser could actually answer it.
-        if (button)
-            button.hidden = !('geolocation' in navigator);
-    }
-    /**
-     * Ask the browser where the reader is, and name the place it gives back.
-     *
-     * Extracted so the distance control's own button and the "Or find me" button by
-     * the place search run the SAME path — two doors to one action, which is how it
-     * stays one action when either of them changes.
-     */
-    askBrowserForPosition(note) {
-        if (!('geolocation' in navigator)) {
-            if (note)
-                note.textContent = 'This browser cannot report a position. Search for a place by name instead.';
-            return;
-        }
-        if (note)
-            note.textContent = 'Asking your browser where you are…';
-        track('locate_asked', {});
-        navigator.geolocation.getCurrentPosition((position) => {
-            void this.nameMyPosition(position.coords.latitude, position.coords.longitude, note);
-        }, (error) => {
-            if (note) {
-                note.textContent =
-                    `Your browser did not give a position (${error.message}). ` +
-                        'Search for a place by name instead — nothing else on the page depends on knowing where you are.';
-            }
-        }, { timeout: 10_000, maximumAge: 300_000 });
     }
     computeNearby(lat, lon, label = '', town = '', areas = [], 
     /**
@@ -3686,26 +3658,41 @@ class Page {
         this.bindPlaceSearch();
         const button = byId('locateBtn');
         const note = byId('locateNote');
-        if (button) {
-            button.addEventListener('click', () => {
-                button.disabled = true;
-                this.askBrowserForPosition(note);
-                // Released straight away: `askBrowserForPosition` owns the pending message,
-                // and a button left disabled after a refusal is a door that looks shut.
-                button.disabled = false;
-            });
-        }
-        // 🔴 THE SAME ACTION, OFFERED WHERE THE READER LEARNS THE CENTRE IS WRONG. The
-        // distance control says what it is measuring from; this is the one click that
-        // changes it. Two doors, one path — so they cannot drift apart.
+        // 🔴 TWO BUTTONS, ONE ACTION. `#fenceFromLocate` sits beside the map and asks exactly the
+        // same question as `#locateBtn` — put the fence on me — so both run this one handler
+        // rather than a second copy that would drift out of step. George, 21 Sep 2026:
+        // *"i wanrt from my location"*. BOTH bindings are needed: the fence button sat on the
+        // page with no listener at all after an edit removed the code that used to bind it.
+        //
+        // Each press reports into the note nearest it, so the message appears beside the control
+        // that was pressed rather than in another step of the page.
+        const aim = (pressed, into) => {
+            if (!('geolocation' in navigator)) {
+                if (into)
+                    into.textContent = 'This browser cannot report a position. Pick an airport by name instead.';
+                return;
+            }
+            pressed.disabled = true;
+            if (into)
+                into.textContent = 'Asking your browser where you are…';
+            track('locate_asked', {});
+            navigator.geolocation.getCurrentPosition((position) => {
+                pressed.disabled = false;
+                void this.nameMyPosition(position.coords.latitude, position.coords.longitude, into);
+            }, (error) => {
+                pressed.disabled = false;
+                if (into) {
+                    into.textContent =
+                        `Your browser did not give a position (${error.message}). Pick an airport by name below instead — ` +
+                            'nothing else on the page depends on knowing where you are.';
+                }
+            }, { timeout: 10_000, maximumAge: 300_000 });
+        };
+        if (button)
+            button.addEventListener('click', () => aim(button, note));
         const fromButton = byId('fenceFromLocate');
-        if (fromButton) {
-            fromButton.addEventListener('click', () => {
-                fromButton.disabled = true;
-                this.askBrowserForPosition(note);
-                fromButton.disabled = false;
-            });
-        }
+        if (fromButton)
+            fromButton.addEventListener('click', () => aim(fromButton, byId('fenceFrom')));
     }
     /**
      * Name the place the browser put us, and order the airports from it.
@@ -3887,32 +3874,20 @@ class Page {
             .join('');
     }
     /* ------------------------------------------------------------- watchlist */
-    bindWatchForm() {
-        const form = byId('watchForm');
-        const input = byId('watchInput');
-        if (!form || !input)
-            return;
-        form.addEventListener('submit', (event) => {
-            event.preventDefault();
-            const value = input.value.trim();
-            if (!value)
-                return;
-            this.addWatch(value);
-            input.value = '';
-        });
-    }
-    addWatch(key) {
-        const value = key.trim();
-        if (!value)
-            return;
-        if (this.watchlist.some((item) => normaliseKey(item) === normaliseKey(value)))
-            return;
-        this.watchlist.push(value);
-        this.saveWatchlist();
-        this.renderWatchlist();
-        this.renderAircraft();
-        track('aircraft_watched', { total: this.watchlist.length });
-    }
+    /**
+     * 🔴 THE BY-NAME FORM IS GONE, AND ITS CODE WENT WITH IT. George, 21 Sep 2026:
+     * *"### Or one aircraft by name i dont want this, just show a map"*.
+     *
+     * `bindWatchForm()`, `#watchForm`, `#watchInput` and `#watchStatus` are all removed
+     * together, and so is `addWatch()` — its only caller was this form. That matters more
+     * than it looks: deleting the markup while leaving the code behind is the exact fault
+     * this file was repaired for earlier the same day, because a handler that returns on a
+     * missing element does nothing, silently, and reads as if it works.
+     *
+     * A named aircraft can still be taken OFF the list — `renderWatchlist()` draws those
+     * rows and `removeWatch()` still serves them — so nobody is left holding a rule they
+     * cannot clear.
+     */
     removeWatch(key) {
         this.watchlist = this.watchlist.filter((item) => normaliseKey(item) !== normaliseKey(key));
         this.saveWatchlist();

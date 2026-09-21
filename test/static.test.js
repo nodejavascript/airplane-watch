@@ -1134,22 +1134,64 @@ test('EVERY element the page reaches for exists in the page', () => {
   );
 });
 
-test('the aircraft list and its form are on the page, and wired to the code that fills them', () => {
-  // The three ids above, named individually as well, so a future removal says WHY it matters.
+test('the list of what you are watching is on the page, and wired to the code that fills it', () => {
   const html = read(SITE, 'index.html');
-  for (const [id, what] of [
-    ['watchList', 'the list of what you are watching'],
-    ['watchForm', 'the form that names one aircraft'],
-    ['watchInput', 'its tail-number box'],
-  ]) {
-    assert.ok(html.includes(`id="${id}"`), `${what} (${id}) is missing from the page`);
-  }
+  assert.ok(html.includes('id="watchList"'), 'the list of what you are watching is missing from the page');
   assert.match(html, /<ul class="watch-list" id="watchList"><\/ul>/,
     'the watch list is not an empty <ul> for renderWatchlist to fill');
 
   const app = readSrc('src/app.ts');
   assert.match(app, /private renderWatchlist\(\): void/, 'renderWatchlist has gone');
-  assert.match(app, /private bindWatchForm\(\): void/, 'bindWatchForm has gone');
   // And the list is drawn once at start, so a reader's saved watches come back with the page.
   assert.match(app, /this\.renderWatchlist\(\);/, 'the watch list is never rendered');
+});
+
+test('the by-name form is GONE, and its code went with it', () => {
+  // 🔴 George, 21 Sep 2026: *"### Or one aircraft by name i dont want this, just show a
+  // map"*. The block is removed — and so is every piece of code that served it, because
+  // deleting markup while leaving a handler behind is the exact fault this page was
+  // repaired for earlier the same day: the handler returns on a missing element, does
+  // nothing, and reads as if it works.
+  const html = read(SITE, 'index.html');
+  const app = readSrc('src/app.ts');
+
+  for (const id of ['watchForm', 'watchInput', 'watchStatus', 'watchHead', 'watchNote']) {
+    assert.equal(html.includes(`id="${id}"`), false, `${id} is back on the page`);
+  }
+  assert.equal(/private bindWatchForm/.test(app), false, 'bindWatchForm is still in app.ts');
+  assert.equal(/private addWatch/.test(app), false, 'addWatch is still in app.ts — its only caller was the removed form');
+  assert.equal(/this\.bindWatchForm\(\)/.test(app), false, 'the removed form is still being bound at start');
+
+  // What must SURVIVE: the list, and the way to clear a named row that is already on it.
+  assert.match(app, /private renderWatchlist\(\): void/, 'the watch list went with the form');
+  assert.match(app, /private removeWatch\(/, 'a named aircraft already on the list can no longer be cleared');
+});
+
+test('the map is in the aircraft step, drawn, and there is exactly ONE of it', () => {
+  // 🔴 The map was MOVED rather than copied — George asked for it where the form was. Two
+  // maps on one page would drift apart, and there is one fence to draw. This guard exists
+  // because the first attempt at the move left a second copy behind, which is the kind of
+  // mistake a reader sees as two maps disagreeing.
+  const html = read(SITE, 'index.html');
+
+  assert.equal((html.match(/id="locMap"/g) ?? []).length, 1,
+    'the page has more than one map element, so two of them can disagree');
+  assert.equal((html.match(/id="fenceFrom"/g) ?? []).length, 1, 'the fence sentence exists more than once');
+  assert.equal((html.match(/id="fenceFromLocate"/g) ?? []).length, 1, 'the locate button exists more than once');
+
+  // Under the aircraft list, inside step 3 — not left behind in the distance step.
+  const typeListAt = html.indexOf('id="typeList"');
+  const mapAt = html.indexOf('id="locMap"');
+  const step4At = html.indexOf('id="step-4"');
+  assert.ok(typeListAt > -1 && mapAt > typeListAt, 'the map was not moved under the aircraft list');
+  assert.ok(mapAt < step4At, 'the map landed past the end of the step it belongs to');
+  // The sentence and the button belong to the map and travel with it; left behind, the
+  // distance step would describe a circle that is no longer drawn there.
+  assert.ok(html.indexOf('id="fenceFrom"') > typeListAt,
+    'the fence sentence stayed in the distance step without the map it describes');
+  assert.ok(html.indexOf('id="fenceFromLocate"') > typeListAt,
+    'the locate button stayed in the distance step without the map it moves');
+
+  // And the code still draws it, with no canvas left unclaimed.
+  assert.match(readSrc('src/app.ts'), /private renderMap\(\): void/, 'renderMap has gone');
 });

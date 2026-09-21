@@ -244,10 +244,9 @@
           answer. So the distance control now states its own centre, and when that
           centre is not the reader it offers the one click that makes it so.
         -->
-        <p class="small muted" id="fenceFrom"></p>
-        <button type="button" class="ghost" id="fenceFromLocate" data-ga="fence-from-locate" hidden>Measure from my location</button>
-
-        <div id="locMap"></div>
+        <p class="small muted" id="radiusNote">Everything on this page is measured from here. The
+          circle that shows it — and the map it is drawn on — sits under the aircraft list in
+          step 3, beside the things it is showing you.</p>
       </section>
 
       <section class="card step-gated" id="step-3" data-step="3" hidden>
@@ -261,23 +260,22 @@
         <p class="small muted" id="typeNote">Loading what the feed has been showing…</p>
 
         <!--
-          🔴 ONE AIRCRAFT BY NAME, WHICH IS THE ALTERNATIVE TO PICKING A TYPE. A reader who knows
-          the tail number of the one aeroplane they care about should not have to hunt for its
-          type first — and this form is why the sentence on the live card can say "or name a tail
-          number" and be telling the truth.
+          🔴 THE MAP, WHERE A FORM USED TO BE. George, 21 Sep 2026: *"### Or one aircraft by name
+          i dont want this, just show a map"*.
+
+          The by-name form is gone — heading, box, button, the note under it and the answer line
+          that went with it — and the map now sits at the end of this step, under the type list,
+          which is where the reader is standing when they have picked what they care about.
+
+          It was in step 1 with the distance buttons. It is the SAME map, moved rather than
+          copied: two maps on one page would drift apart, and there is one fence to draw. The
+          sentence above it and the button beside it belong to the map — they say what its circle
+          is centred on and offer the one click that moves that centre onto the reader — so they
+          travelled with it. Nothing was changed in how any of it works.
         -->
-        <h3 class="subhead" id="watchHead">Or one aircraft by name</h3>
-        <form id="watchForm" class="watch-form" autocomplete="off">
-          <label class="field">
-            <span class="label">Tail number</span>
-            <input id="watchInput" name="tail" type="text" placeholder="C-GVRA" spellcheck="false"
-              autocapitalize="characters" aria-describedby="watchNote" />
-          </label>
-          <button class="ghost" type="submit" data-ga="watch-aircraft">Watch this aircraft</button>
-        </form>
-        <p class="small muted" id="watchNote">Case and spacing do not matter. A tail number is
-          matched against what each aircraft transmits, so an airframe that sends no registration
-          cannot be found this way — the type list is the way to those.</p>
+        <p class="small muted" id="fenceFrom"></p>
+        <button type="button" class="ghost" id="fenceFromLocate" data-ga="fence-from-locate" hidden>Measure from my location</button>
+        <div id="locMap"></div>
       </section>
 
       <!--

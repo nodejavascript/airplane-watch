@@ -774,27 +774,19 @@ test('a type can be watched whole, and then narrowed to tail numbers', async () 
   // (*"a departure remembers WHICH rule caught it"*). Asserting it through a card
   // that no longer exists would have proved nothing and failed for the wrong reason.
 
-  // And then name one aircraft by hand, which is the way to reach an airframe
-  // whose type you do not want to watch at all.
-  await page.fill('#watchInput', 'C-OTHER');
-  await page.$eval('#watchForm button[type="submit"]', (element) => element.click());
-  await page.waitForTimeout(200);
-  watchlist = await page.$eval('#watchList', (element) => element.textContent);
-  assert.match(watchlist, /C-OTHER/, 'naming an aircraft did not put it in the list');
-  assert.match(watchlist, /this aircraft/, 'the named row does not say it is one aircraft');
-  assert.equal(
-    await page.$eval('#watchInput', (element) => element.value),
-    '',
-    'the box kept the tail number after it was accepted'
-  );
-  // Naming an aircraft is its own row — it does not secretly narrow the type,
-  // which would change what the type row watches without saying so.
-  assert.match(watchlist, /every one of them/, 'naming an aircraft quietly narrowed the type it belongs to');
+  // 🔴 AND THE BY-NAME FORM IS GONE. George, 21 Sep 2026: *"### Or one aircraft by
+  // name i dont want this, just show a map"*. So this test no longer types a tail
+  // number, and it asserts the form is really gone rather than quietly coming back:
+  // a test that only stopped using an element would pass over a page where half of
+  // the removed feature had returned.
+  assert.equal(await page.$('#watchInput'), null, 'the by-name box is back on the page');
+  assert.equal(await page.$('#watchForm'), null, 'the by-name form is back on the page');
+  assert.equal(await page.$('#watchHead'), null, 'the by-name heading is back on the page');
 
   await context.close();
 });
 
-test('naming one aircraft is UNDONE by removing it, and the type is left alone', async () => {
+test('removing the watched type empties the list, and the list says how to refill it', async () => {
   const { context, page } = await openPage([
     [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 5000, lat: 43.19, lon: -79.93 }],
   ]);
@@ -807,23 +799,12 @@ test('naming one aircraft is UNDONE by removing it, and the type is left alone',
   await page.$$eval('#typeList .typerow', (items) => {
     items.find((item) => /Boeing 737 MAX 8/.test(item.textContent)).querySelector('.type-toggle').click();
   });
-  await page.fill('#watchInput', 'C-GXXX');
-  await page.$eval('#watchForm button[type="submit"]', (element) => element.click());
-  await page.waitForTimeout(200);
-  assert.match(await page.$eval('#watchList', (element) => element.textContent), /C-GXXX/);
+  await page.waitForTimeout(300);
+  assert.match(await page.$eval('#watchList', (element) => element.textContent), /Boeing 737 MAX 8/);
 
-  // The named row is the one with `.watch-remove` — a type row's button is
-  // `.type-remove`, and pressing the wrong one here would un-watch the type.
-  await page.$eval('#watchList .watch-remove', (element) => element.click());
-  await page.waitForTimeout(200);
-  const after = await page.$eval('#watchList', (element) => element.textContent);
-  assert.equal(/C-GXXX/.test(after), false, 'the named aircraft could not be taken off the list');
-  assert.match(after, /Boeing 737 MAX 8/, 'removing the named aircraft took the watched type with it');
-  assert.match(after, /every one of them/, 'the type row changed when its named sibling was removed');
-
-  // And the way out of the type still works, leaving the list empty and honest.
+  // The way out of a watched type, and what the reader is left with.
   await page.$eval('#watchList .type-remove', (element) => element.click());
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(300);
   assert.match(
     await page.$eval('#watchList', (element) => element.textContent),
     /Nothing watched yet/,
@@ -1678,6 +1659,47 @@ test('the never-caught choice names the aircraft that have never been seen here'
   // And it says why they are there, rather than looking like a page with no data.
   assert.match(state.noteText, /never caught|not available|no date/i,
     `the never-caught choice does not explain itself: ${state.noteText}`);
+
+  await context.close();
+});
+
+/* ------------------------------------------------ the map, where the form was --- */
+
+/**
+ * George, 21 Sep 2026: *"### Or one aircraft by name i dont want this, just show a map"*.
+ *
+ * The map is MOVED rather than copied, so what must be proved is that it is in the step
+ * that lists the aircraft AND that there is still exactly one of it — the first attempt
+ * at the move left a second copy behind, and two maps on one page drift apart.
+ */
+test('the map sits under the aircraft list, is drawn, and there is only one of it', async () => {
+  const { context, page } = await openPage([]);
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
+  await page.waitForTimeout(1500);
+
+  assert.equal(await page.$$eval('#locMap', (nodes) => nodes.length), 1,
+    'there is not exactly one map on the page');
+
+  const where = await page.$eval('#locMap', (element) => element.closest('section')?.id ?? 'nowhere');
+  assert.equal(where, 'step-3', `the map is not in the step that lists the aircraft — it is in ${where}`);
+
+  // Drawn, not merely present: this map paints its own tiles.
+  const painted = await page.$eval('#locMap', (element) =>
+    element.querySelectorAll('.locmap-tile, canvas').length
+  );
+  assert.ok(painted > 0, 'the map is present but drawing nothing');
+
+  // And ON SCREEN, because being seen is the entire reason it was moved.
+  assert.ok(
+    await page.$eval('#locMap', (element) => element.getClientRects().length > 0),
+    'the map is not laid out on the page'
+  );
+
+  // The sentence that says what the circle is centred on came with it.
+  const fence = await page.$eval('#fenceFrom', (element) => element.textContent.replace(/\s+/g, ' ').trim());
+  assert.ok(fence.length > 0, 'the map is on the page but nothing says what its circle is centred on');
 
   await context.close();
 });
