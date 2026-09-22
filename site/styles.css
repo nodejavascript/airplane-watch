@@ -302,9 +302,21 @@ main {
  * pills become a wall. At 4px and 12.5px they are still comfortably pressable — the whole chip is the
  * target, not the text — and the widest row now fits on one line.
  * ------------------------------------------------------------------------ */
+/*
+ * 🔴 ROOM BETWEEN THE ROWS, AND NOT BETWEEN THE CHIPS INSIDE ONE.
+ *
+ * George, 22 Sep 2026: *"put vertical space between filter labels, they are way too close
+ * together"*. The panel was laid out with a single 4px gap doing both jobs, so a row's own chips
+ * sat as far from each other as two different labels did — and once the maker row began wrapping to
+ * a second line, five labels read as one undifferentiated block.
+ *
+ * So the space between ROWS is 10px, and the space inside a row stays 5px (`.filter-row .chips`).
+ * That difference is the whole point: a wrapped line still reads as part of the row above it, rather
+ * than as a new row that has lost its label.
+ */
 .filters {
   display: grid;
-  gap: 4px;
+  row-gap: 10px;
   margin: 0 0 12px;
   padding: 10px 12px;
   border: 1px solid var(--line);

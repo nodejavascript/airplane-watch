@@ -1155,6 +1155,19 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   assert.match(panelCss, /\.filters\s*\{[\s\S]{0,140}border-radius/,
     'the filters are not drawn as one panel');
 
+  // 🔴 AND THE ROWS BREATHE MORE THAN THE CHIPS INSIDE THEM. George, 22 Sep 2026: *"put vertical space
+  // between filter labels, they are way too close together"*. One 4px gap was doing both jobs, so a
+  // wrapped chip line sat as far from its own row as two different labels did — and with the maker row
+  // wrapping, five labels read as a single block. Asserted as a RELATIONSHIP rather than as two numbers,
+  // so tightening either one catches it whichever way it moves.
+  const rowGap = Number(/\.filters\s*\{[^}]*row-gap:\s*(\d+)px/.exec(panelCss)?.[1] ?? NaN);
+  const chipGap = Number(/\.filter-row \.chips\s*\{[^}]*gap:\s*(\d+)px/.exec(panelCss)?.[1] ?? NaN);
+  assert.ok(Number.isFinite(rowGap) && Number.isFinite(chipGap),
+    'the filter spacing could not be read, so this check would be vacuous');
+  assert.ok(rowGap >= 8, `the gap between filter rows is only ${rowGap}px, which is what he called too close`);
+  assert.ok(rowGap > chipGap,
+    `the gap between rows (${rowGap}px) is not bigger than the gap inside one row (${chipGap}px), so a wrapped line reads as a new row`);
+
   // 🔴 AND THE LAST-SEEN ROW CARRIES EIGHT WINDOWS, NOT TEN. George, 22 Sep 2026: *"for last seen remove
   // no data and remove 12 hours"* — twelve hours straddled a night and answered a question neither
   // neighbour did, and `no data` was a question about the RECORD sitting on a row about time.
