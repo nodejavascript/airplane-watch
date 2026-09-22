@@ -2137,9 +2137,15 @@ main > #status {
  * legend"*. It is one line per segment now, each carrying the class of what the aircraft did
  * between its two ends — so the drawing itself is the gradient.
  *
- * The three hues already mean something on this page, which is why they were chosen: green is
- * the "in the air" colour, amber is the gold of the reader's own marks, and grey is the status
- * grey. A colour invented for the map would be a fourth vocabulary on one screen.
+ * The three hues are not invented for the map, which is why these three were chosen: green is the
+ * "in the air" colour, amber is the gold of the reader's own marks, and BLUE is the page's own theme
+ * colour.
+ *
+ * 🔴 LEVEL WAS GREY AND GREY COULD NOT BE SEEN. George, 22 Sep 2026: *"level show be blue the color
+ * your are using is hard to see on the map."* He is right, and it was a fault in the DRAWING rather
+ * than in the palette: a grey line over OpenStreetMap's grey roads, grey buildings and grey land is
+ * a line a reader cannot follow — and the tiles are chosen by somebody else, so the trail has to
+ * carry its own contrast. Blue is that contrast, and it is also the page's own colour.
  * ------------------------------------------------------------------------ */
 .locmap-trail {
   stroke-width: 2.6;
@@ -2154,7 +2160,7 @@ main > #status {
 }
 
 .locmap-trail-level {
-  stroke: #94a3b8;
+  stroke: #3b82f6;
 }
 
 .locmap-trail-descend {
@@ -2162,11 +2168,13 @@ main > #status {
 }
 
 /* Dashed, because this is not a colour that means "level" — it means nobody reported a height,
- * and the two must not be painted the same way or the key would be lying. */
+ * and the two must not be painted the same way or the key would be lying. It is the same blue as
+ * level rather than the grey it started as: a hue that cannot be seen on the map cannot say anything
+ * on the map, and the dash is what carries the difference. */
 .locmap-trail-unknown {
-  stroke: #94a3b8;
+  stroke: #3b82f6;
   stroke-dasharray: 5 5;
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 /* ---------------------------------------------------------------------------
@@ -2202,7 +2210,7 @@ main > #status {
 }
 
 .locmap-legend .legend-level {
-  color: #94a3b8;
+  color: #3b82f6;
 }
 
 .locmap-legend .legend-descend {
@@ -2210,7 +2218,7 @@ main > #status {
 }
 
 .locmap-legend .legend-unknown {
-  color: #94a3b8;
+  color: #3b82f6;
   border-top-style: dashed;
   opacity: 0.7;
 }

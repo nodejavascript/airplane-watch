@@ -3886,8 +3886,8 @@ class Page {
                 ? 'The line behind an aircraft is the path it has flown in the last few minutes, drawn ' +
                     'from what this page has heard — the feed reports only where a plane is now. ' +
                     'Its colour is what the aircraft did between two readings: ' +
-                    '<b>green</b> where it gained height, <b>amber</b> where it lost it, <b>grey</b> where it ' +
-                    'held it, and a <b>dashed grey</b> where the reading carried no altitude to compare. ' +
+                    '<b>green</b> where it gained height, <b>amber</b> where it lost it, <b>blue</b> where it ' +
+                    'held it, and a <b>dashed blue</b> where the reading carried no altitude to compare. ' +
                     (graded > 0 ? '' : 'No aircraft on the map is reporting an altitude yet, so every path is dashed. ')
                 : '') +
             (unplaced > 0

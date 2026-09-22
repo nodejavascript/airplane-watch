@@ -1093,28 +1093,29 @@ test('the type section opens on a PLACE — the distance no longer gates it', ()
 
 test('the distance control sits ABOVE the map it draws, refreshed line first and right-aligned', () => {
   // 🔴 George, 22 Sep 2026: *"i want this above the map"*, then *"top above map right aligned"*, then
-  // *"remove Everything on this page is measured from here: …"*. All three are POSITION, so the check is
-  // an order: the refreshed line, the heading, the slider, the centre paragraph, then the map. A control
-  // that drifted back down the page would still be on the page, and a reader would still be told the
-  // circle is somewhere it is not.
+  // *"last refresh should be the first thing above the map, right aligned"*, then *"remove Everything
+  // on this page is measured from here: …"*. The last one settled it: the line belongs to the MAP, so
+  // it is the FIRST THING ABOVE THE MAP — the line the eye meets coming up off it — rather than the
+  // top of the block, where it sat under the watchlist and read as a footnote to that instead.
   const code = htmlCode;
-  const refreshed = code.indexOf('id="refreshedAgo"');
   const head = code.indexOf('id="radiusHead"');
   const buttons = code.indexOf('id="radiusButtons"');
   const fence = code.indexOf('id="fenceFrom"');
+  const refreshed = code.indexOf('id="refreshedAgo"');
   const map = code.indexOf('id="watchMap"');
 
   for (const [what, at] of [
-    ['the refreshed line', refreshed],
     ['the distance heading', head],
     ['the distance slider', buttons],
     ['the centre paragraph', fence],
+    ['the refreshed line', refreshed],
     ['the map', map],
   ]) {
     assert.ok(at > -1, `${what} is not on the page at all`);
   }
-  assert.ok(refreshed < head && head < buttons && buttons < fence && fence < map,
-    'the refreshed line, the distance control and the map are not in that order');
+  assert.ok(head < buttons && buttons < fence && fence < refreshed && refreshed < map,
+    'the distance control, the refreshed line and the map are not in that order');
+  assert.equal((code.match(/id="radiusRefreshed"/g) ?? []).length, 1, 'the refreshed line is on the page twice');
 
   // 🔴 AND THE NOTE HE REMOVED IS NOT BACK. It explained the control to a reader looking at the control.
   assert.equal(code.includes('id="radiusNote"'), false, 'the distance note is on the page again');

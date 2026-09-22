@@ -302,16 +302,6 @@
           the start (20 km, or whatever the reader last chose), step 3 arrives as soon as a place is
           known, and the slider here re-draws the circle and re-asks the feed at the distance chosen.
         -->
-        <!--
-          🔴 THE LINE IS THE TOP OF THIS BLOCK, RIGHT-ALIGNED, AND IT OPENS WITH "now".
-
-          George, 22 Sep 2026: *"Last refreshed not yet. start off my saying now. top above map right
-          aligned."* So it no longer opens on a placeholder that reads like a fault — a page that has
-          just loaded has not been refused anything, and "not yet" told the reader something was
-          missing when nothing was. The moment the first poll lands, the same line counts from it.
-        -->
-        <p class="small muted refreshed-line" id="radiusRefreshed">Last refreshed <b id="refreshedAgo">now</b>.</p>
-
         <h3 class="subhead" id="radiusHead">How far out from you?</h3>
         <div id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
 
@@ -339,6 +329,22 @@
         -->
         <p class="small muted" id="fenceFrom"></p>
         <button type="button" class="ghost" id="fenceFromLocate" data-ga="fence-from-locate" hidden>Measure from my location</button>
+
+        <!--
+          🔴 AND THIS IS THE FIRST THING ABOVE THE MAP — the line the eye meets when it comes up off
+          the map, right-aligned against the map's own edge.
+
+          George, 22 Sep 2026: *"last refresh should be the first thing above the map, right aligned"*.
+          It had been put at the TOP of this block, above the heading, which is directly beneath the
+          list of what you are watching — so it read as a footnote to the watchlist rather than as
+          anything to do with the map it was describing. It belongs to the map, so it sits on the map.
+
+          🔴 IT OPENS WITH "now", NOT WITH A PLACEHOLDER THAT READS LIKE A FAULT. George, the same
+          day: *"Last refreshed not yet. start off my saying now."* A page that has just loaded has
+          been refused nothing; the moment the first poll lands, this same line counts from it.
+        -->
+        <p class="small muted refreshed-line" id="radiusRefreshed">Last refreshed <b id="refreshedAgo">now</b>.</p>
+
         <div id="watchMap"></div>
       </section>
 
