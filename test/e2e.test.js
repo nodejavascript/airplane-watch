@@ -791,10 +791,18 @@ test('a type can be watched whole, and then narrowed to tail numbers', async () 
   // status code, like 'in the air', and if not in there air i want a different explanation why
   // its not on the map"*.
   assert.match(watchlist, /✕/, 'a watched type has no way to be un-watched, which is a dead end');
+  // 🔴 AND EVERY STATUS IS A TIME. George, 21 Sep 2026: *"not on the map — never caught here
+  // people will not understand this. make the messatge can be time related like was on map x
+  // hours ago, or minutes from now()"*.
   assert.match(
     watchlist,
-    /in the air|not on the map/,
-    `a watched row says nothing about what it is doing: ${watchlist}`
+    /in the air|on the map .*ago|not seen in \d+ day/,
+    `a watched row does not say when the type was last seen: ${watchlist}`
+  );
+  assert.equal(
+    /never caught here/.test(watchlist),
+    false,
+    `a watched row still uses wording the reader cannot follow: ${watchlist}`
   );
 
   // 🔴 THE LINE THAT USED TO BE HERE ASSERTED ON THE BOARD. The board is gone

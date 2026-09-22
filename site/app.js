@@ -1493,6 +1493,35 @@ class Page {
         return live.filter(by).length;
     }
     /**
+     * "4 minutes ago" / "3 hours ago" / "2 days ago" — always counted from NOW.
+     *
+     * 🔴 George, 21 Sep 2026: *"not on the map — never caught here people will not understand this.
+     * make the messatge can be time related like was on map x hours ago, or minutes from now()"*.
+     *
+     * He is right, and the wording was the smaller half of it. A reader looking at a row wants to
+     * know WHEN, and "never caught here" answers a different question in words that read as a
+     * fault in the page rather than a fact about an aeroplane. Everything the status says is now a
+     * time, and it is counted from the moment the reader is looking at it.
+     */
+    agoText(at) {
+        const minutes = Math.max(0, (Date.now() - at.getTime()) / 60_000);
+        if (minutes < 1)
+            return 'just now';
+        if (minutes < 60) {
+            const m = Math.round(minutes);
+            return `${m} minute${m === 1 ? '' : 's'} ago`;
+        }
+        const hours = minutes / 60;
+        if (hours < 24) {
+            const h = Math.round(hours);
+            return `${h} hour${h === 1 ? '' : 's'} ago`;
+        }
+        const days = Math.round(hours / 24);
+        if (days <= 45)
+            return `${days} day${days === 1 ? '' : 's'} ago`;
+        return `${Math.round(days / 30)} months ago`;
+    }
+    /**
      * 🔴 WHAT A WATCHED TYPE IS DOING RIGHT NOW, IN PLACE OF THE WORDS "STOP WATCHING".
      *
      * George, 21 Sep 2026: *"i want to change stop watching into a status code, like 'in the air',
@@ -1504,28 +1533,63 @@ class Page {
      * way out is still there, as a small ✕ with its own label, so nobody is left holding a rule
      * they cannot clear; what changed is that the row now answers the question it exists for.
      *
-     * Nothing is guessed. "in the air" means the feed can see one inside the fence now. Otherwise
-     * the reason it is absent is the last time this type was seen here — which is a fact the survey
-     * recorded, or the sentence that says it has never been caught.
+     * 🔴 EVERY ANSWER IS A TIME. "on the map 4 minutes ago" when the record holds a sighting, and
+     * "not seen in 2 days" — the span the record itself covers — when it holds none. Nothing is
+     * guessed: the live feed, or a sighting the survey recorded, or the width of the record.
      */
     watchStateOf(code, live) {
         const count = Page.countMatching(live, (one) => normaliseKey(one.type ?? '') === normaliseKey(code));
-        if (count > 0)
-            return { kind: 'air', text: count === 1 ? 'in the air' : `${count} in the air` };
+        if (count > 0) {
+            return {
+                kind: 'air',
+                text: count === 1 ? 'in the air' : `${count} in the air`,
+                why: 'The feed can hear this type inside your fence right now, so it is on the map below.',
+            };
+        }
         const at = this.lastSeenOf(code);
-        if (at === null)
-            return { kind: 'never', text: 'not on the map — never caught here' };
-        return { kind: 'recent', text: `not on the map — ${this.sinceText(at)}` };
+        if (at) {
+            const ago = this.agoText(at);
+            return {
+                kind: 'recent',
+                text: `on the map ${ago}`,
+                why: `This type was last seen here ${ago}. Nothing of it is inside your fence at this ` +
+                    'moment, so it is listed and not on the map now.',
+            };
+        }
+        // Nothing of this type in the record at all. The sentence still says WHEN — how long the
+        // record has been kept — because that is the honest width of the claim, and a span of time
+        // needs no explaining while the old wording did.
+        const days = Math.round(this.historySpanDays());
+        if (days >= 1) {
+            return {
+                kind: 'never',
+                text: `not seen in ${days} day${days === 1 ? '' : 's'}`,
+                why: `Nothing of this type has been seen in the ${days} days this record covers. It is on ` +
+                    'your list and not on the map because it has not flown here.',
+            };
+        }
+        return {
+            kind: 'never',
+            text: 'not seen yet',
+            why: 'The record has only just begun, so this type may simply not have had a chance to appear.',
+        };
     }
     /** The same question for one named aircraft, which is watched by its tail number. */
     watchStateOfTail(tail, live) {
         const count = Page.countMatching(live, (one) => normaliseKey(one.registration ?? '') === normaliseKey(tail));
-        if (count > 0)
-            return { kind: 'air', text: 'in the air' };
-        // A tail number is matched against what the aircraft transmits, and an airframe that sends no
-        // registration can never be found this way — so the honest reason is that the feed is not
-        // seeing it, rather than a last-seen date the page does not hold for a tail.
-        return { kind: 'recent', text: 'not on the map — the feed is not seeing it now' };
+        if (count > 0) {
+            return {
+                kind: 'air',
+                text: 'in the air',
+                why: 'The feed can hear this aircraft inside your fence right now, so it is on the map.',
+            };
+        }
+        return {
+            kind: 'recent',
+            text: 'not on the map now',
+            why: 'A tail number is matched against what the aircraft transmits, so it appears on the map ' +
+                'whenever the feed can hear it inside your fence — and it is not being heard at the moment.',
+        };
     }
     /**
      * 🔴 KEEP THE STATUS COLUMN HONEST, ONCE PER POLL, WITHOUT REBUILDING THE LIST.
@@ -1580,6 +1644,10 @@ class Page {
                 state.textContent = next.text;
             if (state.dataset.state !== next.kind)
                 state.dataset.state = next.kind;
+            // The explanation travels with the wording — a stale title would describe the status the
+            // row used to have.
+            if (state.title !== next.why)
+                state.title = next.why;
         }
     }
     yearOf(code) {
@@ -2851,8 +2919,11 @@ class Page {
                     : 'every one of them'}</b>` +
                 (narrowed ? ` <span class="mono muted">${escapeHtml(rule.tails.join(', '))}</span>` : '') +
                 '</span>' +
-                // The status replaces the words "stop watching" — see `watchStateOf`.
-                `<span class="watch-state" data-state="${state.kind}">${escapeHtml(state.text)}</span>` +
+                // The status replaces the words "stop watching" — see `watchStateOf`. Its `title`
+                // carries the longer explanation, so the column stays one line and the reasoning is
+                // still one hover away.
+                `<span class="watch-state" data-state="${state.kind}" ` +
+                `title="${escapeHtml(state.why)}">${escapeHtml(state.text)}</span>` +
                 `<button type="button" class="linkish type-remove" data-type="${escapeHtml(rule.type)}" ` +
                 `data-ga="type-unwatch" title="Stop watching" ` +
                 `aria-label="Stop watching ${escapeHtml(info.name)}">✕</button>` +
@@ -2864,7 +2935,8 @@ class Page {
             const state = this.watchStateOfTail(item, live);
             return (`<li class="watch-type"><span class="watch-what">${MARK_STAR}` +
                 `<span class="mono">${escapeHtml(item)}</span> — <b>this aircraft</b></span>` +
-                `<span class="watch-state" data-state="${state.kind}">${escapeHtml(state.text)}</span>` +
+                `<span class="watch-state" data-state="${state.kind}" ` +
+                `title="${escapeHtml(state.why)}">${escapeHtml(state.text)}</span>` +
                 `<button type="button" class="linkish watch-remove" data-key="${escapeHtml(item)}" ` +
                 `data-ga="unwatch" title="Stop watching" aria-label="Stop watching ${escapeHtml(item)}">✕</button></li>`);
         })

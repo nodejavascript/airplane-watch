@@ -1271,7 +1271,22 @@ test('a watched row reports what it is doing, and keeps its way out', () => {
   const state = app.slice(app.indexOf('private watchStateOf('), app.indexOf('private watchStateOfTail'));
   assert.match(state, /count > 0/, 'the status can say "in the air" without an aircraft in the air');
   assert.match(state, /this\.lastSeenOf\(code\)/, 'the reason it is not on the map is never looked up');
-  assert.match(state, /this\.sinceText\(at\)/, 'the status does not say when it was last seen');
+  // 🔴 EVERY STATUS IS A TIME. George, 21 Sep 2026: *"not on the map — never caught here people
+  // will not understand this. make the messatge can be time related like was on map x hours ago,
+  // or minutes from now()"*.
+  assert.match(state, /this\.agoText\(at\)/, 'the status does not say how long ago the type was seen');
+  assert.match(app, /private agoText\(at: Date\): string/, 'the relative-time wording has gone');
+  assert.match(state, /this\.historySpanDays\(\)/,
+    'a type with no sighting is not given the span the record actually covers');
+  assert.equal(/never caught here/.test(state), false,
+    'the status still uses wording the reader cannot follow');
+  // The longer explanation rides on the element rather than lengthening the column. `[\s\S]`
+  // rather than a negated backtick: the markup is built from two template literals, so the gap
+  // between the class and the title contains one.
+  assert.match(app, /class="watch-state"[\s\S]{0,160}?title="\$\{escapeHtml\(state\.why\)\}"/,
+    'the status carries no explanation for the reader who wants one');
+  assert.match(app, /if \(state\.title !== next\.why\) state\.title = next\.why;/,
+    'the explanation goes stale while the wording is refreshed');
 
   // The column is at the right of the row, does not wrap, and the cells have their margins back.
   assert.match(css, /\.watch-list > li\s*\{[^}]*padding:\s*9px 12px/s,
