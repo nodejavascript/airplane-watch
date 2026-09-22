@@ -308,12 +308,16 @@
             other choice on this page is a chip: one press, one answer, and the answer is printed on the
             chip before you press it.
 
-            🔴 AND THE FIRST CHIP IS `All`, WHICH IS GEORGE'S OWN LAST WORD ON THE ROW: *"at the begining
-            of distance, default select all"*, 22 Sep 2026. It is the widest fence the feed will serve —
-            250 nautical miles, which is the 463 km its tooltip names — and it is where a reader who has
-            chosen nothing stands. So it is the one chip here whose answer is not its own label: the seven
-            numbered stops carry their numbers, and this one carries the word for "everything the feed can
-            see" with the number in its tooltip.
+            🔴 AND THE FIRST CHIP IS `All`, WHICH IS THE WIDEST FENCE THE FEED WILL SERVE — 250 nautical
+            miles, which is the 463 km its tooltip names. It is the one chip here whose answer is not its
+            own label: the seven numbered stops carry their numbers, and this one carries the word for
+            "everything the feed can see" with the number in its tooltip.
+
+            🔴 AND A READER WHO HAS CHOSEN NOTHING STANDS ON **50 KM**, NOT ON `All`. George, 22 Sep 2026:
+            *"i want the default Distance to be 50km"*. *Prior wording, preserved and now dead:* *"AND THE
+            FIRST CHIP IS `All`, WHICH IS GEORGE'S OWN LAST WORD ON THE ROW: 'at the begining of distance,
+            default select all' … it is where a reader who has chosen nothing stands."* His next word on
+            the row superseded it: his own neighbourhood first, the continent on request.
           -->
           <div class="filter-row">
             <span class="chip-label" id="radiusButtonsLabel">Distance</span>
@@ -750,6 +754,24 @@
       <div class="confirm-actions">
         <button id="forgetCancel" class="ghost" type="button">Keep it</button>
         <button id="forgetGo" class="danger" type="button">Delete everything</button>
+      </div>
+    </dialog>
+
+    <!--
+      🔴 AND THE SAME BOX ANSWERS FOR THE CROSS ON A ROW. George, 22 Sep 2026: *"i do not want http
+      confirmations. make them html"*. This is the page's own confirmation, in the page's own colours:
+      one box, used by both kinds of row, whose first sentence is written when it opens so it names the
+      type or the tail that is about to go. `window.confirm` is the one thing this replaces — it is a
+      grey rectangle with the browser's name on it, its buttons are ordered by the browser, and it cannot
+      be read as part of the page.
+    -->
+    <dialog id="removeDialog" aria-labelledby="removeTitle">
+      <h2 id="removeTitle">Stop watching this?</h2>
+      <p id="removeWhat"></p>
+      <p>Nothing else changes: the other rows, your filters and where you are all stay as they are.</p>
+      <div class="confirm-actions">
+        <button id="removeCancel" class="ghost" type="button">Keep it</button>
+        <button id="removeGo" class="danger" type="button">Stop watching</button>
       </div>
     </dialog>
   </body>

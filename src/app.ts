@@ -191,11 +191,27 @@ const MAKER_OTHER = '*other';
 const RADIUS_LADDER = [25, 50, 75, 100, 150, 200, 400];
 
 /**
- * 🔴 `All` IS THE WIDEST FENCE THE FEED WILL SERVE, AND IT IS THE ONE A READER STARTS ON.
+ * 🔴 AND THE DISTANCE A READER STARTS ON IS 50 KM — ONE OF THE STOPS ABOVE, NEVER A NUMBER OF ITS OWN.
  *
- * George, 22 Sep 2026: *"at the begining of distance, default select all"*. So the row opens with `All`,
- * the chip a reader who has chosen nothing is standing on, and it is what the page asks the feed for
- * until somebody says otherwise.
+ * George, 22 Sep 2026: *"i want the default Distance to be 50km"*. It is a named constant rather than
+ * the literal `50` written into the field twice, because the default has to BE a stop: a default that
+ * is not on the ladder would light no chip, and `currentRadius()` — which snaps whatever is stored to
+ * the nearest stop — would then quietly answer a different question from the one the reader sees.
+ *
+ * *Prior value, preserved and now dead:* the starting distance was `RADIUS_ALL`, on his own instruction
+ * that day — *"at the begining of distance, default select all"*. `All` is still the widest fence the
+ * feed serves and is still the last chip; it is simply no longer what an unasked reader is given.
+ */
+const RADIUS_DEFAULT = 50;
+
+/**
+ * 🔴 `All` IS THE WIDEST FENCE THE FEED WILL SERVE — AND IT IS NO LONGER WHAT A READER STARTS ON.
+ *
+ * *Prior wording, preserved and now dead:* *"AND IT IS THE ONE A READER STARTS ON … So the row opens with
+ * `All`, the chip a reader who has chosen nothing is standing on, and it is what the page asks the feed
+ * for until somebody says otherwise."* **George changed the start on 22 Sep 2026: *"i want the default
+ * Distance to be 50km"*** — so a reader who has chosen nothing is given `RADIUS_DEFAULT`, and `All` is a
+ * stop they can press rather than the one they begin on.
  *
  * 🔴 463 km IS 250 NAUTICAL MILES, WHICH IS THE FEED'S OWN CEILING AND NOT A NUMBER OF MINE. Its endpoint
  * summary says it out loud — *"Aircrafts surrounding a point (lat, lon) up to 250nm"* — and `kmToNm(463)`
@@ -949,14 +965,17 @@ class Page {
   /** A pending immediate poll, so three re-aims in one moment are one request. */
   private pollSoon: number | null = null;
   /**
-   * The fence in use. A fresh visit starts on `All` — `RADIUS_ALL`, the widest the feed serves.
+   * The fence in use. A fresh visit starts on **50 km** — `RADIUS_DEFAULT`.
    *
-   * George, 22 Sep 2026: *"at the begining of distance, default select all"*. A reader who has chosen
-   * nothing is asking for everything the feed has, and narrows it by pressing a numbered stop; a value
-   * kept from an earlier visit is restored over this, and `currentRadius()` snaps whatever is stored to
-   * the nearest chip so a distance from an older ladder still lands on one.
+   * George, 22 Sep 2026: *"i want the default Distance to be 50km"*. *Prior wording, preserved and now
+   * dead:* *"A fresh visit starts on `All` — `RADIUS_ALL`, the widest the feed serves"*, which was his
+   * instruction the same day and is superseded by this one. A reader who has chosen nothing is looking
+   * around their own airport rather than at a quarter of the continent, and narrows or widens it by
+   * pressing a numbered stop; a value kept from an earlier visit is restored over this, and
+   * `currentRadius()` snaps whatever is stored to the nearest chip so a distance from an older ladder
+   * still lands on one.
    */
-  private radiusKm = RADIUS_ALL;
+  private radiusKm = RADIUS_DEFAULT;
   private lastPollAt = 0;
   private lastError = '';
   private polls = 0;
@@ -974,6 +993,14 @@ class Page {
    * One refresh of the filter results at a time — see `refreshFilterResults`.
    */
   private filterRefreshPending = false;
+
+  /**
+   * WHAT THE BOX IS ASKING ABOUT, OR `null`. Set when the question opens and cleared when it closes, so
+   * the answer can only ever act on the row that was named in the question the reader just read.
+   *
+   * See `askRemove` and `bindRemoveAsk`: the question and the deed are deliberately two methods.
+   */
+  private pendingRemove: { kind: 'type' | 'tail'; key: string } | null = null;
 
   /**
    * Type codes the feed itself marks as military, harvested by
@@ -1147,6 +1174,7 @@ class Page {
     this.renderWatchButton();
     this.bindStartOver();
     this.bindForgetMine();
+    this.bindRemoveAsk();
     this.bindFlightPick();
     this.bindLocate();
     this.bindChangePlace();
@@ -3510,6 +3538,77 @@ class Page {
   }
 
   /**
+   * 🔴 CAN THIS BROWSER SHOW THE PAGE'S OWN CONFIRMATION BOX? Asked of the element rather than remembered,
+   * because the answer is a fact about the browser and the element is where it shows.
+   */
+  private canAskInPage(): boolean {
+    const dialog = byId('removeDialog') as HTMLDialogElement | null;
+    return dialog !== null && typeof dialog.showModal === 'function';
+  }
+
+  /**
+   * ASK BEFORE STOPPING WATCHING — in this page's own box, never the browser's.
+   *
+   * George, 22 Sep 2026: *"add a html confirmation box if deleting a watched airplane type"*, then *"i do
+   * not want http confirmations. make them html"*. `window.confirm` is a grey rectangle with the browser's
+   * name on it, its buttons are ordered by the browser rather than by the site, and it is not part of the
+   * page — `<dialog>` + `showModal()` is the same guarantee drawn here: nothing happens until the reader
+   * answers, Escape says no, and focus cannot leave the box.
+   *
+   * ⚠️ AND IF THE BROWSER CANNOT OPEN A MODAL, THE CROSS IS NOT DRAWN AT ALL — see `renderWatchlist`. A
+   * row that could only be removed by a browser box is exactly what this change removes, and a cross that
+   * silently did nothing would be worse than one that is not there.
+   */
+  private askRemove(kind: 'type' | 'tail', key: string, what: string): void {
+    const dialog = byId('removeDialog') as HTMLDialogElement | null;
+    if (!dialog || typeof dialog.showModal !== 'function') return;
+    this.pendingRemove = { kind, key };
+    const said = byId('removeWhat');
+    if (said) {
+      said.textContent =
+        `${what} comes off the map, and the row goes from your list. ` +
+        'You can watch it again from the list in step 3.';
+    }
+    dialog.showModal();
+  }
+
+  /**
+   * The question's two answers. Wired once, delegated to nothing — the box is in the page rather than in a
+   * row, so it is not rewritten by a poll and a listener on it cannot go stale.
+   */
+  private bindRemoveAsk(): void {
+    const dialog = byId('removeDialog') as HTMLDialogElement | null;
+    if (!dialog || typeof dialog.showModal !== 'function') return;
+    // A closed box forgets what it was asking, however it was closed — a button, Escape, or the backdrop.
+    dialog.addEventListener('close', () => {
+      this.pendingRemove = null;
+    });
+    byId('removeCancel')?.addEventListener('click', () => dialog.close());
+    byId('removeGo')?.addEventListener('click', () => {
+      const pending = this.pendingRemove;
+      dialog.close();
+      if (!pending) return;
+      if (pending.kind === 'type') this.removeTypeRule(pending.key);
+      else this.removeWatch(pending.key);
+    });
+  }
+
+  /**
+   * Stop watching a type, by its code — the deed the question asked about.
+   *
+   * It redraws three views rather than one: the row goes from the watch list, the star in step 3 goes
+   * back to unstarred, and that type's aircraft come off the map, so the table, the list and the map are
+   * all answering the same question again.
+   */
+  private removeTypeRule(code: string): void {
+    this.typeRules = this.typeRules.filter((rule) => normaliseKey(rule.type) !== normaliseKey(code));
+    this.saveTypeRules();
+    this.renderWatchlist();
+    this.renderTypeList();
+    this.renderAircraft();
+  }
+
+  /**
    * 🔴 PRESSING AN AIRCRAFT PUTS THE MAP ON IT, AND PRESSING IT AGAIN TAKES IT OFF.
    *
    * George, 22 Sep 2026: *"i want to be able to select one of those rows, if i do that i want the map to
@@ -4237,6 +4336,12 @@ class Page {
     // as long as the engine remembered it — forty-five minutes. See `isHereNow`.
     const live = (this.engine ? this.engine.snapshot() : []).filter((one) => this.isHereNow(one));
 
+    // 🔴 ASKED ONCE PER RENDER, AND IT IS A FACT ABOUT THE BROWSER RATHER THAN ABOUT THE ROW. The cross is
+    // drawn only when the page's own confirmation box can open: a row that could only be removed by a
+    // browser box is what this change exists to remove, and a cross that silently did nothing would be
+    // worse than one that is not there. The reader can still unwatch a type from its star in step 3.
+    const canAsk = this.canAskInPage();
+
     const typeItems = this.typeRules
       .map((rule) => {
         const info = describeType(rule.type);
@@ -4342,9 +4447,11 @@ class Page {
           // 🔴 THE SWITCH, BESIDE THE ANSWER IT FILTERS. George, 22 Sep 2026: *"can we add a swtich
           // called show on map, on change the map is reloaded and rezoomed"*.
           this.mapSwitch('type', rule.type, state.kind) +
-          `<button type="button" class="linkish type-remove" data-type="${escapeHtml(rule.type)}" ` +
-          `data-ga="type-unwatch" title="Stop watching" ` +
-          `aria-label="Stop watching ${escapeHtml(info.name)}">${MARK_CROSS}</button>` +
+          (canAsk
+            ? `<button type="button" class="linkish type-remove" data-type="${escapeHtml(rule.type)}" ` +
+              `data-ga="type-unwatch" title="Stop watching" ` +
+              `aria-label="Stop watching ${escapeHtml(info.name)}">${MARK_CROSS}</button>`
+            : '') +
           tailsHtml +
           '</li>'
         );
@@ -4370,8 +4477,12 @@ class Page {
           `title="${escapeHtml(state.why)}">${escapeHtml(state.text)}</span>` +
           // The same switch on a named tail — one aeroplane, which is the finest thing a row can mean.
           this.mapSwitch('tail', item, state.kind) +
-          `<button type="button" class="linkish watch-remove" data-key="${escapeHtml(item)}" ` +
-          `data-ga="unwatch" title="Stop watching" aria-label="Stop watching ${escapeHtml(item)}">${MARK_CROSS}</button></li>`
+          (canAsk
+            ? `<button type="button" class="linkish watch-remove" data-key="${escapeHtml(item)}" ` +
+              `data-ga="unwatch" title="Stop watching" ` +
+              `aria-label="Stop watching ${escapeHtml(item)}">${MARK_CROSS}</button>`
+            : '') +
+          '</li>'
         );
       })
       .join('');
@@ -4381,34 +4492,22 @@ class Page {
     for (const button of host.querySelectorAll<HTMLButtonElement>('.type-remove')) {
       button.addEventListener('click', () => {
         const code = button.dataset.type ?? '';
-        // 🔴 STOPPING WATCHING IS NOT UNDOABLE, SO IT ASKS FIRST. George, 22 Sep 2026: *"add a html
-        // confirmation box if deleting a watched airplane type"*. The cross sits beside the switch and
+        // 🔴 STOPPING WATCHING IS NOT UNDOABLE, SO IT ASKS FIRST — IN THE PAGE'S OWN BOX. George, 22 Sep
+        // 2026: *"add a html confirmation box if deleting a watched airplane type"*, and then, about the
+        // box: *"i do not want http confirmations. make them html"*. The cross sits beside the switch and
         // removes the row, its tails and its aircraft from the map in one click, with nothing on the page
-        // to put it back except finding the type again in step 3.
+        // to put it back except finding the type again in step 3 — so it asks, and the question names what
+        // is going.
         const info = describeType(code);
-        const yes = window.confirm(
-          `Stop watching ${info.name} ${code}?\n\n` +
-            'Its aircraft come off the map and the row goes from your list.'
-        );
-        if (!yes) return;
-        this.typeRules = this.typeRules.filter((rule) => normaliseKey(rule.type) !== normaliseKey(code));
-        this.saveTypeRules();
-        this.renderWatchlist();
-        this.renderTypeList();
-        // Stopping watching a type takes its aircraft off the map, so the map is redrawn here too — see
-        // the note on the star's own handler.
-        this.renderAircraft();
+        this.askRemove('type', code, `${info.name} ${code}`);
       });
     }
 
     for (const button of host.querySelectorAll<HTMLButtonElement>('.watch-remove')) {
       button.addEventListener('click', () => {
-        const key = button.dataset.key ?? '';
         // The same question for one named aeroplane, which is the same one-way door.
-        const yes = window.confirm(
-          `Stop watching ${key}?\n\nIt comes off the map and the row goes from your list.`
-        );
-        if (yes) this.removeWatch(key);
+        const key = button.dataset.key ?? '';
+        this.askRemove('tail', key, key);
       });
     }
 

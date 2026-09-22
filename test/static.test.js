@@ -1219,7 +1219,14 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   assert.match(app, /const RADIUS_CHOICES = \[RADIUS_ALL, \.\.\.RADIUS_LADDER\]/,
     'the distance row is not `All` followed by the numbered stops, in that order');
   assert.match(app, /km === RADIUS_ALL \? 'All' :/, 'the widest stop does not print `All`');
-  assert.match(app, /private radiusKm = RADIUS_ALL/, 'a fresh visit does not open on `All`');
+  assert.match(app, /private radiusKm = RADIUS_DEFAULT/, 'a fresh visit does not open on the default distance');
+  // 🔴 THE DEFAULT IS 50 KM AND IT IS ONE OF THE STOPS. George, 22 Sep 2026: *"i want the default Distance
+  // to be 50km"*. It is read from the ladder rather than written twice, so a default that is not on the
+  // row cannot happen — a number of its own would light no chip.
+  const defaultKm = Number(/const RADIUS_DEFAULT = (\d+)/.exec(app)?.[1] ?? NaN);
+  assert.equal(defaultKm, 50, 'the default distance is not 50 km');
+  assert.match(app, /const RADIUS_LADDER = \[[^\]]*\b50\b[^\]]*\]/,
+    'the default distance is not one of the stops, so no chip would be pressed on a fresh visit');
 
   // 🔴 AND WHAT THE READER CHOSE IS REMEMBERED. George, 22 Sep 2026: *"save the users setting in cookie"*
   // — and every one of these is kept in the browser's own store, in the same place as the place and the
@@ -2656,22 +2663,53 @@ test('102 · the switch has no words, wears the row\'s colour, lines up — and 
   assert.match(listRow, /align-items: center/,
     'the row is still aligned on the baseline, so the status and the switch cannot share a centre line');
 
-  // 4 · THE CROSS ASKS FIRST, ON BOTH KINDS OF ROW. It is the only control on the page that throws
-  // something away, and nothing else on the page can put a removed type back.
+  // 4 · THE CROSS ASKS FIRST, ON BOTH KINDS OF ROW, IN THE PAGE'S OWN BOX — never the browser's. George,
+  // 22 Sep 2026: *"add a html confirmation box if deleting a watched airplane type"*, then *"i do not
+  // want http confirmations. make them html"*.
   const watchlist = app.slice(app.indexOf('private renderWatchlist('), app.indexOf('private renderWatchButton('));
   const removeTypes = watchlist.slice(watchlist.indexOf("querySelectorAll<HTMLButtonElement>('.type-remove')"));
   const removeTails = watchlist.slice(watchlist.indexOf("querySelectorAll<HTMLButtonElement>('.watch-remove')"));
-  assert.ok(removeTypes.length > 200 && removeTails.length > 100, 'a remove handler could not be isolated');
-  assert.match(removeTypes, /window\.confirm\(/,
-    'stopping watching a type does not ask, so one press throws the row away');
-  // And the question NAMES what is going — a confirm that does not say what it is about is a speed bump.
-  assert.match(removeTypes, /Stop watching \$\{info\.name\} \$\{code\}/,
-    'the confirmation does not name the type it is about to stop watching');
-  assert.match(removeTails, /window\.confirm\(/,
-    'stopping watching one named aircraft does not ask');
-  // A dismissed question must change nothing: the filter runs only after the answer.
-  assert.ok(removeTypes.indexOf('if (!yes) return;') < removeTypes.indexOf('this.typeRules = this.typeRules.filter'),
-    'the type is removed before the reader answers');
+  assert.ok(removeTypes.length > 150 && removeTails.length > 100, 'a remove handler could not be isolated');
+  assert.match(removeTypes, /this\.askRemove\('type', code, `\$\{info\.name\} \$\{code\}`\)/,
+    'stopping watching a type does not ask, or asks without naming the type');
+  assert.match(removeTails, /this\.askRemove\('tail', key, key\)/,
+    'stopping watching one named aircraft does not ask, or asks without naming it');
+  // And the removal is NOT reachable from the row's own handler — a cross that both asks and removes has
+  // not asked. The deed lives with the answer, one method away.
+  assert.equal(/typeRules = this\.typeRules\.filter/.test(removeTypes), false,
+    'the row removes its own type, so the question and the deed are in one place again');
+  assert.equal(/this\.removeWatch\(/.test(removeTails), false,
+    'the row removes its own tail without waiting for an answer');
+
+  // The question, its answers, and the deed they lead to.
+  const ask = app.slice(app.indexOf('private askRemove('), app.indexOf('private removeTypeRule('));
+  assert.ok(ask.length > 400, 'the question could not be isolated, so this check is vacuous');
+  assert.match(ask, /dialog\.showModal\(\)/, 'the question does not open the page\'s own box');
+  assert.match(ask, /said\.textContent =[\s\S]*?comes off the map, and the row goes from your list\./,
+    'the box does not say what is about to happen');
+  const wiring = app.slice(app.indexOf('private bindRemoveAsk('), app.indexOf('private removeTypeRule('));
+  assert.ok(wiring.length > 300, 'the wiring could not be isolated, so this check is vacuous');
+  assert.match(wiring, /byId\('removeCancel'\)[\s\S]*?dialog\.close\(\)/,
+    'the safe answer does not simply close the box');
+  assert.match(wiring, /if \(pending\.kind === 'type'\) this\.removeTypeRule\(pending\.key\);/,
+    'the box cannot act on the type it asked about');
+  assert.match(wiring, /else this\.removeWatch\(pending\.key\);/,
+    'the box cannot act on the named aircraft it asked about');
+  assert.match(wiring, /addEventListener\('close'[\s\S]*?this\.pendingRemove = null;/,
+    'a closed box keeps asking, so Escape could be read as an answer');
+  // And the question is drawn where it can always be seen: page markup, outside every card, in the same
+  // shape as the wipe's box — the safe answer first.
+  const removeAt = page.indexOf('<dialog id="removeDialog"');
+  assert.ok(removeAt > page.indexOf('</footer>'), 'the box is inside the card stack, where the gate can hide it');
+  const removeBox = page.slice(removeAt, page.indexOf('</dialog>', removeAt));
+  assert.deepEqual([...removeBox.matchAll(/<button[^>]*id="([^"]+)"/g)].map((match) => match[1]),
+    ['removeCancel', 'removeGo'], 'the safe answer must be offered first and the destructive one last');
+  // ⚠ AND THE CROSS IS ONLY DRAWN WHEN THE BOX CAN OPEN — a row that could only be removed by a browser
+  // box is exactly what this change removes.
+  assert.match(app, /const canAsk = this\.canAskInPage\(\);/,
+    'nothing asks whether the page can open its own box');
+  assert.match(app, /const canAsk = this\.canAskInPage\(\);[\s\S]*?\(canAsk\s*\n\s*\? `<button type="button" class="linkish type-remove"/,
+    'the type cross is drawn whether or not the box can open');
 });
 
 test('103 · "in the air" and "seen just now" mean INSIDE YOUR CIRCLE, not somewhere in the response', () => {
