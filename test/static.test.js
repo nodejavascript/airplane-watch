@@ -857,10 +857,26 @@ test('tail numbers are chips in the card, and the disclosure button is gone', ()
   assert.equal(/type-expand/.test(source), false, 'the expand button is still bound');
   assert.equal(/expandedTypes/.test(source), false, 'the disclosure state is still kept');
   assert.match(source, /class="tail-chip"/, 'the tail chips are not rendered');
-  assert.match(source, /aria-pressed="\$\{chosen\.has/, 'a tail chip does not carry its highlighted state');
+  // ⚠️ THE STATE IS NAMED `on`, NOT `chosen.has(...)` INSIDE THE ATTRIBUTE. It is computed one line
+  // above as `wholeType || chosen.has(normaliseKey(item.reg))` — because starring the whole type stars
+  // every tail under it, and reading the star from the narrowed list alone left a favourited row with
+  // no star anywhere below it. The chip still carries its highlighted state; it just carries the
+  // answer rather than the question.
+  assert.match(source, /aria-pressed="\$\{on\}"/, 'a tail chip does not carry its highlighted state');
+  // 🔴 AND THE CHIP CARRIES NO STAR, WHICH IS A DECISION RATHER THAN A GAP. George, 20 Sep 2026:
+  // *"remove start that are in chip, i just want the yellow hue only"* — six little stars down a row of
+  // tail numbers was decoration on top of a colour that already said the same thing. So the assertion
+  // that a highlighted tail "gets a little star" is retired, and the absence is asserted instead,
+  // because a star quietly returning here would be a regression nobody would notice.
+  assert.equal(/TAIL_STAR/.test(source), false, 'the per-chip star is back; the row is meant to carry the colour alone');
   // The un-favouriting is a consequence of the rule, not a separate step. If a
-  // future edit adds a second mechanism they will drift apart.
-  assert.match(source, /un-favourites the whole type/, 'the row does not say what highlighting a tail does');
+  // future edit adds a second mechanism they will drift apart. The words are a quote from George —
+  // *"if they highlight a tail, un favourite the whole type"* — so the pattern tolerates the spelling
+  // rather than pinning it, because the rule is what matters and the hyphen is not.
+  // ⚠️ AND IT IS READ WITH THE COMMENTS LEFT IN. A quote is a comment; `readSrc` strips comments, so
+  // this assertion could never see the sentence it was asking for.
+  assert.match(readRaw('src/app.ts'), /un.?favourit\w* the whole type/,
+    'the row does not say what highlighting a tail does');
 });
 
 test('the word is FAVOURITE, and the row offers the right thing in each state', () => {
@@ -874,12 +890,18 @@ test('the word is FAVOURITE, and the row offers the right thing in each state', 
 
 test('later steps are held back, and arrive with the glide', () => {
   const html = read(SITE, 'index.html');
-  for (const n of [2, 3, 4, 5]) {
+  // ⚠️ STEPS 2 AND 3, WHICH IS EVERY STEP THERE IS AFTER THE FIRST. This loop read `[2, 3, 4, 5]`
+  // against a five-step flow that no longer exists — the distance step was folded into the card that
+  // carries the map, and the flow was renumbered 1-2-3 on 22 Sep 2026. A check that walks a list of
+  // step numbers is a check that has to be told when the flow changes; this one was not.
+  for (const n of [2, 3]) {
     assert.match(html, new RegExp(`id="step-${n}"[^>]*hidden`), `step ${n} is visible before step 1 is answered`);
     assert.match(html, new RegExp(`data-step="${n}"`), `step ${n} carries no number for the gate to read`);
   }
   assert.match(html, /id="step-1" data-step="1"/, 'step 1 must be visible and numbered');
-  assert.match(html, /id="step-1"[^>]*>[\s\S]{0,80}Where are you\?/, 'the first step is not the one that asks where the reader is');
+  // The heading is "Where you are", not "Where are you?" — the question-mark form was the wording for
+  // one afternoon. What matters is that the first thing asked is where the reader is.
+  assert.match(html, /id="step-1"[^>]*>[\s\S]{0,80}Where (are )?you/, 'the first step is not the one that asks where the reader is');
 
   const css = read(SITE, 'styles.css');
   assert.match(css, /@keyframes step-glide/, 'there is no glide');
@@ -892,18 +914,25 @@ test('later steps are held back, and arrive with the glide', () => {
   assert.match(source, /classList\.add\('step-arrive'\)/, 'a revealed step never gets the glide');
   assert.match(source, /classList\.remove\('step-arrive'\)/,
     'the glide class is left on, so the step would replay on every re-render');
+  // 🔴 AND THE NUMBERS A READER SEES ARE THE POSITIONS IN THE FLOW, 1-2-3, BECAUSE THEY WERE 1-3-4.
+  // This is the assertion that would have caught it: three sections, numbered from one, with no gap.
+  const numbers = [...html.matchAll(/class="step">(\d+)<\/span>/g)].map((one) => Number(one[1]));
+  assert.deepEqual(numbers, [1, 2, 3], `the page numbers its steps ${numbers.join(', ')}`);
 });
 
 test('the airport spinner is cleared on every way out of the lookup', () => {
   const source = readSrc('src/app.ts');
-  const start = source.indexOf('private async chooseAirport');
-  const end = source.indexOf('private stop(');
-  const body = source.slice(start, end);
+  // ⚠️ THE METHOD IS `toggleAirport`. It was `chooseAirport`, and this slice was written
+  // `source.slice(source.indexOf('private async chooseAirport'), source.indexOf('private stop('))`.
+  // With the name gone, `indexOf` answered -1 and the slice came back EMPTY — so the check reported
+  // "the button never shows it is working" about a method that does exactly that on the line named
+  // below. A missing anchor is a defect in the check, and `between()` now says so out loud.
+  const body = between(source, 'private async toggleAirport', 'private stop(', 'the airport lookup');
   assert.match(body, /this\.setBusy\(icao, true\)/, 'the button never shows it is working');
   const clears = body.match(/this\.setBusy\(icao, false\)/g) ?? [];
   assert.ok(clears.length >= 3,
     `the spinner is cleared on ${clears.length} path(s); it must be cleared on the rate limit, on an error, and on success`);
-  assert.match(readSrc('src/app.ts'), /aria-busy/, 'nothing sets the busy attribute the spinner is drawn from');
+  assert.match(source, /aria-busy/, 'nothing sets the busy attribute the spinner is drawn from');
 });
 
 test('the fence is measured from the reader, not from the airport', () => {
@@ -913,8 +942,21 @@ test('the fence is measured from the reader, not from the airport', () => {
   assert.match(source, /const at = this\.point\(\);\n    if \(!at \|\| !this\.engine\) return;/, 'the poll does not use it');
   assert.equal(/point\/\$\{this\.airport\.lat\}/.test(source), false, 'the poll still asks the feed about the airport');
   assert.match(source, /this\.centre = \{ lat, lon \};/, 'a postal code never becomes the centre');
-  assert.match(source, /out from \$\{this\.centre \? 'your own position' : 'the airport'\}/,
-    'the page does not say which point the distance is from');
+  // 🔴 THE SENTENCE THAT SAYS WHICH POINT IS NOW TWO SENTENCES IN TWO PLACES, AND THAT IS THE FIX.
+  // George, 22 Sep 2026, pasting it back: *"remove The circle is centred on **your location** —
+  // Hamilton. Everything on this page is measured from there."* — it restated the heading above it
+  // ("How far out from you?") and then explained the heading. So the READER case says nothing, and
+  // the AIRPORT case still says everything, because a circle drawn round an airport rather than round
+  // the reader is a fact the heading does not carry and is the reason the list below shows aircraft
+  // near an airport. This assertion used to require the reader-case sentence and so could not pass
+  // once it was removed — correctly removed.
+  const fenceFrom = between(source, 'private renderFenceFrom', 'private renderMap', 'the fence caption');
+  assert.match(fenceFrom, /not on you/,
+    'the page does not warn the reader when the circle is centred on an airport instead of on them');
+  assert.match(fenceFrom, /measured from|centred on/,
+    'the caption does not say what the distance is measured from');
+  assert.equal(/Everything on this page is measured from there/.test(source), false,
+    'the sentence George asked to have removed is back');
 });
 
 /* ============================================ 20 Sep 2026, fourth pass ======= */
@@ -937,44 +979,60 @@ test('a type is favourited with a star, and the shape carries the state', () => 
   assert.match(source, /function starButton\(/, 'there is no star control');
   assert.match(source, /aria-pressed="\$\{wholeType\}"/, 'the star does not carry its pressed state');
   assert.match(source, /star-part/, 'a type narrowed to tails does not show as partly watched');
-  assert.match(source, /const TAIL_STAR/, 'a highlighted tail number gets no little star');
-  assert.match(source, /\$\{on \? TAIL_STAR : ''\}/, 'the tail star is not conditional on the highlight');
-  // The words still have to reach a screen reader even though the icon replaced them.
+  // ⚠️ THE PER-CHIP TAIL STAR IS RETIRED, BY INSTRUCTION. George, 20 Sep 2026: *"remove start that are
+  // in chip, i just want the yellow hue only"*. `TAIL_STAR` and `${on ? TAIL_STAR : ''}` no longer
+  // exist because the feature was deliberately removed, not because it drifted — and the absence is
+  // asserted in the tail-chip check above, so a star coming back is caught rather than waved through.
   assert.match(source, /aria-label="\$\{label\}"/, 'the star has no accessible name');
   assert.match(source, /title="\$\{label\}"/, 'the star has no tooltip');
   assert.equal(/'Favourite this type'/.test(source), true, 'the wording was deleted rather than moved');
 });
 
 test('a step that waits on a place is SHOWN with the reason, not hidden', () => {
+  // 🔴 THIS CHECK IS RETIRED, AND IT IS WORTH SAYING WHY RATHER THAN DELETING IT QUIETLY.
+  //
+  // It asserted a mechanism the page used for one afternoon: steps that were VISIBLE but disabled, each
+  // carrying a `data-waiting="true"` flag, a `.step-why` note explaining what to do first, and controls
+  // with `control.disabled = !place`. George's instruction the next day was the opposite — *"step 2 and
+  // 3 and 4, etc should be collapsed if previous steps are not completed"* — and then, when a stagger
+  // was shown instead of a sequence, *"you didnt do the collpase / expand like i asked"*. The gate now
+  // HIDES a step until the one before it is answered and reveals it with a glide, which is what the
+  // check above this one asserts.
+  //
+  // So `data-waiting`, `step-why` and `control.disabled = !place` are gone from the page entirely: three
+  // of them counted in `src/app.ts` and zero in `index.html`. **A check for a superseded mechanism is not
+  // a failing check, it is a stale one** — and the honest repair is to say so and assert the replaced
+  // design, not to reinstate the old one.
   const html = read(SITE, 'index.html');
-  for (const n of [2, 3, 5]) {
-    assert.match(html, new RegExp(`id="step-${n}"[^>]*data-waiting="true"`), `step ${n} does not start as waiting`);
-    assert.equal(new RegExp(`id="step-${n}"[^>]*hidden`).test(html), false, `step ${n} is hidden instead of waiting`);
-    assert.match(html, new RegExp(`id="step-${n}"[\\s\\S]{0,600}class="step-why"`), `step ${n} has no note saying what to do`);
-  }
-  assert.match(html, /id="step-3"[^>]*hidden/, 'the watchlist is shown before anything is picked');
-
-  const css = read(SITE, 'styles.css');
-  assert.match(css, /\.step-why\b/, 'the note has no style');
-  assert.match(css, /data-waiting='true'[\s\S]{0,200}pointer-events: none/, 'a waiting step is still clickable');
-
   const source = readSrc('src/app.ts');
-  assert.match(source, /control\.disabled = !place;/, 'the controls of a waiting step are still usable');
-  assert.match(source, /waiting = String\(!place\)/, 'the waiting state is never set');
+  assert.equal(/data-waiting/.test(html), false, 'the retired waiting flag is back on the page');
+  assert.equal(/step-why/.test(html), false, 'the retired waiting note is back on the page');
+  // And what replaced it: the gate hides what cannot be used yet, and the reveal is the glide.
+  assert.match(source, /section\.hidden = true/, 'nothing hides a step that cannot be used yet');
+  assert.match(source, /const show = step === 1 \? true : step === 2 \? answered1 : answered2;/,
+    'the gate no longer expresses the sequence 1 → 2 → 3');
 });
 
 test('the map is DRAWN, not embedded, and says why', () => {
   const source = readSrc('src/app.ts');
   assert.match(source, /private renderMap\(\)/, 'there is no map');
-  assert.match(source, /NOT EMBEDDED/, 'the drawing does not record the decision');
-  assert.match(source, /an API key, a billing account, and a request to Google from every visitor/,
-    'the reason an embedded map was refused is not written down');
-  // The two things a map of this is for: where the reader is, and what is near.
   assert.match(source, /locmap-you/, 'the reader is not marked');
   assert.match(source, /locmap-airport/, 'the airports are not marked');
   assert.match(source, /escapeHtml\(row\.airport\.icao\)/, 'the airports are drawn without their codes');
+  // 🔴 THE DECISION AND ITS REASON ARE READ WITH THE COMMENTS LEFT IN. Both used to be looked for in
+  // the comment-stripped source, so this check reported *"the drawing does not record the decision"*
+  // about a file whose whole argument for drawing the map by hand is written directly above it.
+  const raw = readRaw('src/app.ts');
+  assert.match(raw, /NOT EMBEDDED/, 'the drawing does not record the decision');
+  // ⚠️ THREE SHORT PHRASES RATHER THAN ONE LONG ONE. The reason is written across four lines with
+  // Markdown emphasis inside it (*"a request to Google from **every** visitor's browser"*), so a single
+  // pattern has to reproduce the line wrapping and the asterisks — which is how a check starts failing
+  // when a sentence is *reflowed*, reporting a missing reason that is still there.
+  assert.match(raw, /API key/, 'the reason an embedded map was refused does not name the API key');
+  assert.match(raw, /billing account/, 'the reason does not name the billing account');
+  assert.match(raw, /to Google from/, 'the reason does not name the request to Google from every visitor');
   // 🔴 No Google in the page, which is the standing rule for every one of these sites.
-  assert.equal(/maps\.google|googleapis\.com\/maps|gtag\(|googletagmanager/.test(readSrc('src/app.ts')), false,
+  assert.equal(/maps\.google|googleapis\.com\/maps|gtag\(|googletagmanager/.test(source), false,
     'something in the page now calls Google directly');
 });
 
@@ -1016,7 +1074,13 @@ test('the page says what it means and keeps the type list short', () => {
   assert.equal(/Pick what to watch/.test(html), false, 'the view switch is back on the page');
   assert.equal(/In the air now<\/button>/.test(html), false, 'the view switch is back on the page');
   assert.equal(/view-switch|viewbar/.test(html + css), false, 'the switch is gone from the page but not from the styles');
-  assert.match(html, /id="liveView"[^>]*data-step="7"[^>]*hidden/, 'the chart is not a step in the flow');
+  // ⚠️ THE CHART IS GONE, AND SO IS THE ASSERTION THAT IT WAS A STEP IN THE FLOW. It read
+  // `id="liveView"[^>]*data-step="7"` — a second view that was a step seven, which the page carried
+  // when a chart and a table were the board. The map is the board now, the two-view architecture was
+  // deleted, and a check for it is stale rather than failing. What is still worth requiring is that
+  // NOTHING has quietly grown a second view back.
+  assert.equal(/id="liveView"|id="liveChart"|id="liveBody"/.test(html), false,
+    'a second view is back on the page');
 
   // Heritage and war planes sit between Everything and Airliner.
   const start = source.indexOf('const options: { key: AircraftClass');
@@ -1028,9 +1092,19 @@ test('the page says what it means and keeps the type list short', () => {
     'heritage and war planes is not between Everything and Airliner');
 
   // Height restricted, or the page runs away again.
-  const rule = css.slice(css.indexOf('\n.typelist {'), css.indexOf('}', css.indexOf('\n.typelist {')));
-  assert.match(rule, /max-height:\s*\d+px/, 'the type list has no height limit');
-  assert.match(rule, /overflow-y:\s*auto/, 'the type list cannot scroll');
+  //
+  // 🔴 THERE ARE TWO `.typelist` RULES — a layout one first and the height one further down — and this
+  // read the FIRST because `css.indexOf('\n.typelist {')` finds the earliest match and the slice then
+  // stopped at that rule's own closing brace. It reported *"the type list has no height limit"* about a
+  // stylesheet that says `max-height: 680px` eleven hundred lines later. **A slice that takes the first
+  // occurrence of a selector is a slice that breaks the day a second rule is added for the same
+  // selector**, which is an ordinary thing to do. So every block for the selector is gathered, and one
+  // of them must carry the limit.
+  const blocks = [...css.matchAll(/\n\.typelist \{([^}]*)\}/g)].map((one) => one[1]);
+  assert.ok(blocks.length >= 1, 'there is no .typelist rule at all');
+  const withHeight = blocks.filter((one) => /max-height:\s*\d+px/.test(one));
+  assert.equal(withHeight.length, 1, `expected exactly one .typelist rule to cap the height, found ${withHeight.length}`);
+  assert.match(withHeight[0], /overflow-y:\s*auto/, 'the type list cannot scroll');
   // And the mark the reader makes is yellow, not the site's own blue.
   assert.match(css, /\.star\[[^\]]*aria-pressed='true'\][\s\S]{0,160}#f0be5a/, 'a starred type is not yellow');
   assert.match(css, /\.tail-chip\[aria-pressed='true'\][\s\S]{0,160}#f0be5a/, 'a starred tail number is not yellow');
@@ -1044,17 +1118,28 @@ test('the page says what it means and keeps the type list short', () => {
 
 test('the later steps do not exist until the first is answered', () => {
   const html = read(SITE, 'index.html');
-  for (const n of [2, 3, 4, 5]) {
+  // ⚠️ STEPS 2 AND 3. This walked `[2, 3, 4, 5]` against a five-step flow; the flow is three steps
+  // numbered 1-2-3 as of 22 Sep 2026 (the distance step was folded into the card that carries the map).
+  for (const n of [2, 3]) {
     assert.match(html, new RegExp(`id="step-${n}"[^>]*hidden`), `step ${n} is on the page before step 1 is answered`);
   }
   assert.match(html, /id="step-1" data-step="1"/, 'step 1 must be visible — it is the one that asks');
 
   const source = readSrc('src/app.ts');
-  // The gate is sequential: 1 unlocks 2, 2 is answered on arrival and unlocks 3,
-  // 3 unlocks the rest. Steps 3 and 5 are staggered so it reads in order.
-  assert.match(source, /const wantsPlace = step <= 5;/, 'the gate does not run in step order');
-  assert.match(source, /const show = wantsPlace \? place : place && picked;/, 'a watchlist or a chart can appear before anything is picked');
-  assert.match(source, /const delay = step === 3 \|\| step === 5 \? 420 : 0;/, 'the steps land together instead of one after another');
+  const gate = between(source, 'private updateSteps', 'private bindStartOver', 'the gate');
+  // 🔴 THE SEQUENCE, NOT ONE PINNED EXPRESSION. This used to assert the gate's source line by line —
+  // `const wantsPlace = step <= 5;`, `const show = wantsPlace ? place : place && picked;`,
+  // `const delay = step === 3 || step === 5 ? 420 : 0;` — and every one of those is gone. **A check
+  // that quotes the code it is checking fails whenever the code is rewritten, however correct the
+  // rewrite**, which is what happened here three times over: a five-step flow became three, a stagger
+  // became a hide-and-reveal, and the constants were renumbered. What has to hold is the ORDER:
+  // step 1 shows unconditionally, step 2 after the place is known, everything else only after
+  // something has been picked.
+  assert.match(gate, /dataset\.step/, 'the gate no longer reads a step number from the section');
+  assert.match(gate, /const show = step === 1 \? true/, 'step 1 is not shown unconditionally');
+  assert.match(gate, /step === 2 \? answered1/, 'step 2 does not wait for the place');
+  assert.match(gate, /: answered2\b/, 'a later step can appear before anything has been picked');
+  assert.match(gate, /const answered2 = answered1 && picked;/, 'the second answer no longer descends from the first');
   assert.equal(/data-waiting/.test(source), false, 'the waiting mechanism is still in the app');
   assert.equal(/step-why/.test(html), false, 'a waiting note is still on the page');
 });
@@ -1067,18 +1152,25 @@ test('a 502 from the feed own gateway is described as what it is', () => {
   // nginx". The 502 was adsb.lol's OWN nginx failing, which has nothing to do with
   // the reader's connection, and the reader was told about JSON.
   assert.match(source, /private feedTrouble\(response: Response\)/, 'there is no single place that reads the status');
-  const helper = source.slice(source.indexOf('private feedTrouble('), source.indexOf('private async chooseAirport'));
+  // ⚠️ THE SLICE ENDED AT `private async chooseAirport`, WHICH NO LONGER EXISTS — so `indexOf` answered
+  // -1 and the slice came back EMPTY, and all four assertions below reported a fault in a method they
+  // had never read. The method that follows `feedTrouble` is `toggleAirport` now, and `between()`
+  // refuses to build an empty slice at all.
+  const helper = between(source, 'private feedTrouble(', 'private async toggleAirport', 'the feed-trouble helper');
   assert.match(helper, /response\.status === 429/, 'the rate limit is not handled');
   assert.match(helper, /response\.status >= 500/, 'a 5xx from the feed has no sentence of its own');
   assert.match(helper, /at their end, not yours/, 'the 5xx message does not say whose fault it is');
   assert.match(helper, /!response\.ok/, 'any other error status has no sentence');
 
   // And it must run BEFORE the body is touched, in both callers.
+  // ⚠️ THE LOOKUP IS `toggleAirport`. It was `chooseAirport` when this was written, and with the old
+  // name `source.slice(-1, …)` came back empty — so the check said the lookup *"never consults the
+  // status"* about a method that consults it on its first line. `between()` makes that a loud error now.
   for (const [name, header, next] of [
-    ['the poll', 'private async poll()', 'private recordDepartures'],
-    ['the airport lookup', 'private async chooseAirport', 'private stop('],
+    ['the poll', 'private async poll()', 'private alertOnDepartures'],
+    ['the airport lookup', 'private async toggleAirport', 'private stop('],
   ]) {
-    const body = source.slice(source.indexOf(header), source.indexOf(next));
+    const body = between(source, header, next, name);
     const decides = body.indexOf('this.feedTrouble(response)');
     const parses = body.indexOf('readJson(response)');
     assert.ok(decides > -1, `${name} never consults the status`);
