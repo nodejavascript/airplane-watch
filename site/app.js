@@ -97,6 +97,18 @@ const POLL_START_MS = 20_000;
 const POLL_MIN_MS = 15_000;
 const POLL_MAX_MS = 180_000;
 /**
+ * 🔴 HOW MANY AIRPORT LOOKUPS MAY BE IN FLIGHT AT ONCE, AND WHY THERE IS A LIMIT AT ALL.
+ *
+ * Measured on the live feed, 22 Sep 2026: with sixty rows on the table the page asked for sixty
+ * airports in the same second and the feed started answering **429 Too Many Requests**. That is the
+ * failure the run estimate is most vulnerable to, because a refusal remembered as "no coordinates"
+ * would take the run off every row for the rest of the session. Two at a time still fills a table of
+ * this size within a few seconds, and `AIRPORT_RETRY_MS` is how long a REFUSED airport waits before it
+ * is asked about again — a refusal is not an unknown airport, so it is never remembered as one.
+ */
+const AIRPORT_LOOKUPS_AT_ONCE = 2;
+const AIRPORT_RETRY_MS = 2 * 60 * 1000;
+/**
  * How many maker chips the row carries, and the key the remainder is filed under.
  *
  * 🔴 TEN, MEASURED RATHER THAN CHOSEN. On this site's own list, 50 distinct words open the 245 names it
@@ -342,6 +354,34 @@ function climbHue(from, to, current) {
         return 'level';
     }
     return 'unknown';
+}
+/**
+ * A clock time in the READER'S OWN TIME ZONE — *"took off 14:05"* where the reader is sitting.
+ *
+ * 🔴 LOCAL IS THE POINT, NOT AN ACCIDENT. George, 22 Sep 2026: *"in arrival list the time it took off in
+ * the users locat time"*. The aircraft is somewhere else, so its own departure clock is a different one;
+ * what a reader can act on is the time on their own wall. `toLocaleTimeString` with no time zone
+ * argument is the browser's own zone, which is the reader's, and the seconds are dropped because a
+ * minute is as fine as a departure time means.
+ */
+function clockTime(at) {
+    return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+/**
+ * Minutes as a readable run: *"1h 40m"*, *"40m"*, *"2h"*, *"under a minute"*.
+ *
+ * It never prints a decimal, because the number behind it is an estimate from a straight line — a
+ * rounded minute is already claiming more precision than the arithmetic has.
+ */
+function runText(minutes) {
+    if (minutes < 1)
+        return 'under a minute';
+    const whole = Math.round(minutes);
+    if (whole < 60)
+        return `${whole}m`;
+    const hours = Math.floor(whole / 60);
+    const rest = whole % 60;
+    return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 /**
  * 🔴 READ EVERY RESPONSE AS TEXT, THEN PARSE IT DELIBERATELY.
@@ -783,6 +823,51 @@ class Page {
     routeAsked = new Set();
     routeRetryAt = new Map();
     routeRepaint = null;
+    /**
+     * What this PAGE saw happen, per airframe — which is the only source of a takeoff time.
+     *
+     * 🔴 THE FEED NEVER SENDS ONE. Measured on a live Hamilton response, 22 Sep 2026: what arrives is
+     * position, altitude, ground speed, track, squawk, an age and the quality flags — no origin, no
+     * destination and no time of any kind. So two different facts are kept apart here:
+     *
+     *   · `tookOffAt` — a departure THIS PAGE WATCHED. The engine decides it from two readings (on the
+     *     ground, then airborne) and stamps the moment, so the row can say *"took off 14:05"* and mean it.
+     *   · `firstSeenAirborne` — the first reading this session heard it airborne. True for every row, and a
+     *     weaker claim, so the row says *"first seen 14:22"* instead and the tooltip says which is which.
+     *
+     * Neither is ever passed off as the other, and an aircraft that left the ground before this page was
+     * opened gets the weaker one rather than an invented time.
+     */
+    tookOffAt = new Map();
+    firstSeenAirborne = new Map();
+    /**
+     * Where the destination airports are, asked of the feed once each.
+     *
+     * 🔴 THIS IS WHAT MAKES A TIME-TO-RUN POSSIBLE AT ALL. The page knows where an aircraft is and how
+     * fast it is going over the ground (both are the feed's own readings), but nothing it receives says
+     * where that aircraft is GOING — the destination comes from the route lookup, which gives a four-letter
+     * code and a city and no position. The feed's own airport endpoint answers for ANY airport by code:
+     * measured 22 Sep 2026, `/api/0/airport/KDEN` returned Denver at 39.861698, -104.672997 with its name,
+     * city and elevation. `null` means the airport was asked about and could not be placed, which is
+     * remembered so it is not asked again — that is not a claim that the airport does not exist.
+     */
+    airportCoords = new Map();
+    askingAirport = new Set();
+    /** Airports waiting their turn — see `AIRPORT_LOOKUPS_AT_ONCE`. */
+    airportWaiting = [];
+    /** When a REFUSED airport may be asked about again — see `AIRPORT_RETRY_MS`. */
+    airportRetryAt = new Map();
+    /**
+     * The moment this page first looked at the feed — the line between a time that is news about an
+     * aircraft and a time that is only news about the page.
+     *
+     * 🔴 THAT DISTINCTION IS THE WHOLE REASON THIS FIELD EXISTS. On the first poll, every aircraft in
+     * view was already airborne, so "first seen" would stamp the same minute on sixty rows at once —
+     * measured on the live page, 22 Sep 2026: sixty identical times, which is a column that says nothing
+     * about any of them. A time is therefore printed only when it is LATER than this moment (the aircraft
+     * came into view while the reader was watching) or when it is a real takeoff. See `departureCell`.
+     */
+    startedAt = null;
     /**
      * Whether the reader has moved the distance slider — which is now a record of a CHOICE, not of an
      * answered step.
@@ -1377,7 +1462,8 @@ class Page {
         // chosen any more. That guard made sense while the distance control sat in step 1 and the
         // reader had to answer it: there was nothing to ask about until they had. The control now lives
         // above the map in step 4, so waiting on it would mean the page never filled in at all — and a
-        // distance is in use from the start (20 km, or the last one chosen), so there IS something to
+        // distance is in use from the start (the widest the feed offers, or the last one chosen), so there
+        // IS something to
         // ask. The status line said "Set how far out to look at the top of the page" for exactly this
         // case, which is precisely what stopped being true.
         const url = `/api/v2/point/${at.lat}/${at.lon}/${kmToNm(this.radiusKm)}`;
@@ -1428,6 +1514,9 @@ class Page {
             if (this.liveTypes.size !== before)
                 this.renderTypeList();
             const departures = this.engine.ingest(readings, Date.now());
+            // 🔴 THE TWO TIMES ARE NOTED FROM THE SAME READINGS THE TABLE IS ABOUT TO DRAW. A time taken from a
+            // later poll than the row would put a departure into the past of its own position.
+            this.noteTimes(readings, departures);
             // 🔴 A SUCCESS BUYS BACK SPEED, SLOWLY AND WITH A FLOOR. Creeping straight
             // back to the fastest cadence would put the page into a sawtooth against the
             // limit — refused, back off, allowed, refused — and the floor is what stops it.
@@ -1576,6 +1665,9 @@ class Page {
         const html = [];
         for (const { state } of rowsSorted) {
             const label = state.callsign || state.registration || state.hex;
+            // 🔴 THE ROUTE IS LOOKED UP ONCE PER ROW AND BOTH CELLS READ THE SAME ANSWER — so the departure and
+            // the destination can never describe two different routes.
+            const route = this.routeOf(state.callsign);
             // 🔴 THE TAIL NUMBER, PRINTED UNDER THE AIRCRAFT TYPE. George, 22 Sep 2026: *"for type list the
             // tail under the aircraft type"*. A row whose callsign column is carrying a callsign (ACA123)
             // leaves the aeroplane itself unnamed, and the registration is the name a reader can act on — it
@@ -1589,11 +1681,17 @@ class Page {
             // longer mean "selected". It means the narrower and rarer thing: you named this
             // tail number yourself, rather than it arriving because a type you starred was up.
             const byName = this.matchKind(state) === 'aircraft';
-            const phase = state.phase === 'ground'
-                ? '<span class="tag tag-ground">on the ground</span>'
-                : state.phase === 'airborne'
-                    ? '<span class="tag tag-air">airborne</span>'
-                    : '<span class="tag tag-unknown">no altitude</span>';
+            // 🔴 THE PHASE IS A TAG ON THE ROW, NOT A COLUMN OF ITS OWN. George, 22 Sep 2026: *"the airborn
+            // phase column is redundant"* — and it was, on the rows that say "airborne", which is nearly all
+            // of them. What is NOT redundant is the exception: an aircraft on the ground inside the fence, and
+            // one transmitting a position with no altitude at all. So the column goes, the word that says
+            // nothing goes with it, and the two that say something are drawn beside the callsign — where the
+            // honesty section already promises a reader they can tell the difference.
+            const phaseTag = state.phase === 'airborne'
+                ? ''
+                : state.phase === 'ground'
+                    ? '<span class="tag tag-ground row-tag">on the ground</span>'
+                    : '<span class="tag tag-unknown row-tag">no altitude</span>';
             const info = state.type ? describeType(state.type) : null;
             html.push(
             // 🔴 EVERY REAL ROW CARRIES A CLASS OF ITS OWN, BECAUSE "NOT A GROUP ROW" WAS NOT
@@ -1603,15 +1701,17 @@ class Page {
             // saying there was nothing to show. Measured: one rewritten test passed on the
             // placeholder alone, which is a false pass, and a false pass is worse than a
             // failure because it is read as cover.
-            // 🔴 THE DESTINATION IS THE FIRST COLUMN, AND IT READS IN THE DIRECTION IT TRAVELLED. George,
-            // 22 Sep 2026: *"move the DESTINATION column to be the first column, and use from and to with
-            // a little arrow, not to and from"*. It led with the arrival airport and mentioned the
+            // 🔴 TWO COLUMNS NOW, DEPARTURE THEN DESTINATION. George, 22 Sep 2026: *"spil destination in
+            // to columns called depature and desination, in arrival list the time it took off in the users
+            // locat time, and destinate use fromnow()"*. It led with the arrival airport and stacked the
             // departure underneath, which is the fact in the wrong order — a reader wants to know where it
-            // came FROM before they are told where it is going, and the arrow is what carries the one to
-            // the other. The cell itself is built by `destinationCell`, so the three states an answer can
-            // be in — on its way, none on file, and known — are all decided in one place.
+            // came FROM before they are told where it is going. Split, the departure carries the time this
+            // page has for it leaving the ground and the destination carries the time still to run; the
+            // three states an answer can be in — on its way, none on file, and known — are still decided in
+            // one place each (`departureCell`, `destinationCell`), and the time is drawn in all three.
             `<tr class="aircraft-row${byName ? ' watched-row' : ''}">` +
-                this.destinationCell(this.routeOf(state.callsign)) +
+                this.departureCell(route, state) +
+                this.destinationCell(route, state) +
                 `<td>${info
                     ? `<span class="mono">${escapeHtml(info.code)}</span>` +
                         (info.known ? `<span class="cell-type">${escapeHtml(info.name)}</span>` : '') +
@@ -1619,8 +1719,10 @@ class Page {
                             ? `<span class="cell-tail">${escapeHtml(tailReg)}</span>`
                             : '')
                     : '<span class="muted">not transmitted</span>'}</td>` +
-                `<td><b>${escapeHtml(label)}</b></td>` +
-                `<td>${phase}</td>` +
+                // 🔴 THE WORD "airborne" IS NOT PRINTED, BUT THE OTHER TWO ARE — see `phaseTag` above. This
+                // cell is the callsign and, on the rare row that needs it, the one fact about the aircraft that
+                // air traffic control would care about.
+                `<td><b>${escapeHtml(label)}</b>${phaseTag}</td>` +
                 // 🔴 THE LAST-READING COLUMN IS GONE. George, 22 Sep 2026: *"fdor last reading just remove
                 // that"* — in the same message that said the table was too wide. It held a clock time AND a
                 // relative age, and it was one of the two widest cells on the row; the page's own freshness
@@ -1735,6 +1837,137 @@ class Page {
         this.scheduleRouteRepaint();
     }
     /**
+     * Note when an aircraft was first seen airborne, and when it was caught leaving the ground.
+     *
+     * 🔴 CALLED ON EVERY POLL, BEFORE THE ROWS ARE DRAWN, so a column can never show a time from an older
+     * reading than the table around it.
+     */
+    noteTimes(readings, departures) {
+        const now = Date.now();
+        if (this.startedAt === null)
+            this.startedAt = now;
+        for (const reading of readings) {
+            const hex = String(reading.hex ?? '').trim().toLowerCase();
+            if (hex === '')
+                continue;
+            // 🔴 `alt_baro` IS THE TEST, AND IT IS THE SAME ONE THE ENGINE CLASSIFIES BY. The aircraft reports
+            // its own altitude, and answers `"ground"` when it is on the ground — so this asks the aircraft
+            // the same question the engine asks it, and the two cannot disagree about what "airborne" means.
+            if (typeof reading.alt_baro === 'number' && !this.firstSeenAirborne.has(hex)) {
+                this.firstSeenAirborne.set(hex, now);
+            }
+        }
+        for (const departure of departures) {
+            const hex = String(departure.hex ?? '').trim().toLowerCase();
+            if (hex === '' || departure.verdict !== 'confirmed')
+                continue;
+            // A confirmed departure overwrites the weaker fact: the engine saw this aircraft on the ground
+            // first, so ITS moment is the moment of leaving the ground.
+            this.tookOffAt.set(hex, departure.at);
+        }
+    }
+    /**
+     * Ask the feed where a destination airport is, once per code.
+     *
+     * It is the same endpoint the airport list is built from, asked about an airport this reader is not
+     * near — which the feed answers just as happily, because it is a database lookup rather than a
+     * reading. A failure is remembered as "not known" so the row says nothing rather than asking again on
+     * every poll; a success is remembered until the tab closes.
+     */
+    askAirportCoords(icao) {
+        const key = icao.trim().toUpperCase();
+        if (!/^[A-Z0-9]{3,4}$/.test(key))
+            return;
+        if (this.airportCoords.has(key) || this.askingAirport.has(key))
+            return;
+        if (this.airportWaiting.includes(key))
+            return;
+        // A refused airport waits out its retry gap rather than being asked again on every poll.
+        if (Date.now() < (this.airportRetryAt.get(key) ?? 0))
+            return;
+        this.airportWaiting.push(key);
+        this.drainAirportQueue();
+    }
+    /** Start the next lookups, up to the limit this page allows itself. */
+    drainAirportQueue() {
+        while (this.askingAirport.size < AIRPORT_LOOKUPS_AT_ONCE && this.airportWaiting.length > 0) {
+            const key = this.airportWaiting.shift();
+            this.askingAirport.add(key);
+            void this.lookUpAirport(key);
+        }
+    }
+    /**
+     * Ask the feed where one airport is, and file the answer.
+     *
+     * 🔴 A REFUSAL IS NOT AN UNKNOWN AIRPORT, AND THE TWO ARE STORED DIFFERENTLY. The feed answering
+     * "I have no coordinates for this code" is a fact about the airport and is kept as `null`, so it is
+     * not asked about again. The feed answering 429, or failing to answer at all, is a fact about the
+     * MOMENT — so nothing is written and the code is left to be asked about again after
+     * `AIRPORT_RETRY_MS`. Remembering a rate limit as an unknown airport is how one busy second would
+     * take the run off every row for the rest of a reader's session.
+     */
+    async lookUpAirport(key) {
+        try {
+            const response = await fetch(`/api/0/airport/${encodeURIComponent(key)}`, {
+                headers: { accept: 'application/json' },
+            });
+            const trouble = this.feedTrouble(response);
+            if (trouble)
+                throw new Error(trouble);
+            const body = (await readJson(response));
+            const lat = Number(body.lat);
+            const lon = Number(body.lon);
+            if (Number.isFinite(lat) && Number.isFinite(lon)) {
+                this.airportCoords.set(key, { lat, lon });
+                this.airportRetryAt.delete(key);
+            }
+            else {
+                this.airportCoords.set(key, null);
+            }
+        }
+        catch {
+            this.airportRetryAt.set(key, Date.now() + AIRPORT_RETRY_MS);
+        }
+        finally {
+            this.askingAirport.delete(key);
+            this.drainAirportQueue();
+            this.scheduleRouteRepaint();
+        }
+    }
+    /**
+     * How long the aircraft has left to run — or `null` when it cannot be worked out honestly.
+     *
+     * 🔴 IT IS ARITHMETIC ON THREE MEASURED NUMBERS AND NOTHING ELSE: where the aircraft is (the feed's
+     * own position), where the airport is (the feed's own airport record), and how fast it is going over
+     * the ground (the feed's own `gs`). It assumes two things it cannot know — that the aircraft flies the
+     * straight line between them, and that it holds that speed all the way — which is why the row prints
+     * it as *"in about …"* and the tooltip says *"estimate"* out loud.
+     */
+    runToDestination(state, icao) {
+        const airport = this.airportCoords.get(icao.trim().toUpperCase());
+        const lat = typeof state.lat === 'number' ? state.lat : null;
+        const lon = typeof state.lon === 'number' ? state.lon : null;
+        // 🔴 THE SPEED COMES FROM THE ENGINE'S STATE, NOT FROM THE READING, AND THAT IS A LESSON.
+        // `gsKt` is carried on `TrackState` because this table is drawn from `engine.snapshot()`; an
+        // earlier version of this method read the raw feed field off the row and got `undefined` every
+        // time, so the arithmetic was right and no row ever showed it.
+        const knots = typeof state.gsKt === 'number' && Number.isFinite(state.gsKt) ? state.gsKt : null;
+        if (!airport || lat === null || lon === null || knots === null)
+            return null;
+        // 🔴 A SLOW GROUND SPEED IS NOT A SLOW AEROPLANE, IT IS AN UNKNOWN ONE. Under 60 knots this is an
+        // aircraft taxiing or a reading that has not settled, and dividing a distance by that produces an
+        // hour count nobody should read. Above it, this is an aeroplane in flight.
+        if (knots < 60)
+            return null;
+        const nm = distanceNm(lat, lon, airport.lat, airport.lon);
+        const minutes = (nm / knots) * 60;
+        // A run longer than twelve hours is not an arrival time, it is a wrong route or a wrong airport —
+        // and a negative one is an aircraft that has already passed the airport it claims to be bound for.
+        if (!Number.isFinite(minutes) || minutes < 1 || minutes > 12 * 60)
+            return null;
+        return { minutes, nm, knots };
+    }
+    /**
      * One repaint for however many routes land at once.
      *
      * Ten rows can easily produce ten answers in the same second, and repainting the table ten times
@@ -1750,22 +1983,91 @@ class Page {
         }, 250);
     }
     /**
-     * The route cell — which LEADS the row — in one direction, from where it came to where it is going.
+     * The DEPARTURE cell — which LEADS the row — where it came from, and the time this page has for it.
      *
-     * 🔴 `from … → to …` BECAME `from …` OVER `to …`. George, 22 Sep 2026: *"remove →"*. The two legs have
-     * been stacked since the morning, when he asked for the order — *"use from and to with a little arrow,
-     * not to and from"* — and the arrow was what opened the second leg. Taken away, the second leg opens
-     * with its own label, the two lines align on the left, and nothing is lost: `from` and `to` are the
-     * words that carry the direction, and a glyph between them was decoration on a 12-pixel cell.
+     * 🔴 ONE CELL BECAME TWO. George, 22 Sep 2026: *"spil destination in to columns called depature and
+     * desination, in arrival list the time it took off in the users locat time, and destinate use
+     * fromnow()"*. The legs had been stacked in one cell since the morning, when he asked for the order —
+     * *"use from and to with a little arrow, not to and from"* — and then for the arrow to go (*"remove
+     * →"*). Split into two columns, each can carry what a reader wants from it: when it left, and how long
+     * until it lands. The arrow's absence is what made the split affordable — `from` and `to` are the words
+     * that carry the direction, so a glyph between them was decoration.
      *
-     * Each leg keeps its own city, because a four-letter code on its own is the thing this page has
+     * Each cell keeps its own city, because a four-letter code on its own is the thing this page has
      * already had to fix once.
      *
-     * Three states, and all three say something: still being looked up, nothing on file, and known. A
+     * Three states each, and all three say something: still being looked up, nothing on file, and known. A
      * dash is never a blank, because "nobody has a route for this callsign" and "this page has not
      * finished asking" are different answers and a reader is entitled to tell them apart.
      */
-    destinationCell(route) {
+    departureCell(route, state) {
+        // 🔴 TWO KINDS OF CLAIM SHARE THIS CELL, AND EACH SAYS WHICH IT IS. `from KJFK New York` is a
+        // LOOKUP — no aircraft transmits where it came from. The time under it is an OBSERVATION, and which
+        // observation matters: *"took off 14:05"* appears only where this page watched it leave the ground,
+        // and *"first seen 14:22"* is the weaker fact. See `noteTimes`.
+        //
+        // 🔴 AND A TIME THE WHOLE PAGE SHARES IS NOT A FACT ABOUT THE AIRCRAFT. On the first poll every
+        // aircraft in view was already airborne, so the weaker time would stamp one identical minute on
+        // every row — measured on the live page, 22 Sep 2026: sixty rows, sixty times, all the same. So the
+        // weaker time is printed only when it is LATER than the moment this page first looked: then it says
+        // when that aircraft came into view, which is news about it. Where it is not later, the cell says
+        // nothing and its tooltip says why — which is the honest answer to "where is the time?".
+        const hex = String(state.hex ?? '').trim().toLowerCase();
+        const tookOff = this.tookOffAt.get(hex) ?? null;
+        const firstSeen = this.firstSeenAirborne.get(hex) ?? null;
+        const cameIntoView = firstSeen !== null && this.startedAt !== null && firstSeen > this.startedAt;
+        const stamp = tookOff !== null ? clockTime(tookOff) : cameIntoView ? clockTime(firstSeen) : '';
+        const timeWhy = tookOff !== null
+            ? `This page watched it leave the ground at ${stamp}, in your own time zone. The feed never sends a takeoff time, so this is the page's own observation.`
+            : `This aircraft was first in view at ${stamp}, in your own time zone, and was already airborne then. It is when it appeared, not when it took off — the feed never sends a takeoff time.`;
+        const timeLine = stamp === ''
+            ? ''
+            : `<span class="leg-time" title="${escapeHtml(timeWhy)}">` +
+                `${tookOff !== null ? 'took off' : 'first seen'} ${escapeHtml(stamp)}</span>`;
+        // Said in the cell's own tooltip, because a reader looking for a time is looking here.
+        const noTime = tookOff !== null
+            ? ''
+            : ' No takeoff time is known for this aircraft: the feed never sends one, and this page did not see it leave the ground.';
+        if (route === undefined) {
+            return ('<td class="mono dest dest-waiting" title="Asking the route lookup about this callsign.">' +
+                `<span class="muted">asking…</span>${timeLine}</td>`);
+        }
+        if (route === null) {
+            return (`<td class="mono dest dest-none" title="${escapeHtml('No route is on file for this callsign. The aircraft itself never transmits where it came from.' + noTime)}">` +
+                `<span class="muted">—</span>${timeLine}</td>`);
+        }
+        const { origin } = route;
+        // 🔴 THE BRACKETS GO, AND THE COLUMN NARROWS WITH THEM. `San José (Alajuela)` is the airport's own
+        // way of naming the city and it is twice as long as the city is: `stripBrackets` is the same
+        // helper the place line uses, and the full name stays in the title for anyone who wants it.
+        const from = [stripBrackets(origin.city), origin.country]
+            .filter((part) => part !== '')
+            .join(', ');
+        const whole = `On file for this callsign: it left ${origin.icao} ${origin.city}.` +
+            ' A route is looked up, not transmitted by the aircraft, so a diversion or a reused callsign can make it wrong.' +
+            noTime;
+        return (`<td class="mono dest" title="${escapeHtml(whole)}">` +
+            `<span class="dest-leg dest-from">` +
+            '<span class="dest-label">from</span> ' +
+            `<b>${escapeHtml(origin.icao)}</b>` +
+            (from ? ` <span class="cell-city">${escapeHtml(from)}</span>` : '') +
+            '</span>' +
+            timeLine +
+            '</td>');
+    }
+    /**
+     * The DESTINATION cell — where it is going, and about how long it has left to run.
+     *
+     * George, 22 Sep 2026: *"spil destination in to columns called depature and desination … and
+     * destinate use fromnow()"*. The two legs used to share one stacked cell; split, each can carry the
+     * thing a reader wants from it — when it went, and how long until it arrives.
+     *
+     * 🔴 AND THE RUN IS AN ESTIMATE, SAID SO ON THE ROW RATHER THAN ONLY IN A TOOLTIP. *"in about 1h 40m"*
+     * is arithmetic on the feed's own position, the airport's own record and the aircraft's own ground
+     * speed, and it assumes a straight line and an unchanged speed — so the word *about* is in the cell
+     * where the number is, not hidden behind a hover.
+     */
+    destinationCell(route, state) {
         if (route === undefined) {
             return ('<td class="mono dest dest-waiting" title="Asking the route lookup about this callsign.">' +
                 '<span class="muted">asking…</span></td>');
@@ -1775,33 +2077,30 @@ class Page {
                 'title="No route is on file for this callsign. The aircraft itself never transmits where it is going."' +
                 '><span class="muted">—</span></td>');
         }
-        const { origin, destination, airline } = route;
-        // 🔴 THE BRACKETS GO, AND THE COLUMN NARROWS WITH THEM. `San José (Alajuela)` is the airport's own
-        // way of naming the city and it is twice as long as the city is: `stripBrackets` is the same
-        // helper the place line uses, and the full name stays in the title for anyone who wants it.
+        const { destination, airline } = route;
         const to = [stripBrackets(destination.city), destination.country]
             .filter((part) => part !== '')
             .join(', ');
-        const from = [stripBrackets(origin.city), origin.country]
-            .filter((part) => part !== '')
-            .join(', ');
-        const whole = `On file for this callsign: from ${origin.icao} ${origin.city}` +
-            ` to ${destination.icao} ${destination.city}${airline ? ` · ${airline}` : ''}.` +
+        // Asking for the airport's coordinates is what makes the run below possible — asked once per code,
+        // and the row simply has no run until the answer arrives.
+        this.askAirportCoords(destination.icao);
+        const run = this.runToDestination(state, destination.icao);
+        const runLine = run === null
+            ? ''
+            : `<span class="leg-time" title="${escapeHtml(`About ${Math.round(run.nm)} nautical miles still to run at the ${Math.round(run.knots)} knots ` +
+                'it is reporting over the ground. That assumes a straight line and the same speed all the way, ' +
+                'so it is an estimate rather than an arrival time.')}">in about ${escapeHtml(runText(run.minutes))}</span>`;
+        const whole = `On file for this callsign: it is bound for ${destination.icao} ${destination.city}` +
+            `${airline ? ` · ${airline}` : ''}.` +
             ' A route is looked up, not transmitted by the aircraft, so a diversion or a reused callsign can make it wrong.';
-        // 🔴 TWO LEGS, STACKED. Side by side the pair would set the width of the widest column on the table
-        // — which is what the airport column was doing when it was taken out. Stacked, the widest line is a
-        // city and a country, and both legs start at the same edge.
         return (`<td class="mono dest" title="${escapeHtml(whole)}">` +
-            `<span class="dest-leg dest-from">` +
-            '<span class="dest-label">from</span> ' +
-            `<b>${escapeHtml(origin.icao)}</b>` +
-            (from ? ` <span class="cell-city">${escapeHtml(from)}</span>` : '') +
-            '</span>' +
             `<span class="dest-leg dest-to">` +
             '<span class="dest-label">to</span> ' +
             `<b>${escapeHtml(destination.icao)}</b>` +
             (to ? ` <span class="cell-city">${escapeHtml(to)}</span>` : '') +
-            '</span></td>');
+            '</span>' +
+            runLine +
+            '</td>');
     }
     /**
      * Keep every "· 12s ago" honest, once a second, without touching the rest of the table.

@@ -49,25 +49,49 @@ function watchGoogle(page) {
   return hits;
 }
 
-/** The airport lookup, and a scripted set of polls. */
+/**
+ * The airport lookup, the callsign route lookup, and a scripted set of polls.
+ *
+ * 🔴 THE ROUTE AND THE AIRPORT COORDINATES ARE STUBBED TOO, AND THEY HAVE TO BE. The two route columns
+ * of 22 Sep 2026 ask this site for the callsign's route and then for the destination airport's position
+ * — and this stub used to answer `{}` to everything that was not the aircraft query, so a row drawn
+ * under it had no route on file and no run to print. A test of the columns written against that stub
+ * would prove the empty state and call it the feature.
+ */
 function feedStub(aircraftByPoll) {
   let poll = 0;
   return async (route) => {
     const url = route.request().url();
-    if (url.includes('/api/0/airport/')) {
+
+    // The callsign lookup answers with a real route, so a row under this stub has both airports.
+    if (url.includes('/api/route/')) {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          icao: 'CYHM',
-          iata: 'YHM',
-          name: 'John C. Munro Hamilton International Airport',
-          location: 'Hamilton',
-          countryiso2: 'CA',
-          lat: 43.173599,
-          lon: -79.934998,
-          alt_feet: 780,
+          ok: true,
+          route: {
+            airline: 'Air Canada',
+            origin: { icao: 'CYUL', iata: 'YUL', city: 'Montréal', country: 'CA', name: 'Montréal–Trudeau' },
+            destination: { icao: 'CYYZ', iata: 'YYZ', city: 'Toronto', country: 'CA', name: 'Toronto Pearson' },
+          },
         }),
+      });
+    }
+    if (url.includes('/api/0/airport/')) {
+      // 🔴 BY CODE, NOT ONE ANSWER FOR EVERY AIRPORT. The page now asks this endpoint about airports it
+      // is nowhere near, and a stub that answered Hamilton to every question would place Toronto in
+      // Hamilton — which would make a run to the destination look correct while proving nothing.
+      const code = url.slice(url.indexOf('/api/0/airport/') + '/api/0/airport/'.length).split(/[?#]/)[0];
+      const airports = {
+        CYHM: { icao: 'CYHM', iata: 'YHM', name: 'John C. Munro Hamilton International Airport', location: 'Hamilton', countryiso2: 'CA', lat: 43.173599, lon: -79.934998, alt_feet: 780 },
+        CYUL: { icao: 'CYUL', iata: 'YUL', name: 'Montréal–Trudeau International Airport', location: 'Montréal', countryiso2: 'CA', lat: 45.4706, lon: -73.7408, alt_feet: 118 },
+        CYYZ: { icao: 'CYYZ', iata: 'YYZ', name: 'Toronto Pearson International Airport', location: 'Toronto', countryiso2: 'CA', lat: 43.6772, lon: -79.6306, alt_feet: 569 },
+      };
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(airports[code.toUpperCase()] ?? {}),
       });
     }
     // 🔴 ONLY THE AIRCRAFT QUERY ADVANCES THE SCRIPTED SEQUENCE, AND THAT IS THE FIX
@@ -142,9 +166,16 @@ async function openPage(aircraftByPoll) {
  * test that touched it directly, and a missing selector inside a test reads exactly like a broken page.
  *
  * `km` is the DISTANCE, not a position on a track: the chips print what they will do, so a test names
- * the answer it wants. The default is 20 km, the distance the page starts on.
+ * the answer it wants.
+ *
+ * ⚠️ THE DEFAULT MUST BE A CHIP THAT EXISTS. It was 20 km, because the page started at 20 km — and on
+ * 22 Sep 2026 George replaced the scale with his own seven stops plus *All*, so 20 km stopped existing.
+ * A helper pressing a chip that is not on the page does not fail quickly: `waitForSelector` waits its
+ * full timeout and then reports that the DISTANCE was never chosen, which reads as a broken filter.
+ * The nearest stop to the old default is 25 km, and it is the smallest, so it keeps these tests as
+ * close to what they were testing before as the new scale allows.
  */
-async function chooseDistance(page, km = 20) {
+async function chooseDistance(page, km = 25) {
   const chip = `#radiusButtons button[data-km="${km}"]`;
   await page.waitForSelector(chip, { state: 'visible' });
   await page.click(chip);
@@ -395,10 +426,78 @@ test('the page names the airport it looked up, and lists what the feed can see',
   );
   const body = await page.$eval('#aircraftBody', (element) => element.textContent);
   assert.match(body, /BBA535/);
-  // The two phases must be told apart, because telling them apart is the feature.
-  assert.match(body, /airborne/);
+  // 🔴 THE TWO PHASES ARE STILL TOLD APART, BUT ONLY ONE OF THEM IS WRITTEN DOWN NOW. George,
+  // 22 Sep 2026: *"the airborn phase column is redundant"* — the column said "airborne" on nearly every
+  // row, so the word is gone and the EXCEPTION is what is drawn, as a tag beside the callsign. So the
+  // assertion is the pair the change is about: the ground aircraft says so, and the word that says
+  // nothing is not on the page at all.
   assert.match(body, /on the ground/);
+  assert.equal(/airborne/.test(body), false,
+    'the word the phase column was made of is still being printed');
+  const tags = await page.$$eval('#aircraftBody .row-tag', (elements) => elements.map((e) => e.textContent));
+  assert.deepEqual(tags, ['on the ground'],
+    'the exception tag is not drawn once, for the one aircraft that is not airborne');
 
+  await context.close();
+});
+
+test('the row leads with a departure and a destination, and the departure carries a time', async () => {
+  // 🔴 TWO CELLS, ONE AIRCRAFT, AND THE TIME UNDER THE FIRST OF THEM. George, 22 Sep 2026: *"spil
+  // destination in to columns called depature and desination, in arrival list the time it took off in
+  // the users locat time"*. The stub answers the callsign lookup with a route and the airport lookup
+  // with real coordinates, so what is asserted is the drawn result and not the empty state.
+  const polls = [
+    [
+      { hex: 'c011e4', flight: 'ACA123', t: 'B738', alt_baro: 8000, gs: 400, lat: 43.18, lon: -79.94 },
+      { hex: 'abc999', flight: 'BBA535', t: 'B738', alt_baro: 'ground', gs: 0, lat: 43.2, lon: -79.8 },
+    ],
+  ];
+  const { context, page } = await openPage(polls);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+
+  const google = watchGoogle(page);
+  await answerStep1(page);
+  await chooseDistance(page);
+  await starEveryType(page);
+  await page.waitForFunction(
+    () => /ACA123/.test(document.getElementById('aircraftBody')?.textContent ?? ''),
+    null,
+    { timeout: 45_000 }
+  );
+
+  // The head describes the cells under it: departure before destination, and no phase column.
+  const heads = await page.$$eval('.aircraft thead th', (elements) => elements.map((e) => e.textContent));
+  assert.deepEqual(heads, ['Departure', 'Destination', 'Type', 'Callsign', 'Bearing', 'Position']);
+
+  // And the row is the same six, in the same order — asserted cell by cell, because a head that
+  // describes cells in another order is the fault this check exists for.
+  const cells = await page.$eval('#aircraftBody tr.aircraft-row', (row) =>
+    [...row.children].slice(0, 2).map((cell) => cell.textContent.replace(/\s+/g, ' ').trim())
+  );
+  assert.match(cells[0], /from CYUL/, 'the departure cell does not name the airport it left');
+  assert.match(cells[1], /to CYYZ/, 'the destination cell does not name the airport it is bound for');
+
+  // 🔴 AND A TIME IS WITHHELD HERE, WHICH IS THE HONEST ANSWER AND NOT AN EMPTY CELL. Both aircraft
+  // were already airborne on the page's first poll, so the only time it could offer is the minute it
+  // opened — and printing that on every row would be sixty identical times, which is a column that says
+  // nothing about any of them (measured on the live page, 22 Sep 2026). So the cell carries the airport
+  // and no time, and its tooltip says a takeoff time is not known and why.
+  assert.equal(/first seen|took off/.test(cells[0]), false,
+    `a time is printed for an aircraft that was already airborne when the page opened: ${cells[0]}`);
+  const why = await page.$eval('#aircraftBody tr.aircraft-row td.dest', (cell) => cell.title);
+  assert.match(why, /No takeoff time is known for this aircraft/,
+    'a row with no takeoff time does not say so anywhere');
+  assert.match(why, /the feed never sends one/, 'the admission does not say why the time is missing');
+
+  // And the destination carries a run, marked as the estimate it is.
+  assert.match(cells[1], /in about /, 'the destination cell prints no run to the airport');
+  const runWhy = await page.$eval('#aircraftBody tr.aircraft-row td.dest:nth-child(2)', (cell) => cell.title);
+  assert.match(runWhy, /nautical miles still to run/, 'the run is printed without saying what it is made of');
+  assert.match(runWhy, /estimate rather than an arrival time/, 'the run is not labelled as an estimate where the number is');
+
+  assert.deepEqual(google, [], 'a route lookup sent a request to Google');
   await context.close();
 });
 
@@ -469,6 +568,27 @@ test('a watched departure raises the alert — the board went, the alert stayed'
   const alerts = await page.evaluate(() => window.__alerts);
   assert.equal(alerts.length, 1, `expected one alert, got ${alerts.length}: ${JSON.stringify(alerts)}`);
   assert.match(alerts[0].title, /ACA123/, 'the alert must name the aircraft that left');
+
+  // 🔴 AND THE ROW NOW CARRIES A TAKEOFF TIME, BECAUSE THIS IS THE ONE CASE WHERE THE PAGE HAS ONE.
+  // The feed never sends a takeoff time, so the only honest source is a ground-to-air transition this
+  // page watched — which is exactly what this test scripts. So the departure cell must say *"took off
+  // HH:MM"*, in the reader's own zone, and it must NOT offer the weaker *"first seen"* instead: an
+  // aircraft the page watched leave the ground is the one row where the stronger claim is available.
+  //
+  // ⚠️ IT WAITS FOR THE TIME RATHER THAN READING THE CELL THE ALERT CAME WITH. The aircraft is listed
+  // while it is still on the ground, so the cell exists before there is a takeoff to report, and a read
+  // taken at the wrong instant would assert this against the previous render. Waiting for the text is
+  // the only version of this check that cannot pass by accident.
+  await page.waitForFunction(
+    () => /took off/.test(document.getElementById('aircraftBody')?.textContent ?? ''),
+    null,
+    { timeout: 30_000 }
+  );
+  const departure = await page.$eval('#aircraftBody tr.aircraft-row td.dest', (cell) => cell.textContent.replace(/\s+/g, ' ').trim());
+  assert.match(departure, /took off \d{1,2}:\d{2}/,
+    `the row the page watched take off carries no takeoff time: ${departure}`);
+  assert.equal(/first seen/.test(departure), false,
+    'a watched takeoff is reported as the weaker first-seen time');
 
   await context.close();
 });

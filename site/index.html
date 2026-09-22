@@ -439,16 +439,21 @@
             <thead>
               <tr>
                 <!--
-                  🔴 THE ROUTE LEADS, AND THE AIRPORT COLUMN IS GONE. George, 22 Sep 2026: *"remove
-                  airport column, and move the DESTINATION column to be the first column, and use from
-                  and to with a little arrow, not to and from"*. It is the one thing on the row that is
-                  not a reading — where it came from and where it is going is the question a reader has
-                  before they ask anything of an altitude — so it goes first.
+                  🔴 THE ROUTE LEADS, IN TWO COLUMNS, AND THE PHASE COLUMN IS GONE. George,
+                  22 Sep 2026: *"the airborn phase column is redundant. spil destination in to
+                  columns called depature and desination, in arrival list the time it took off in
+                  the users locat time, and destinate use fromnow()"*. The route is the one thing
+                  on the row that is not a reading — where it came from and where it is going is
+                  the question a reader has before they ask anything of an altitude — so the two
+                  halves of it lead the row. The phase column used to say "airborne" on nearly
+                  every row; the rows that are NOT airborne now carry a tag beside the callsign
+                  instead, which is the only place that word was ever news. Six columns either
+                  way, so the `colspan` below does not move.
                 -->
+                <th scope="col">Departure</th>
                 <th scope="col">Destination</th>
                 <th scope="col">Type</th>
                 <th scope="col">Callsign</th>
-                <th scope="col">Phase</th>
                 <th scope="col">Bearing</th>
                 <th scope="col">Position</th>
               </tr>
@@ -460,20 +465,31 @@
         </div>
 
         <!--
-          🔴 THE DESTINATION IS LOOKED UP, NOT HEARD — so it is labelled as the different kind of
-          claim it is, in the same card as the readings it sits beside.
+          🔴 BOTH AIRPORTS ARE LOOKED UP, NOT HEARD — so each is labelled as the different kind of
+          claim it is, in the same card as the readings it sits beside. The same paragraph now also
+          carries the two times, because those are a THIRD kind of claim: not a reading and not a
+          lookup, but this page's own observation, and it says which of the two it is.
 
           Measured 22 Sep 2026: the feed's own callsign endpoint returns hex, registration, type,
-          altitude and track, and no origin, destination or route at all. ADS-B carries who the
-          aircraft is, never where it is booked to. So the destination column comes from a separate
-          free callsign lookup, and a reader is entitled to know which of the two facts on the row
-          came off the radio and which came out of a database.
+          altitude and track, and no origin, destination, route — or any time at all. ADS-B carries
+          who the aircraft is, never where it is booked to or when it left. So the two airport codes
+          come from a separate free callsign lookup, the departure time comes from what this page
+          watched, and the run to the destination is the one number on the card that is arithmetic
+          rather than a report.
         -->
         <p class="small muted">
-          <b>Destination is looked up, not heard.</b> An aircraft broadcasts who it is, never where it is going, so the
-          destination comes from a separate free lookup on the callsign — which means a diversion, a reassigned callsign or
-          an out-of-date record can make it wrong. A dash means no route is on file for that callsign, and “asking…” means
-          the lookup has not answered yet. Every other column is what the feed itself reported, taken at the time shown.
+          <b>The two airports are looked up, not heard — and the times are this page's own.</b> An
+          aircraft broadcasts who it is, never where it came from or where it is going, so both airport
+          codes come from a separate free lookup on the callsign — which means a diversion, a reassigned
+          callsign or an out-of-date record can make them wrong. A dash means no route is on file for
+          that callsign, and “asking…” means the lookup has not answered yet. The time under either
+          airport is not from the feed either, and it says which it is: <b>took off</b> means this page
+          watched that aircraft leave the ground, while <b>first seen</b> means it was already flying
+          when the page opened — the feed never sends a takeoff time at all. The <b>in about …</b> under
+          the destination is an estimate, not an arrival time: it is the straight-line distance still to
+          run at the speed the aircraft reports over the ground, and it assumes it flies that line at
+          that speed all the way. Every other column is what the feed itself reported, taken at the time
+          shown.
         </p>
       </section>
 

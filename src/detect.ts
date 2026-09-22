@@ -133,6 +133,21 @@ export interface TrackState {
    */
   trackDeg?: number;
   /**
+   * 🔴 HOW FAST IT IS GOING OVER THE GROUND, IN KNOTS — the number the destination estimate divides
+   * by, and the reason this field exists at all.
+   *
+   * Measured on the live page, 22 Sep 2026: the estimate was written, checked against every guard it
+   * has, and printed on no row — because the table draws from the ENGINE's state and the engine was not
+   * keeping the speed. The feed sends `gs` on every reading and it was being used for nothing but a
+   * truthiness test, so a reader saw a blank where the arithmetic was correct all along.
+   *
+   * Kept as the LAST known value rather than this reading's, for the reason the position and the
+   * heading follow: a shorter frame must not blank a fact the aircraft reported a second ago. A
+   * reading that says `0` is kept as `0` — that is an aircraft on the ground, and it is the estimate's
+   * job to refuse it rather than this field's job to hide it.
+   */
+  gsKt?: number;
+  /**
    * 🔴 WHERE IT HAS BEEN — the flight path, drawn behind it. George, 22 Sep 2026: *"in the lower
    * map are you able to trace its flight?"*.
    *
@@ -645,6 +660,7 @@ export class DetectionEngine {
         // position keeps the last position: the aircraft does not stop pointing when the feed
         // sends a shorter frame.
         trackDeg: headingOf(reading) ?? previous?.trackDeg,
+        gsKt: Number.isFinite(reading.gs) ? (reading.gs as number) : previous?.gsKt,
         trail: appendTrail(previous?.trail, reading, now),
         watched,
       };

@@ -401,6 +401,7 @@ export class DetectionEngine {
                 // position keeps the last position: the aircraft does not stop pointing when the feed
                 // sends a shorter frame.
                 trackDeg: headingOf(reading) ?? previous?.trackDeg,
+                gsKt: Number.isFinite(reading.gs) ? reading.gs : previous?.gsKt,
                 trail: appendTrail(previous?.trail, reading, now),
                 watched,
             };

@@ -296,6 +296,29 @@ test('the state a poll writes keeps the callsign after a reading that omits it',
   assert.equal(engine.stateOf('abc123').callsign, 'ACA123');
 });
 
+test('the aircraft\u2019s own ground speed is kept, because the run estimate divides by it', () => {
+  // 🔴 THIS FIELD WAS MISSING AND THE ESTIMATE WAS SILENT BECAUSE OF IT. Measured on the live page,
+  // 22 Sep 2026: the destination cell's arithmetic was right, every guard around it was satisfied, and
+  // no row ever printed a time to run — because the table is drawn from the ENGINE's state, the engine
+  // was dropping the speed, and the method read `undefined` on every row. The feed sends `gs` on every
+  // reading, so a reader was shown a blank where a number belonged.
+  const engine = new DetectionEngine(options);
+  engine.ingest([{ hex: 'abc123', alt_baro: 12_000, gs: 420, lat: 43.2, lon: -79.9 }], 1_000_000);
+  assert.equal(engine.stateOf('abc123').gsKt, 420, 'the ground speed is not kept on the state the table draws from');
+
+  // And a shorter frame keeps the last speed, the same rule the position and the heading follow: an
+  // aircraft does not stop moving because the feed sent a smaller message.
+  engine.ingest([{ hex: 'abc123', alt_baro: 12_200, lat: 43.21, lon: -79.9 }], 1_000_010);
+  assert.equal(engine.stateOf('abc123').gsKt, 420, 'a reading with no speed blanked the one it had a second ago');
+
+  // 🔴 BUT A REPORTED ZERO IS KEPT AS ZERO. `gs: 0` is an aircraft on the ground, and it is the
+  // estimate's job to refuse that reading rather than this field's job to hide it — a speed of zero
+  // that quietly became "the last one we knew" would have the page estimate a run for a parked
+  // aeroplane.
+  engine.ingest([{ hex: 'abc123', alt_baro: 'ground', gs: 0, lat: 43.21, lon: -79.9 }], 1_000_020);
+  assert.equal(engine.stateOf('abc123').gsKt, 0, 'a reported zero speed was replaced by an older value');
+});
+
 test('DEFAULTS are the values the page actually uses', () => {
   assert.equal(DEFAULTS.radiusNm, 10);
   assert.ok(DEFAULTS.cooldownMs >= 5 * 60 * 1000);

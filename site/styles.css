@@ -665,10 +665,6 @@ main {
 .tag-ground {
   border-color: rgba(148, 163, 184, 0.5);
 }
-.tag-air {
-  border-color: var(--theme);
-  color: var(--theme);
-}
 .tag-unknown {
   border-style: dashed;
 }
@@ -809,17 +805,19 @@ main {
 }
 
 /* ---------------------------------------------------------------------------
- * THE ROUTE, LEADING THE ROW: `from KDTW` over `to CYYZ`.
+ * THE ROUTE, LEADING THE ROW IN TWO CELLS: `from KDTW` then `to CYYZ`.
  *
  * George, 22 Sep 2026: *"move the DESTINATION column to be the first column, and use from and to
- * with a little arrow, not to and from"* — and then, the same day, *"remove →"*. It leads because it is
- * the one thing on the row that is not a reading: where the aeroplane came from and where it is going
- * is the question a reader has before they ask anything of an altitude.
+ * with a little arrow, not to and from"* — then *"remove →"*, then *"spil destination in to columns
+ * called depature and desination"*. It leads because it is the one thing on the row that is not a
+ * reading: where the aeroplane came from and where it is going is the question a reader has before
+ * they ask anything of an altitude.
  *
- * 🔴 TWO LEGS, STACKED. Side by side they would set the width of the widest column on a table that has
- * had to be narrowed twice — which is what the airport column was doing when it was taken out. Stacked,
- * the widest line is one city and its country. There is no arrow between them any more: the two words
- * carry the direction, and both legs now start at the same edge.
+ * 🔴 AND EACH LEG IS NOW ITS OWN CELL, WHICH ALSO KEEPS THE TABLE NARROW. The two legs were once
+ * side by side in ONE cell, which set the width of the widest column on a table that has had to be
+ * narrowed twice — the same fault that took the airport column out. Stacked, the widest line is one
+ * city and its country; split into two cells, each is one line of the same length and the two cells
+ * together are no wider than the one they replaced.
  *
  * 🔴 AND THE LEG THAT IS THE ANSWER IS THE BRIGHTER ONE. `from` is context and stays muted; `to` is
  * what the reader came for, in the cell's own colour. Both labels are quiet and small, because a
@@ -840,6 +838,33 @@ main {
   text-transform: uppercase;
   color: var(--muted);
 }
+
+/* 🔴 THE TIME UNDER AN AIRPORT CODE, IN THE READER'S OWN ZONE. George, 22 Sep 2026: *"in arrival list
+ * the time it took off in the users locat time"*. It starts its own line rather than pushing the row
+ * wider — the same reason every other secondary fact on this table took one — and it is smaller and
+ * quieter than the airport above it, because the airport code is what a reader scans down and the time
+ * is what they come back for. */
+.leg-time {
+  display: block;
+  font-family: var(--font, inherit);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* 🔴 THE EXCEPTION, BESIDE THE CALLSIGN IT APPLIES TO. George, 22 Sep 2026: *"the airborn phase column
+ * is redundant"* — and it was: the column said "airborne" on nearly every row, which is a column of the
+ * same word. The one fact it carried that was ever news is the row that is NOT airborne, so that is what
+ * survives, as a tag: an aircraft on the ground inside the fence, and one transmitting a position with no
+ * altitude at all. A reader who wants to know whether a row is airborne reads the absence of this tag. */
+.row-tag {
+  margin-left: 6px;
+}
+
+/* 🔴 `.tag-air` IS DELETED WITH THE COLUMN THAT USED IT. It styled the word "airborne", and after
+ * 22 Sep 2026 the page renders that word nowhere — the class sat in the stylesheet styling an element
+ * that no longer exists, which is how a removed control keeps looking alive. */
 /* The little arrow is gone — see above. Its rule was deleted with it, rather than left behind: a rule
  * for an element the page no longer draws is how a removed control keeps looking alive. */
 

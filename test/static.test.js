@@ -1854,18 +1854,27 @@ test('93 · a re-aim hands the remembered tracks over instead of starting from n
     'the handover carries the departure cooldown as well, which would silence a real departure');
 });
 
-test('94 · the route leads the row, and reads from → to', () => {
+test('94 · the route leads the row in two columns, departure then destination', () => {
   const page = read(SITE, 'index.html');
   const head = page.slice(page.indexOf('<thead>'), page.indexOf('</thead>'));
   assert.ok(head.length > 40, 'the table head could not be isolated, so this check is vacuous');
 
-  // 🔴 THE ROUTE IS THE FIRST COLUMN. George, 22 Sep 2026: *"move the DESTINATION column to be the
-  // first column"*. Asserted as an ORDER rather than as a presence, because a column that exists but
-  // sits last has not been moved.
-  const dest = head.indexOf('Destination</th>');
+  // 🔴 THE ROUTE LEADS THE ROW, AND IT IS TWO COLUMNS NOW. George, 22 Sep 2026: *"spil destination in
+  // to columns called depature and desination"*. Asserted as an ORDER, because a column that exists but
+  // sits last has not been moved — and the departure has to come before the destination, because that
+  // is the order the aircraft travels in.
+  const departure = head.indexOf('Departure</th>');
+  const destination = head.indexOf('Destination</th>');
   const type = head.indexOf('Type</th>');
-  assert.ok(dest > -1, 'the route column is gone from the head');
-  assert.ok(dest < type, 'the route column is not the first one');
+  assert.ok(departure > -1, 'the departure column is gone from the head');
+  assert.ok(destination > -1, 'the destination column is gone from the head');
+  assert.ok(departure < destination, 'the departure does not lead the destination');
+  assert.ok(destination < type, 'the route is not the first thing on the row');
+
+  // 🔴 AND THE PHASE COLUMN IS GONE FROM THE HEAD. George, 22 Sep 2026: *"the airborn phase column is
+  // redundant"* — so the heading goes, and a heading cannot be removed in the markup while the cell
+  // stays in the row, which the next check covers.
+  assert.equal(/Phase<\/th>/.test(head), false, 'the phase column is still in the head');
 
   // 🔴 AND THE AIRPORT COLUMN IS GONE, in the head and in the row that is built under it.
   assert.equal(/Airport<\/th>/.test(head), false, 'the airport column is still in the head');
@@ -1873,9 +1882,10 @@ test('94 · the route leads the row, and reads from → to', () => {
   assert.equal(/placeSpan|private cityOf\(/.test(app), false,
     'the helper that fed the airport column survives, so the column was hidden rather than removed');
 
-  // 🔴 AND THE FIRST CELL ON A REAL ROW IS THE ROUTE. The head and the row are built in two different
-  // files, so a head that leads with the route over a row that leads with something else is a table
-  // whose headings do not describe its cells — the exact fault the group line used to cause.
+  // 🔴 AND THE FIRST TWO CELLS ON A REAL ROW ARE THE TWO HALVES OF THE ROUTE. The head and the row are
+  // built in two different files, so a head that leads with departure over a row that leads with
+  // something else is a table whose headings do not describe its cells — the exact fault the group line
+  // used to cause.
   //
   // ⚠️ THE CLOSING TAG IS SEARCHED FOR FROM THE ROW'S OWN START. `indexOf('</tr>')` on the whole file
   // finds one inside the empty-state sentence ABOVE this row — `'<tr><td colspan="6" …></tr>'` — which
@@ -1885,20 +1895,25 @@ test('94 · the route leads the row, and reads from → to', () => {
   assert.ok(rowFrom > -1, 'the row markup is gone');
   const row = app.slice(rowFrom, app.indexOf('</tr>', rowFrom));
   assert.ok(row.length > 200, 'the row could not be isolated, so this check is vacuous');
-  assert.ok(row.indexOf('this.destinationCell(') < row.indexOf('<td>${'),
-    'the route is not the first cell on the row');
+  const rowDeparture = row.indexOf('this.departureCell(');
+  const rowDestination = row.indexOf('this.destinationCell(');
+  assert.ok(rowDeparture > -1, 'the departure cell is not on the row');
+  assert.ok(rowDestination > -1, 'the destination cell is not on the row');
+  assert.ok(rowDeparture < rowDestination, 'the destination is drawn before the departure');
+  assert.ok(rowDestination < row.indexOf('<td>${'), 'the route does not lead the row');
 
-  // 🔴 `from` ABOVE `to`, AND NO ARROW BETWEEN THEM ANY MORE. The order was the first complaint — *"use
-  // from and to with a little arrow, not to and from"* — and then the arrow itself went: George,
-  // 22 Sep 2026: *"remove →"*. So the order is still checked, and the glyph is now checked to be ABSENT
-  // — in the source, and in the stylesheet that used to draw it. A rule left behind for an element the
-  // page no longer renders is exactly how a deleted control keeps looking alive.
-  const cell = app.slice(app.indexOf('private destinationCell'), app.indexOf('private tickReadingAges'));
-  const label = (word) => cell.indexOf(`dest-label">${word}`);
-  assert.ok(label('from') > -1, 'the first leg is not labelled');
-  assert.ok(label('to') > -1, 'the second leg is not labelled');
-  assert.ok(label('from') < label('to'), 'the legs are not in the order from, then to');
-  assert.equal(/dest-arrow|→/.test(cell), false, 'the arrow is back in the route cell');
+  // 🔴 `from` IN THE DEPARTURE CELL, `to` IN THE DESTINATION CELL, AND NO ARROW ANYWHERE. The order was
+  // the first complaint — *"use from and to with a little arrow, not to and from"* — and then the arrow
+  // went: George, 22 Sep 2026: *"remove →"*. Split into two columns, each label is in its own cell; a
+  // cell that carried both would be the one cell it was split out of.
+  const departCell = app.slice(app.indexOf('private departureCell'), app.indexOf('private destinationCell'));
+  const destCell = app.slice(app.indexOf('private destinationCell'), app.indexOf('private tickReadingAges'));
+  assert.ok(departCell.length > 200 && destCell.length > 200, 'a route cell is missing, so this check is vacuous');
+  assert.match(departCell, /dest-label">from/, 'the departure cell does not say "from"');
+  assert.match(destCell, /dest-label">to/, 'the destination cell does not say "to"');
+  assert.equal(/dest-label">to/.test(departCell), false, 'the departure cell also draws the destination leg');
+  assert.equal(/dest-label">from/.test(destCell), false, 'the destination cell also draws the departure leg');
+  assert.equal(/dest-arrow|→/.test(departCell + destCell), false, 'the arrow is back in a route cell');
   const routeCss = read(SITE, 'styles.css');
   assert.equal(/\.dest-arrow\s*\{/.test(routeCss), false, 'the arrow rule was left in the stylesheet');
 
@@ -1912,9 +1927,9 @@ test('94 · the route leads the row, and reads from → to', () => {
   assert.match(routeCss, /\.cell-tail\s*\{[^}]*display:\s*block/,
     'the tail under the type does not start a line of its own');
 
-  // 🔴 AND THE TWO LEGS DO NOT EACH COME APART INTO FOUR LINES. The place name beside a code is
-  // `display: block` in the rule it keeps from the column that was removed, and left that way each leg
-  // would stack its own city underneath it.
+  // 🔴 AND EACH ROUTE LEG IS ONE LINE, NOT TWO. The place name beside a code is `display: block` in the
+  // rule it keeps from the column that was removed, and left that way each leg would stack its own city
+  // underneath it — which on a one-leg cell is untidy and on a one-line cell is the wrong shape.
   const styles = read(SITE, 'styles.css');
   const place = styles.slice(styles.indexOf('.cell-city {'), styles.indexOf('}', styles.indexOf('.cell-city {')));
   assert.ok(place.length > 20, 'the place rule could not be isolated, so this check is vacuous');
@@ -1923,7 +1938,7 @@ test('94 · the route leads the row, and reads from → to', () => {
   assert.match(styles, /\.dest-leg\s*\{[^}]*display:\s*block/, 'the two legs do not stack');
 
   // A placeholder cell has to span the columns that are actually there, or the empty table is drawn
-  // with a column missing.
+  // with a column missing. Six either way: two route columns replaced one, and the phase column went.
   assert.equal(/colspan="7"/.test(page) || /colspan="7"/.test(app), false,
     'a cell still claims seven columns on a six-column table');
   assert.match(page, /colspan="6"/, 'the placeholder cell does not span the table');
@@ -2027,4 +2042,125 @@ test('95 · the honest page and the honest code agree about the feed', () => {
     'the privacy section is back to claiming that nothing is transmitted, which the code contradicts');
   assert.match(privacy, /last changed on 22 September 2026/,
     'the policy was rewritten without moving its own date');
+});
+
+test('97 · a takeoff time is never invented, and a run to the destination is never claimed as one', () => {
+  const app = readSrc('src/app.ts');
+  const page = read(SITE, 'index.html');
+  const styles = read(SITE, 'styles.css');
+
+  // 🔴 THE FEED CARRIES NO TAKEOFF TIME, SO THE PAGE MAY ONLY CLAIM WHAT IT SAW. Measured on a live
+  // Hamilton response, 22 Sep 2026: position, altitude, ground speed, track, squawk, an age and the
+  // quality flags — no origin, no destination and no time of any kind. So the departure time is the
+  // page's own observation, and there are exactly two of them, kept apart:
+  //
+  //   · `tookOffAt` — a departure the engine CONFIRMED, which means it saw the aircraft on the ground
+  //     first. Only a confirmed one may overwrite the weaker fact.
+  //   · `firstSeenAirborne` — the first airborne reading of this session. Weaker, and labelled as such.
+  const note = app.slice(app.indexOf('private noteTimes('), app.indexOf('private askAirportCoords('));
+  assert.ok(note.length > 300, 'the two times are not recorded anywhere, so this check is vacuous');
+  assert.match(note, /departure\.verdict !== 'confirmed'/, 'an unconfirmed departure is allowed to set a takeoff time');
+  assert.match(note, /this\.tookOffAt\.set\(hex, departure\.at\)/,
+    'a confirmed departure does not record the moment it was decided');
+  assert.match(note, /alt_baro/, 'the first-seen-airborne test does not use the aircraft\u2019s own altitude reading');
+  assert.match(note, /!this\.firstSeenAirborne\.has\(hex\)/, 'the first sighting is overwritten by every later poll');
+
+  // 🔴 AND THE TWO LABELS ARE BOTH RENDERED, EACH ON ITS OWN CONDITION. A row that prints "took off" for
+  // an aircraft it merely first saw airborne is the one claim this whole change must not make — and the
+  // converse is asserted too: the weaker time is WITHHELD when the only time the page could offer is the
+  // minute it opened. On the live page that minute was printed on sixty rows at once, which is a column
+  // that says nothing about any of them.
+  const depart = app.slice(app.indexOf('private departureCell'), app.indexOf('private destinationCell'));
+  assert.ok(depart.length > 200, 'the departure cell is missing, so this check is vacuous');
+  assert.match(depart, /tookOff !== null \? 'took off' : 'first seen'/,
+    'the departure cell does not say which of the two times it is showing');
+  assert.match(depart, /firstSeen > this\.startedAt/,
+    'the page prints its own opening minute as if it were a fact about the aircraft');
+  assert.match(depart, /No takeoff time is known for this aircraft/,
+    'a row with no takeoff time does not admit it');
+  assert.match(app.slice(app.indexOf('private noteTimes('), app.indexOf('private askAirportCoords(')),
+    /if \(this\.startedAt === null\) this\.startedAt = now/,
+    'the moment the page first looked at the feed is never recorded, so nothing can be told apart from it');
+
+  // 🔴 AND A TIME IS SHOWN IN THE READER'S OWN ZONE, WHICH IS THE BROWSER'S. George, 22 Sep 2026: *"in
+  // arrival list the time it took off in the users locat time"*. `toLocaleTimeString` with no zone
+  // argument is that zone; a fixed offset or a UTC call would be somebody else's clock.
+  const clock = app.slice(app.indexOf('function clockTime('), app.indexOf('function runText('));
+  assert.ok(clock.length > 80, 'the clock formatter is gone, so this check is vacuous');
+  assert.match(clock, /toLocaleTimeString\(\[\], \{ hour: '2-digit', minute: '2-digit' \}\)/,
+    'the clock time is not formatted in the reader\u2019s own time zone');
+
+  // 🔴 AND THE RUN TO THE DESTINATION IS AN ESTIMATE, LABELLED AS ONE WHERE THE NUMBER IS. It is
+  // arithmetic on the feed's own position, the airport's own record and the aircraft's own ground speed,
+  // and it assumes a straight line at an unchanged speed — so the word "about" belongs in the cell, not
+  // only in a tooltip, and the conditions under which it must stay silent are asserted here.
+  const run = app.slice(app.indexOf('private runToDestination('), app.indexOf('private scheduleRouteRepaint('));
+  assert.ok(run.length > 300, 'the run estimate is missing, so this check is vacuous');
+  // 🔴 THE SPEED IT DIVIDES BY HAS TO BE ONE THE ROW STATE ACTUALLY CARRIES. This method was written
+  // reading the raw feed field off the row, which is `undefined` on every row — the estimate was
+  // correct, complete and printed nowhere. The table draws from `engine.snapshot()`, so the speed has
+  // to be kept there (`gsKt`) and read from there.
+  assert.match(run, /typeof state\.gsKt === 'number'/, 'the estimate reads its speed from something the row state does not carry');
+  const detect = readSrc('src/detect.ts');
+  assert.match(detect, /gsKt\?: number;/, 'the track state does not declare the speed the estimate needs');
+  assert.match(detect, /gsKt: Number\.isFinite\(reading\.gs\) \? \(reading\.gs as number\) : previous\?\.gsKt/,
+    'the engine does not keep the aircraft\u2019s own ground speed, so no row can estimate a run');
+  assert.match(run, /if \(knots < 60\) return null/, 'a taxiing aircraft is given an hours-long run to its destination');
+  assert.match(run, /minutes < 1 \|\| minutes > 12 \* 60/, 'an absurd run is printed instead of being withheld');
+  assert.match(run, /!airport \|\| lat === null \|\| lon === null \|\| knots === null/,
+    'a run is computed from something other than the three measured numbers');
+  assert.match(depart + app.slice(app.indexOf('private destinationCell'), app.indexOf('private tickReadingAges')),
+    /in about \$\{escapeHtml\(runText\(/, 'the run is printed without the word that marks it as an estimate');
+  assert.match(styles, /\.leg-time\s*\{[^}]*display:\s*block/,
+    'the time under an airport code does not start a line of its own');
+
+  // 🔴 AND THE AIRPORT'S POSITION IS ASKED FOR CAREFULLY, WHICH IS WHAT MAKES THE ESTIMATE POSSIBLE. The
+  // feed answers for ANY airport by code — measured 22 Sep 2026, `/api/0/airport/KDEN` returned Denver at
+  // 39.861698, -104.672997. Three things are asserted, and the third is the one that was measured the hard
+  // way: with sixty rows the page asked for sixty airports at once, the feed began answering 429, and a
+  // refusal remembered as "no coordinates" would have taken the run off every row for the session.
+  const ask = app.slice(app.indexOf('private askAirportCoords('), app.indexOf('private runToDestination('));
+  assert.ok(ask.length > 200, 'the airport-coordinate lookup is gone, so this check is vacuous');
+  assert.match(ask, /\/api\/0\/airport\/\$\{encodeURIComponent\(key\)\}/, 'the lookup does not ask the feed for the airport');
+  assert.match(ask, /this\.airportCoords\.has\(key\) \|\| this\.askingAirport\.has\(key\)\) return/,
+    'the same airport would be asked for again on every poll');
+  assert.match(ask, /this\.airportCoords\.set\(key, null\)/, 'an airport the feed has no record of is asked about forever');
+  assert.match(ask, /this\.airportRetryAt\.set\(key, Date\.now\(\) \+ AIRPORT_RETRY_MS\)/,
+    'a refused lookup is remembered as an unknown airport, so one rate-limited second loses the estimate for the session');
+  assert.match(ask, /this\.askingAirport\.size < AIRPORT_LOOKUPS_AT_ONCE/,
+    'every airport is asked for at once, which is what produced the refusals');
+  assert.match(ask, /if \(Date\.now\(\) < \(this\.airportRetryAt\.get\(key\) \?\? 0\)\) return/,
+    'a refused airport is not made to wait, so it is retried on every poll');
+
+  // 🔴 AND THE LIVE CHECK RUNS BEFORE THE ROWS ARE DRAWN, so a column can never show a time from an older
+  // reading than the table around it.
+  const poll = app.indexOf('this.noteTimes(readings, departures)');
+  assert.ok(poll > -1, 'the times are never noted, so both columns would stay empty');
+  assert.ok(poll < app.indexOf('this.renderAircraft()', poll),
+    'the times are noted after the table is drawn, so the first row of every poll shows an older time');
+
+  // 🔴 AND THE PHASE IS A TAG FOR THE EXCEPTIONS ONLY. The column went because nearly every row said
+  // "airborne"; the two rows that say something else keep a tag beside the callsign, and the word that
+  // said nothing is not rendered at all.
+  const tag = app.slice(app.indexOf('const phaseTag'), app.indexOf('const info = state.type'));
+  assert.ok(tag.length > 80, 'the phase tag is gone, so this check is vacuous');
+  assert.match(tag, /state\.phase === 'airborne'\s*\n?\s*\?\s*''/, 'an airborne row still carries a tag');
+  assert.match(tag, /tag-ground[^']*>on the ground/, 'the on-the-ground exception is no longer drawn');
+  assert.match(tag, /tag-unknown[^']*>no altitude/, 'the no-altitude exception is no longer drawn');
+  assert.match(app, /<td><b>\$\{escapeHtml\(label\)\}<\/b>\$\{phaseTag\}<\/td>/,
+    'the phase tag is not drawn beside the callsign');
+
+  // And the page tells the reader all of it, in the card the numbers are in.
+  //
+  // ⚠️ THE SENTENCES WRAP, SO THE PATTERNS ARE ENDINGS AND NOT WHOLE LINES. A pattern copied from the
+  // rendered page failed here on a paragraph that was correct: "took off</b> means this page watched"
+  // is broken across two source lines, and a substring search cannot see across the break. These match
+  // from a phrase to its end and let the newline sit inside `[^.]*`.
+  assert.match(page, /took off<\/b> means this page[^.]*leave the ground/,
+    'the page does not explain the stronger time');
+  assert.match(page, /first seen<\/b> means it was already flying[^.]*the feed never sends a takeoff time/,
+    'the page does not explain the weaker time');
+  assert.match(page, /estimate, not an arrival time/, 'the page does not say the run is an estimate');
+  assert.match(page, /straight-line distance still to[^.]*run at the speed/,
+    'the page does not say what the estimate assumes');
 });
