@@ -1749,13 +1749,25 @@ class Page {
       // Count what this session is actually seeing, so the type list is never
       // empty even if the measured file cannot be read — and so a type the
       // survey never caught still becomes watchable rather than invisible.
-      const before = this.liveTypes.size;
+      //
+      // 🔴 IT COUNTS WHAT IS IN FRONT OF THE READER *NOW*, NOT WHAT HAS EVER BEEN. George, 22 Sep 2026:
+      // *"if its in the are outside of my circle, i dont want the tails to say in the air"*. This map
+      // only ever grew — a type counted once stayed counted for as long as the tab was open — so a row
+      // could read *"on the map just now"* about an aircraft that left the fence twenty minutes earlier,
+      // and the type list went on offering types that were no longer anywhere near. It is rebuilt from
+      // the poll that has just arrived, which is the only reading it ever claimed to describe.
+      const seen = new Map<string, number>();
       for (const reading of readings) {
         const type = String(reading.t || '').trim().toUpperCase();
         if (!type || type === '-' || type.length > 6) continue;
-        this.liveTypes.set(type, (this.liveTypes.get(type) ?? 0) + 1);
+        seen.set(type, (seen.get(type) ?? 0) + 1);
       }
-      if (this.liveTypes.size !== before) this.renderTypeList();
+      // 🔴 A SWAP IS A CHANGE. One type leaving as another arrives leaves the SIZE the same, so a
+      // size-only comparison would leave the list drawn for the previous set of types.
+      const changed =
+        seen.size !== this.liveTypes.size || [...seen.keys()].some((code) => !this.liveTypes.has(code));
+      this.liveTypes = seen;
+      if (changed) this.renderTypeList();
 
       const departures = this.engine.ingest(readings, Date.now());
       // ⚠️ THIS IS WHERE THE PAGE USED TO NOTE A TAKEOFF TIME, and the line is deliberately not
@@ -1994,8 +2006,6 @@ class Page {
     outside: number;
     watched: number;
   } {
-    const centre = this.point();
-    const radiusNm = kmToNm(this.radiusKm);
     const air: TrackState[] = [];
     let onGround = 0;
     let outside = 0;
@@ -2003,16 +2013,9 @@ class Page {
     for (const state of all) {
       if (!this.isWatchedNow(state)) continue;
       watched += 1;
-      const hasPosition = typeof state.lat === 'number' && typeof state.lon === 'number';
-      // No centre and no position are not a reason to hide an aircraft: the fence answer is unknown, so
-      // the aircraft is left in and the air rule decides. A page that hides on missing data reports an
-      // absence it cannot know about.
-      if (centre !== null && hasPosition) {
-        const away = distanceNm(centre.lat, centre.lon, state.lat as number, state.lon as number);
-        if (away > radiusNm) {
-          outside += 1;
-          continue;
-        }
+      if (!this.insideFence(state)) {
+        outside += 1;
+        continue;
       }
       if (state.phase !== 'airborne') {
         onGround += 1;
@@ -2021,6 +2024,31 @@ class Page {
       air.push(state);
     }
     return { air, onGround, outside, watched };
+  }
+
+  /**
+   * 🔴 IS THIS AIRCRAFT INSIDE THE CIRCLE THE READER CHOSE — the one question everything on this page
+   * that speaks about the present has to ask before it says anything.
+   *
+   * George, 22 Sep 2026: *"i chose a distance of 50, i clicked these two, it tells me whats is in the air
+   * but only one show up on my map. if its in the are outside of my circle, i dont want the tails to say
+   * in the air"*. The map asked this question and the watchlist row did not: the engine keeps up to forty
+   * five minutes of tracks, so an aircraft that has already flown out of the circle is still in the
+   * snapshot the row was counted from — and the row read *"8 in the air"* beside a map drawing one.
+   *
+   * Two statements about one moment have to be counted from one thing. This is that thing: the rows, the
+   * green chips beside them, the map's own list and its empty-state counts all read this method, so they
+   * cannot describe different skies.
+   *
+   * ⚠️ NO CENTRE OR NO POSITION IS NOT A REASON TO EXCLUDE. The fence answer is then UNKNOWN, and an
+   * aircraft is not hidden on missing data — the caller's own rule (watched? airborne?) decides, and a
+   * page that hides what it cannot measure reports an absence it has no way to know about.
+   */
+  private insideFence(state: { lat?: number; lon?: number }): boolean {
+    const centre = this.point();
+    if (centre === null) return true;
+    if (typeof state.lat !== 'number' || typeof state.lon !== 'number') return true;
+    return distanceNm(centre.lat, centre.lon, state.lat, state.lon) <= kmToNm(this.radiusKm);
   }
 
   /* -------------------------------------------------- the measured types --- */
@@ -2296,7 +2324,11 @@ class Page {
   private tickWatchStates(): void {
     const host = byId('watchList');
     if (!host) return;
-    const live = this.engine ? this.engine.snapshot() : [];
+    // 🔴 THE SAME LIST THE ROWS WILL BE DRAWN FROM — filtered by the fence, so an aircraft crossing out
+    // of the circle is a change this tick can see. Counting the raw snapshot here would mean the key
+    // never moved when a flight left the fence, and the row would keep saying "in the air" until some
+    // unrelated aircraft happened to arrive.
+    const live = (this.engine ? this.engine.snapshot() : []).filter((one) => this.insideFence(one));
 
     // What the status text can actually depend on: which aircraft are here, of which type, under
     // which tail; whether the record has been read, and which reading of it; and whether the
@@ -3881,8 +3913,11 @@ class Page {
       return;
     }
 
-    // Read once, for every row — see `countMatching`.
-    const live = this.engine ? this.engine.snapshot() : [];
+    // Read once, for every row — see `countMatching`. 🔴 AND INSIDE THE READER'S CIRCLE, because this
+    // list is what the status beside each row is counted from and what turns a tail chip green: an
+    // aircraft that has flown out of the fence is not on the map, so it may not be named as being in
+    // the air either — see `insideFence`.
+    const live = (this.engine ? this.engine.snapshot() : []).filter((one) => this.insideFence(one));
 
     const typeItems = this.typeRules
       .map((rule) => {
