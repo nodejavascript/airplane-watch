@@ -75,6 +75,31 @@ Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
   (George, 22 Sep 2026). The list is the same sample the card shows — what identified itself, never a fleet
   list.
 
+## The table, the trail and the card that went (22 Sep 2026)
+
+- **Every row names its own type, and every airport code carries its city.** The table used to name a type in
+  a full-width `<tr>`, which read as a row that did not fit its own columns — *"the line in the middle is
+  confusing"* — and said only "1 aircraft" when a type had one example. The rows are still sorted by type.
+  Beside `CYHM` sits `Hamilton, CA`, because a four-letter code is precise and useless to anyone who has not
+  memorised four thousand of them.
+- **Destination is looked up, not heard, and the card says so.** Measured 22 Sep 2026: the feed's own callsign
+  endpoint returns hex, registration, type, altitude and track — and no origin, destination or route. ADS-B
+  carries who the aircraft is, never where it is booked to. So `Destination` comes from a free callsign lookup
+  (`api.adsbdb.com`, no key) through the same proxy, normalised to this site's own field names. A dash means no
+  route is on file; "asking…" means the answer has not arrived. A diversion or a reused callsign can make it
+  wrong, which is why the column is labelled as a different kind of claim from the readings beside it.
+- **The flight path is coloured by what the aircraft did.** It was one `<polyline>` in one colour, so a climb
+  and a descent were drawn identically and the trail answered the one question a flight path exists to answer
+  with a line that said nothing. It is one line per segment now, classed from the altitude recorded on each
+  trail point: **green** climbing, **amber** descending, **grey** level, **dashed grey** where the reading
+  carried no altitude — and only then does it fall back to the rate of climb the aircraft is reporting now.
+  A key sits under the map, because a colour with no key is a code nobody can read. Trail points carry the
+  altitude they were recorded at (`detect.ts`), so an old tab's trail falls back rather than lying.
+- **The "In the air right now" card is gone**, with its radar drawing, its second table and its two methods.
+  It showed the same aircraft as the card above it, in different columns, and printed "nothing matching your
+  selection is in the air" underneath a table a reader had already been told about. The one map is in the
+  watching section and did not go with it.
+
 **`site/types.json` is data, not code** — refresh it by re-running one script rather than by editing the site.
 The survey is polite about the feed's rate limit and reports any round it could not get (measured: seven
 airports polled back to back had five refused by the third round).

@@ -63,6 +63,61 @@ function rememberFeed(target, entry) {
 }
 
 /**
+ * 🔴 WHERE AN AIRCRAFT IS GOING IS NOT IN THE FEED — measured 22 Sep 2026, not assumed.
+ *
+ * `api.adsb.lol/v2/callsign/DAL1719` answers with the aircraft record and nothing else: no origin,
+ * no destination, no route. ADS-B does not carry one — an aircraft broadcasts who it is, not where
+ * it is booked to. So the destination has to come from somewhere else or not at all.
+ *
+ * `api.adsbdb.com` maps a CALLSIGN to a route, is free, and needs no key. It is asked through this
+ * proxy for the same reason the feed is: the page must not depend on another site's CORS headers,
+ * and the reader's browser should not be handed to a third party to draw a table.
+ *
+ * 🔴 AND THE ANSWER IS NORMALISED HERE, NOT PASSED THROUGH. George's own rule for this file: the
+ * page must never depend on the field names of a service that is free and owes us nothing —
+ * `municipality` and `country_iso_name` are adsbdb's words, and the page gets `city` and
+ * `country`.
+ */
+const ROUTE_UPSTREAM = 'https://api.adsbdb.com/v0/callsign';
+const ROUTE_CACHE_MS = 6 * 60 * 60 * 1000;
+const ROUTE_CACHE_MAX = 400;
+const routeCache = new Map();
+
+function rememberRoute(callsign, body) {
+  routeCache.set(callsign, { at: Date.now(), body });
+  while (routeCache.size > ROUTE_CACHE_MAX) routeCache.delete(routeCache.keys().next().value);
+}
+
+/** ONE AIRPORT FROM A ROUTE, IN THIS SITE'S OWN WORDS, OR `null` IF IT IS NOT A REAL ONE. */
+function routeAirport(raw) {
+  const row = raw ?? {};
+  const icao = String(row.icao_code ?? '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{4}$/.test(icao)) return null;
+  return {
+    icao,
+    iata: String(row.iata_code ?? '').trim().toUpperCase(),
+    city: String(row.municipality ?? '').trim(),
+    country: String(row.country_iso_name ?? '').trim().toUpperCase(),
+    name: String(row.name ?? '').trim(),
+  };
+}
+
+function normaliseRoute(payload) {
+  const route = payload?.response?.flightroute;
+  if (!route) return null;
+  const origin = routeAirport(route.origin);
+  const destination = routeAirport(route.destination);
+  // Both ends or nothing: a route with only one end is not a route, and half of it drawn as a
+  // destination would be the page asserting a fact the record does not hold.
+  if (!origin || !destination) return null;
+  return {
+    airline: String(route.airline?.name ?? '').trim(),
+    origin,
+    destination,
+  };
+}
+
+/**
  * 🔴 THE FEED'S OWN PATHS ARE INCONSISTENT, AND THAT IS NOT OURS TO FIX.
  *
  *   https://api.adsb.lol/v2/point/…          the aircraft endpoints — no /api
@@ -766,6 +821,50 @@ async function serveTile(path, response) {
   }
 }
 
+async function serveRoute(rawCallsign, response) {
+  const callsign = String(rawCallsign ?? '').trim().toUpperCase();
+  const headers = { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*' };
+  if (!/^[A-Z0-9]{2,8}$/.test(callsign)) {
+    response.writeHead(400, { ...headers, 'cache-control': 'no-store' });
+    response.end(JSON.stringify({ ok: false, error: 'A callsign is up to eight letters and digits.' }));
+    return;
+  }
+
+  const cached = routeCache.get(callsign);
+  if (cached && Date.now() - cached.at < ROUTE_CACHE_MS) {
+    response.writeHead(200, { ...headers, 'cache-control': 'public, max-age=21600', 'x-route-cache': 'fresh' });
+    response.end(JSON.stringify(cached.body));
+    return;
+  }
+
+  try {
+    const upstream = await fetch(`${ROUTE_UPSTREAM}/${encodeURIComponent(callsign)}`, {
+      headers: { accept: 'application/json', 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(12_000),
+    });
+    // 🔴 A CALLSIGN WITH NO PUBLISHED ROUTE IS A REAL ANSWER, NOT AN ERROR. adsbdb answers 404 for
+    // exactly that, and it means "nobody has a route on file for this callsign" — which the page
+    // prints as a dash. Turning it into a failure would make an ordinary answer look like a fault.
+    if (upstream.status === 404) {
+      const body = { ok: true, callsign, route: null };
+      rememberRoute(callsign, body);
+      response.writeHead(200, { ...headers, 'cache-control': 'public, max-age=21600' });
+      response.end(JSON.stringify(body));
+      return;
+    }
+    if (!upstream.ok) throw new Error(`the route lookup answered ${upstream.status}`);
+    const payload = await upstream.json();
+    const body = { ok: true, callsign, route: normaliseRoute(payload) };
+    rememberRoute(callsign, body);
+    response.writeHead(200, { ...headers, 'cache-control': 'public, max-age=21600' });
+    response.end(JSON.stringify(body));
+  } catch (error) {
+    // 503 and never 502 — an origin's 502 has its body replaced by the edge's own page.
+    response.writeHead(503, { ...headers, 'cache-control': 'no-store' });
+    response.end(JSON.stringify({ ok: false, error: `The route lookup could not be reached. ${error.message}` }));
+  }
+}
+
 async function serveApi(request, response) {
   const path = new URL(request.url, 'http://localhost').pathname;
   // 🔴 THE PLACE LOOKUPS ARE DIFFERENT UPSTREAMS WITH DIFFERENT ANSWER SHAPES, so they are
@@ -792,6 +891,10 @@ async function serveApi(request, response) {
   if (path.startsWith('/api/geo/search')) {
     const query = new URL(request.url, 'http://localhost').searchParams;
     await servePlaceSearch(query.get('q'), response);
+    return;
+  }
+  if (path.startsWith('/api/route/')) {
+    await serveRoute(path.slice('/api/route/'.length), response);
     return;
   }
 

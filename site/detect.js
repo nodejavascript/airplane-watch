@@ -112,7 +112,15 @@ function appendTrail(previous, reading, now) {
     if (last && last.lat === lat && last.lon === lon) {
         return kept.length > 0 ? kept : undefined;
     }
-    const grown = [...kept, { lat, lon, at: now }];
+    // The altitude the aircraft reported with THIS position — see the note on `TrailPoint.alt`. The
+    // geometric altitude is the fallback only when there is no pressure altitude, and neither being
+    // present stores `null` rather than a zero that would draw as a descent.
+    const alt = typeof reading.alt_baro === 'number'
+        ? reading.alt_baro
+        : typeof reading.alt_geom === 'number'
+            ? reading.alt_geom
+            : null;
+    const grown = [...kept, { lat, lon, at: now, alt }];
     return grown.length > TRAIL_POINTS ? grown.slice(grown.length - TRAIL_POINTS) : grown;
 }
 /** Kilometres the reader chose → whole nautical miles the feed takes. */

@@ -343,6 +343,37 @@ interface AirportsDocument {
   airports: ListedAirport[];
 }
 
+/** One end of a route, as this site's own proxy normalises it — never adsbdb's words. */
+interface RouteEnd {
+  icao: string;
+  iata: string;
+  /** The city the airport serves, e.g. "Boston". */
+  city: string;
+  /** Two-letter country, e.g. "US". */
+  country: string;
+  /** The airport's full name, e.g. "Logan International Airport". */
+  name: string;
+}
+
+/**
+ * 🔴 A ROUTE IS A LOOKUP, NOT A READING, AND IT IS A DIFFERENT KIND OF CLAIM.
+ *
+ * ADS-B does not carry a destination. Measured 22 Sep 2026 against the feed itself:
+ * `/v2/callsign/DAL1719` answers with the aircraft record — hex, registration, type, altitude,
+ * track — and no origin, no destination, no route. An aircraft broadcasts WHO IT IS, never where
+ * it is booked to. So the destination on this table comes from a callsign lookup (`api.adsbdb.com`,
+ * free, no key) and never from the radio, and the footnote under the table says so in those words.
+ *
+ * Everything on the row that was MEASURED and everything that was LOOKED UP therefore sit in
+ * different columns, and only the looked-up one can be wrong about today: a flight can be diverted,
+ * a callsign can be reused for another leg, and the record can simply be out of date.
+ */
+interface RouteInfo {
+  airline: string;
+  origin: RouteEnd;
+  destination: RouteEnd;
+}
+
 /** An airport with how far it is from the reader. */
 interface NearbyAirport {
   airport: ListedAirport;
@@ -430,27 +461,14 @@ interface PhotoEntry {
   creditPage: string;
 }
 
-/** One aircraft matching the selection that is in the air right now. */
-interface LiveAircraft {
-  label: string;
-  tail: string;
-  type: string;
-  hex: string;
-  altitudeFt: number | null;
-  climbFpm: number | null;
-  speedKt: number | null;
-  km: number;
-  bearingDeg: number;
-  matchedBy: string;
-  watched: boolean;
-}
-
 /**
- * How far round the compass one point is from another, in degrees from north.
+ * 🔴 THE BEARING AND COMPASS HELPERS ARE GONE, WITH THE CHART THAT NEEDED THEM.
  *
- * This is what makes the live view a picture rather than a list: distance alone
- * says an aircraft is 8 km away, and distance with a bearing says it is 8 km to
- * the south-west, which is the direction an aircraft leaves Hamilton for Toronto.
+ * `bearingDeg` and `compassPoint` (and the `COMPASS` table under it) turned an aircraft's position
+ * into "8 km to the south-west" for the top-down radar drawing. George removed that card on
+ * 22 Sep 2026, so their only caller went with it — and the compiler says so rather than leaving
+ * them here to rot. The MAP still answers "where is it": it draws the aircraft at its reported
+ * position, which is a better answer than a bearing in words.
  */
 /**
  * Web Mercator, the arithmetic every slippy map is built on.
@@ -470,21 +488,48 @@ function latToTile(lat: number, zoom: number): number {
   return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** zoom;
 }
 
-function bearingDeg(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const toRad = Math.PI / 180;
-  const p1 = lat1 * toRad;
-  const p2 = lat2 * toRad;
-  const dl = (lon2 - lon1) * toRad;
-  const y = Math.sin(dl) * Math.cos(p2);
-  const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
-  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-}
+/**
+ * 🔴 HOW MUCH HEIGHT COUNTS AS A CLIMB, AND THE TWO NUMBERS ARE MEASURED RATHER THAN PICKED.
+ *
+ * The trail is one point per poll, and the poll runs from 15 seconds to three minutes — so the gap
+ * between two points is a real slice of flying, not a second of it. A jet climbing at the 2,000
+ * ft/min a departure out of Hamilton holds would gain about 660 feet in a 20-second gap; a level
+ * cruise wanders by a few tens of feet as the pressure altitude is re-read.
+ *
+ * `TRAIL_LEVEL_FT` therefore puts the "level" band well above the wander and well below a real
+ * climb, so a cruise is not painted as a climb and a climb is not painted as a cruise.
+ * `RATE_LEVEL_FPM` does the same job for the fallback, which reads the aircraft's reported rate of
+ * climb instead of the difference between two points.
+ */
+const TRAIL_LEVEL_FT = 100;
+const RATE_LEVEL_FPM = 200;
 
-/** 16-point compass, because "204°" is a number and "south-south-west" is a place. */
-const COMPASS = ['north', 'north-north-east', 'north-east', 'east-north-east', 'east', 'east-south-east', 'south-east', 'south-south-east', 'south', 'south-south-west', 'south-west', 'west-south-west', 'west', 'west-north-west', 'north-west', 'north-north-west'];
-
-function compassPoint(degrees: number): string {
-  return COMPASS[Math.round(degrees / 22.5) % 16];
+/**
+ * Which of the four hues one segment of a flight path gets.
+ *
+ * `unknown` is a real answer and not a failure: it means the reading carried no altitude to compare
+ * (or the trail predates the field), and the page draws it dashed and says so in the key rather
+ * than colouring it as "level" — which would be an assertion nobody made.
+ */
+function climbHue(
+  from: number | null,
+  to: number | null,
+  current: number | undefined
+): 'climb' | 'descend' | 'level' | 'unknown' {
+  if (from !== null && to !== null) {
+    const delta = to - from;
+    if (delta >= TRAIL_LEVEL_FT) return 'climb';
+    if (delta <= -TRAIL_LEVEL_FT) return 'descend';
+    return 'level';
+  }
+  // No altitudes on the points themselves — the aircraft's own reported rate is the honest
+  // fallback, and it describes the whole path it is drawing rather than inventing a profile.
+  if (typeof current === 'number') {
+    if (current >= RATE_LEVEL_FPM) return 'climb';
+    if (current <= -RATE_LEVEL_FPM) return 'descend';
+    return 'level';
+  }
+  return 'unknown';
 }
 
 interface FeedResponse {
@@ -811,13 +856,11 @@ class Page {
     return `${codes.slice(0, 3).join(' / ')} +${codes.length - 3} more`;
   }
 
-  /** The same, where there is room for almost nothing — the middle of the radar. */
-  private airportCentreLabel(): string {
-    const codes = this.chosenIcaos();
-    if (codes.length === 0) return this.centre ? 'you' : '';
-    if (codes.length <= 2) return codes.join(' / ');
-    return `${codes.length} airports`;
-  }
+  /**
+   * 🔴 `airportCentreLabel()` WENT WITH THE RADAR. It named the middle of the top-down drawing
+   * ("CYHM / CYKF", or "3 airports"), and that drawing is the card George removed on 22 Sep 2026.
+   * `airportPhrase()` above is untouched and still says the same thing everywhere it is read.
+   */
 
   private engine: DetectionEngine | null = null;
   private watchlist: string[] = [];
@@ -930,8 +973,27 @@ class Page {
    * for good if the file cannot be read — the panel is an extra, so its absence is quiet.
    */
   private historic: HistoricDocument | null = null;
-  /** The raw readings from the last poll — the live view is drawn from these. */
+  /** The raw readings from the last poll — the table and the map are drawn from these. */
   private lastReadings: Reading[] = [];
+
+  /**
+   * 🔴 THE ROUTES, REMEMBERED PER CALLSIGN AND ASKED FOR AT MOST ONCE.
+   *
+   * Three states, and the difference between two of them is the whole reason this is a Map of
+   * `RouteInfo | null` and not a Set:
+   *
+   *   absent      → nobody has asked yet, so the cell says so rather than claiming there is none
+   *   `null`      → the lookup answered, and there is NO ROUTE ON FILE for this callsign
+   *   `RouteInfo` → the route it holds
+   *
+   * `routeRetryAt` is what stops a lookup that FAILED (a timeout, a 503, a moment offline) from
+   * being retried on every poll for the rest of the session — and stops it from being remembered as
+   * "no route", which would turn a network blip into a fact about the aircraft.
+   */
+  private routes = new Map<string, RouteInfo | null>();
+  private routeAsked = new Set<string>();
+  private routeRetryAt = new Map<string, number>();
+  private routeRepaint: number | null = null;
 
   /**
    * Whether the reader has answered the distance half of step 1 by moving the slider.
@@ -1531,7 +1593,6 @@ class Page {
 
       if (departures.length > 0) this.alertOnDepartures(departures);
       this.renderAircraft();
-      this.renderLive();
       // Plain words. George, 20 Sep 2026: *"i dont like ... 2 aircraft in the fence
       // · poll 3 · last 01:15:00 PM"* — "poll" is how it works, not what the reader
       // asked, and the count is what they came for.
@@ -1616,8 +1677,8 @@ class Page {
       // there and none of them the reader's.
       body.innerHTML =
         all.length === 0
-          ? '<tr><td colspan="5" class="muted">Nothing in the fence at this moment. Aircraft appear and disappear as they pass.</td></tr>'
-          : '<tr><td colspan="5" class="muted">Nothing in the fence matches what you picked. ' +
+          ? '<tr><td colspan="7" class="muted">Nothing in the fence at this moment. Aircraft appear and disappear as they pass.</td></tr>'
+          : '<tr><td colspan="7" class="muted">Nothing in the fence matches what you picked. ' +
             `The feed can see ${all.length} aircraft right now, and none of them is on your list — ` +
             'star a type in step 3, or name a tail number, and they will appear here.</td></tr>';
       // 🔴 THE MAP IS DRAWN ON THIS PATH TOO, AND IT DID NOT USE TO BE.
@@ -1632,82 +1693,82 @@ class Page {
       return;
     }
 
-    // 🔴 GROUPED BY TYPE, WITH THE AIRPORT ON EVERY ROW, AND NO HEX ADDRESS AT ALL.
-    // George, 20 Sep 2026: *"i want to group by aircraft type, and the airport. Address is
-    // useless"*.
+    // 🔴 EVERY ROW NAMES ITS OWN TYPE, AND THE FULL-WIDTH GROUP LINE IS GONE.
     //
-    // He is right about the address: a transponder hex code is an implementation detail
-    // that no reader can use, and it was the FIRST column — the most prominent place on
-    // the table for the least useful fact. What a reader actually asks is "what is that"
-    // and "where" — a type and an airport — so the type heads each group and the airport
-    // is the first thing on the row.
+    // George, 22 Sep 2026: *"the line in the middle is confusing, A21N Airbus A321neo 1 aircraft
+    // …"* — and it was. The table named a type in a `<tr>` that spanned every column, so a reader
+    // met something that LOOKED like a row and answered a question the row beneath it was already
+    // answering; with a single aircraft under it, all it said was "1 aircraft". The type is now a
+    // column on the row it belongs to, and the rows are still SORTED by type, so the list reads in
+    // exactly the order it did before — without the line that did not fit its own columns.
     //
-    // The airport is the nearest one the reader is watching, worked out from the aircraft's
-    // last known position. An aircraft with no position yet is put under "not placed" rather
-    // than being given a guess or dropped, because it is real and it is in the fence.
-    const withAirport = rows.map((state) => ({ state, airport: this.nearestAirportTo(state) }));
-    const groups = new Map<string, { label: string; items: typeof withAirport }>();
-    for (const row of withAirport) {
-      const code = row.state.type || '';
-      if (!groups.has(code)) {
-        groups.set(code, { label: code ? describeType(code).name : 'Type not transmitted', items: [] });
-      }
-      groups.get(code)!.items.push(row);
-    }
+    // 🔴 AND EVERY AIRPORT CODE IS FOLLOWED BY THE PLACE IT STANDS FOR. George, 22 Sep 2026: *"for
+    // departure and destinate can you put the city, state besides them"*. A four-letter code is
+    // precise and useless to anybody who has not memorised four thousand of them, so the row says
+    // which city it means, from the airport file this page already carries.
+    const rowsSorted = rows
+      .map((state) => ({ state, airport: this.nearestAirportTo(state) }))
+      .sort((a, b) => {
+        const an = describeType(a.state.type).name;
+        const bn = describeType(b.state.type).name;
+        return (
+          an.localeCompare(bn) ||
+          (a.airport ?? 'zz').localeCompare(b.airport ?? 'zz') ||
+          a.state.callsign.localeCompare(b.state.callsign)
+        );
+      });
 
     const html: string[] = [];
-    for (const [code, group] of [...groups.entries()].sort((a, b) => a[1].label.localeCompare(b[1].label) || a[0].localeCompare(b[0]))) {
-      // Sorted by airport inside the group, so the rows read as sub-groups rather than as
-      // whatever order the feed happened to report them in.
-      group.items.sort((a, b) => (a.airport ?? 'zz').localeCompare(b.airport ?? 'zz') || a.state.callsign.localeCompare(b.state.callsign));
+    for (const { state, airport } of rowsSorted) {
+      const label = state.callsign || state.registration || state.hex;
+      // 🔴 NAMED BY THE READER, OR CAUGHT BY A TYPE THEY STARRED. Every row here is
+      // selected — that is the whole point of the filter above — so the highlight can no
+      // longer mean "selected". It means the narrower and rarer thing: you named this
+      // tail number yourself, rather than it arriving because a type you starred was up.
+      const byName = this.matchKind(state) === 'aircraft';
+      const phase =
+        state.phase === 'ground'
+          ? '<span class="tag tag-ground">on the ground</span>'
+          : state.phase === 'airborne'
+            ? '<span class="tag tag-air">airborne</span>'
+            : '<span class="tag tag-unknown">no altitude</span>';
+      const info = state.type ? describeType(state.type) : null;
       html.push(
-        `<tr class="type-group"><th scope="colgroup" colspan="5">` +
-          (code ? `<span class="mono">${escapeHtml(code)}</span> ${escapeHtml(group.label)}` : escapeHtml(group.label)) +
-          `<span class="group-count">${group.items.length} aircraft</span>` +
-          `</th></tr>`
+        // 🔴 EVERY REAL ROW CARRIES A CLASS OF ITS OWN, BECAUSE "NOT A GROUP ROW" WAS NOT
+        // ENOUGH TO TELL A DATA ROW FROM A PLACEHOLDER. The empty states above are single
+        // `<tr>`s with a `colspan` cell, so `tr:not(.type-group)` matches them too — and a
+        // test waiting for `#aircraftBody tr:not(.type-group)` was satisfied by the sentence
+        // saying there was nothing to show. Measured: one rewritten test passed on the
+        // placeholder alone, which is a false pass, and a false pass is worse than a
+        // failure because it is read as cover.
+        `<tr class="aircraft-row${byName ? ' watched-row' : ''}">` +
+        `<td class="mono">${airport ? escapeHtml(airport) : '<span class="muted">not placed</span>'}` +
+        `${this.placeSpan(airport)}</td>` +
+        `<td>${
+          info
+            ? `<span class="mono">${escapeHtml(info.code)}</span>` +
+              (info.known ? `<span class="cell-type">${escapeHtml(info.name)}</span>` : '')
+            : '<span class="muted">not transmitted</span>'
+        }</td>` +
+        `<td><b>${escapeHtml(label)}</b></td>` +
+        `<td>${phase}</td>` +
+        // 🔴 THE TIME IS PRINTED TWICE ON PURPOSE, IN THE TWO FORMS THAT ANSWER DIFFERENT
+        // QUESTIONS. George, 20 Sep 2026: *"last reading should include fromnow()"*. A
+        // clock time says WHEN it was; "12s ago" says WHETHER IT STILL MEANS ANYTHING, and
+        // that is the question a reader watching a live feed is actually asking. A cell
+        // that said only "15:04:22" made them do the subtraction themselves, against their
+        // own clock, with no idea whether the page had stalled.
+        `<td class="mono">${formatClock(state.observedAt)}` +
+        `<span class="reading-ago" data-at="${state.observedAt}"> · ${fromNow(state.observedAt)}</span></td>` +
+        // 🔴 THE POSITION, WHERE THE WATCH LINK USED TO BE. George, 20 Sep 2026:
+        // *"remove the watch link, can you put long/lat"*. Watching is done by picking —
+        // a type in step 3 or a tail number in step 5 — so a control on every row was a
+        // second way to do the same thing, in the one place a reader is trying to read.
+        // Four decimals is about eleven metres, which is as much as the position means.
+        `<td class="mono pos">${positionText(state)}</td>` +
+        this.destinationCell(this.routeOf(state.callsign)) +
+        '</tr>'
       );
-      for (const { state, airport } of group.items) {
-        const label = state.callsign || state.registration || state.hex;
-        // 🔴 NAMED BY THE READER, OR CAUGHT BY A TYPE THEY STARRED. Every row here is
-        // selected — that is the whole point of the filter above — so the highlight can no
-        // longer mean "selected". It means the narrower and rarer thing: you named this
-        // tail number yourself, rather than it arriving because a type you starred was up.
-        const byName = this.matchKind(state) === 'aircraft';
-        const phase =
-          state.phase === 'ground'
-            ? '<span class="tag tag-ground">on the ground</span>'
-            : state.phase === 'airborne'
-              ? '<span class="tag tag-air">airborne</span>'
-              : '<span class="tag tag-unknown">no altitude</span>';
-        html.push(
-          // 🔴 EVERY REAL ROW CARRIES A CLASS OF ITS OWN, BECAUSE "NOT A GROUP ROW" WAS NOT
-          // ENOUGH TO TELL A DATA ROW FROM A PLACEHOLDER. The empty states above are single
-          // `<tr>`s with a `colspan` cell, so `tr:not(.type-group)` matches them too — and a
-          // test waiting for `#aircraftBody tr:not(.type-group)` was satisfied by the sentence
-          // saying there was nothing to show. Measured: one rewritten test passed on the
-          // placeholder alone, which is a false pass, and a false pass is worse than a
-          // failure because it is read as cover.
-          `<tr class="aircraft-row${byName ? ' watched-row' : ''}">` +
-          `<td class="mono">${airport ? escapeHtml(airport) : '<span class="muted">not placed</span>'}</td>` +
-          `<td><b>${escapeHtml(label)}</b></td>` +
-          `<td>${phase}</td>` +
-          // 🔴 THE TIME IS PRINTED TWICE ON PURPOSE, IN THE TWO FORMS THAT ANSWER DIFFERENT
-          // QUESTIONS. George, 20 Sep 2026: *"last reading should include fromnow()"*. A
-          // clock time says WHEN it was; "12s ago" says WHETHER IT STILL MEANS ANYTHING, and
-          // that is the question a reader watching a live feed is actually asking. A cell
-          // that said only "15:04:22" made them do the subtraction themselves, against their
-          // own clock, with no idea whether the page had stalled.
-          `<td class="mono">${formatClock(state.observedAt)}` +
-          `<span class="reading-ago" data-at="${state.observedAt}"> · ${fromNow(state.observedAt)}</span></td>` +
-          // 🔴 THE POSITION, WHERE THE WATCH LINK USED TO BE. George, 20 Sep 2026:
-          // *"remove the watch link, can you put long/lat"*. Watching is done by picking —
-          // a type in step 3 or a tail number in step 5 — so a control on every row was a
-          // second way to do the same thing, in the one place a reader is trying to read.
-          // Four decimals is about eleven metres, which is as much as the position means.
-          `<td class="mono pos">${positionText(state)}</td>` +
-          '</tr>'
-        );
-      }
     }
     body.innerHTML = html.join('');
 
@@ -1734,6 +1795,121 @@ class Page {
     // And the row's own status is brought up to date in the same pass, so the row and the map
     // cannot describe different moments — see `tickWatchStates`.
     this.tickWatchStates();
+  }
+
+  /**
+   * The city an airport code stands for, from the airport file this page already carries —
+   * "Hamilton, CA", never a code on its own. Empty when the code is not one of the airports the
+   * site holds, because inventing a city from a four-letter code is the failure this project keeps
+   * having to remove.
+   */
+  private cityOf(icao: string): string {
+    const listed = this.findListed(icao);
+    if (!listed) return '';
+    return [listed.location, listed.country]
+      .map((part) => String(part ?? '').trim())
+      .filter((part) => part !== '')
+      .join(', ');
+  }
+
+  /** The city under an airport code, as markup — or nothing at all when there is none to give. */
+  private placeSpan(icao: string | null): string {
+    if (!icao) return '';
+    const city = this.cityOf(icao);
+    return city === '' ? '' : `<span class="cell-city">${escapeHtml(city)}</span>`;
+  }
+
+  /**
+   * The route for a callsign, asking for it the first time it is seen.
+   *
+   * Returns `undefined` while the answer is still on its way — which the cell prints as
+   * "asking…" rather than as a dash, because an unanswered question and a question with the
+   * answer "nobody has one" are different things and a reader is entitled to tell them apart.
+   */
+  private routeOf(callsign: string): RouteInfo | null | undefined {
+    const key = String(callsign ?? '').trim().toUpperCase();
+    // A callsign is two to eight letters and digits. Anything else is not a callsign, and asking
+    // about it would spend a request on a shape the lookup cannot answer.
+    if (!/^[A-Z0-9]{2,8}$/.test(key)) return null;
+    if (this.routes.has(key)) return this.routes.get(key) ?? null;
+    if (!this.routeAsked.has(key)) {
+      const retryAt = this.routeRetryAt.get(key) ?? 0;
+      if (Date.now() >= retryAt) {
+        this.routeAsked.add(key);
+        void this.askRoute(key);
+      }
+    }
+    return undefined;
+  }
+
+  private async askRoute(callsign: string): Promise<void> {
+    try {
+      const response = await fetch(`/api/route/${encodeURIComponent(callsign)}`, {
+        headers: { accept: 'application/json' },
+      });
+      const trouble = this.feedTrouble(response);
+      if (trouble) throw new Error(trouble);
+      const body = (await response.json()) as { ok?: boolean; route?: RouteInfo | null };
+      if (!body.ok) throw new Error('the route lookup refused the request');
+      this.routes.set(callsign, body.route ?? null);
+    } catch {
+      // 🔴 A FAILED LOOKUP IS NOT A MISSING ROUTE. It is forgotten rather than stored, so the cell
+      // keeps saying "asking…" and the question can be asked again — but not on every poll, which
+      // is what `routeRetryAt` is for.
+      this.routeAsked.delete(callsign);
+      this.routeRetryAt.set(callsign, Date.now() + 5 * 60 * 1000);
+    }
+    this.scheduleRouteRepaint();
+  }
+
+  /**
+   * One repaint for however many routes land at once.
+   *
+   * Ten rows can easily produce ten answers in the same second, and repainting the table ten times
+   * would rewrite the reader's scroll position, their text selection and the map for no gain —
+   * which is the same reasoning the age ticks use.
+   */
+  private scheduleRouteRepaint(): void {
+    if (this.routeRepaint !== null) return;
+    this.routeRepaint = window.setTimeout(() => {
+      this.routeRepaint = null;
+      this.renderAircraft();
+    }, 250);
+  }
+
+  /**
+   * The destination cell: where it is going, where it left from, and — when there is nothing on
+   * file — a dash that says so rather than a blank.
+   */
+  private destinationCell(route: RouteInfo | null | undefined): string {
+    if (route === undefined) {
+      return (
+        '<td class="mono dest dest-waiting" title="Asking the route lookup about this callsign.">' +
+        '<span class="muted">asking…</span></td>'
+      );
+    }
+    if (route === null) {
+      return (
+        '<td class="mono dest dest-none" ' +
+        'title="No route is on file for this callsign. The aircraft itself never transmits where it is going."' +
+        '><span class="muted">—</span></td>'
+      );
+    }
+    const { origin, destination, airline } = route;
+    const place = [destination.city, destination.country].filter((part) => part !== '').join(', ');
+    const from = [origin.city, origin.country].filter((part) => part !== '').join(', ');
+    const whole =
+      `On file for this callsign: ${origin.icao} ${origin.city}` +
+      ` → ${destination.icao} ${destination.city}${airline ? ` · ${airline}` : ''}.` +
+      ' A route is looked up, not transmitted by the aircraft, so a diversion or a reused callsign can make it wrong.';
+    return (
+      `<td class="mono dest" title="${escapeHtml(whole)}">` +
+      `${escapeHtml(destination.icao)}` +
+      (place ? `<span class="cell-city">${escapeHtml(place)}</span>` : '') +
+      `<span class="dest-from">from ${escapeHtml(origin.icao)}` +
+      (from ? ` · ${escapeHtml(from)}` : '') +
+      '</span></td>'
+    );
   }
 
   /**
@@ -2970,9 +3146,6 @@ class Page {
         section.hidden = false;
         section.classList.add('step-arrive');
         window.setTimeout(() => section.classList.remove('step-arrive'), 900);
-        // The chart is drawn when it arrives rather than when it was last polled,
-        // or it would show whatever was in the air a moment before it appeared.
-        if (step === 7) this.renderLive();
       } else if (!show && !section.hidden) {
         section.hidden = true;
       }
@@ -4062,6 +4235,19 @@ class Page {
     let planes = '';
     let drawn = 0;
     let traced = 0;
+    let graded = 0;
+    // 🔴 THE RATE OF CLIMB OF THE READING ON SCREEN, BECAUSE A TRAIL CAN BE TOO SHORT TO SAY.
+    //
+    // A path is classified from the altitudes ON ITS POINTS whenever they have them — that is the
+    // real profile of the flight. But a trail built before this change (a tab that has not been
+    // reloaded), or one whose transponder sends position without altitude, has nothing to compare,
+    // and the honest fallback is the rate the aircraft is reporting NOW: it turns a path with no
+    // history into "this is climbing at 2,000 ft a minute as it draws", which is true and useful,
+    // rather than into a flat grey line that says it is level when nobody knows that.
+    const rateByHex = new Map<string, number>();
+    for (const reading of this.lastReadings) {
+      if (typeof reading.baro_rate === 'number') rateByHex.set(reading.hex.toLowerCase(), reading.baro_rate);
+    }
     for (const one of placed.slice(0, 60)) {
       const spot = spotOf(one.lat, one.lon);
       // Off the view is off the view, and saying so below is better than clipping it silently.
@@ -4074,11 +4260,29 @@ class Page {
       const trail = one.trail ?? [];
       if (trail.length >= 2) {
         traced += 1;
-        const points = trail
-          .map((point) => spotOf(point.lat, point.lon))
-          .map((at) => `${at.x.toFixed(1)} ${at.y.toFixed(1)}`)
-          .join(' ');
-        paths += `<polyline class="locmap-trail" points="${points}" />`;
+        const spots = trail.map((point) => ({ ...spotOf(point.lat, point.lon), alt: point.alt ?? null }));
+        // 🔴 ONE LINE PER SEGMENT, EACH COLOURED BY WHAT HAPPENED BETWEEN ITS TWO ENDS.
+        //
+        // George, 22 Sep 2026: *"did you implement the gradient trail on the map to indicate that
+        // it is climbing or otherwise, with a colour hue to indicate that, with legend"*. It was
+        // not implemented and it could not have been: a path drawn from latitude and longitude is
+        // a path ON THE GROUND, so every climb and every descent looked identical, and the trail
+        // answered the one question a flight path is drawn to answer with a line that said
+        // nothing. A single `<polyline>` cannot carry a changing colour, which is why this is now
+        // a line per segment — the drawing IS the gradient.
+        const fallback = rateByHex.get(one.hex.toLowerCase());
+        let gradedHere = false;
+        for (let index = 1; index < spots.length; index += 1) {
+          const from = spots[index - 1];
+          const to = spots[index];
+          const hue = climbHue(from.alt, to.alt, fallback);
+          if (hue !== 'unknown') gradedHere = true;
+          paths +=
+            `<line class="locmap-trail locmap-trail-${hue}" ` +
+            `x1="${from.x.toFixed(1)}" y1="${from.y.toFixed(1)}" ` +
+            `x2="${to.x.toFixed(1)}" y2="${to.y.toFixed(1)}" />`;
+        }
+        if (gradedHere) graded += 1;
       }
 
       // 🔴 THE AEROPLANE, THEN ITS WHOLE NAME, THEN THE TAIL — and its nose on its trajectory.
@@ -4139,7 +4343,20 @@ class Page {
             `y="${(anchorPx.y + 18).toFixed(1)}" text-anchor="middle">watched</text>`
           : '') +
       planes +
+      // 🔴 THE BOX CLOSES HERE, AND THE KEY SITS OUTSIDE IT. `.locmap` is a fixed size with its
+      // contents clipped, so a legend placed inside it would be cut off the bottom of the map on
+      // the one day it is needed.
       '</svg></div>' +
+      // 🔴 THE KEY IS NOT DECORATION — WITHOUT IT THE COLOURS ARE A CODE NOBODY CAN READ. George
+      // asked for the hue *"with legend"* in the same sentence, and he is right that one without
+      // the other is worse than neither: a reader who cannot tell green from amber will invent a
+      // meaning for it.
+      '<div class="locmap-legend">' +
+      '<span class="legend-item"><i class="legend-line legend-climb"></i>climbing</span>' +
+      '<span class="legend-item"><i class="legend-line legend-level"></i>level</span>' +
+      '<span class="legend-item"><i class="legend-line legend-descend"></i>descending</span>' +
+      '<span class="legend-item"><i class="legend-line legend-unknown"></i>altitude not reported</span>' +
+      '</div>' +
       // 🔴 ONE NOTE, BECAUSE THERE IS ONE MAP. Two notes describing two maps is two places for the
       // same fact to drift, and the sentence that used to sit here — *"in the same frame as the map
       // above"* — described a map that no longer exists.
@@ -4155,7 +4372,11 @@ class Page {
           'feed last reported it. ') +
       (traced > 0
         ? 'The line behind an aircraft is the path it has flown in the last few minutes, drawn ' +
-          'from what this page has heard — the feed reports only where a plane is now. '
+          'from what this page has heard — the feed reports only where a plane is now. ' +
+          'Its colour is what the aircraft did between two readings: ' +
+          '<b>green</b> where it gained height, <b>amber</b> where it lost it, <b>grey</b> where it ' +
+          'held it, and a <b>dashed grey</b> where the reading carried no altitude to compare. ' +
+          (graded > 0 ? '' : 'No aircraft on the map is reporting an altitude yet, so every path is dashed. ')
         : '') +
       (unplaced > 0
         ? `${unplaced} ${unplaced === 1 ? 'is' : 'are'} on the list without a reported position ` +
@@ -4768,139 +4989,22 @@ class Page {
   /* --------------------------------------------------------- the live view */
 
   /**
-   * 🔴 THERE IS NO VIEW SWITCH ANY MORE. George, 20 Sep 2026: *"i only want the user
-   * to pick so remove Pick what to watch / In the air now"*. Two buttons offering
-   * "choose" and "look" put a mode in front of the thing the page is actually for.
-   * So there is one flow: pick, and the chart arrives as the step AFTER the picking
-   * — which is the order the questions are actually asked in.
+   * 🔴 THE "IN THE AIR RIGHT NOW" VIEW IS GONE, AND ITS CODE WENT WITH IT — the card, the top-down
+   * chart, the second table, and both of the methods that filled them.
    *
-   * The chart is drawn when its step arrives (see updateSteps), not when it was last
-   * polled, or it would show whatever was in the air a moment before it appeared.
-   */
-
-  /**
-   * Aircraft matching the selection that are in the air at this moment.
+   * George, 22 Sep 2026: *"remove this section What is in the air around you now, matching what you
+   * picked."*, with the card pasted back in full. It was a SECOND view of the same aircraft as the
+   * card above it — that one already lists what the feed can see, filtered to the reader's own
+   * picks, and it carries the airport, the callsign, the phase and the position.
    *
-   * A picture of what is up there NOW, so a person can look up at a contrail and
-   * find it. It is read from the same poll as the table, so the chart and the table
-   * can never disagree about the same aircraft.
+   * `matchedAirborne()` and `renderLive()` existed only to fill it, so leaving them behind would
+   * leave two charts nobody asks for and a table that can never be filled — the exact fault this
+   * file was repaired for on 21 Sep 2026, when markup was deleted and the code that reached for it
+   * stayed, doing nothing and reading as if it worked.
+   *
+   * 🔴 THE MAP DID NOT GO WITH IT. The one map lives in the watching section and is drawn by
+   * `renderMap` below — the circle, the airports and the aircraft you are watching are all in it.
    */
-  private matchedAirborne(): LiveAircraft[] {
-    const at = this.point();
-    // No airport required: the fence is drawn round the READER, so an aircraft can
-    // be in it whether or not an airport lookup ever succeeded.
-    if (!this.engine || !at) return [];
-    const out: LiveAircraft[] = [];
-    for (const reading of this.lastReadings) {
-      if (typeof reading.lat !== 'number' || typeof reading.lon !== 'number') continue;
-      // On the ground is not in the air. The string 'ground' is how the feed
-      // says it, and it is a string rather than a number — see detect.ts.
-      if (reading.alt_baro === 'ground') continue;
-      const match = this.engine.matchOf(reading);
-      if (!match) continue;
-      out.push({
-        label: String(reading.flight || reading.r || reading.hex).trim(),
-        tail: String(reading.r || '').trim(),
-        type: String(reading.t || '').trim().toUpperCase(),
-        hex: reading.hex,
-        altitudeFt: typeof reading.alt_baro === 'number' ? reading.alt_baro : null,
-        climbFpm: typeof reading.baro_rate === 'number' ? reading.baro_rate : null,
-        speedKt: typeof reading.gs === 'number' ? reading.gs : null,
-        km: nmToKm(distanceNm(at.lat, at.lon, reading.lat, reading.lon)),
-        bearingDeg: bearingDeg(at.lat, at.lon, reading.lat, reading.lon),
-        matchedBy: match.label,
-        watched: true,
-      });
-    }
-    return out.sort((a, b) => a.km - b.km);
-  }
-
-  private renderLive(): void {
-    const chart = byId('liveChart');
-    const body = byId('liveBody');
-    const empty = byId('liveEmpty');
-    const summary = byId('liveSummary');
-    if (!chart || !body || !empty) return;
-
-    const rows = this.matchedAirborne();
-    empty.hidden = rows.length > 0;
-
-    if (rows.length === 0) {
-      chart.innerHTML = '';
-      body.innerHTML = '';
-      if (summary) {
-        summary.textContent =
-          this.watchlist.length === 0 && this.typeRules.length === 0
-            ? 'Nothing is selected yet, so there is nothing to chart. Pick an aircraft type on the first view.'
-            : 'Nothing matching your selection is in the air inside the fence at this moment.';
-      }
-      return;
-    }
-
-    if (summary) {
-      summary.textContent =
-        `${rows.length} matching aircraft in the air right now · drawn from the reading taken at ${formatClock(this.lastPollAt)}`;
-    }
-
-    // 🔴 A TOP-DOWN PICTURE, NOT A BAR CHART. Distance alone says "8 km away";
-    // distance WITH a bearing says "8 km to the south-west", which is where an
-    // aircraft leaving Hamilton for Toronto actually is. The circle is the fence
-    // the feed was asked for, so the picture and the query are the same shape.
-    const size = 340;
-    const centre = size / 2;
-    const radius = centre - 28;
-    const maxKm = Math.max(this.radiusKm, ...rows.map((row) => row.km));
-    const toPx = (km: number): number => (km / maxKm) * radius;
-
-    let svg = `<svg viewBox="0 0 ${size} ${size}" class="radar" role="img" aria-label="Aircraft in the air, drawn by direction and distance from ${escapeHtml(this.airportPhrase())}">`;
-    svg += `<circle cx="${centre}" cy="${centre}" r="${radius.toFixed(1)}" class="radar-edge" />`;
-    for (const ring of [maxKm / 3, (maxKm * 2) / 3, maxKm]) {
-      svg += `<circle cx="${centre}" cy="${centre}" r="${toPx(ring).toFixed(1)}" class="radar-ring" />`;
-      svg += `<text x="${(centre + 4).toFixed(1)}" y="${(centre - toPx(ring) + 12).toFixed(1)}" class="radar-label">${Math.round(ring)} km</text>`;
-    }
-    for (const [deg, name] of [
-      [0, 'N'],
-      [90, 'E'],
-      [180, 'S'],
-      [270, 'W'],
-    ] as const) {
-      const rad = (deg * Math.PI) / 180;
-      svg += `<text x="${(centre + Math.sin(rad) * (radius + 12)).toFixed(1)}" y="${(centre - Math.cos(rad) * (radius + 12) + 4).toFixed(1)}" class="radar-compass" text-anchor="middle">${name}</text>`;
-    }
-    svg += `<circle cx="${centre}" cy="${centre}" r="3" class="radar-field" />`;
-    svg += `<text x="${centre}" y="${centre + 16}" class="radar-label" text-anchor="middle">${escapeHtml(this.airportCentreLabel())}</text>`;
-    for (const row of rows) {
-      const rad = (row.bearingDeg * Math.PI) / 180;
-      const x = centre + Math.sin(rad) * toPx(row.km);
-      const y = centre - Math.cos(rad) * toPx(row.km);
-      // A higher aircraft is drawn larger, so altitude is visible at a glance
-      // without reading a number off a list.
-      const dot = 3.2 + Math.min(6, (row.altitudeFt ?? 0) / 6500);
-      svg += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${dot.toFixed(1)}" class="radar-dot"><title>${escapeHtml(row.label)} · ${escapeHtml(row.type)} · ${row.altitudeFt ?? '?'} ft · ${Math.round(row.km)} km ${compassPoint(row.bearingDeg)}</title></circle>`;
-    }
-    svg += '</svg>';
-    chart.innerHTML = svg;
-
-    body.innerHTML = rows
-      .map((row) => {
-        const info = describeType(row.type);
-        const climb =
-          row.climbFpm === null
-            ? '—'
-            : `${row.climbFpm > 0 ? '+' : ''}${row.climbFpm} ft/min`;
-        return (
-          '<tr>' +
-          `<td><b>${escapeHtml(row.label)}</b>${row.tail && row.tail !== row.label ? ` <span class="mono muted small">${escapeHtml(row.tail)}</span>` : ''}</td>` +
-          `<td title="${escapeHtml(info.name)}">${escapeHtml(info.name)}</td>` +
-          `<td class="mono">${row.altitudeFt === null ? '—' : `${row.altitudeFt.toLocaleString()} ft`}</td>` +
-          `<td class="mono">${escapeHtml(climb)}</td>` +
-          `<td class="mono">${Math.round(row.km)} km ${compassPoint(row.bearingDeg)}</td>` +
-          `<td class="small muted">${escapeHtml(row.matchedBy)}</td>` +
-          '</tr>'
-        );
-      })
-      .join('');
-  }
 
   /* ------------------------------------------------------------- watchlist */
 

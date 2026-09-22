@@ -341,48 +341,57 @@
         
         <div class="table-wrap" id="liveTable">
           <table class="aircraft">
-            <caption class="visually-hidden">Aircraft currently inside the fence that match the types and tail numbers you picked, grouped by type</caption>
+            <caption class="visually-hidden">Aircraft currently inside the fence that match the types and tail numbers you picked, sorted by type</caption>
             <thead>
               <tr>
                 <th scope="col">Airport</th>
+                <th scope="col">Type</th>
                 <th scope="col">Callsign</th>
                 <th scope="col">Phase</th>
                 <th scope="col">Last reading</th>
                 <th scope="col">Position</th>
+                <th scope="col">Destination</th>
               </tr>
             </thead>
             <tbody id="aircraftBody">
-              <tr><td colspan="5" class="muted">Waiting for the first poll…</td></tr>
+              <tr><td colspan="7" class="muted">Waiting for the first poll…</td></tr>
             </tbody>
           </table>
         </div>
+
+        <!--
+          🔴 THE DESTINATION IS LOOKED UP, NOT HEARD — so it is labelled as the different kind of
+          claim it is, in the same card as the readings it sits beside.
+
+          Measured 22 Sep 2026: the feed's own callsign endpoint returns hex, registration, type,
+          altitude and track, and no origin, destination or route at all. ADS-B carries who the
+          aircraft is, never where it is booked to. So the destination column comes from a separate
+          free callsign lookup, and a reader is entitled to know which of the two facts on the row
+          came off the radio and which came out of a database.
+        -->
+        <p class="small muted">
+          <b>Destination is looked up, not heard.</b> An aircraft broadcasts who it is, never where it is going, so the
+          destination comes from a separate free lookup on the callsign — which means a diversion, a reassigned callsign or
+          an out-of-date record can make it wrong. A dash means no route is on file for that callsign, and “asking…” means
+          the lookup has not answered yet. Every other column is what the feed itself reported, taken at the time shown.
+        </p>
       </section>
 
       </div>
 
-      <section class="card step-gated" id="liveView" data-step="7" hidden>
-        <h2>In the air right now</h2>
-        <p class="sub">What is in the air around you now, matching what you picked.</p>
-        <p class="small muted" id="liveSummary">Waiting for the first reading…</p>
-        <div class="radar-wrap" id="liveChart"></div>
-        <p class="empty" id="liveEmpty" hidden>
-          Nothing matching your selection is in the air inside the fence at this moment. Aircraft appear and disappear
-          as they pass, so this changes minute by minute.
-        </p>
-        <div class="table-wrap">
-          <table>
-            <caption class="sr-only">Aircraft in the air matching the selection</caption>
-            <thead>
-              <tr><th>Aircraft</th><th>Type</th><th>Altitude</th><th>Climbing</th><th>Where</th><th>Caught by</th></tr>
-            </thead>
-            <tbody id="liveBody"></tbody>
-          </table>
-        </div>
-        <p class="small muted">
-          Altitude is the pressure altitude the aircraft itself reports, which is why it can read a little differently
-          from the height above the ground. "Climbing" is a rate in feet per minute.
-        </p>
-      </section>
+      <!--
+        🔴 THE "IN THE AIR RIGHT NOW" CARD IS GONE. George, 22 Sep 2026: *"remove this section What is in
+        the air around you now, matching what you picked."* — and he pasted the card back in full: its
+        subtitle, its empty sentence, its six-column table (Aircraft · Type · Altitude · Climbing · Where ·
+        Caught by) and its footnote.
+
+        It was a SECOND view of the same aircraft as the card above it. That card already lists what the
+        feed can see, filtered to the reader's own picks, and it is the one a reader acts on — it carries
+        the airport, the callsign, the phase and the position. Two tables of one poll, in two cards,
+        differing only in which columns they chose, is how the page came to describe the same reading
+        twice and to print "nothing matching your selection is in the air" underneath an empty table a
+        reader had already been told about above.
+      -->
 
       <section class="card" id="honesty">
         <h2>What this cannot see — read this before you rely on it</h2>

@@ -80,6 +80,24 @@ export interface TrailPoint {
   lon: number;
   /** ms epoch on OUR clock, as `observedAt` is. */
   at: number;
+  /**
+   * 🔴 THE ALTITUDE AT THAT POINT — WHICH IS WHAT LETS THE TRAIL SAY SOMETHING.
+   *
+   * George, 22 Sep 2026: *"did you implement the gradient trail on the map to indicate that it is
+   * climbing or otherwise, with a colour hue to indicate that, with legend"*. It was not
+   * implemented, and it could not be: a path drawn from latitude and longitude alone is a path on
+   * the ground, so every climb and every descent on the map looked identical.
+   *
+   * The altitude the aircraft ITSELF reported at the moment this point was recorded goes on the
+   * point, and the page then colours each segment by whether the next point was higher or lower.
+   * It is the same fact the table prints, kept at the position it belongs to.
+   *
+   * ⚠️ IT IS OPTIONAL, AND `null` IS NOT ZERO. Older trails (recorded before this field existed,
+   * on a tab that has not been reloaded) have no altitude, and a reading whose transponder sends a
+   * position without one has none either. A missing altitude is NEVER drawn as "level": the page
+   * falls back to the aircraft's CURRENT rate of climb for the whole path, and says so in the key.
+   */
+  alt?: number | null;
 }
 
 /** What we remember about one aircraft between polls. */
@@ -240,7 +258,16 @@ function appendTrail(
   if (last && last.lat === lat && last.lon === lon) {
     return kept.length > 0 ? kept : undefined;
   }
-  const grown = [...kept, { lat, lon, at: now }];
+  // The altitude the aircraft reported with THIS position — see the note on `TrailPoint.alt`. The
+  // geometric altitude is the fallback only when there is no pressure altitude, and neither being
+  // present stores `null` rather than a zero that would draw as a descent.
+  const alt =
+    typeof reading.alt_baro === 'number'
+      ? reading.alt_baro
+      : typeof reading.alt_geom === 'number'
+        ? reading.alt_geom
+        : null;
+  const grown = [...kept, { lat, lon, at: now, alt }];
   return grown.length > TRAIL_POINTS ? grown.slice(grown.length - TRAIL_POINTS) : grown;
 }
 

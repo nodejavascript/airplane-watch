@@ -52,6 +52,96 @@ function rememberFeed(target, entry) {
   while (feedCache.size > FEED_CACHE_MAX) feedCache.delete(feedCache.keys().next().value);
 }
 
+/**
+ * 🔴 WHERE AN AIRCRAFT IS GOING IS NOT IN THE FEED — measured 22 Sep 2026. The feed's own
+ * `/v2/callsign/DAL1719` answers with the aircraft record and no route at all: ADS-B carries who
+ * the aircraft is, never where it is booked to. The route comes from `api.adsbdb.com`, which maps
+ * a callsign to an origin and a destination, and it is fetched from here for the same reasons the
+ * feed is — no CORS on the page's own origin, and the visitor's browser is not sent to a third
+ * party. The answer is normalised to this site's field names, exactly as the dev server does it,
+ * so the page cannot tell the two apart.
+ */
+const ROUTE_UPSTREAM = 'https://api.adsbdb.com/v0/callsign';
+const ROUTE_CACHE_MAX = 400;
+const routeCache = new Map();
+
+function rememberRoute(callsign, body) {
+  routeCache.set(callsign, { at: Date.now(), body });
+  while (routeCache.size > ROUTE_CACHE_MAX) routeCache.delete(routeCache.keys().next().value);
+}
+
+function routeAirport(raw) {
+  const row = raw ?? {};
+  const icao = String(row.icao_code ?? '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{4}$/.test(icao)) return null;
+  return {
+    icao,
+    iata: String(row.iata_code ?? '').trim().toUpperCase(),
+    city: String(row.municipality ?? '').trim(),
+    country: String(row.country_iso_name ?? '').trim().toUpperCase(),
+    name: String(row.name ?? '').trim(),
+  };
+}
+
+function normaliseRoute(payload) {
+  const route = payload?.response?.flightroute;
+  if (!route) return null;
+  const origin = routeAirport(route.origin);
+  const destination = routeAirport(route.destination);
+  if (!origin || !destination) return null;
+  return {
+    airline: String(route.airline?.name ?? '').trim(),
+    origin,
+    destination,
+  };
+}
+
+async function serveRoute(rawCallsign) {
+  const callsign = String(rawCallsign ?? '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{2,8}$/.test(callsign)) {
+    return json(400, { ok: false, error: 'A callsign is up to eight letters and digits.' });
+  }
+
+  const cached = routeCache.get(callsign);
+  if (cached && Date.now() - cached.at < 6 * 60 * 60 * 1000) {
+    return new Response(JSON.stringify(cached.body), {
+      status: 200,
+      headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=21600' },
+    });
+  }
+
+  let upstream;
+  try {
+    upstream = await fetch(`${ROUTE_UPSTREAM}/${encodeURIComponent(callsign)}`, {
+      headers: { accept: 'application/json', 'user-agent': USER_AGENT },
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch (error) {
+    // 503, never 502 — see the note at the top of this file.
+    return json(503, { ok: false, error: `The route lookup could not be reached. ${error.message}` });
+  }
+
+  // 🔴 A CALLSIGN WITH NO PUBLISHED ROUTE IS AN ANSWER, NOT A FAILURE: adsbdb answers 404, and the
+  // page prints a dash. Cached like any other answer, because it will still be true in an hour.
+  if (upstream.status === 404) {
+    const body = { ok: true, callsign, route: null };
+    rememberRoute(callsign, body);
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=21600' },
+    });
+  }
+  if (!upstream.ok) return json(503, { ok: false, error: `The route lookup answered ${upstream.status}.` });
+
+  const payload = await upstream.json().catch(() => null);
+  const body = { ok: true, callsign, route: normaliseRoute(payload) };
+  rememberRoute(callsign, body);
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'public, max-age=21600' },
+  });
+}
+
 /** 🔴 THE FREE MAP, ASKED FOR BY US AND NEVER BY THE VISITOR. See the note in
  * tools/serve.mjs — same decision, same reasons. A tile at a given z/x/y never
  * changes, so it is cached at the edge for a month, which is what the tile
@@ -344,6 +434,9 @@ export default {
     }
     if (path.startsWith('/geo/search')) {
       return servePlaceSearch(url.searchParams.get('q'));
+    }
+    if (path.startsWith('/route/')) {
+      return serveRoute(path.slice('/route/'.length));
     }
 
     if (!isAllowed(path)) {
