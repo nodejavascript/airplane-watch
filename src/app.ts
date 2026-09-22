@@ -4025,7 +4025,7 @@ class Page {
         + 'your circle, the map will have nothing to draw and will say so.';
     return (
       `<label class="map-switch" title="${escapeHtml(why)}">` +
-      `<input type="checkbox" class="map-show" data-map-key="${escapeHtml(key)}" ` +
+      `<input type="checkbox" role="switch" class="map-show" data-map-key="${escapeHtml(key)}" ` +
       `data-ga="map-show"${on ? ' checked' : ''} />` +
       '<span>show on map</span></label>'
     );

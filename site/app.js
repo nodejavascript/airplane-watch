@@ -3592,7 +3592,7 @@ class Page {
             : 'Draw only this row on the map, and fit the frame to it. If nothing of it is in the air inside '
                 + 'your circle, the map will have nothing to draw and will say so.';
         return (`<label class="map-switch" title="${escapeHtml(why)}">` +
-            `<input type="checkbox" class="map-show" data-map-key="${escapeHtml(key)}" ` +
+            `<input type="checkbox" role="switch" class="map-show" data-map-key="${escapeHtml(key)}" ` +
             `data-ga="map-show"${on ? ' checked' : ''} />` +
             '<span>show on map</span></label>');
     }

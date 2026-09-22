@@ -1970,23 +1970,78 @@ main > #status {
 .map-switch {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: 11.5px;
   color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
 }
+
+/* 🔴 THIS IS A SWITCH, NOT A CHECKBOX — A PILL THAT SLIDES.
+ *
+ * George, 22 Sep 2026: *"instead of checkbox i want https://ant.design/components/switch"*, then, when
+ * asked nothing and told plainly: *"i dont necessarliy want antd, just that type of switch"*.
+ *
+ * So it is THAT KIND OF CONTROL — a rounded track with a round white handle that travels, the shape
+ * everybody recognises as a switch — and Ant Design's own numbers are what it is drawn to: a pill
+ * 44 × 22 with a 100px radius and an 18px handle inset 2px that slides on `left 0.2s`.
+ *
+ * ⚠️ AND NO LIBRARY IS INVOLVED, WHICH IS THE POINT OF SAYING IT THIS WAY. This page is hand-written
+ * TypeScript with no framework and no bundler; pulling in React and Ant Design for one control would
+ * trade sixty lines of CSS for a build system. The input stays a REAL
+ * `<input type="checkbox" role="switch">` — the accessible switch pattern, focusable and toggled by the
+ * browser — and the stylesheet draws it. What a reader sees and what a reader does are then both right,
+ * and the delegated `change` listener watching `input.map-show` never learns the difference.
+ *
+ * The OFF track is NOT Ant Design's `rgba(0, 0, 0, 0.25)`: that value is chosen for a white page and
+ * disappears against this card. The muted ink at 35% is the same idea — a dim, neutral pill — on the
+ * surface this page actually has, and it turns the theme colour when it is on. */
 .map-switch input {
-  /* The theme colour, so an on switch reads as "mine, and on" rather than as a browser default. */
-  accent-color: var(--theme);
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 22px;
   margin: 0;
+  border: 0;
+  border-radius: 100px;
+  background: rgba(143, 169, 189, 0.35);
   cursor: pointer;
+  transition: background-color 0.2s;
 }
-/* ⚠️ THERE IS NO DISABLED STATE, AND THAT IS THE POINT. `.map-switch-off` dimmed a switch that had nothing
- * to draw, and it went on 22 September 2026 with the `disabled` attribute it styled — George asked for a
- * boolean: *"even though the filight may or may not be in the air, i want this to be a boolean input, not a
- * link"*. A row that cannot be switched on is a link with a hidden precondition; the empty case is said in
- * the caption instead, where the reader is already looking. */
+
+.map-switch input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+  transition: left 0.2s;
+}
+
+.map-switch input:checked {
+  background: var(--theme);
+}
+
+.map-switch input:checked::after {
+  left: calc(100% - 20px);
+}
+
+/* The keyboard ring, in the same shape as the rest of the page: a soft halo rather than an outline, so a
+ * focused switch is visible without a box appearing round the row. */
+.map-switch input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+}
+
+/* ⚠️ THERE IS NO DISABLED STATE, AND THAT IS THE POINT. A switch that cannot be turned on is a link with a
+ * hidden precondition — George asked for a boolean — so nothing renders `disabled` and nothing styles it.
+ * The empty case is said in the map caption instead, where the reader is already looking. */
 
 /* ---------------------------------------------------------------------------
  * The count that ends the filter note.
