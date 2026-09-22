@@ -3864,19 +3864,22 @@ class Page {
   }
 
   /**
-   * 🔴 PRESSING A ROW PUTS THE MAP ON THAT AIRCRAFT, AND PRESSING IT AGAIN TAKES IT OFF.
+   * 🔴 PRESSING AN AIRCRAFT PUTS THE MAP ON IT, AND PRESSING IT AGAIN TAKES IT OFF.
    *
    * George, 22 Sep 2026: *"i want to be able to select one of those rows, if i do that i want the map to
-   * zoom in to that flight. if slect again, it will unselect and zom back out again"*.
+   * zoom in to that flight. if slect again, it will unselect and zom back out again"* — and then, when the
+   * rows did not do it for him: *"click on any aircraft in the air is not zooming into that aircraft"*,
+   * *"the map should zoom into it, and i need a way to return to all flights"*.
    *
-   * It is DELEGATED ON THE DOCUMENT, not bound to the rows, because the table is rewritten on every poll
-   * and on every filter change — listeners attached to a row are gone with the row, which is the fault
+   * So THREE things are pressable, and all three mean the same thing: a row of the table (whose center may
+   * be thousands of pixels down the page), **the aeroplane drawn on the map**, and the name beside it — the
+   * shape on the map is the most obvious thing on the page to click, and it is the one that was silent. What
+   * is NOT pressable is a watched TYPE, because a type can cover several aircraft at once and so names no
+   * single flight.
+   *
+   * It is DELEGATED ON THE DOCUMENT, not bound to the shapes, because both the table and the map are
+   * rewritten on every poll — a listener attached to a row or a mark is gone with it, which is the fault
    * this file has already recorded once for the footer's consent door.
-   *
-   * Two kinds of row are selectable, and both are ONE AIRCRAFT: a row of the flight table, and a named
-   * tail on the watchlist when that aeroplane is in the air. A watched TYPE is deliberately not
-   * selectable — it can cover several aircraft at once, so "zoom to that flight" would have no single
-   * answer, and the table below is where one aeroplane is named.
    */
   private bindFlightPick(): void {
     document.addEventListener('click', (event) => {
@@ -3891,11 +3894,18 @@ class Page {
         this.pickFlight(row.dataset.hex ?? '');
         return;
       }
+      // The aeroplane on the map, and its name — both carry the airframe's hex. `closest` covers the icon
+      // inside the mark as well as the mark itself.
+      const onMap = target.closest<HTMLElement>('.locmap-plane-mark, .locmap-plane-label');
+      if (onMap) {
+        this.pickFlight(onMap.dataset.hex ?? '');
+        return;
+      }
       const named = target.closest<HTMLElement>('li.watch-type[data-hex]');
       if (named) this.pickFlight(named.dataset.hex ?? '');
     });
 
-    // And the same on the keyboard, because a row that can only be pressed with a mouse is a row some
+    // And the same on the keyboard, because a shape that can only be pressed with a mouse is a shape some
     // readers cannot press at all.
     document.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -3905,6 +3915,22 @@ class Page {
       event.preventDefault();
       this.pickFlight(row.dataset.hex ?? '');
     });
+
+    // 🔴 AND THE WAY BACK, WHICH IS NOT HIDDEN BEHIND A SECOND PRESS. *"i need a way to return to all
+    // flights"* — pressing the same row again does that, but a reader who has scrolled to the map has no row
+    // in view and no way to know it. The button appears only while a flight is picked (`renderMap` shows and
+    // hides it), so it is never a control that does nothing.
+    const all = byId('flightAll');
+    if (all) all.addEventListener('click', () => this.clearFlightPick());
+  }
+
+  /** Back to every flight: one press on the map card's own control. */
+  private clearFlightPick(): void {
+    if (this.selectedHex === null) return;
+    this.selectedHex = null;
+    track('flight_unselected', { via: 'show_all' });
+    this.renderAircraft();
+    this.renderWatchlist();
   }
 
   /**
@@ -5205,9 +5231,24 @@ class Page {
       const heading =
         typeof one.trackDeg === 'number' ? ` rotate(${one.trackDeg.toFixed(1)})` : '';
       const picked = pickedFlown !== null && String(one.hex ?? '').toLowerCase() === String(pickedFlown.hex ?? '').toLowerCase();
+      // 🔴 WHO IS THIS SHAPE, SO THE MAP ITSELF CAN BE PRESSED. George, 22 Sep 2026: *"click on any aircraft in
+      // the air is not zooming into that aircraft … the map should zoom into it"*. A drawing of an aeroplane on
+      // a map is the most obvious thing on the page to click, and it carried no identity at all — the hex was
+      // in the table's DOM and nowhere else. It is on the mark AND on its label, because the name beside the
+      // aeroplane is part of the aeroplane as far as a reader is concerned.
+      const who = escapeHtml(String(one.hex ?? ''));
+      const press = ` data-hex="${who}" title="${escapeHtml(
+        picked ? 'Press to go back to all flights' : 'Press to put the map on this aircraft'
+      )}"`;
       planes +=
-        `<g class="locmap-plane-mark${picked ? ' locmap-plane-mark-picked' : ''}" ` +
+        `<g class="locmap-plane-mark${picked ? ' locmap-plane-mark-picked' : ''}"${press} ` +
         `transform="translate(${spot.x.toFixed(1)} ${spot.y.toFixed(1)})${heading}">` +
+        // 🔴 AND A FULL-SIZE PRESS AREA. The aeroplane is drawn at about 14 pixels across — measured on the
+        // live page — which is a hard target for a mouse and an impossible one on a phone. A transparent
+        // circle of 15 pixels' radius sits under the shape, so anywhere near the aeroplane counts as pressing
+        // it. It is inside the group, so it inherits the mark's `data-hex` and its pointer cursor, and it is
+        // drawn FIRST so the icon and the ring stay on top of it.
+        '<circle class="locmap-plane-hit" r="15" cx="0" cy="0" />' +
         `<path class="locmap-plane-icon" transform="scale(0.72) translate(-12 -12)" d="${PLANE_PATH}" />` +
         '</g>' +
         // 🔴 THE PICKED AIRCRAFT IS RINGED IN THE SAME GREEN AS ITS ROW, so the row and the map cannot
@@ -5217,8 +5258,8 @@ class Page {
         (picked
           ? `<circle class="locmap-plane-pick" cx="${spot.x.toFixed(1)}" cy="${spot.y.toFixed(1)}" r="17" />`
           : '') +
-        `<text class="locmap-plane-label${picked ? ' locmap-plane-label-picked' : ''}" x="${(spot.x + 11).toFixed(1)}" ` +
-        `y="${(spot.y + 4).toFixed(1)}">${escapeHtml(what)}</text>`;
+        `<text class="locmap-plane-label${picked ? ' locmap-plane-label-picked' : ''}"${press} ` +
+        `x="${(spot.x + 11).toFixed(1)}" y="${(spot.y + 4).toFixed(1)}">${escapeHtml(what)}</text>`;
     }
     // `placed` is what has a position; anything on the list that is not in it has none, and that is the
     // only thing this number may now mean — see the note on `offView`.
@@ -5284,7 +5325,7 @@ class Page {
       '<p class="small muted locmap-note">The map is ' +
       '<a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, free and with no API key. ' +
       (pickedFlown
-        ? `It is zoomed to <b>${escapeHtml(pickedLabel)}</b>, with the path this page has heard behind it, instead of the ${this.radiusKm} km circle — press that row again, or press another, to change it. `
+        ? `It is zoomed to <b>${escapeHtml(pickedLabel)}</b>, with the path this page has heard behind it, instead of the ${this.radiusKm} km circle — press that aircraft on the map, or its row in the table, to go back to every flight. There is also a <b>Show all flights</b> control under the map. `
         : anchor
           ? `It is fitted so the ${this.radiusKm} km gap you chose is inside the frame, together with the airports you picked — a ring you can only see part of is no use as a distance. `
           : 'It is fitted to the airports you picked. ') +
@@ -5323,6 +5364,18 @@ class Page {
     if (html !== this.lastPlot) {
       this.lastPlot = html;
       host.innerHTML = html;
+    }
+
+    // 🔴 AND THE WAY BACK IS SHOWN ONLY WHEN THERE IS SOMETHING TO GO BACK FROM, which is why it is written
+    // here rather than in the markup: a control that is always on screen and usually does nothing is a
+    // control nobody trusts. George, 22 Sep 2026: *"i need a way to return to all flights"*. It sits
+    // OUTSIDE `#watchMap`, because everything inside that element is rewritten by the line above.
+    const all = byId('flightAll');
+    if (all) {
+      all.hidden = this.selectedHex === null;
+      all.title = pickedFlown
+        ? `Go back from ${pickedLabel} to every flight you are watching`
+        : 'Back to every flight you are watching';
     }
   }
 

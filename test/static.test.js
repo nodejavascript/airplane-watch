@@ -2203,6 +2203,28 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
     'the pick swallows presses meant for the controls inside a row');
   assert.match(app, /this\.bindFlightPick\(\);/, 'the pick is never bound, so no row can be pressed');
 
+  // 🔴 AND THE AIRCRAFT ON THE MAP IS PRESSABLE, WHICH IS THE THING GEORGE ACTUALLY CLICKED. His words,
+  // after the rows were wired: *"click on any aircraft in the air is not zooming into that aircraft … the map
+  // should zoom into it"*. A drawing of an aeroplane is the most obvious thing on the page to click, and it
+  // carried no identity at all — the hex lived in the table's DOM and nowhere else. (The map's own markup is
+  // checked below, where `renderMap` is sliced.)
+  assert.match(bind, /closest<HTMLElement>\('\.locmap-plane-mark, \.locmap-plane-label'\)/,
+    'the delegated pick does not recognise a press on the map');
+  assert.match(css, /\.locmap-plane-mark\[data-hex\][\s\S]{0,120}cursor: pointer/,
+    'an aeroplane that can be pressed does not look as though it can be');
+  assert.match(css, /\.locmap-plane-label\[data-hex\]:hover/, 'the name beside an aeroplane gives no sign that it can be pressed');
+
+  // 🔴 AND THE WAY BACK IS A CONTROL, NOT A PIECE OF KNOWLEDGE. *"i need a way to return to all flights"* —
+  // pressing the same row again does it, but a reader who has scrolled to the map has no row in view.
+  assert.match(app, /if \(all\) all\.addEventListener\('click', \(\) => this\.clearFlightPick\(\)\);/,
+    'the return control is on the page but wired to nothing');
+  assert.match(app, /private clearFlightPick\(\)[\s\S]{0,240}track\('flight_unselected', \{ via: 'show_all' \}\)/,
+    'the return control does not record what it did');
+  assert.match(page, /id="flightAll"[^>]*data-ga="flight-all"[^>]*hidden/, 'the return control is not on the page');
+  // It lives OUTSIDE `#watchMap`, because everything inside that element is rewritten on every poll.
+  const mapCard = page.slice(page.indexOf('id="watchMap"'), page.indexOf('</section>', page.indexOf('id="watchMap"')));
+  assert.match(mapCard, /id="flightAll"/, 'the return control was put inside the element that is rewritten');
+
   // The second press of the same aircraft clears it; a press on another row moves the zoom.
   const pick = app.slice(app.indexOf('private pickFlight('), app.indexOf('private async loadMilitary('));
   assert.ok(pick.length > 200, 'the pick itself is gone, so this check is vacuous');
@@ -2217,6 +2239,22 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
   // measurement is in the comment beside it, because the code looked right and the number did not.
   const map = app.slice(app.indexOf('private renderMap('), app.indexOf('private bindMapResize('));
   assert.ok(map.length > 800, 'the map could not be isolated, so this check is vacuous');
+
+  // 🔴 AND THE AEROPLANE ON THE MAP CARRIES ITS OWN IDENTITY, so the shape a reader clicks can name the
+  // flight it is. Both the mark and the name beside it get the same `data-hex`, because to a reader the
+  // label is part of the aeroplane, and a click that works on one and not the other is worse than neither.
+  assert.match(map, /const press = ` data-hex="\$\{who\}"/, 'the mark carries a hex, but not as a data attribute');
+  assert.match(map, /class="locmap-plane-mark\$\{picked \? ' locmap-plane-mark-picked' : ''\}"\$\{press\}/,
+    'the aeroplane on the map carries no identity, so pressing it can do nothing');
+  assert.match(map, /class="locmap-plane-label\$\{picked \? ' locmap-plane-label-picked' : ''\}"\$\{press\}/,
+    'the name beside the aeroplane is not pressable, and it is part of the aeroplane to a reader');
+  assert.match(map, /picked \? 'Press to go back to all flights' : 'Press to put the map on this aircraft'/,
+    'the shape on the map says nothing about what pressing it will do');
+
+  // 🔴 AND THE WAY BACK IS SHOWN ONLY WHEN THERE IS SOMETHING TO GO BACK FROM — here, in the one method
+  // that knows both the selection and the label of the aircraft it is on.
+  assert.match(map, /all\.hidden = this\.selectedHex === null;/, 'the return control is not hidden when nothing is picked');
+  assert.match(map, /const all = byId\('flightAll'\);/, 'the return control is never shown or hidden at all');
   const pickBox = map.slice(map.indexOf('if (pickedFlown) {'), map.indexOf('const midLat'));
   assert.ok(pickBox.length > 200, 'the picked frame is gone, so this check is vacuous');
   assert.match(pickBox, /minLat = 90;/, 'the picked frame keeps the airports inside it, so it cannot zoom in');

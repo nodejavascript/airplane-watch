@@ -405,11 +405,20 @@
         <p class="small muted refreshed-line" id="radiusRefreshed">Last refreshed <b id="refreshedAgo">now</b>.</p>
 
         <div id="watchMap"></div>
+
+        <!--
+          🔴 THE WAY BACK, SAID OUT LOUD. George, 22 Sep 2026: *"i need a way to return to all flights"*.
+          Pressing the same row again does return the map to every flight, and its tooltip says so — but a
+          reader who has scrolled down to the map has no row in view, so the way back must be a control and
+          not a piece of knowledge. It is HIDDEN until a flight is picked (`renderMap` shows it) and it lives
+          outside `#watchMap`, whose contents are rewritten on every poll.
+        -->
+        <button type="button" class="ghost" id="flightAll" data-ga="flight-all" hidden>Show all flights</button>
       </section>
 
       <section class="card" id="live">
         <h2>What the feed can see right now</h2>
-        <p class="sub">The aircraft inside your fence that <b>match what you picked</b> — the types you starred in step 3, and any tail number you named. Everything else the feed reports is left out. <b>Press any row to put the map on that aircraft</b>, and press it again to go back to the whole fence.</p>
+        <p class="sub">The aircraft inside your fence that <b>match what you picked</b> — the types you starred in step 3, and any tail number you named. Everything else the feed reports is left out. <b>Press any row to put the map on that aircraft</b>, and press it again to go back to the whole fence — the <b>aeroplane on the map</b> can be pressed the same way, and there is a <b>Show all flights</b> control under it when you want every flight back.</p>
 
         <!--
           🔴 THE ALERT BUTTON LIVES HERE NOW, BECAUSE THE CARD THAT HELD IT IS GONE.

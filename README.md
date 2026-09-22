@@ -111,6 +111,21 @@ Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
   14 for one flight**, and back to 6 on the second press. A watched **type** is deliberately not
   pressable — it can cover several aircraft, so there is no single flight to go to — and a named tail on
   the watchlist is, but only while that aeroplane is actually reporting a position.
+- 🔴 **AND THE AEROPLANE ON THE MAP IS PRESSABLE TOO — BECAUSE THAT IS THE SHAPE PEOPLE CLICK.** The rows
+  worked, and George still reported *"click on any aircraft in the air is not zooming into that aircraft"*:
+  what he was clicking was the drawing of the aeroplane on the map, which carried no identity at all — the
+  airframe's hex lived in the table's DOM and nowhere else, so a press on it did nothing. Every mark now
+  carries `data-hex`, **and so does the name beside it**, because to a reader the label is part of the
+  aeroplane and a press that works on one and not the other is worse than neither. Pressing a mark means
+  what pressing its row means. Measured on the live page: the whole fence at zoom 6 → a press on a mark at
+  **zoom 14, with the row selected and the green ring drawn beside it** → back to zoom 6.
+- 🔴 **AND THERE IS A CONTROL FOR THE WAY BACK, NOT ONLY A SECOND PRESS.** *"i need a way to return to all
+  flights"* — pressing the same row again does return the map to the whole fence, and the row's tooltip says
+  so, but a reader who has scrolled down to the map has no row in view and no way to know it. **Show all
+  flights** sits under the map, **hidden until a flight is picked** (a control that is always on screen and
+  usually does nothing is a control nobody trusts), and it clears the pick exactly as a second press does. It
+  is placed **outside** `#watchMap`, whose contents are rewritten on every poll — the fault this file has
+  already recorded once for the footer's consent door.
 - 🔴 **AND THE TABLE AND THE MAP FOLLOW A CHANGE TO WHAT YOU WATCH, AT ONCE.** *"when i make a change to
   what im watching the map should refresh"* — starring a type, ticking a tail or stopping watching one
   used to redraw the list and leave the table and map for the next poll, up to twenty seconds of a map

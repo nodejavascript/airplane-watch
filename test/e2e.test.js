@@ -2334,5 +2334,33 @@ test('pressing a row puts the map on that flight, and pressing it again puts the
   const back = await zoomNow();
   assert.equal(back, before, `the map did not go back to the frame it started on: ${before} then ${back}`);
 
+  // 🔴 AND THE AEROPLANE ON THE MAP IS PRESSABLE — WHICH IS THE THING GEORGE ACTUALLY CLICKED. His words,
+  // after the rows had been wired: *"click on any aircraft in the air is not zooming into that aircraft …
+  // the map should zoom into it"*. The shape a reader sees on the map carried no identity at all, so pressing
+  // it did nothing; every mark now carries the airframe's hex, and pressing one means what pressing its row
+  // means.
+  assert.equal(await page.$$eval('#flightAll', (nodes) => nodes.length), 1,
+    'there is no way back to every flight');
+  assert.equal(await page.$eval('#flightAll', (element) => element.hidden), true,
+    'the way back is offered when there is nothing to go back from');
+  await page.click('#watchMap .locmap-plane-mark[data-hex]');
+  await page.waitForSelector('#watchMap .locmap-plane-pick', { timeout: 20_000 });
+  const byMap = await zoomNow();
+  assert.ok(byMap > before, `pressing the aircraft on the map did not zoom in: ${before} then ${byMap}`);
+  assert.equal(await page.$eval('#flightAll', (element) => element.hidden), false,
+    'a flight is picked and the way back is still hidden');
+
+  // 🔴 AND THERE IS A CONTROL FOR IT, NOT ONLY A SECOND PRESS. *"i need a way to return to all flights"* —
+  // a reader who has scrolled down to the map has no row in view to press again.
+  await page.click('#flightAll');
+  await page.waitForFunction(
+    () => document.querySelectorAll('#watchMap .locmap-plane-pick').length === 0,
+    null,
+    { timeout: 20_000 }
+  );
+  assert.equal(await zoomNow(), before, 'the way back did not put the frame back where it started');
+  assert.equal(await page.$eval('#flightAll', (element) => element.hidden), true,
+    'the way back stays on screen after it has been used');
+
   await context.close();
 });

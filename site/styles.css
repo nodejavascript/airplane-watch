@@ -888,6 +888,29 @@ main {
   fill: #4ade80;
 }
 
+/* 🔴 THE AEROPLANE ON THE MAP IS PRESSABLE, AND IT HAS TO LOOK IT. George, 22 Sep 2026: *"click on any
+ * aircraft in the air is not zooming into that aircraft … the map should zoom into it"*. The shape and the
+ * name beside it both carry the airframe's hex and both put the map on it, so both take the pointer and both
+ * light up under it — the name is part of the aeroplane as far as a reader is concerned, and a click that
+ * works on one of them and not the other is worse than neither. Hover is a slightly larger icon rather than
+ * a colour change, because the colour on this map already means something else (green the picked one, cyan
+ * every other, and the trail's own hues). */
+.locmap-plane-mark[data-hex],
+.locmap-plane-label[data-hex] {
+  cursor: pointer;
+}
+.locmap-plane-mark[data-hex]:hover .locmap-plane-icon {
+  fill: #7dd3fc;
+}
+.locmap-plane-label[data-hex]:hover {
+  fill: #e8f4fb;
+}
+
+/* The way back sits under the map on its own line, at the map's own width. */
+#flightAll {
+  margin-top: 8px;
+}
+
 /* ---------------------------------------------------------------------------
  * THE ROUTE, LEADING THE ROW IN TWO CELLS: `from KDTW` then `to CYYZ`.
  *
@@ -2314,11 +2337,33 @@ main > #status {
  * the drawing says what kind of thing it is before the label is read. Stroked rather than flat
  * so it stays legible over map tiles of any colour.
  */
+/* 🔴 THE PRESS AREA OF AN AEROPLANE ON THE MAP. The shape is about 14 pixels across, so the drawing itself
+ * is a hard thing to hit with a mouse and an impossible one with a thumb — and the press would silently do
+ * nothing, which reads as a broken page rather than a missed click. This transparent circle is twice that
+ * wide and sits under the icon inside the same group, so a press anywhere near the aeroplane counts as a
+ * press on it. `fill: transparent` still receives pointer events; `fill: none` does NOT, which is the trap
+ * that makes a shape look pressable and be unpressable. */
+.locmap-plane-hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
 .locmap-plane-icon {
   fill: #38bdf8;
   stroke: rgba(2, 6, 23, 0.9);
   stroke-width: 1.4;
   stroke-linejoin: round;
+}
+
+/* The icon and the label are drawn over the press area, so they can be over the pointer without stealing
+ * the press — the group still answers for both. */
+.locmap-plane-icon,
+.locmap-plane-label {
+  pointer-events: none;
+}
+/* …except the label, which is pressable in its own right. */
+.locmap-plane-label[data-hex] {
+  pointer-events: all;
 }
 
 /**
