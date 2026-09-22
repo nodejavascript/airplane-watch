@@ -235,8 +235,8 @@
       </section>
 
       <section class="card step-gated" id="step-3" data-step="3" hidden>
-        <h2><span class="step">3</span> Pick an aircraft type</h2>
-        <p class="sub">The aircraft that actually fly here, measured from the feed. Star the ones you care about. Each row carries the year its type first flew and when it was last seen here. <b>Heritage</b> is deliberately short: many military aircraft never transmit at all.</p>
+        <h2><span class="step">3</span> Filter and select</h2>
+        <p class="sub">The aircraft that actually fly here, measured from the feed. The filters narrow the list — by kind, by maker, by era, and by when it was last seen — and starring a row is what selects it. Each row carries the year its type first flew and when it was last seen here. <b>Heritage</b> is deliberately short: many military aircraft never transmit at all.</p>
         <!--
           🔴 THE FOUR FILTERS ARE ONE PANEL WITH A LABEL COLUMN, NOT FOUR RAGGED ROWS.
 
@@ -259,6 +259,27 @@
           <div class="filter-row">
             <span class="chip-label" id="typeFilterLabel">Kind</span>
             <div class="chips" id="typeFilter" role="group" aria-labelledby="typeFilterLabel"></div>
+          </div>
+
+          <!--
+            🔴 WHO MADE IT — THE SECOND AXIS OVER THE SAME LIST.
+
+            George, 22 Sep 2026: *"add a new category for manufacturer like airbus, not sure thats a
+            manufacture, other examples are Cessna, Glider etc"*.
+
+            It sits directly under **Kind** because the two answer the same shape of question about a
+            type — what it is, and who built it — and because both narrow the list rather than the map.
+            The label says **Maker** rather than "manufacturer" for the reason his own sentence doubts the
+            word: `Glider` and `Balloon` are not manufacturers, and this row must not claim they are. See
+            the note on `makerOf` in `src/typeinfo.ts` — a maker is only claimed when the type's own name
+            names one.
+
+            The chips are built in the code rather than written here, because the row is whatever the
+            measured list contains: the makers with the most types, then one `Other` for the rest.
+          -->
+          <div class="filter-row">
+            <span class="chip-label" id="makerFilterLabel" title="Who made the aircraft">Maker</span>
+            <div class="chips" id="makerFilter" role="group" aria-labelledby="makerFilterLabel"></div>
           </div>
 
           <!--

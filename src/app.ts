@@ -47,6 +47,7 @@ import {
   isCivilClass,
   knownTypeCodes,
   knownTypeCount,
+  makerOf,
   type AircraftClass,
 } from './typeinfo.js';
 
@@ -104,6 +105,23 @@ const AREA_KEY = 'aircraft_place_area';
 const POLL_START_MS = 20_000;
 const POLL_MIN_MS = 15_000;
 const POLL_MAX_MS = 180_000;
+
+/**
+ * How many maker chips the row carries, and the key the remainder is filed under.
+ *
+ * 🔴 TEN, MEASURED RATHER THAN CHOSEN. On this site's own list, 50 distinct words open the 245 names it
+ * can print — Cessna with 30 types down to Kaman with 1 — so a chip per word is four rows of chips on a
+ * panel George has already called cluttered once. The ten with the most types are the ones a reader
+ * arrives looking for, and everything else stays reachable through `Other`, which is a chip rather than a
+ * silence.
+ *
+ * 🔴 AND `MAKER_OTHER` IS NOT THE WORD "Other". It is the key the filter compares against, and a maker's
+ * own name is what the other keys hold — so this is deliberately a string no name in the table could be
+ * (`*` is not how any manufacturer begins), and one that survives being written into an attribute and
+ * read back by a selector.
+ */
+const MAKER_CHIPS = 10;
+const MAKER_OTHER = '*other';
 
 /**
  * 🔴 KILOMETRES, NOT NAUTICAL MILES. George, 20 Sep 2026: *"nobody understand
@@ -1029,6 +1047,24 @@ class Page {
   /** Types the feed showed in THIS session, which may be newer than the survey. */
   private liveTypes = new Map<string, number>();
   private typeFilter: AircraftClass | 'all' = 'all';
+  /**
+   * Which maker is chosen — `all`, a maker's name, or `MAKER_OTHER` for the remainder.
+   *
+   * George, 22 Sep 2026: *"add a new category for manufacturer like airbus … other examples are
+   * Cessna, Glider etc"*. The values are named by `makerOf` in `typeinfo.ts`, which claims a maker only
+   * when the type's own name names one — see the note there for why `Glider` and `Balloon` are not
+   * makers.
+   */
+  private makerFilter: string = 'all';
+  /**
+   * The makers the row is showing, filled on the first render that has rows, and then held still.
+   *
+   * 🔴 NULL MEANS NOT BUILT YET, AND IT IS BUILT FROM THE MEASURED LIST RATHER THAN THE FILTERED ONE.
+   * Built from the filtered rows the chips would rearrange themselves under the reader's own press, and
+   * built before the survey lands there is nothing to count. So it is filled once, when there is
+   * something to count, and kept for the session.
+   */
+  private makerChips: string[] | null = null;
 
   start(): void {
     this.watchlist = this.loadList(WATCH_KEY);
@@ -1244,6 +1280,73 @@ class Page {
       button.setAttribute('aria-pressed', String(option.key === this.typeFilter));
       button.addEventListener('click', () => {
         this.typeFilter = option.key;
+        for (const other of host.querySelectorAll('button')) {
+          other.setAttribute('aria-pressed', String(other === button));
+        }
+        this.renderTypeList();
+      });
+      host.appendChild(button);
+    }
+  }
+
+  /**
+   * The maker row: the makers with the most types, and one chip for everything else.
+   *
+   * 🔴 THE WHOLE ROW IS DERIVED FROM THE LIST, WHICH IS WHY IT IS BUILT HERE AND NOT IN THE MARKUP.
+   * Kind, era and last-seen are fixed sets that can be written down; "who made it" is whatever the
+   * measured list happens to contain, and it changes as the survey finds more aeroplanes. A maker the
+   * row is not showing is still reachable — through `Other` — and the tooltip says how much that holds
+   * rather than leaving the reader to find out by pressing it.
+   *
+   * 🔴 AND THE CURRENT CHOICE IS CHECKED AGAINST THE NEW ROW. If a maker drops out of the top ten between
+   * one build and the next, a filter naming it would match nothing and read as a broken page rather than
+   * as a filter — so a choice that is no longer offered falls back to everything.
+   */
+  private buildMakerFilter(rows: { code: string }[]): void {
+    const host = byId('makerFilter');
+    if (!host) return;
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      const maker = makerOf(row.code);
+      if (maker === null) continue;
+      counts.set(maker, (counts.get(maker) ?? 0) + 1);
+    }
+    // Most types first, then alphabetically — so two makers with the same count keep a stable order
+    // instead of swapping places between builds.
+    const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    const shown = ranked.slice(0, MAKER_CHIPS).map(([maker]) => maker);
+    const held = ranked.slice(0, MAKER_CHIPS).reduce((sum, [, count]) => sum + count, 0);
+    const rest = rows.length - held;
+    this.makerChips = shown;
+
+    const options: { key: string; label: string; title: string }[] = [
+      { key: 'all', label: 'Everything', title: 'Every maker' },
+      ...shown.map((maker) => ({ key: maker, label: maker, title: `Only ${maker}` })),
+      ...(rest > 0
+        ? [
+            {
+              key: MAKER_OTHER,
+              label: 'Other',
+              title:
+                `${rest} ${rest === 1 ? 'type is' : 'types are'} by a maker with a single type in this ` +
+                'list, or by a maker this site cannot name',
+            },
+          ]
+        : []),
+    ];
+    if (!options.some((option) => option.key === this.makerFilter)) this.makerFilter = 'all';
+
+    host.innerHTML = '';
+    for (const option of options) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'chip chip-small';
+      button.textContent = option.label;
+      button.title = option.title;
+      button.dataset.maker = option.key;
+      button.setAttribute('aria-pressed', String(option.key === this.makerFilter));
+      button.addEventListener('click', () => {
+        this.makerFilter = option.key;
         for (const other of host.querySelectorAll('button')) {
           other.setAttribute('aria-pressed', String(other === button));
         }
@@ -2538,6 +2641,7 @@ class Page {
     total: number;
     droppedByAirport: number;
     droppedByKind: number;
+    droppedByMaker: number;
     droppedByYear: number;
     droppedForNoYear: number;
     droppedBySeen: number;
@@ -2552,6 +2656,12 @@ class Page {
     if (counts.droppedByKind > 0) {
       parts.push(
         `${counts.droppedByKind} ${counts.droppedByKind === 1 ? 'is not the' : 'are not the'} kind you chose`
+      );
+    }
+    if (counts.droppedByMaker > 0) {
+      parts.push(
+        `${counts.droppedByMaker} ${counts.droppedByMaker === 1 ? 'is not by the' : 'are not by the'} ` +
+          'maker you chose'
       );
     }
     if (counts.droppedByYear > 0) {
@@ -2945,6 +3055,8 @@ class Page {
     total: number;
     droppedByAirport: number;
     droppedByKind: number;
+    /** 🔴 COUNTED LIKE EVERY OTHER REASON, so the printed count still adds up exactly. */
+    droppedByMaker: number;
     droppedByYear: number;
     droppedForNoYear: number;
     droppedBySeen: number;
@@ -2977,6 +3089,7 @@ class Page {
     // difference.
     let droppedByAirport = 0;
     let droppedByKind = 0;
+    let droppedByMaker = 0;
     let droppedByYear = 0;
     let droppedForNoYear = 0;
     let droppedBySeen = 0;
@@ -3008,6 +3121,20 @@ class Page {
       if (this.typeFilter !== 'all' && this.klassOf(row.code) !== this.typeFilter) {
         droppedByKind += 1;
         return false;
+      }
+      // 🔴 THE MAKER, WHICH IS THE SECOND THING ABOUT A TYPE RATHER THAN A THIRD KIND OF IT. A maker
+      // this site cannot name answers `null`, so it has no chip of its own and is reachable only
+      // through `Other` — that is the honest place for it, and it is why `Other` is a chip.
+      if (this.makerFilter !== 'all') {
+        const maker = makerOf(row.code);
+        const wanted =
+          this.makerFilter === MAKER_OTHER
+            ? maker === null || !(this.makerChips ?? []).includes(maker)
+            : maker === this.makerFilter;
+        if (!wanted) {
+          droppedByMaker += 1;
+          return false;
+        }
       }
       if (era.key !== 'all') {
         const entry = this.yearOf(row.code);
@@ -3050,7 +3177,7 @@ class Page {
       }
       return true;
     });
-    return { rows, total: all.length, droppedByAirport, droppedByKind, droppedByYear, droppedForNoYear, droppedBySeen };
+    return { rows, total: all.length, droppedByAirport, droppedByKind, droppedByMaker, droppedByYear, droppedForNoYear, droppedBySeen };
   }
 
   /** The survey's types, with anything newer that this session saw merged in. */
@@ -3453,6 +3580,20 @@ class Page {
         "is overhead; it says these particular aircraft are not."
       );
     }
+    // 🔴 THE MAKER IS ANSWERED BEFORE THE KIND, BECAUSE IT IS THE MORE SPECIFIC QUESTION. A reader who
+    // chose Cessna is owed *"no Cessna has been seen here"* rather than *"no Light has been seen here"*:
+    // the kind is still set from before, and answering with it would name a filter they did not just ask
+    // about. `counts.rows` is empty either way, so only the sentence changes.
+    if (this.makerFilter !== 'all') {
+      const named = this.makerFilter === MAKER_OTHER ? null : this.makerFilter;
+      return (
+        (named
+          ? `No ${named} has been seen at this airport. `
+          : 'Nothing by a maker this row does not name has been seen at this airport. ') +
+        'The list is measured from the feed, so it shows what actually flies here rather than what could. ' +
+        'Try another filter, or leave it and watch.'
+      );
+    }
     if (this.typeFilter === 'all') {
       return 'Nothing has been seen yet — the page has only just started looking. Give it a minute.';
     }
@@ -3465,6 +3606,14 @@ class Page {
   private renderTypeList(): void {
     const host = byId('typeList');
     if (!host) return;
+
+    // 🔴 THE MAKER ROW IS BUILT FROM THE MEASURED LIST, BEFORE THE FILTERS ARE APPLIED TO IT. Its chips
+    // have to exist before a chosen maker can be filtered on, and they have to be counted from the whole
+    // list rather than from what survives the other filters — see the note on `makerChips`.
+    if (this.makerChips === null) {
+      const all = this.combinedTypes();
+      if (all.length > 0) this.buildMakerFilter(all);
+    }
 
     const counts = this.typeRows();
     const { rows } = counts;

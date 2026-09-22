@@ -1876,6 +1876,58 @@ test('94 · the route leads the row, and reads from → to', () => {
   assert.match(page, /colspan="6"/, 'the placeholder cell does not span the table');
 });
 
+test('96 · the maker row names who built it, and claims a maker only when the name does', async () => {
+  // 🔴 THE RULE IS TESTED BY RUNNING IT, NOT BY READING IT. `makerOf` is the one thing in this change
+  // that makes a claim about the world — somebody built this aeroplane — so a check that only saw the
+  // word "maker" in the source would prove nothing at all.
+  const { makerOf } = await import('../site/typeinfo.js');
+  const page = read(SITE, 'index.html');
+  const app = readSrc('src/app.ts');
+
+  // 🔴 THE ROW IS IN THE PANEL, DIRECTLY UNDER KIND. George, 22 Sep 2026: *"add a new category for
+  // manufacturer like airbus … other examples are Cessna, Glider etc"*. They answer the same shape of
+  // question about a type — what it is, and who built it — so they sit beside each other.
+  const panel = page.slice(page.indexOf('class="filters"'), page.indexOf('id="filterNote"'));
+  const kind = panel.indexOf('id="typeFilter"');
+  const maker = panel.indexOf('id="makerFilter"');
+  const distance = panel.indexOf('id="radiusButtons"');
+  assert.ok(kind > -1 && distance > -1, 'the filter panel could not be isolated, so this check is vacuous');
+  assert.ok(maker > -1, 'the maker row is not in the filter panel');
+  assert.ok(kind < maker && maker < distance, 'the maker row is not directly under the kind row');
+  assert.match(page, /<span class="chip-label" id="makerFilterLabel"[^>]*>Maker<\/span>/,
+    'the maker row is not labelled Maker');
+  assert.match(page, /id="makerFilter" role="group" aria-labelledby="makerFilterLabel"/,
+    'the maker row is not attached to its own label');
+
+  // 🔴 A MAKER IS CLAIMED ONLY WHEN THE TYPE'S OWN NAME NAMES ONE. This is the whole reason the row is a
+  // curated table rather than a rule that takes the first word of every name: `Glider`, `Balloon` and
+  // `Ultralight` are what the FEED calls those types and nobody's manufacturer, and `Airplane Factory` is
+  // a real maker whose first word is not its name. George doubted the word himself — *"not sure thats a
+  // manufacture"* — and this is the answer to the doubt.
+  assert.equal(makerOf('GLID'), null, 'a glider is being given a manufacturer, and it has none');
+  assert.equal(makerOf('BALL'), null, 'a balloon is being given a manufacturer');
+  assert.equal(makerOf('ULAC'), null, 'an ultralight is being given a manufacturer');
+  assert.equal(makerOf('AS21'), null, 'a code the site cannot name is being given a manufacturer');
+  assert.equal(makerOf('DH8D'), null, 'the Dash 8 is filed under a maker its own name does not name');
+  assert.equal(makerOf('SLG2'), 'Airplane Factory', 'a maker whose name opens with a common word is misread');
+  assert.equal(makerOf('H47'), 'Boeing', 'Boeing-Vertol is not being read as Boeing');
+  assert.equal(makerOf('C30J'), 'Lockheed', 'Lockheed Martin is not being read as Lockheed');
+  assert.equal(makerOf('V22'), 'Bell Boeing', 'a type built by two makers loses one of them');
+  assert.equal(makerOf('RV7'), "Van's", 'a maker whose name carries an apostrophe is dropped');
+  assert.equal(makerOf('B738'), 'Boeing', 'a Boeing is not recognised');
+  assert.equal(makerOf('C172'), 'Cessna', 'a Cessna is not recognised');
+
+  // 🔴 AND THE FILTER COUNTS WHAT IT DROPS, LIKE EVERY OTHER AXIS. `droppedReasons` prints the accounting
+  // under the list, so an axis that drops rows without a counter turns that count into a lie.
+  assert.match(app, /droppedByMaker \+= 1/, 'the maker filter drops rows without counting them');
+  assert.match(app, /droppedByMaker: number;/, 'the dropped-by-maker count is not in the counts');
+  assert.match(app, /droppedByMaker > 0/, 'the reason is counted and then never printed');
+
+  // And the chips are the row's own, pressable, and carry the key the filter reads.
+  assert.match(app, /id=\"makerFilter\"|byId\('makerFilter'\)/, 'the code never reaches for the maker row');
+  assert.match(app, /dataset\.maker = option\.key/, 'the maker chips carry no key to press');
+});
+
 test('95 · the honest page and the honest code agree about the feed', () => {
   const page = read(SITE, 'index.html');
   const app = readSrc('src/app.ts');

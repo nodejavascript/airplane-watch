@@ -452,6 +452,123 @@ export function knownTypeCount() {
     return Object.keys(TABLE).length;
 }
 /**
+ * 🔴 WHO MADE IT — THE SECOND AXIS IN THE SAME LIST, AND THE NAME IS THE ONLY SOURCE.
+ *
+ * George, 22 Sep 2026, looking at the type list: *"add a new category for manufacturer like airbus,
+ * not sure thats a manufacture, other examples are Cessna, Glider etc"*.
+ *
+ * He is right that the list carries a second way to navigate it — `Cessna 172`, `Airbus A220-300`,
+ * `Boeing 737-800` — and he is right to doubt the WORD and the examples, which is exactly why this is
+ * a curated table and not a rule that takes the first word of every name:
+ *
+ *   · a leading-word rule answers **`Airplane`** for `Airplane Factory Sling 2` — Airplane Factory is a
+ *     real maker and `Airplane` is only the first word of it;
+ *   · it answers **`de`** for `de Havilland Canada Beaver` and **`North`** for `North American B-25
+ *     Mitchell`;
+ *   · and it answers **`Glider`**, **`Balloon`** and **`Ultralight`** with a manufacturer that does not
+ *     exist. Those are what the FEED calls the type, not who built it.
+ *
+ * 🔴 SO A MAKER IS CLAIMED ONLY WHEN THE NAME ITSELF NAMES ONE. `Dash 8-100` names no maker — the
+ * aeroplane is a de Havilland Canada design that was sold as a Bombardier for years, and the name says
+ * neither — so it stays unclaimed and shows under **Other** rather than being asserted into a
+ * manufacturer from memory. Same rule as everywhere else here: what cannot be read out of the record is
+ * not printed.
+ *
+ * Three of these are merges, and each is a company's own family rather than two makers: `Boeing-Vertol`
+ * → **Boeing** (Vertol was Boeing's helicopter division when the Chinook was built), `Lockheed Martin` →
+ * **Lockheed**, and `Grumman American` → **Grumman** (that merger is what produced the AA-5). Every one
+ * is still a name the row's own text carries, so the merge invents nothing.
+ */
+const MAKER_PREFIXES = [
+    // The names with more than one word, which is why the list is matched longest-first below.
+    ['de Havilland Canada', 'de Havilland'],
+    ['de Havilland', 'de Havilland'],
+    ['North American Rockwell', 'North American'],
+    ['North American', 'North American'],
+    ['McDonnell Douglas', 'McDonnell Douglas'],
+    ['Lockheed Martin', 'Lockheed'],
+    ['Boeing-Vertol', 'Boeing'],
+    ['Bell Boeing', 'Bell Boeing'],
+    ['BAE Systems', 'BAE'],
+    ['Grumman American', 'Grumman'],
+    ['Airplane Factory', 'Airplane Factory'],
+    // The makers whose name IS the first word, so the prefix is enough.
+    ['Airbus', 'Airbus'],
+    ['Alenia', 'Alenia'],
+    ['ATR', 'ATR'],
+    ['Avro', 'Avro'],
+    ['Beechcraft', 'Beechcraft'],
+    ['Bellanca', 'Bellanca'],
+    ['Bell', 'Bell'],
+    ['Boeing', 'Boeing'],
+    ['Bombardier', 'Bombardier'],
+    ['Bristol', 'Bristol'],
+    ['Canadair', 'Canadair'],
+    ['CASA', 'CASA'],
+    ['Cessna', 'Cessna'],
+    ['Cirrus', 'Cirrus'],
+    ['Curtiss', 'Curtiss'],
+    ['Daher', 'Daher'],
+    ['Dassault', 'Dassault'],
+    ['Diamond', 'Diamond'],
+    ['Douglas', 'Douglas'],
+    ['Embraer', 'Embraer'],
+    ['Evektor', 'Evektor'],
+    ['Grumman', 'Grumman'],
+    ['Gulfstream', 'Gulfstream'],
+    ['Hawker', 'Hawker'],
+    ['Honda', 'Honda'],
+    ['Hughes', 'Hughes'],
+    ['IAI', 'IAI'],
+    ['ICON', 'ICON'],
+    ['Kaman', 'Kaman'],
+    ['Lake', 'Lake'],
+    ['Lancair', 'Lancair'],
+    ['Learjet', 'Learjet'],
+    ['Leonardo', 'Leonardo'],
+    ['Lockheed', 'Lockheed'],
+    ['Maule', 'Maule'],
+    ['Messerschmitt', 'Messerschmitt'],
+    ['Mooney', 'Mooney'],
+    ['Murphy', 'Murphy'],
+    ['Northrop', 'Northrop'],
+    ['Pilatus', 'Pilatus'],
+    ['Piper', 'Piper'],
+    ['Pipistrel', 'Pipistrel'],
+    ['Robinson', 'Robinson'],
+    ['Rockwell', 'Rockwell'],
+    ['Saab', 'Saab'],
+    ['Sikorsky', 'Sikorsky'],
+    ['Socata', 'Socata'],
+    ['Stearman', 'Stearman'],
+    ['Supermarine', 'Supermarine'],
+    ['Swearingen', 'Swearingen'],
+    ['Tecnam', 'Tecnam'],
+    // `Van’s RV-7` carries a typographic apostrophe, so the prefix stops before it.
+    ['Van', "Van's"],
+    ['Vought', 'Vought'],
+    ['Westland', 'Westland'],
+];
+/** Longest prefix first, so a short rule can never answer a name a longer one owns. */
+const MAKERS_BY_LENGTH = [...MAKER_PREFIXES].sort((a, b) => b[0].length - a[0].length);
+/**
+ * Who made a type — or `null` when its own name does not say.
+ *
+ * `null` is an ANSWER rather than a failure: it is what puts `Glider`, `Balloon`, `Ultralight` and the
+ * codes this site cannot name under **Other**, instead of filing them under a manufacturer nobody
+ * claimed. An unknown code answers `null` for the same reason `describeType` refuses to name it.
+ */
+export function makerOf(code) {
+    const { name, known } = describeType(code);
+    if (!known)
+        return null;
+    for (const [prefix, maker] of MAKERS_BY_LENGTH) {
+        if (name.startsWith(prefix))
+            return maker;
+    }
+    return null;
+}
+/**
  * Every code this site can name.
  *
  * 🔴 THE LIST THE no-data CHOICE SHOWS, AND THE ONLY PLACE IT CAN COME FROM. A type the record has

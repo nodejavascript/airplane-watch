@@ -1507,6 +1507,50 @@ test('the schedule is gone from the page, and the page no longer asks for it', a
   await context.close();
 });
 
+/* =============== the maker row, which is the second axis over the same list ===
+ *
+ * George, 22 Sep 2026: *"add a new category for manufacturer like airbus … other examples are Cessna,
+ * Glider etc"*. The rule about WHICH names may be read as a maker is a static check (test 96); this is
+ * the behaviour — that pressing one narrows the list to that maker, and that the list is measured so
+ * the narrowing is a real subset rather than a different list.
+ */
+
+test('choosing a maker narrows the list to that maker, and never empties it', async () => {
+  const { context, page } = await openPage([[[]]]);
+  await page.route('**/api/geo/search**', placeStub);
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await pickPlace(page, 'Stoney Creek Ontario');
+
+  // 🔴 THE CHIPS ARE BUILT FROM THE MEASURED LIST, SO THE FIRST THING TO WAIT FOR IS THE LIST. Waiting on
+  // the row alone would pass on a page whose survey never arrived, and then the count below would be
+  // zero and prove nothing.
+  await page.waitForSelector('#typeList .typerow', { timeout: 30_000, state: 'attached' });
+  await page.waitForSelector('#makerFilter button[data-maker="Cessna"]', { timeout: 10_000, state: 'attached' });
+
+  const before = await page.$$eval('#typeList .typerow', (rows) => rows.length);
+  assert.ok(before > 0, 'the type list is empty before any maker is chosen, so this test proves nothing');
+
+  await page.$eval('#makerFilter button[data-maker="Cessna"]', (element) => element.click());
+  await page.waitForTimeout(300);
+
+  const names = await page.$$eval('#typeList .typerow', (rows) => rows.map((row) => row.textContent));
+  assert.ok(names.length > 0, 'choosing Cessna emptied the list');
+  assert.ok(names.length < before, `choosing Cessna did not narrow anything: ${names.length} of ${before}`);
+  for (const one of names) {
+    assert.match(one, /Cessna/i, `a row survived the Cessna filter without being a Cessna: ${one.slice(0, 90)}`);
+  }
+
+  // 🔴 AND THE PRESSED CHIP IS THE ONE THAT IS ON, which is what tells the reader the list they are looking
+  // at is a narrowed one. A filter that narrows silently is the fault this whole panel exists to avoid.
+  const pressed = await page.$$eval('#makerFilter button', (buttons) =>
+    buttons.filter((one) => one.getAttribute('aria-pressed') === 'true').map((one) => one.textContent.trim())
+  );
+  assert.deepEqual(pressed, ['Cessna'], `the pressed maker chip is not the one chosen: ${pressed.join(', ')}`);
+
+  await context.close();
+});
+
 /* ================= the filters and the type list are ON SCREEN ==============
  *
  * George, 21 Sep 2026: *"all my filters are gone. fix that. and i dont see any airplain type."*
