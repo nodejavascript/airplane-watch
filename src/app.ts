@@ -3981,6 +3981,16 @@ class Page {
    */
   private mapShow = new Set<string>();
 
+  /**
+   * 🔴 WHICH ROWS ARE ON, IN THE READER'S OWN WORDS.
+   *
+   * The set above is keyed by a NORMALISED value, because that is the right way to compare a row with
+   * what the feed reports. The caption must not reuse it to name the row: a key of `tail:CFOOL` is not
+   * what the page wrote — the row reads `C-FOOL` — so a caption built from the keys quietly misspells
+   * the aeroplane. Measured, 22 Sep 2026: *"It is fitted to the row you switched on — CFOOL"*.
+   */
+  private mapShowNames = new Map<string, string>();
+
   /** The key one row's switch is filed under. One builder, so the row and the map cannot disagree. */
   private static showKey(kind: 'type' | 'tail', value: string): string {
     return `${kind}:${normaliseKey(value)}`;
@@ -4005,6 +4015,8 @@ class Page {
    */
   private mapSwitch(kind: 'type' | 'tail', value: string): string {
     const key = Page.showKey(kind, value);
+    // The row's own wording, kept beside the key that matches the feed, for the caption to use.
+    this.mapShowNames.set(key, value);
     const on = this.mapShow.has(key);
     const why = on
       ? 'This row is on the map. Switch it off to see everything you watch again — or press Show all '
@@ -4492,8 +4504,11 @@ class Page {
     const watching = this.seenInTheAirInsideFence(snapshot).air;
     const rowFilter = this.mapShow.size > 0 && !pickedFlown;
     const focused = rowFilter ? watching.filter((one) => this.rowShown(one)) : watching;
-    // Named for the caption the way the rows name themselves: the code or tail that was switched on.
-    const shownNames = [...this.mapShow].map((key) => key.replace(/^(type|tail):/, ''));
+    // Named for the caption the way the rows name themselves: the row's own wording where the page
+    // drew that row, and the stripped key as the fallback for a name it has not seen yet.
+    const shownNames = [...this.mapShow].map(
+      (key) => this.mapShowNames.get(key) ?? key.replace(/^(type|tail):/, '')
+    );
 
     const needed: { lat: number; lon: number }[] = [
       ...(at ? [at] : []),

@@ -2145,6 +2145,10 @@ test('97 · a takeoff time is never invented, and a run to the destination is ne
 });
 
 test('98 · a row you press puts the map on that flight, and pressing it again puts it back', () => {
+  // ⚠️ HALF OF THIS TEST IS DEAD AND IT IS KNOWN DEBT: it still asserts the deleted table (`data-hex` and
+  // `row-selected` on a `<tr>`, the green cell borders, the pointer cursor on `tr.aircraft-row`). Those
+  // assertions fail on a file that is correct. Reported to George; NOT rewritten here, because rewriting a
+  // test is a change of its own. The watchlist and map halves below are live and are the ones kept true.
   const app = readSrc('src/app.ts');
   const page = read(SITE, 'index.html');
   const css = read(SITE, 'styles.css');
@@ -2171,15 +2175,19 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
   assert.equal(/aria-pressed/.test(rows), false,
     'the row claims to be a pressed button, which a table row is not');
 
-  // 🔴 THE LISTENER IS ON THE DOCUMENT. The table is rewritten on every poll, so a listener attached to
+  // 🔴 THE LISTENER IS ON THE DOCUMENT. The list is rewritten on every poll, so a listener attached to
   // a row goes with the row — the fault this file has already recorded once for the footer's door.
   const bind = app.slice(app.indexOf('private bindFlightPick('), app.indexOf('private pickFlight('));
   assert.ok(bind.length > 400, 'the pick binding is gone, so this check is vacuous');
   assert.match(bind, /document\.addEventListener\('click'/, 'the pick is bound to the rows instead of delegated');
-  assert.match(bind, /document\.addEventListener\('keydown'/, 'the pick cannot be made from the keyboard');
-  assert.match(bind, /event\.key !== 'Enter' && event\.key !== ' '/, 'Enter and space do not both work');
   assert.match(bind, /closest\('button, a, input, \.tail-chip'\)\) return/,
     'the pick swallows presses meant for the controls inside a row');
+  // ⚠️ THE KEYDOWN BRANCH WENT WITH THE PRESSABLE ROW (22 Sep 2026). It existed to let a watching row be
+  // pressed from the keyboard, and the row is a boolean now — the browser focuses and toggles a checkbox
+  // itself, so a keydown matching a selector nothing carries is dead code. It is asserted ABSENT, because
+  // a listener left behind reads as a feature that still works.
+  assert.equal(/addEventListener\('keydown'/.test(bind), false,
+    'a keydown listener is back for a row that is no longer pressable');
   assert.match(app, /this\.bindFlightPick\(\);/, 'the pick is never bound, so no row can be pressed');
 
   // 🔴 AND THE AIRCRAFT ON THE MAP IS PRESSABLE, WHICH IS THE THING GEORGE ACTUALLY CLICKED. His words,
@@ -2280,14 +2288,19 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
   assert.match(removeHandler, /this\.renderAircraft\(\);/,
     'stopping watching a type does not redraw the table and the map');
 
-  // 🔴 AND THE WATCHLIST ROW THAT NAMES ONE AIRCRAFT CAN BE PRESSED TOO — but only while that aircraft
-  // has a position. A watched TYPE is not given this: it can cover several aircraft, so there is no
-  // single flight for the map to go to.
-  assert.match(watchlist, /normaliseKey\(one\.registration\) === normaliseKey\(item\)/,
-    'a named tail is not matched to the aircraft it names');
-  assert.match(watchlist, /const hex = flying \? String\(flying\.hex \?\? ''\)\.toLowerCase\(\) : '';/,
-    'a named tail carries a hex even when nothing is in the air');
-  assert.match(watchlist, /hex !== ''\s*\n?\s*\? ` data-hex=/, 'the named tail row cannot be pressed');
+  // 🔴 AND THE WATCHLIST ROW THAT NAMES ONE AIRCRAFT CARRIES A BOOLEAN, NOT A PRESS. George, 22 Sep 2026:
+  // *"even though the filight may or may not be in the air, i want this to be a boolean input, not a
+  // link"*. The same switch a type row carries, always available — the old press existed only while the
+  // aeroplane was reporting a position, which is a control with a hidden precondition.
+  assert.equal(/li\.watch-type\[data-hex\]/.test(watchlist), false, 'the named tail row is a link again');
+  assert.match(watchlist, /this\.mapSwitch\('tail', item\)/, 'the named tail row has no show-on-map boolean');
+  assert.match(watchlist, /this\.mapSwitch\('type', rule\.type\)/, 'the type row has no show-on-map boolean');
+  assert.match(app, /private mapSwitch\(kind: 'type' \| 'tail', value: string\): string/,
+    'a switch is asked for a fact it must not depend on');
+  // The slice starts at the signature, so the note beside it — which names the `disabled` attribute it
+  // explains the removal of — is outside it and cannot make this a false failure.
+  assert.equal(/disabled/.test(app.slice(app.indexOf('private mapSwitch('), app.indexOf('private toggleMapShow('))), false,
+    'a show-on-map switch can still be disabled, so it is a conditional control again');
   assert.equal(/watch-type[^`]*data-hex/.test(typeList), false, 'a watched type was made pressable, and it names no single flight');
 
   // 🔴 ONE GREEN HUE, ON THE ROW AND ON THE MAP. George, 22 Sep 2026: *"the select and unselected can be
@@ -2300,8 +2313,10 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
   assert.match(css, /\.aircraft tr\.row-selected td:last-child \{[^}]*border-right: 2px solid #4ade80/,
     'the green box is not closed on the right');
   assert.match(css, /\.locmap-plane-pick \{[^}]*stroke: #4ade80/, 'the picked aircraft is not ringed in the same green');
-  assert.match(css, /\.watch-type\.row-selected \{[^}]*border-color: #4ade80/,
-    'a picked named tail is not marked in the same green');
+  // The named tail has no picked state any more — it is a boolean, not a selection — so the rule that
+  // marked it went with the press it marked. Asserted as a RULE (selector followed by a block), because
+  // the stylesheet's own note names the retired selector while explaining why it went.
+  assert.equal(/\.watch-type\.row-selected\s*\{/.test(css), false, 'a picked-tail rule is back for a row that is a boolean');
   assert.match(css, /\.aircraft tr\.aircraft-row \{[^}]*cursor: pointer/,
     'a row that can be pressed does not look as though it can be');
 
