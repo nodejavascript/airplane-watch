@@ -1138,6 +1138,10 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   // for one day (*"i want this above the map"*) and a control that changes the list was drawn in the
   // card that reads the list.
   const code = htmlCode;
+  // ⚠️ DECLARED AT THE TOP OF THE TEST, NOT WHERE IT FIRST SEEMED TIDY. It was declared eight lines from
+  // the bottom, and three checks above it read it — which is a temporal dead zone, so the whole test threw
+  // "Cannot access 'app' before initialization" and reported nothing about the page.
+  const app = readSrc('src/app.ts');
   const step3 = code.slice(code.indexOf('id="step-3"'), code.indexOf('id="step-4"'));
   const kind = step3.indexOf('id="typeFilter"');
   const chips = step3.indexOf('id="radiusButtons"');
@@ -1278,7 +1282,6 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   // 🔴 THE SLIDER IS GONE, AND SO IS EVERY PIECE OF GEOMETRY IT NEEDED. A rule for an element the page
   // no longer draws is how a deleted control keeps looking alive, so the track, the thumb and the label
   // that rode on it are all asserted absent rather than left to rot.
-  const app = readSrc('src/app.ts');
   const css = read(SITE, 'styles.css');
   assert.equal(/radiusSlider|type = 'range'/.test(app), false, 'a slider is still built');
   assert.equal(/radius-track|placeReadout|RADIUS_THUMB_PX/.test(app), false,
@@ -2688,6 +2691,7 @@ test('102 · the switch has no words, wears the row\'s colour, lines up — and 
   // 4 · THE CROSS ASKS FIRST, ON BOTH KINDS OF ROW, IN THE PAGE'S OWN BOX — never the browser's. George,
   // 22 Sep 2026: *"add a html confirmation box if deleting a watched airplane type"*, then *"i do not
   // want http confirmations. make them html"*.
+  const page = read(SITE, 'index.html');
   const watchlist = app.slice(app.indexOf('private renderWatchlist('), app.indexOf('private renderWatchButton('));
   const removeTypes = watchlist.slice(watchlist.indexOf("querySelectorAll<HTMLButtonElement>('.type-remove')"));
   const removeTails = watchlist.slice(watchlist.indexOf("querySelectorAll<HTMLButtonElement>('.watch-remove')"));
