@@ -121,18 +121,6 @@ const POLL_START_MS = 20_000;
 const POLL_MIN_MS = 15_000;
 const POLL_MAX_MS = 180_000;
 /**
- * 🔴 HOW MANY AIRPORT LOOKUPS MAY BE IN FLIGHT AT ONCE, AND WHY THERE IS A LIMIT AT ALL.
- *
- * Measured on the live feed, 22 Sep 2026: with sixty rows on the table the page asked for sixty
- * airports in the same second and the feed started answering **429 Too Many Requests**. That is the
- * failure the run estimate is most vulnerable to, because a refusal remembered as "no coordinates"
- * would take the run off every row for the rest of the session. Two at a time still fills a table of
- * this size within a few seconds, and `AIRPORT_RETRY_MS` is how long a REFUSED airport waits before it
- * is asked about again — a refusal is not an unknown airport, so it is never remembered as one.
- */
-const AIRPORT_LOOKUPS_AT_ONCE = 2;
-const AIRPORT_RETRY_MS = 2 * 60 * 1000;
-/**
  * How many maker chips the row carries, and the key the remainder is filed under.
  *
  * 🔴 TEN, MEASURED RATHER THAN CHOSEN. On this site's own list, 50 distinct words open the 245 names it
@@ -288,40 +276,6 @@ function stripBrackets(value) {
         .trim();
 }
 /**
- * How far round the compass one point is from another, in degrees from north.
- *
- * 🔴 IT WAS DELETED WITH THE CHART AND IT HAS COME BACK FOR THE TABLE. `bearingDeg` and the compass
- * tables used to serve the top-down radar drawing, and when George removed that card on 22 Sep 2026
- * their only caller went with it. His next instruction gave them a new one: *"can be add bearing like
- * NW, S, N, etc"* — so they are restored here rather than reinstated as the special case they would
- * have been if the table had grown its own copy of the arithmetic.
- */
-function bearingDeg(lat1, lon1, lat2, lon2) {
-    const toRad = Math.PI / 180;
-    const p1 = lat1 * toRad;
-    const p2 = lat2 * toRad;
-    const dl = (lon2 - lon1) * toRad;
-    const y = Math.sin(dl) * Math.cos(p2);
-    const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
-    return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-}
-/** 🔴 THE COMPASS, TWICE: WORDS FOR A TOOLTIP AND LETTERS FOR A CELL. *"204°" is a number and
- * "south-south-west" is a place — but `SSW` is a place that fits in a column two characters wide,
- * which is what a table that was too wide needs. Both come from the SAME index, so they cannot
- * disagree about which of the sixteen it is. */
-const COMPASS = ['north', 'north-north-east', 'north-east', 'east-north-east', 'east', 'east-south-east', 'south-east', 'south-south-east', 'south', 'south-south-west', 'south-west', 'west-south-west', 'west', 'west-north-west', 'north-west', 'north-north-west'];
-const COMPASS_SHORT = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-/** Which of the sixteen, as an index — the one place the rounding happens. */
-function compassIndex(degrees) {
-    return Math.round(degrees / 22.5) % 16;
-}
-function compassPoint(degrees) {
-    return COMPASS[compassIndex(degrees)];
-}
-function compassPointShort(degrees) {
-    return COMPASS_SHORT[compassIndex(degrees)];
-}
-/**
  * Web Mercator, the arithmetic every slippy map is built on.
  *
  * `lonToTile` and `latToTile` return a position in TILES — fractional, not whole
@@ -378,34 +332,6 @@ function climbHue(from, to, current) {
         return 'level';
     }
     return 'unknown';
-}
-/**
- * A clock time in the READER'S OWN TIME ZONE — *"took off 14:05"* where the reader is sitting.
- *
- * 🔴 LOCAL IS THE POINT, NOT AN ACCIDENT. George, 22 Sep 2026: *"in arrival list the time it took off in
- * the users locat time"*. The aircraft is somewhere else, so its own departure clock is a different one;
- * what a reader can act on is the time on their own wall. `toLocaleTimeString` with no time zone
- * argument is the browser's own zone, which is the reader's, and the seconds are dropped because a
- * minute is as fine as a departure time means.
- */
-function clockTime(at) {
-    return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-/**
- * Minutes as a readable run: *"1h 40m"*, *"40m"*, *"2h"*, *"under a minute"*.
- *
- * It never prints a decimal, because the number behind it is an estimate from a straight line — a
- * rounded minute is already claiming more precision than the arithmetic has.
- */
-function runText(minutes) {
-    if (minutes < 1)
-        return 'under a minute';
-    const whole = Math.round(minutes);
-    if (whole < 60)
-        return `${whole}m`;
-    const hours = Math.floor(whole / 60);
-    const rest = whole % 60;
-    return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 /**
  * 🔴 READ EVERY RESPONSE AS TEXT, THEN PARSE IT DELIBERATELY.
@@ -679,20 +605,6 @@ function fromNow(at) {
         return `${hours}h ago`;
     return `${Math.round(hours / 24)}d ago`;
 }
-/**
- * Where an aircraft is, to the precision the feed actually means — or a dash.
- *
- * Four decimals is roughly eleven metres, which is finer than a position derived by
- * multilateration deserves; more digits would be precision theatre. A hemisphere is named
- * because the numbers alone do not tell a reader whether they are looking at their own
- * half of the world.
- */
-function positionText(state) {
-    if (typeof state.lat !== 'number' || typeof state.lon !== 'number') {
-        return '<span class="muted">—</span>';
-    }
-    return `${state.lat.toFixed(4)}, ${state.lon.toFixed(4)}`;
-}
 function escapeHtml(value) {
     return value.replace(/[&<>"']/g, (character) => {
         switch (character) {
@@ -870,71 +782,8 @@ class Page {
     nearby = [];
     // 🔴 THERE IS NO `historic` FIELD, BECAUSE THERE IS NO PANEL TO FILL. See the note where the
     // interfaces used to be.
-    /** The raw readings from the last poll — the table and the map are drawn from these. */
+    /** The raw readings from the last poll — the map is drawn from these. */
     lastReadings = [];
-    /**
-     * 🔴 THE ROUTES, REMEMBERED PER CALLSIGN AND ASKED FOR AT MOST ONCE.
-     *
-     * Three states, and the difference between two of them is the whole reason this is a Map of
-     * `RouteInfo | null` and not a Set:
-     *
-     *   absent      → nobody has asked yet, so the cell says so rather than claiming there is none
-     *   `null`      → the lookup answered, and there is NO ROUTE ON FILE for this callsign
-     *   `RouteInfo` → the route it holds
-     *
-     * `routeRetryAt` is what stops a lookup that FAILED (a timeout, a 503, a moment offline) from
-     * being retried on every poll for the rest of the session — and stops it from being remembered as
-     * "no route", which would turn a network blip into a fact about the aircraft.
-     */
-    routes = new Map();
-    routeAsked = new Set();
-    routeRetryAt = new Map();
-    routeRepaint = null;
-    /**
-     * What this PAGE saw happen, per airframe — which is the only source of a takeoff time.
-     *
-     * 🔴 THE FEED NEVER SENDS ONE. Measured on a live Hamilton response, 22 Sep 2026: what arrives is
-     * position, altitude, ground speed, track, squawk, an age and the quality flags — no origin, no
-     * destination and no time of any kind. So two different facts are kept apart here:
-     *
-     *   · `tookOffAt` — a departure THIS PAGE WATCHED. The engine decides it from two readings (on the
-     *     ground, then airborne) and stamps the moment, so the row can say *"took off 14:05"* and mean it.
-     *   · `firstSeenAirborne` — the first reading this session heard it airborne. True for every row, and a
-     *     weaker claim, so the row says *"first seen 14:22"* instead and the tooltip says which is which.
-     *
-     * Neither is ever passed off as the other, and an aircraft that left the ground before this page was
-     * opened gets the weaker one rather than an invented time.
-     */
-    tookOffAt = new Map();
-    firstSeenAirborne = new Map();
-    /**
-     * Where the destination airports are, asked of the feed once each.
-     *
-     * 🔴 THIS IS WHAT MAKES A TIME-TO-RUN POSSIBLE AT ALL. The page knows where an aircraft is and how
-     * fast it is going over the ground (both are the feed's own readings), but nothing it receives says
-     * where that aircraft is GOING — the destination comes from the route lookup, which gives a four-letter
-     * code and a city and no position. The feed's own airport endpoint answers for ANY airport by code:
-     * measured 22 Sep 2026, `/api/0/airport/KDEN` returned Denver at 39.861698, -104.672997 with its name,
-     * city and elevation. `null` means the airport was asked about and could not be placed, which is
-     * remembered so it is not asked again — that is not a claim that the airport does not exist.
-     */
-    airportCoords = new Map();
-    askingAirport = new Set();
-    /** Airports waiting their turn — see `AIRPORT_LOOKUPS_AT_ONCE`. */
-    airportWaiting = [];
-    /** When a REFUSED airport may be asked about again — see `AIRPORT_RETRY_MS`. */
-    airportRetryAt = new Map();
-    /**
-     * The moment this page first looked at the feed — the line between a time that is news about an
-     * aircraft and a time that is only news about the page.
-     *
-     * 🔴 THAT DISTINCTION IS THE WHOLE REASON THIS FIELD EXISTS. On the first poll, every aircraft in
-     * view was already airborne, so "first seen" would stamp the same minute on sixty rows at once —
-     * measured on the live page, 22 Sep 2026: sixty identical times, which is a column that says nothing
-     * about any of them. A time is therefore printed only when it is LATER than this moment (the aircraft
-     * came into view while the reader was watching) or when it is a real takeoff. See `departureCell`.
-     */
-    startedAt = null;
     /**
      * 🔴 THE ONE AIRCRAFT THE MAP IS ZOOMED TO, BY HEX, OR `null` FOR THE WHOLE FENCE.
      *
@@ -1342,12 +1191,12 @@ class Page {
         if (response.status === 429) {
             return ('The feed asked us to slow down (HTTP 429). It is volunteer-funded and answers a limited number of ' +
                 'requests, and this page had been asking every ten seconds. It has slowed itself down to give the feed ' +
-                'room, and it will speed back up on its own — the table below keeps the last reading it managed to get.');
+                'room, and it will speed back up on its own — the map below keeps the last reading it managed to get.');
         }
         if (response.status >= 500) {
             return (`The feed's own server is having trouble (HTTP ${response.status}). That is at their end, not yours and ` +
                 'not this site\'s: api.adsb.lol is a volunteer service and its gateway sometimes fails for a moment, ' +
-                'then recovers. The page keeps asking, and the table below keeps the last reading it got.');
+                'then recovers. The page keeps asking, and the map below keeps the last reading it got.');
         }
         if (!response.ok) {
             return (`The feed answered HTTP ${response.status}. The page keeps asking every ten seconds, so this may clear ` +
@@ -1625,9 +1474,16 @@ class Page {
             if (this.liveTypes.size !== before)
                 this.renderTypeList();
             const departures = this.engine.ingest(readings, Date.now());
-            // 🔴 THE TWO TIMES ARE NOTED FROM THE SAME READINGS THE TABLE IS ABOUT TO DRAW. A time taken from a
-            // later poll than the row would put a departure into the past of its own position.
-            this.noteTimes(readings, departures);
+            // ⚠️ THIS IS WHERE THE PAGE USED TO NOTE A TAKEOFF TIME, and the line is deliberately not
+            // replaced. `noteTimes` recorded, per airframe, when this page watched it leave the ground and
+            // when it was first seen airborne — two facts that fed two cells of the table. The table is gone
+            // (see the note on `renderMap`), so nothing on the page reads them any more, and a fact no view
+            // reads is a fact that cannot be seen to be wrong. The engine itself is untouched: `departures`
+            // still arrives here and still drives the alert below, which was always the reason for the work.
+            // If the takeoff time returns — his words were *"in arrival list the time it took off in the users
+            // locat time"*, and the map has room for it — it belongs back here, beside the ingest it was
+            // measured from.
+            void departures;
             // 🔴 A SUCCESS BUYS BACK SPEED, SLOWLY AND WITH A FLOOR. Creeping straight
             // back to the fastest cadence would put the page into a sawtooth against the
             // limit — refused, back off, allowed, refused — and the floor is what stops it.
@@ -1706,566 +1562,68 @@ class Page {
         node.dataset.kind = kind;
     }
     renderAircraft() {
-        const body = byId('aircraftBody');
-        if (!body || !this.engine)
+        if (!this.engine)
             return;
-        // 🔴 THE GATE IS CHECKED ON EVERY DRAW, NOT ONLY WHEN A STAR IS PRESSED. A reload, a restored
-        // selection or a rule removed by clearing storage all land here, and the card must not be
-        // able to show a table whose list is empty because nothing was ever picked.
-        this.renderLiveGate();
-        // 🔴 ONLY THE AIRCRAFT THE READER ACTUALLY ASKED ABOUT. George, 20 Sep 2026: *"this
-        // should only list the selected flights and or tail"*.
-        //
-        // It listed every aircraft in the fence, which made the card a firehose: a reader who
-        // had starred a helicopter and named one tail number still had to read thirty rows
-        // about airliners passing over. The page already knows what was picked — the starred
-        // types and the named tails are step 3 and step 5 — so the table shows those and
-        // nothing else. `matchOf` decides, and it is the engine's rule rather than a second
-        // copy written here.
+        // ⚠️ THIS METHOD IS NAMED FOR THE THING IT USED TO DRAW. It rendered a six-column table of the
+        // aircraft you are watching; that table's card was deleted on George's instruction and what is
+        // left here is the map, the pick that has gone stale, and the watchlist's own status. The name
+        // is kept deliberately: eight call sites say *"redraw the aircraft"* and that is still exactly
+        // what they get — renaming it would be churn across the file for no behaviour at all. If the
+        // list ever comes back, it belongs here, which is why the counting above it was left in place.
+        // 🔴 ONLY THE AIRCRAFT THE READER ACTUALLY ASKED ABOUT — still the rule, on the map. George,
+        // 20 Sep 2026: *"this should only list the selected flights and or tail"*. `matchOf` decides
+        // what was picked, and it is the engine's rule rather than a second copy written here.
         const all = this.engine.snapshot();
-        // 🔴 ONE FILTER, READ BY THE TABLE AND THE MAP BOTH. See `seenInTheAirInsideFence`: what the reader
-        // watches, inside the fence they chose, seen in the air. The table used to be filtered by what they
-        // watch and nothing else, which is why a 25 km fence left a list of aircraft hundreds of kilometres
-        // away all saying *in the air* — George, 22 Sep 2026: *"they all say in the air, but they are no
-        // visible in my map"*.
+        // 🔴 ONE FILTER, READ BY BOTH HALVES OF THE PAGE. See `seenInTheAirInsideFence`: what the reader
+        // watches, inside the fence they chose, seen in the air — the map draws these and nothing else.
+        // It used to be two filters, and the list's one was weaker, which is why a 25 km fence left a list
+        // of aircraft hundreds of kilometres away all saying *in the air* — George, 22 Sep 2026: *"they all
+        // say in the air, but they are no visible in my map"*.
+        //
+        // ⚠️ THE LIST ITSELF IS GONE (see the note on `renderMap`): George, 22 Sep 2026 — *"delete ## What
+        // the feed can see right now"*. What is left of this method is the part that was never the table's:
+        // the pick that has gone stale, the map, and the watchlist's own status. The emptied `out`/`onGround`
+        // counts on `seen` are kept because they are the shape of the answer, not a number that has to be
+        // printed — put the list back and they are already counted.
         const seen = this.seenInTheAirInsideFence(all);
-        const rows = seen.air.slice(0, 60);
         // 🔴 A PICKED FLIGHT THAT IS NO LONGER ON THE LIST IS NOT PICKED ANY MORE. Without this the map would
         // stay zoomed to an aircraft that has left the fence for as long as the tab is open, with nothing on
         // the page saying why — and the reader's only way back would be to press a row that is gone.
         if (this.selectedHex !== null &&
-            !rows.some((one) => String(one.hex ?? '').toLowerCase() === this.selectedHex)) {
+            !seen.air.some((one) => String(one.hex ?? '').toLowerCase() === this.selectedHex)) {
             this.selectedHex = null;
         }
-        if (rows.length === 0) {
-            // The empty state has to say WHICH empty it is. "Nothing in the fence" over a card
-            // that is deliberately filtered would be a lie: there may be forty aircraft out
-            // there and none of them the reader's.
-            //
-            // 🔴 AND NOW THERE ARE THREE EMPTIES RATHER THAN TWO, because the list has three limits: what the
-            // reader watches, the fence they chose, and whether the aircraft is in the air. Naming the wrong one
-            // is the fault this paragraph exists to prevent, so each is counted and named in its own sentence.
-            const limits = [];
-            if (seen.outside > 0) {
-                limits.push(`${seen.outside} ${seen.outside === 1 ? 'is' : 'are'} outside your ${this.radiusKm} km fence`);
-            }
-            if (seen.onGround > 0) {
-                limits.push(`${seen.onGround} ${seen.onGround === 1 ? 'is' : 'are'} on the ground, not in the air`);
-            }
-            body.innerHTML =
-                all.length === 0
-                    ? '<tr><td colspan="6" class="muted">Nothing in the fence at this moment. Aircraft appear and disappear as they pass.</td></tr>'
-                    : seen.watched === 0
-                        ? '<tr><td colspan="6" class="muted">Nothing in the fence matches what you picked. ' +
-                            `The feed can see ${all.length} aircraft right now, and none of them is on your list — ` +
-                            'star a type in step 3, or name a tail number, and they will appear here.</td></tr>'
-                        : '<tr><td colspan="6" class="muted">' +
-                            `Nothing you are watching has been seen in the air inside your ${this.radiusKm} km fence. ` +
-                            (limits.length > 0
-                                ? `Of the aircraft on your list, ${limits.join(', and ')}. `
-                                : '') +
-                            'Aircraft on the ground appear here the moment they take off, with the time they did.</td></tr>';
-            // 🔴 THE MAP IS DRAWN ON THIS PATH TOO, AND IT DID NOT USE TO BE.
-            //
-            // This returned before the map was drawn, so a poll that found nothing on the list left the
-            // map showing whatever was on it a moment ago — an aircraft that had already left. That was
-            // survivable while a second map in another step carried the same shapes and was refreshed by
-            // other paths; it is not survivable now that this is the only map on the page. Found while
-            // merging the two, and fixed in the same change.
-            this.renderMap();
-            this.tickWatchStates();
-            return;
-        }
-        // 🔴 EVERY ROW NAMES ITS OWN TYPE, AND THE FULL-WIDTH GROUP LINE IS GONE.
-        //
-        // George, 22 Sep 2026: *"the line in the middle is confusing, A21N Airbus A321neo 1 aircraft
-        // …"* — and it was. The table named a type in a `<tr>` that spanned every column, so a reader
-        // met something that LOOKED like a row and answered a question the row beneath it was already
-        // answering; with a single aircraft under it, all it said was "1 aircraft". The type is now a
-        // column on the row it belongs to, and the rows are still SORTED by type, so the list reads in
-        // exactly the order it did before — without the line that did not fit its own columns.
-        //
-        // 🔴 THE AIRPORT COLUMN IS GONE, AND THE ROUTE CARRIES ITS OWN CITIES. George, 22 Sep 2026:
-        // *"remove airport column, and move the DESTINATION column to be the first column"*. The column
-        // said which airport the aeroplane was nearest — a fact about WHERE IT IS, on a row that already
-        // answers that twice over with the bearing and the position, and it was the widest cell on a
-        // table that has had to be narrowed twice. The city now rides with the code it belongs to, in the
-        // one cell where a four-letter code without a place beside it would be a code nobody can read.
-        //
-        // ⚠️ THE NEAREST AIRPORT IS STILL WORKED OUT, because it still orders the list. Two aircraft of
-        // the same type, passing two different airports, hold a stable order that way instead of sorting
-        // by nothing; it is simply no longer printed.
-        const rowsSorted = rows
-            .map((state) => ({ state, airport: this.nearestAirportTo(state) }))
-            .sort((a, b) => {
-            const an = describeType(a.state.type).name;
-            const bn = describeType(b.state.type).name;
-            return (an.localeCompare(bn) ||
-                (a.airport ?? 'zz').localeCompare(b.airport ?? 'zz') ||
-                a.state.callsign.localeCompare(b.state.callsign));
-        });
-        const html = [];
-        for (const { state } of rowsSorted) {
-            const label = state.callsign || state.registration || state.hex;
-            // 🔴 THE ROUTE IS LOOKED UP ONCE PER ROW AND BOTH CELLS READ THE SAME ANSWER — so the departure and
-            // the destination can never describe two different routes.
-            const route = this.routeOf(state.callsign);
-            // 🔴 THE TAIL NUMBER, PRINTED UNDER THE AIRCRAFT TYPE. George, 22 Sep 2026: *"for type list the
-            // tail under the aircraft type"*. A row whose callsign column is carrying a callsign (ACA123)
-            // leaves the aeroplane itself unnamed, and the registration is the name a reader can act on — it
-            // is the one step 5 watches by. It is printed only when the callsign column is not already showing
-            // the same string, so no row ever names the same aeroplane twice, and only when a type is named,
-            // because on a row where nothing was transmitted there is no type for it to sit under.
-            const tailReg = (state.registration ?? '').trim();
-            const tailUnderType = tailReg !== '' && normaliseKey(tailReg) !== normaliseKey(label);
-            // 🔴 NAMED BY THE READER, OR CAUGHT BY A TYPE THEY STARRED. Every row here is
-            // selected — that is the whole point of the filter above — so the highlight can no
-            // longer mean "selected". It means the narrower and rarer thing: you named this
-            // tail number yourself, rather than it arriving because a type you starred was up.
-            const byName = this.matchKind(state) === 'aircraft';
-            // 🔴 IS THIS THE AIRCRAFT THE MAP IS ZOOMED TO? Compared on the engine's own key, lowercased once
-            // here because the feed is inconsistent about the case it sends a hex in.
-            const picked = this.selectedHex !== null && this.selectedHex === String(state.hex ?? '').toLowerCase();
-            // 🔴 THE PHASE IS A TAG ON THE ROW, NOT A COLUMN OF ITS OWN. George, 22 Sep 2026: *"the airborn
-            // phase column is redundant"* — and it was, on the rows that say "airborne", which is nearly all
-            // of them. What is NOT redundant is the exception: an aircraft on the ground inside the fence, and
-            // one transmitting a position with no altitude at all. So the column goes, the word that says
-            // nothing goes with it, and the two that say something are drawn beside the callsign — where the
-            // honesty section already promises a reader they can tell the difference.
-            const phaseTag = state.phase === 'airborne'
-                ? ''
-                : state.phase === 'ground'
-                    ? '<span class="tag tag-ground row-tag">on the ground</span>'
-                    : '<span class="tag tag-unknown row-tag">no altitude</span>';
-            const info = state.type ? describeType(state.type) : null;
-            html.push(
-            // 🔴 EVERY REAL ROW CARRIES A CLASS OF ITS OWN, BECAUSE "NOT A GROUP ROW" WAS NOT
-            // ENOUGH TO TELL A DATA ROW FROM A PLACEHOLDER. The empty states above are single
-            // `<tr>`s with a `colspan` cell, so `tr:not(.type-group)` matches them too — and a
-            // test waiting for `#aircraftBody tr:not(.type-group)` was satisfied by the sentence
-            // saying there was nothing to show. Measured: one rewritten test passed on the
-            // placeholder alone, which is a false pass, and a false pass is worse than a
-            // failure because it is read as cover.
-            // 🔴 TWO COLUMNS NOW, DEPARTURE THEN DESTINATION. George, 22 Sep 2026: *"spil destination in
-            // to columns called depature and desination, in arrival list the time it took off in the users
-            // locat time, and destinate use fromnow()"*. It led with the arrival airport and stacked the
-            // departure underneath, which is the fact in the wrong order — a reader wants to know where it
-            // came FROM before they are told where it is going. Split, the departure carries the time this
-            // page has for it leaving the ground and the destination carries the time still to run; the
-            // three states an answer can be in — on its way, none on file, and known — are still decided in
-            // one place each (`departureCell`, `destinationCell`), and the time is drawn in all three.
-            // 🔴 THE ROW IS ALSO THE CONTROL THAT PUTS THE MAP ON THIS AIRCRAFT — see `bindFlightPick`.
-            // It carries the airframe's own hex, because that is the one identifier the feed does not reuse
-            // and the one the engine keys its state by, and `tabindex` so the same press works from the
-            // keyboard. The green border is the whole of the selected state: George, 22 Sep 2026,
-            // *"the select and unselected can be a simple green hue border"*.
-            `<tr class="aircraft-row${byName ? ' watched-row' : ''}${picked ? ' row-selected' : ''}" ` +
-                `data-hex="${escapeHtml(String(state.hex ?? ''))}" tabindex="0"` +
-                (picked
-                    ? ' aria-current="true" title="Showing this aircraft on the map — press again to go back to the whole fence"'
-                    : ' title="Press to put the map on this aircraft"') +
-                '>' +
-                this.departureCell(route, state) +
-                this.destinationCell(route, state) +
-                `<td>${info
-                    ? `<span class="mono">${escapeHtml(info.code)}</span>` +
-                        (info.known ? `<span class="cell-type">${escapeHtml(info.name)}</span>` : '')
-                    : '<span class="muted">not transmitted</span>'}${ /* 🔴 THE TAIL SITS UNDER THE AIRCRAFT TYPE, AND IT NO LONGER DEPENDS ON THE TYPE TABLE. George,
-                22 Sep 2026: *"in type put airplaye type on top of tail"* — the second time he has asked for this
-                arrangement today: *"for type list the tail under the aircraft type"*. It was printed only when
-                the type was RECOGNISED (`info.known`), which is a fact about this site's type table and not about
-                the airframe — so a row whose type code is not in the table showed a bare code and no tail at
-                all, which is the thing he was looking at. The registration is known whenever the feed sent one,
-                so that is what decides it now. The one guard kept is the duplicate: a row whose callsign IS its
-                registration prints the tail under the type and not twice in the same row. */tailUnderType ? `<span class="cell-tail">${escapeHtml(tailReg)}</span>` : ''}</td>` +
-                // 🔴 THE WORD "airborne" IS NOT PRINTED, BUT THE OTHER TWO ARE — see `phaseTag` above. This
-                // cell is the callsign and, on the rare row that needs it, the one fact about the aircraft that
-                // air traffic control would care about.
-                `<td><b>${escapeHtml(label)}</b>${phaseTag}</td>` +
-                // 🔴 THE LAST-READING COLUMN IS GONE. George, 22 Sep 2026: *"fdor last reading just remove
-                // that"* — in the same message that said the table was too wide. It held a clock time AND a
-                // relative age, and it was one of the two widest cells on the row; the page's own freshness
-                // now reads above the map (`#radiusRefreshed`), which is where a reader goes to ask whether
-                // the page is still live.
-                //
-                // ⚠️ WHAT WENT WITH IT, SAID OUT LOUD RATHER THAN DISCOVERED LATER: the per-ROW age. One
-                // aircraft's reading can be much older than the page's last poll — a transponder that has gone
-                // quiet keeps its row for up to forty-five minutes — and nothing on the row says so any more.
-                // If that turns out to matter more than the width did, the age belongs back as a `· 8s`
-                // inside the Phase cell, which costs no column at all.
-                `<td class="mono bearing">${this.bearingCell(state)}</td>` +
-                // 🔴 THE POSITION, WHERE THE WATCH LINK USED TO BE. George, 20 Sep 2026:
-                // *"remove the watch link, can you put long/lat"*. Watching is done by picking —
-                // a type in step 3 or a tail number in step 5 — so a control on every row was a
-                // second way to do the same thing, in the one place a reader is trying to read.
-                // Four decimals is about eleven metres, which is as much as the position means.
-                `<td class="mono pos">${positionText(state)}</td>` +
-                '</tr>');
-        }
-        body.innerHTML = html.join('');
-        // 🔴 THE AGES ARE UPDATED WITHOUT RE-RENDERING THE TABLE. "12s ago" is wrong a second
-        // after it is written, and the page polls on a schedule that runs from 15 seconds to
-        // three minutes — so a time rendered only on a poll would sit there saying "12s ago"
-        // while the gap grew to two minutes, which is exactly the reassurance a stalled page
-        // should not give. Rewriting the table every second would throw away the reader's
-        // scroll position and their text selection to change a few characters, so only the
-        // age spans are touched.
-        this.tickReadingAges();
+        // 🔴 THERE IS NOTHING TO COUNT INTO ANY MORE. This method used to own three empty states —
+        // nothing in the fence, nothing matching what you picked, and nothing watched currently in the
+        // air — because a card that is deliberately filtered has to say WHICH empty it is. The card is
+        // gone (see the note on `renderMap`), so the distinction it protected has nothing to attach to.
+        // The map carries its own sentence for the same case, written where the map is drawn.
         // 🔴 THE MAP IS DRAWN WHERE THE POSITIONS ARRIVE, AND LAST.
         //
         // It plots aircraft the FEED reports, so drawing it only when the list changes leaves it stale
-        // the moment an aircraft appears. Drawing it at the END means the table is never delayed by the
-        // map, and the two always describe the same poll. Calling it is cheap: `lastPlot` skips the
-        // write whenever the picture has not changed.
+        // the moment an aircraft appears. Calling it is cheap: `lastPlot` skips the write whenever the
+        // picture has not changed.
         //
         // ⚠️ AND IT IS THE ONE MAP — the circle, where you are, the airport codes and the aircraft you
-        // are watching, all in one picture. The empty-list path above draws it too, which the old
-        // second map did not do from here.
+        // are watching, all in one picture. It was the second of two; the other went with the table.
         this.renderMap();
-        // And the row's own status is brought up to date in the same pass, so the row and the map
+        // 🔴 AND THE ONE AGE STILL ON THE PAGE IS KEPT HONEST ON THE SAME TICK. "12s ago" is wrong a second
+        // after it is written, and a stale age on a live feed is the most reassuring thing a stalled page can
+        // say — so the last-refreshed time above the map is repainted once a second. This call used to sit
+        // above the map, painting the table's rows; the table is gone and the ticker is still needed, which is
+        // why the call is kept rather than the method deleted with the rest of the row machinery.
+        this.tickReadingAges();
+        // And the watchlist's own status is brought up to date in the same pass, so the list and the map
         // cannot describe different moments — see `tickWatchStates`.
         this.tickWatchStates();
     }
     /**
-     * 🔴 WHICH WAY IT IS FROM YOU, IN TWO LETTERS RATHER THAN TWO NUMBERS.
+     * Keep the page's own "last refreshed" honest, once a second.
      *
-     * George, 22 Sep 2026: *"can be add bearing like NW, S, N, etc"*. The chart that used to answer
-     * this went with the second table, and it is the one thing that view gave the page that the table
-     * did not: `43.3733, -79.3760` is a POSITION, and "north-west, 12 km away" is an ANSWER. It is also
-     * the narrowest way to say it, which is why it earns a column on a table that was too wide.
-     *
-     * 🔴 IT IS FROM THE CENTRE OF THE FENCE, WHICH IS NOT ALWAYS YOU. With a place known the fence is
-     * drawn round the reader and this is the direction from them; with only airports picked it is the
-     * direction from the airports, and the paragraph above the map says which. The title spells the
-     * whole thing out and carries the distance, so neither fact has to fit in the cell.
-     */
-    bearingCell(state) {
-        const at = this.point();
-        if (!at || typeof state.lat !== 'number' || typeof state.lon !== 'number') {
-            return '<span class="muted">—</span>';
-        }
-        const degrees = bearingDeg(at.lat, at.lon, state.lat, state.lon);
-        const km = nmToKm(distanceNm(at.lat, at.lon, state.lat, state.lon));
-        const title = `${compassPoint(degrees)} of the fence's centre, about ${km} km away`;
-        return `<span title="${escapeHtml(title)}">${compassPointShort(degrees)}</span>`;
-    }
-    /**
-     * The route for a callsign, asking for it the first time it is seen.
-     *
-     * Returns `undefined` while the answer is still on its way — which the cell prints as
-     * "asking…" rather than as a dash, because an unanswered question and a question with the
-     * answer "nobody has one" are different things and a reader is entitled to tell them apart.
-     */
-    routeOf(callsign) {
-        const key = String(callsign ?? '').trim().toUpperCase();
-        // A callsign is two to eight letters and digits. Anything else is not a callsign, and asking
-        // about it would spend a request on a shape the lookup cannot answer.
-        if (!/^[A-Z0-9]{2,8}$/.test(key))
-            return null;
-        if (this.routes.has(key))
-            return this.routes.get(key) ?? null;
-        if (!this.routeAsked.has(key)) {
-            const retryAt = this.routeRetryAt.get(key) ?? 0;
-            if (Date.now() >= retryAt) {
-                this.routeAsked.add(key);
-                void this.askRoute(key);
-            }
-        }
-        return undefined;
-    }
-    async askRoute(callsign) {
-        try {
-            const response = await fetch(`/api/route/${encodeURIComponent(callsign)}`, {
-                headers: { accept: 'application/json' },
-            });
-            const trouble = this.feedTrouble(response);
-            if (trouble)
-                throw new Error(trouble);
-            const body = (await response.json());
-            if (!body.ok)
-                throw new Error('the route lookup refused the request');
-            this.routes.set(callsign, body.route ?? null);
-        }
-        catch {
-            // 🔴 A FAILED LOOKUP IS NOT A MISSING ROUTE. It is forgotten rather than stored, so the cell
-            // keeps saying "asking…" and the question can be asked again — but not on every poll, which
-            // is what `routeRetryAt` is for.
-            this.routeAsked.delete(callsign);
-            this.routeRetryAt.set(callsign, Date.now() + 5 * 60 * 1000);
-        }
-        this.scheduleRouteRepaint();
-    }
-    /**
-     * Note when an aircraft was first seen airborne, and when it was caught leaving the ground.
-     *
-     * 🔴 CALLED ON EVERY POLL, BEFORE THE ROWS ARE DRAWN, so a column can never show a time from an older
-     * reading than the table around it.
-     */
-    noteTimes(readings, departures) {
-        const now = Date.now();
-        if (this.startedAt === null)
-            this.startedAt = now;
-        for (const reading of readings) {
-            const hex = String(reading.hex ?? '').trim().toLowerCase();
-            if (hex === '')
-                continue;
-            // 🔴 `alt_baro` IS THE TEST, AND IT IS THE SAME ONE THE ENGINE CLASSIFIES BY. The aircraft reports
-            // its own altitude, and answers `"ground"` when it is on the ground — so this asks the aircraft
-            // the same question the engine asks it, and the two cannot disagree about what "airborne" means.
-            if (typeof reading.alt_baro === 'number' && !this.firstSeenAirborne.has(hex)) {
-                this.firstSeenAirborne.set(hex, now);
-            }
-        }
-        for (const departure of departures) {
-            const hex = String(departure.hex ?? '').trim().toLowerCase();
-            if (hex === '' || departure.verdict !== 'confirmed')
-                continue;
-            // A confirmed departure overwrites the weaker fact: the engine saw this aircraft on the ground
-            // first, so ITS moment is the moment of leaving the ground.
-            this.tookOffAt.set(hex, departure.at);
-        }
-    }
-    /**
-     * Ask the feed where a destination airport is, once per code.
-     *
-     * It is the same endpoint the airport list is built from, asked about an airport this reader is not
-     * near — which the feed answers just as happily, because it is a database lookup rather than a
-     * reading. A failure is remembered as "not known" so the row says nothing rather than asking again on
-     * every poll; a success is remembered until the tab closes.
-     */
-    askAirportCoords(icao) {
-        const key = icao.trim().toUpperCase();
-        if (!/^[A-Z0-9]{3,4}$/.test(key))
-            return;
-        if (this.airportCoords.has(key) || this.askingAirport.has(key))
-            return;
-        if (this.airportWaiting.includes(key))
-            return;
-        // A refused airport waits out its retry gap rather than being asked again on every poll.
-        if (Date.now() < (this.airportRetryAt.get(key) ?? 0))
-            return;
-        this.airportWaiting.push(key);
-        this.drainAirportQueue();
-    }
-    /** Start the next lookups, up to the limit this page allows itself. */
-    drainAirportQueue() {
-        while (this.askingAirport.size < AIRPORT_LOOKUPS_AT_ONCE && this.airportWaiting.length > 0) {
-            const key = this.airportWaiting.shift();
-            this.askingAirport.add(key);
-            void this.lookUpAirport(key);
-        }
-    }
-    /**
-     * Ask the feed where one airport is, and file the answer.
-     *
-     * 🔴 A REFUSAL IS NOT AN UNKNOWN AIRPORT, AND THE TWO ARE STORED DIFFERENTLY. The feed answering
-     * "I have no coordinates for this code" is a fact about the airport and is kept as `null`, so it is
-     * not asked about again. The feed answering 429, or failing to answer at all, is a fact about the
-     * MOMENT — so nothing is written and the code is left to be asked about again after
-     * `AIRPORT_RETRY_MS`. Remembering a rate limit as an unknown airport is how one busy second would
-     * take the run off every row for the rest of a reader's session.
-     */
-    async lookUpAirport(key) {
-        try {
-            const response = await fetch(`/api/0/airport/${encodeURIComponent(key)}`, {
-                headers: { accept: 'application/json' },
-            });
-            const trouble = this.feedTrouble(response);
-            if (trouble)
-                throw new Error(trouble);
-            const body = (await readJson(response));
-            const lat = Number(body.lat);
-            const lon = Number(body.lon);
-            if (Number.isFinite(lat) && Number.isFinite(lon)) {
-                this.airportCoords.set(key, { lat, lon });
-                this.airportRetryAt.delete(key);
-            }
-            else {
-                this.airportCoords.set(key, null);
-            }
-        }
-        catch {
-            this.airportRetryAt.set(key, Date.now() + AIRPORT_RETRY_MS);
-        }
-        finally {
-            this.askingAirport.delete(key);
-            this.drainAirportQueue();
-            this.scheduleRouteRepaint();
-        }
-    }
-    /**
-     * How long the aircraft has left to run — or `null` when it cannot be worked out honestly.
-     *
-     * 🔴 IT IS ARITHMETIC ON THREE MEASURED NUMBERS AND NOTHING ELSE: where the aircraft is (the feed's
-     * own position), where the airport is (the feed's own airport record), and how fast it is going over
-     * the ground (the feed's own `gs`). It assumes two things it cannot know — that the aircraft flies the
-     * straight line between them, and that it holds that speed all the way — which is why the row prints
-     * it as *"in about …"* and the tooltip says *"estimate"* out loud.
-     */
-    runToDestination(state, icao) {
-        const airport = this.airportCoords.get(icao.trim().toUpperCase());
-        const lat = typeof state.lat === 'number' ? state.lat : null;
-        const lon = typeof state.lon === 'number' ? state.lon : null;
-        // 🔴 THE SPEED COMES FROM THE ENGINE'S STATE, NOT FROM THE READING, AND THAT IS A LESSON.
-        // `gsKt` is carried on `TrackState` because this table is drawn from `engine.snapshot()`; an
-        // earlier version of this method read the raw feed field off the row and got `undefined` every
-        // time, so the arithmetic was right and no row ever showed it.
-        const knots = typeof state.gsKt === 'number' && Number.isFinite(state.gsKt) ? state.gsKt : null;
-        if (!airport || lat === null || lon === null || knots === null)
-            return null;
-        // 🔴 A SLOW GROUND SPEED IS NOT A SLOW AEROPLANE, IT IS AN UNKNOWN ONE. Under 60 knots this is an
-        // aircraft taxiing or a reading that has not settled, and dividing a distance by that produces an
-        // hour count nobody should read. Above it, this is an aeroplane in flight.
-        if (knots < 60)
-            return null;
-        const nm = distanceNm(lat, lon, airport.lat, airport.lon);
-        const minutes = (nm / knots) * 60;
-        // A run longer than twelve hours is not an arrival time, it is a wrong route or a wrong airport —
-        // and a negative one is an aircraft that has already passed the airport it claims to be bound for.
-        if (!Number.isFinite(minutes) || minutes < 1 || minutes > 12 * 60)
-            return null;
-        return { minutes, nm, knots };
-    }
-    /**
-     * One repaint for however many routes land at once.
-     *
-     * Ten rows can easily produce ten answers in the same second, and repainting the table ten times
-     * would rewrite the reader's scroll position, their text selection and the map for no gain —
-     * which is the same reasoning the age ticks use.
-     */
-    scheduleRouteRepaint() {
-        if (this.routeRepaint !== null)
-            return;
-        this.routeRepaint = window.setTimeout(() => {
-            this.routeRepaint = null;
-            this.renderAircraft();
-        }, 250);
-    }
-    /**
-     * The DEPARTURE cell — which LEADS the row — where it came from, and the time this page has for it.
-     *
-     * 🔴 ONE CELL BECAME TWO. George, 22 Sep 2026: *"spil destination in to columns called depature and
-     * desination, in arrival list the time it took off in the users locat time, and destinate use
-     * fromnow()"*. The legs had been stacked in one cell since the morning, when he asked for the order —
-     * *"use from and to with a little arrow, not to and from"* — and then for the arrow to go (*"remove
-     * →"*). Split into two columns, each can carry what a reader wants from it: when it left, and how long
-     * until it lands. The arrow's absence is what made the split affordable — `from` and `to` are the words
-     * that carry the direction, so a glyph between them was decoration.
-     *
-     * Each cell keeps its own city, because a four-letter code on its own is the thing this page has
-     * already had to fix once.
-     *
-     * Three states each, and all three say something: still being looked up, nothing on file, and known. A
-     * dash is never a blank, because "nobody has a route for this callsign" and "this page has not
-     * finished asking" are different answers and a reader is entitled to tell them apart.
-     */
-    departureCell(route, state) {
-        // 🔴 TWO KINDS OF CLAIM SHARE THIS CELL, AND EACH SAYS WHICH IT IS. `from KJFK New York` is a
-        // LOOKUP — no aircraft transmits where it came from. The time under it is an OBSERVATION, and which
-        // observation matters: *"took off 14:05"* appears only where this page watched it leave the ground,
-        // and *"first seen 14:22"* is the weaker fact. See `noteTimes`.
-        //
-        // 🔴 AND A TIME THE WHOLE PAGE SHARES IS NOT A FACT ABOUT THE AIRCRAFT. On the first poll every
-        // aircraft in view was already airborne, so the weaker time would stamp one identical minute on
-        // every row — measured on the live page, 22 Sep 2026: sixty rows, sixty times, all the same. So the
-        // weaker time is printed only when it is LATER than the moment this page first looked: then it says
-        // when that aircraft came into view, which is news about it. Where it is not later, the cell says
-        // nothing and its tooltip says why — which is the honest answer to "where is the time?".
-        const hex = String(state.hex ?? '').trim().toLowerCase();
-        const tookOff = this.tookOffAt.get(hex) ?? null;
-        const firstSeen = this.firstSeenAirborne.get(hex) ?? null;
-        const cameIntoView = firstSeen !== null && this.startedAt !== null && firstSeen > this.startedAt;
-        const stamp = tookOff !== null ? clockTime(tookOff) : cameIntoView ? clockTime(firstSeen) : '';
-        const timeWhy = tookOff !== null
-            ? `This page watched it leave the ground at ${stamp}, in your own time zone. The feed never sends a takeoff time, so this is the page's own observation.`
-            : `This aircraft was first in view at ${stamp}, in your own time zone, and was already airborne then. It is when it appeared, not when it took off — the feed never sends a takeoff time.`;
-        const timeLine = stamp === ''
-            ? ''
-            : `<span class="leg-time" title="${escapeHtml(timeWhy)}">` +
-                `${tookOff !== null ? 'took off' : 'first seen'} ${escapeHtml(stamp)}</span>`;
-        // Said in the cell's own tooltip, because a reader looking for a time is looking here.
-        const noTime = tookOff !== null
-            ? ''
-            : ' No takeoff time is known for this aircraft: the feed never sends one, and this page did not see it leave the ground.';
-        if (route === undefined) {
-            return ('<td class="mono dest dest-waiting" title="Asking the route lookup about this callsign.">' +
-                `<span class="muted">asking…</span>${timeLine}</td>`);
-        }
-        if (route === null) {
-            return (`<td class="mono dest dest-none" title="${escapeHtml('No route is on file for this callsign. The aircraft itself never transmits where it came from.' + noTime)}">` +
-                `<span class="muted">—</span>${timeLine}</td>`);
-        }
-        const { origin } = route;
-        // 🔴 THE BRACKETS GO, AND THE COLUMN NARROWS WITH THEM. `San José (Alajuela)` is the airport's own
-        // way of naming the city and it is twice as long as the city is: `stripBrackets` is the same
-        // helper the place line uses, and the full name stays in the title for anyone who wants it.
-        const from = [stripBrackets(origin.city), origin.country]
-            .filter((part) => part !== '')
-            .join(', ');
-        const whole = `On file for this callsign: it left ${origin.icao} ${origin.city}.` +
-            ' A route is looked up, not transmitted by the aircraft, so a diversion or a reused callsign can make it wrong.' +
-            noTime;
-        return (`<td class="mono dest" title="${escapeHtml(whole)}">` +
-            `<span class="dest-leg dest-from">` +
-            '<span class="dest-label">from</span> ' +
-            `<b>${escapeHtml(origin.icao)}</b>` +
-            (from ? ` <span class="cell-city">${escapeHtml(from)}</span>` : '') +
-            '</span>' +
-            timeLine +
-            '</td>');
-    }
-    /**
-     * The DESTINATION cell — where it is going, and about how long it has left to run.
-     *
-     * George, 22 Sep 2026: *"spil destination in to columns called depature and desination … and
-     * destinate use fromnow()"*. The two legs used to share one stacked cell; split, each can carry the
-     * thing a reader wants from it — when it went, and how long until it arrives.
-     *
-     * 🔴 AND THE RUN IS AN ESTIMATE, SAID SO ON THE ROW RATHER THAN ONLY IN A TOOLTIP. *"in about 1h 40m"*
-     * is arithmetic on the feed's own position, the airport's own record and the aircraft's own ground
-     * speed, and it assumes a straight line and an unchanged speed — so the word *about* is in the cell
-     * where the number is, not hidden behind a hover.
-     */
-    destinationCell(route, state) {
-        if (route === undefined) {
-            return ('<td class="mono dest dest-waiting" title="Asking the route lookup about this callsign.">' +
-                '<span class="muted">asking…</span></td>');
-        }
-        if (route === null) {
-            return ('<td class="mono dest dest-none" ' +
-                'title="No route is on file for this callsign. The aircraft itself never transmits where it is going."' +
-                '><span class="muted">—</span></td>');
-        }
-        const { destination, airline } = route;
-        const to = [stripBrackets(destination.city), destination.country]
-            .filter((part) => part !== '')
-            .join(', ');
-        // Asking for the airport's coordinates is what makes the run below possible — asked once per code,
-        // and the row simply has no run until the answer arrives.
-        this.askAirportCoords(destination.icao);
-        const run = this.runToDestination(state, destination.icao);
-        const runLine = run === null
-            ? ''
-            : `<span class="leg-time" title="${escapeHtml(`About ${Math.round(run.nm)} nautical miles still to run at the ${Math.round(run.knots)} knots ` +
-                'it is reporting over the ground. That assumes a straight line and the same speed all the way, ' +
-                'so it is an estimate rather than an arrival time.')}">in about ${escapeHtml(runText(run.minutes))}</span>`;
-        const whole = `On file for this callsign: it is bound for ${destination.icao} ${destination.city}` +
-            `${airline ? ` · ${airline}` : ''}.` +
-            ' A route is looked up, not transmitted by the aircraft, so a diversion or a reused callsign can make it wrong.';
-        return (`<td class="mono dest" title="${escapeHtml(whole)}">` +
-            `<span class="dest-leg dest-to">` +
-            '<span class="dest-label">to</span> ' +
-            `<b>${escapeHtml(destination.icao)}</b>` +
-            (to ? ` <span class="cell-city">${escapeHtml(to)}</span>` : '') +
-            '</span>' +
-            runLine +
-            '</td>');
-    }
-    /**
-     * Keep every "· 12s ago" honest, once a second, without touching the rest of the table.
-     *
-     * The timestamp each one is counting from is carried on the element itself, so this needs
-     * no state of its own and cannot disagree with what was rendered.
+     * ⚠️ IT USED TO AGE EVERY ROW OF THE TABLE AS WELL, which is why it is a ticker rather than a
+     * one-off paint. The table is gone and the one age that remains — the page's own last poll, above
+     * the map — still goes stale between polls, so the ticker stays. It reads what it paints off the
+     * element itself, so it keeps no state that could disagree with what was rendered.
      */
     tickReadingAges() {
         const paint = () => {
@@ -2290,40 +1648,6 @@ class Page {
         if (this.ageTicker !== undefined)
             return;
         this.ageTicker = window.setInterval(paint, 1000);
-    }
-    /**
-     * Which rule caught this aircraft, in the engine's own words — `aircraft` for a tail
-     * number the reader named, `type` or `type+tail` for one caught by a starred type.
-     *
-     * Null when nothing matched, which cannot happen for a row in this table.
-     */
-    matchKind(state) {
-        if (!this.engine)
-            return null;
-        return this.engine.matchOf({
-            hex: state.hex,
-            flight: state.callsign || undefined,
-            r: state.registration || undefined,
-            t: state.type || undefined,
-        })?.kind ?? null;
-    }
-    /**
-     * Which of the airports the reader is watching this aircraft is nearest to.
-     *
-     * Null when the aircraft has not reported a position, or when nothing is being watched —
-     * and the row says "not placed" rather than inventing an airport, because a wrong airport
-     * on a row is worse than an empty one.
-     */
-    nearestAirportTo(state) {
-        if (typeof state.lat !== 'number' || typeof state.lon !== 'number')
-            return null;
-        let best = null;
-        for (const airport of this.airports) {
-            const km = nmToKm(distanceNm(state.lat, state.lon, airport.lat, airport.lon));
-            if (best === null || km < best.km)
-                best = { icao: airport.icao, km };
-        }
-        return best ? best.icao : null;
     }
     /**
      * Does this aircraft match something the reader asked about — right now?
@@ -2798,37 +2122,25 @@ class Page {
      *
      * George, 21 Sep 2026: *"if i have nothing selected, it should tell the user to select some
      * first, so all of this ... should be removed and tell a message instead, then show [it] when
-     * airplane types are selected"*. With nothing starred, the card still printed the alert line and
-     * a full table whose only content was the sentence *"Nothing in the fence matches what you
-     * picked ... The feed can see 4 aircraft right now"* — which reads as the feed's shortcoming
-     * when it is the reader's own missing step. So the alert line and the table are REMOVED, not
-     * shown empty, and one sentence stands where they were.
+     * airplane types are selected"*. With nothing starred, the card printed the alert line and a full
+     * table whose only content was the sentence *"Nothing in the fence matches what you picked ... The
+     * feed can see 4 aircraft right now"* — which reads as the feed's shortcoming when it is the
+     * reader's own missing step.
      *
-     * The test is the STARRED types (`typeRules`), not the bell: the bell is a separate list that
-     * does not change what the table lists, so arming a bell with nothing starred would still leave
-     * an empty table — see the note on `alertRules`.
+     * ⚠️ THE SENTENCE AND THE TABLE ARE BOTH GONE NOW, and the alert is the whole of what this method
+     * still has to do — because the alert is the reason the gate existed. It is kept rather than deleted
+     * with its siblings: arming a bell with nothing picked would be a bell for nothing, which is
+     * exactly the confusion the 21 September instruction was about. The other half of that instruction
+     * — *"then show [it] when airplane types are selected"* — is this method's remaining line.
+     *
+     * The test is the STARRED types (`typeRules`), not the bell: the bell is a separate list, and a
+     * bell with nothing starred would still be a bell about nothing — see the note on `alertRules`.
      */
-    renderLiveGate() {
-        const ask = byId('liveAsk');
+    syncAlertVisibility() {
         const block = byId('notifyBlock');
-        const table = byId('liveTable');
-        if (!ask || !block || !table)
+        if (!block)
             return;
-        const picked = this.typeRules.length;
-        if (picked === 0) {
-            block.hidden = true;
-            table.hidden = true;
-            ask.hidden = false;
-            ask.textContent =
-                'Nothing is picked yet, so there is nothing to list. Star the types you care about in ' +
-                    'step 3 — or name a tail number — and the aircraft in your fence that match them will ' +
-                    'appear here with an alert when one leaves.';
-            return;
-        }
-        block.hidden = false;
-        table.hidden = false;
-        ask.hidden = true;
-        ask.textContent = '';
+        block.hidden = this.typeRules.length === 0;
     }
     /**
      * Why the type list is shorter than the record, in one clause per reason — or `''`.
@@ -3629,13 +2941,8 @@ class Page {
             // x buttons stop watching. Nothing here may swallow those.
             if (target.closest('button, a, input, .tail-chip'))
                 return;
-            const row = target.closest('tr.aircraft-row');
-            if (row) {
-                this.pickFlight(row.dataset.hex ?? '');
-                return;
-            }
-            // The aeroplane on the map, and its name — both carry the airframe's hex. `closest` covers the icon
-            // inside the mark as well as the mark itself.
+            // ⚠️ THE TABLE'S OWN BRANCH IS GONE WITH THE TABLE. A press on `tr.aircraft-row` used to pick
+            // the flight; rows no longer exist, so the map's mark and a named tail are the two controls left.
             const onMap = target.closest('.locmap-plane-mark, .locmap-plane-label');
             if (onMap) {
                 this.pickFlight(onMap.dataset.hex ?? '');
@@ -3651,7 +2958,7 @@ class Page {
             if (event.key !== 'Enter' && event.key !== ' ')
                 return;
             const target = event.target;
-            const row = target?.closest('tr.aircraft-row, li.watch-type[data-hex]');
+            const row = target?.closest('li.watch-type[data-hex]');
             if (!row)
                 return;
             event.preventDefault();
@@ -3874,7 +3181,7 @@ class Page {
             // stale note found on 21 Sep 2026, on the one branch where the list is replaced by a
             // sentence.
             this.renderFilterNote();
-            this.renderLiveGate();
+            this.syncAlertVisibility();
             return;
         }
         // The bar is drawn against the busiest row on the list, so "169 sightings"
@@ -4009,7 +3316,7 @@ class Page {
         // redrawing the note, so it never caught up. Anything that changes the list changes both, or
         // the card contradicts itself.
         this.renderFilterNote();
-        this.renderLiveGate();
+        this.syncAlertVisibility();
         for (const button of host.querySelectorAll('.type-toggle')) {
             button.addEventListener('click', () => {
                 const code = button.dataset.type ?? '';
@@ -4989,7 +4296,7 @@ class Page {
             '<p class="small muted locmap-note">The map is ' +
             '<a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, free and with no API key. ' +
             (pickedFlown
-                ? `It is zoomed to <b>${escapeHtml(pickedLabel)}</b>, with the path this page has heard behind it, instead of the ${this.radiusKm} km circle — press that aircraft on the map, or its row in the table, to go back to every flight. There is also a <b>Show all flights</b> control under the map. `
+                ? `It is zoomed to <b>${escapeHtml(pickedLabel)}</b>, with the path this page has heard behind it, instead of the ${this.radiusKm} km circle — press that aircraft on the map to go back to every flight, or press <b>Show all flights</b> under the map. `
                 : anchor
                     ? `It is fitted so the ${this.radiusKm} km gap you chose is inside the frame, together with the airports you picked — a ring you can only see part of is no use as a distance. `
                     : 'It is fitted to the airports you picked. ') +
@@ -4997,8 +4304,8 @@ class Page {
                 ? 'Nothing you are watching is inside the fence at this moment, so the map is drawn with ' +
                     'no aircraft on it — it stays where it is, and one appears the moment the feed sees it. '
                 : pickedFlown
-                    ? 'Only that aircraft is drawn at this zoom — everything else on your list is in the table ' +
-                        'above, and the map goes back to the whole fence when you press its row again. '
+                    ? 'Only that aircraft is drawn at this zoom — the map goes back to the whole fence when you ' +
+                        'press <b>Show all flights</b> under it. '
                     : 'Every aircraft seen in the air inside the fence, named in full and drawn where the ' +
                         'feed last reported it. ') +
             (traced > 0

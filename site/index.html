@@ -240,7 +240,7 @@
           past, so the reader had to hold a plan and a measurement at once and work out which applied.
 
           What the card says now is only what was measured. If one of those aeroplanes goes up and
-          transmits, it appears in the table above like anything else.
+          transmits, it appears on the map above like anything else.
         -->
       </section>
 
@@ -361,9 +361,24 @@
       <section class="card step-gated" id="step-4" data-step="4" hidden>
         <h2><span class="step">4</span> What you are watching</h2>
         <p class="sub">Everything you have picked, in one place, with the way to stop watching each
-          one, and a map of where those aircraft are right now. The table below lists only what is
-          on this list.</p>
+          one, and a map of where those aircraft are right now. <b>The map is the list now</b>: the
+          aircraft you are watching are drawn on it where the feed reported them, so the same reading
+          is not written out twice.</p>
         <ul class="watch-list" id="watchList"></ul>
+
+        <!--
+          🔴 THE ALERT LIVES WITH WHAT YOU ARE WATCHING, WHICH IS WHERE IT ALWAYS BELONGED.
+
+          George, 20 Sep 2026: *"the goal is to alert people when their selected aircrafts are in the
+          air around them"* is his own sentence, and the card that used to hold this button has now
+          been deleted twice — so the button has moved with it each time rather than being dropped.
+          It was in the feed card; the feed card is gone as of 22 Sep 2026, so it sits here, directly
+          under the list of the aircraft the alert is about.
+        -->
+        <div class="notify" id="notifyBlock">
+          <button id="notifyBtn" class="ghost" type="button" data-ga="notify">Tell me when they leave</button>
+          <p class="small muted" id="notifyNote"></p>
+        </div>
 
         <!--
           🔴 THE ONE MAP, AND THE CIRCLE IS DRAWN ON IT.
@@ -426,91 +441,6 @@
         <button type="button" class="ghost" id="flightAll" data-ga="flight-all" hidden>Show all flights</button>
       </section>
 
-      <section class="card" id="live">
-        <h2>What the feed can see right now</h2>
-        <p class="sub">The aircraft <b>inside your fence</b>, <b>seen in the air</b>, that <b>match what you picked</b> — the types you starred in step 3, and any tail number you named. Everything else the feed reports is left out, and an aircraft on the ground is not listed until it takes off, which is when it appears with its takeoff time on it. <b>Press any row to put the map on that aircraft</b>, and press it again to go back to the whole fence — the <b>aeroplane on the map</b> can be pressed the same way, and there is a <b>Show all flights</b> control under it when you want every flight back.</p>
-
-        <!--
-          🔴 THE ALERT BUTTON LIVES HERE NOW, BECAUSE THE CARD THAT HELD IT IS GONE.
-          George, 20 Sep 2026: *"i dont want to see the #4 card or #5"* — and card 5
-          was where "tell me when they leave" sat. Removing the card must not remove
-          the alert: *"the goal is to alert people when their selected aircrafts are in
-          the air around them"* is his own sentence, and a page that can no longer ask
-          for a notification has dropped the thing it is for.
-        -->
-        <div class="notify" id="notifyBlock">
-          <button id="notifyBtn" class="ghost" type="button" data-ga="notify">Tell me when they leave</button>
-          <p class="small muted" id="notifyNote"></p>
-        </div>
-
-        <!--
-          🔴 NOTHING PICKED IS NOT THE SAME AS NOTHING IN THE AIR. George, 21 Sep 2026: *"if i
-          have nothing selected, it should tell the user to select some first, so all of this
-          ... should be removed and tell a message instead, then show [it] when airplane types
-          are selected"*. So the alert line and the table are REMOVED — not shown empty — until
-          something is starred, and this sentence stands in their place.
-        -->
-        <p class="small muted" id="liveAsk" hidden></p>
-        
-        <div class="table-wrap" id="liveTable">
-          <table class="aircraft">
-            <caption class="visually-hidden">Aircraft currently inside the fence that match the types and tail numbers you picked, sorted by type</caption>
-            <thead>
-              <tr>
-                <!--
-                  🔴 THE ROUTE LEADS, IN TWO COLUMNS, AND THE PHASE COLUMN IS GONE. George,
-                  22 Sep 2026: *"the airborn phase column is redundant. spil destination in to
-                  columns called depature and desination, in arrival list the time it took off in
-                  the users locat time, and destinate use fromnow()"*. The route is the one thing
-                  on the row that is not a reading — where it came from and where it is going is
-                  the question a reader has before they ask anything of an altitude — so the two
-                  halves of it lead the row. The phase column used to say "airborne" on nearly
-                  every row; the rows that are NOT airborne now carry a tag beside the callsign
-                  instead, which is the only place that word was ever news. Six columns either
-                  way, so the `colspan` below does not move.
-                -->
-                <th scope="col">Departure</th>
-                <th scope="col">Destination</th>
-                <th scope="col">Type</th>
-                <th scope="col">Callsign</th>
-                <th scope="col">Bearing</th>
-                <th scope="col">Position</th>
-              </tr>
-            </thead>
-            <tbody id="aircraftBody">
-              <tr><td colspan="6" class="muted">Waiting for the first poll…</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!--
-          🔴 BOTH AIRPORTS ARE LOOKED UP, NOT HEARD — so each is labelled as the different kind of
-          claim it is, in the same card as the readings it sits beside. The same paragraph now also
-          carries the two times, because those are a THIRD kind of claim: not a reading and not a
-          lookup, but this page's own observation, and it says which of the two it is.
-
-          Measured 22 Sep 2026: the feed's own callsign endpoint returns hex, registration, type,
-          altitude and track, and no origin, destination, route — or any time at all. ADS-B carries
-          who the aircraft is, never where it is booked to or when it left. So the two airport codes
-          come from a separate free callsign lookup, the departure time comes from what this page
-          watched, and the run to the destination is the one number on the card that is arithmetic
-          rather than a report.
-        -->
-        <p class="small muted">
-          <b>The two airports are looked up, not heard — and the times are this page's own.</b> An
-          aircraft broadcasts who it is, never where it came from or where it is going, so both airport
-          codes come from a separate free lookup on the callsign — which means a diversion, a reassigned
-          callsign or an out-of-date record can make them wrong. A dash means no route is on file for
-          that callsign, and “asking…” means the lookup has not answered yet. The time under either
-          airport is not from the feed either, and it says which it is: <b>took off</b> means this page
-          watched that aircraft leave the ground, while <b>first seen</b> means it was already flying
-          when the page opened — the feed never sends a takeoff time at all. The <b>in about …</b> under
-          the destination is an estimate, not an arrival time: it is the straight-line distance still to
-          run at the speed the aircraft reports over the ground, and it assumes it flies that line at
-          that speed all the way. Every other column is what the feed itself reported, taken at the time
-          shown.
-        </p>
-      </section>
 
       </div>
 
@@ -528,62 +458,54 @@
         reader had already been told about above.
       -->
 
-      <section class="card" id="honesty">
-        <h2>What this cannot see — read this before you rely on it</h2>
-        <ul class="limits">
-          <li>
-            <b>It cannot tell you the wheels are leaving the ground.</b> The feed reports where an aircraft is, not
-            that it has gone. What this page can say is that something it had on the ground is now airborne — and the
-            usual case is a departure noticed a few seconds late, because surface coverage from a far-off receiver is
-            poor. An aircraft that is never heard while it is low is never seen to leave at all. <b>That is why the
-            departure column shows a time only when this page watched it happen</b> — and why most rows, whose
-            aeroplanes were already flying when the page opened, carry no time there at all rather than one that
-            would mean nothing.
-          </li>
-          <li>
-            <b>Only aircraft that broadcast their own position appear.</b> One that has asked not to be published, or
-            an older one that sends only its identity, is either absent or arrives with no position at all. Missing
-            from this page is not the same as not flying.
-          </li>
-          <li>
-            <b>A missing altitude is not an aircraft on the ground.</b> Some transponders send a position and no
-            altitude. Those readings are shown as <b>no altitude</b>, and they are never used to decide that something
-            has left the ground.
-          </li>
-          <li>
-            <b>A flyover is not a departure.</b> An aircraft already airborne when it enters your fence is ignored,
-            however low it is. That is deliberate, and this is what it costs: a real departure from a nearby airfield,
-            climbing through your fence, is not reported.
-          </li>
-          <li>
-            <b>The fence is a circle, and reception is not.</b> How far a receiver reaches depends on the aircraft's
-            height, the terrain and the weather, so this page shows what one network could hear, not what is up there.
-            Distances are in kilometres; the feed works in nautical miles, one of which is 1.852 km, and the conversion
-            is exact.
-          </li>
-          <li>
-            <b>The feed will refuse you, and the page says so instead of hiding it.</b> Ask too often and the answer is
-            a refusal, <span class="mono">HTTP 429</span>. So the page slows itself: it looks every 20 seconds at
-            first, never more often than every 15, doubles the gap after a refusal up to three minutes, recovers on its
-            own, and stops altogether while the tab is in the background. A proxy in front of the feed caches for a few
-            seconds, so a crowd does not multiply the load. Measured on 20 September 2026: ten requests three seconds
-            apart were refused from the third or fourth onwards.
-          </li>
-          <li>
-            <b>Positions are approximate, and not quite now.</b> The feed updates in seconds, and a position worked out
-            from several receivers is coarser than one the aircraft reported itself.
-          </li>
-        </ul>
-      </section>
+      <!--
+        🔴 TWO CARDS WERE DELETED HERE ON 22 SEP 2026, AND BOTH BY NAME.
+
+        George, 22 Sep 2026, in two messages: *"deelte ## What the feed can see right now"* — then
+        *"delete ## What this cannot see — read this before you rely on it"*. He names a card by
+        quoting its heading, so both messages meant the card and not the words in it, and the second
+        message is what proves the grammar: the same `##` that pointed at a card an hour earlier, when
+        he asked for the FROM and TO columns to come out of it.
+
+        **What went with them, deliberately, because a card deleted while its code still runs is the
+        half-removed feature this file has already met once.** The aircraft table and every column in
+        it (departure, destination, type-over-tail, callsign, bearing, position), the route lookup and
+        the run-to-destination estimate that only those columns displayed, the callsign lookup and the
+        airport-coordinate lookup that fed them, the page's own takeoff time, the "nothing picked yet"
+        sentence, the per-row press that put the map on a flight, and the whole honesty section.
+
+        **What stayed, and why each one had to.** The map, the fence, the seen-in-the-air filter and the
+        watchlist are what is left of the same feature and they are what a reader acts on — the map now
+        carries the position of every aircraft the table used to list. **The alert moved rather than
+        died**: "Tell me when they leave" now sits in step 4 under the list of aircraft it is about,
+        because *"the goal is to alert people when their selected aircrafts are in the air around them"*
+        is George's own sentence and a page that cannot ask for a notification has dropped what it is
+        for. The flight pick survives on the map itself, with `Show all flights` as the way back.
+
+        ⚠️ **THE ONE THING THIS COSTS THAT HE SHOULD KNOW ABOUT: the page no longer tells the reader
+        what the feed cannot see.** The honesty card said plainly that a departure cannot be seen, that
+        a missing aircraft is not a missing flight, that a flyover is not a takeoff, and that the fence
+        is a circle while reception is not. None of that moved anywhere: it is gone from the page. It
+        is all still in this file's history and in the README, and it can come back as one paragraph
+        in the privacy section if he wants it.
+      -->
 
       <section class="card" id="how">
         <h2>How it works</h2>
         <ol class="howto">
           <li>
             <b>Where the position comes from.</b> Aircraft broadcast who they are, where they are and how high they
-            are, on 1090 MHz. Volunteers with a cheap receiver and an antenna hear those broadcasts and send them to
+            are, on 1090 MHz. Volunteers with a cheap receiver and an antenna hear those broadcasts and pass them to
             <a href="https://adsb.lol/" rel="noopener">adsb.lol</a>, which republishes the merged picture for anyone
             to read.
+          </li>
+          <li>
+            <b>What you are looking at.</b> One map, and it is the list. Every aircraft you are watching that the feed
+            has heard in the air inside the distance you chose is drawn where it was last reported, named in full,
+            with the path this page has heard behind it. The circle is your fence, the code beside each ringed
+            airport is one you picked, and nothing is drawn twice in two places. Press an aircraft — on the map or in
+            the list of what you are watching — and the map goes to that flight alone; press it again, or press
+            <b>Show all flights</b>, and it comes back to the whole fence.
           </li>
           <li>
             <b>Why there is a proxy in the middle.</b> The feed sends no cross-origin headers, so a browser is not
@@ -598,13 +520,15 @@
             Each reading is classified as on the ground, airborne, or unknown, and compared with the same aircraft's
             previous reading. Ground to airborne inside your fence is a departure; seen only once it is already
             climbing is a probable one; already airborne is ignored; a reading too old to compare proves nothing. A
-            departure is what can set off an alert — but only for something on your list, a type you starred or a tail
-            number you named.
+            departure is what can set off an alert — but only for something on your list: a type you starred, or a tail
+            number you named. A delivery on its way on the ground is not a departure, and neither is one whose climb this
+            page never caught.
           </li>
           <li>
-            <b>Where it is kept.</b> Nowhere on a server. Your watchlist, the place you gave, the distance you set, the
-            filters you chose and the tails you highlighted live in this browser's own storage, and go when you clear
-            this site's data.
+            <b>Where it is kept.</b> Nowhere on a server. Your watchlist, the place you gave, the airports you aimed the
+            fence at, the distance you set, the filters you chose, the tails you highlighted and your answer to the
+            cookie question live in this browser's own storage, and they go when you clear this site's data — or when
+            you press <b>delete my data</b>, which does the same in one step.
           </li>
         </ol>
       </section>
@@ -617,11 +541,11 @@
         </p>
         <ul class="limits">
           <li>
-            <b>There is no account and no server-side store.</b> Your watchlist, the place you gave, the airport you
-            aimed the fence at, the distance you set, the filters you chose and the tails you highlighted are kept in
-            your own browser's storage. Two things do leave your browser, and only so they can be looked up: a place
-            name you search for, and the callsigns of the aircraft inside your fence, which are looked up to find where
-            they came from and where they are going. Neither is written down by this site.
+            <b>There is no account and no server-side store.</b> Your watchlist, the place you gave, the airports you
+            aimed the fence at, the distance you set, the filters you chose, the tails you highlighted and your answer
+            to the cookie question are kept in your own browser's storage. Exactly one thing leaves your browser so it
+            can be looked up: a place name you search for, or a position you ask the browser to find. It is turned into
+            a place and is not written down by this site.
           </li>
           <li>
             <b>All of it can be deleted, by you, at any time.</b> The row that shows your location ends with a
@@ -650,13 +574,11 @@
           <li>
             <b>What leaves your machine while the page is open.</b> Every request goes to this domain — your address
             reaches this site's server, as it does for any page you open — and this site's own server passes the
-            request on, so your browser asks no other site for anything, whether or not you accept cookies. Four
+            request on, so your browser asks no other site for anything, whether or not you accept cookies. Three
             things travel that way: a request for the aircraft inside your fence every twenty seconds or so, passed to
             the flight feed <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> and carrying the centre and the
-            distance you chose; a lookup of each callsign inside your fence, passed to
-            <a href="https://www.adsbdb.com/" rel="noopener">adsbdb.com</a>, which holds the route for a callsign; the
-            place name you search for, or a position you asked the browser to find, passed to OpenStreetMap's
-            <a href="https://nominatim.openstreetmap.org/" rel="noopener">Nominatim</a> and
+            distance you chose; the place name you search for, or a position you asked the browser to find, passed to
+            OpenStreetMap's <a href="https://nominatim.openstreetmap.org/" rel="noopener">Nominatim</a> and
             <a href="https://photon.komoot.io/" rel="noopener">Photon</a> lookups to be turned into a place; and the
             map squares and the photographs of each type, passed to
             <a href="https://www.openstreetmap.org/" rel="noopener">OpenStreetMap</a> and to

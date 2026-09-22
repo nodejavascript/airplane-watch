@@ -1235,7 +1235,14 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   }
 
   // And it is NOT asked in the map's card any more — it is the same one control, not a second copy.
-  const step4 = code.slice(code.indexOf('id="step-4"'), code.indexOf('id="live"'));
+  //
+  // ⚠️ THE SLICE ENDS AT `id="how"`, AND IT USED TO END AT `id="live"`. The card with that id was
+  // deleted on George's instruction (22 Sep 2026), and `indexOf` on a marker that no longer exists
+  // returns −1 — so the slice silently ran to the END OF THE FILE and this check would have graded
+  // every card on the page instead of the one it names. A slice that cannot tell "not found" from
+  // "found at the end" is a check that disagrees with itself, so the marker is the next card that is
+  // still there.
+  const step4 = code.slice(code.indexOf('id="step-4"'), code.indexOf('id="how"'));
   assert.equal(step4.includes('id="radiusButtons"'), false, 'the distance is still asked in the map\'s card');
   assert.equal((code.match(/id="radiusButtons"/g) ?? []).length, 1, 'the distance control is on the page twice');
 
@@ -1747,7 +1754,7 @@ test('90 · the rows on the list are the ones being watched, and each says how t
   // to contain the map was a check that disagreed with the code it was checking.
   assert.match(htmlCode, /id="watchMap"/, 'the page has no host for the map of positions');
   assert.match(appJs, /byId\('watchMap'\)/, 'nothing draws into the map of positions');
-  const section = htmlCode.slice(htmlCode.indexOf('id="step-4"'), htmlCode.indexOf('id="live"'));
+  const section = htmlCode.slice(htmlCode.indexOf('id="step-4"'), htmlCode.indexOf('id="how"'));
   assert.ok(section.length > 200, 'the watching section could not be isolated, so this is vacuous');
   assert.ok(section.indexOf('watchList') > -1, 'the watching list is not in the watching section');
   assert.ok(section.indexOf('watchMap') > -1,
@@ -1860,94 +1867,41 @@ test('93 · a re-aim hands the remembered tracks over instead of starting from n
     'the handover carries the departure cooldown as well, which would silence a real departure');
 });
 
-test('94 · the route leads the row in two columns, departure then destination', () => {
+test('94 · the feed card and the honesty card are gone, and nothing draws a table', () => {
   const page = read(SITE, 'index.html');
-  const head = page.slice(page.indexOf('<thead>'), page.indexOf('</thead>'));
-  assert.ok(head.length > 40, 'the table head could not be isolated, so this check is vacuous');
-
-  // 🔴 THE ROUTE LEADS THE ROW, AND IT IS TWO COLUMNS NOW. George, 22 Sep 2026: *"spil destination in
-  // to columns called depature and desination"*. Asserted as an ORDER, because a column that exists but
-  // sits last has not been moved — and the departure has to come before the destination, because that
-  // is the order the aircraft travels in.
-  const departure = head.indexOf('Departure</th>');
-  const destination = head.indexOf('Destination</th>');
-  const type = head.indexOf('Type</th>');
-  assert.ok(departure > -1, 'the departure column is gone from the head');
-  assert.ok(destination > -1, 'the destination column is gone from the head');
-  assert.ok(departure < destination, 'the departure does not lead the destination');
-  assert.ok(destination < type, 'the route is not the first thing on the row');
-
-  // 🔴 AND THE PHASE COLUMN IS GONE FROM THE HEAD. George, 22 Sep 2026: *"the airborn phase column is
-  // redundant"* — so the heading goes, and a heading cannot be removed in the markup while the cell
-  // stays in the row, which the next check covers.
-  assert.equal(/Phase<\/th>/.test(head), false, 'the phase column is still in the head');
-
-  // 🔴 AND THE AIRPORT COLUMN IS GONE, in the head and in the row that is built under it.
-  assert.equal(/Airport<\/th>/.test(head), false, 'the airport column is still in the head');
   const app = readSrc('src/app.ts');
-  assert.equal(/placeSpan|private cityOf\(/.test(app), false,
-    'the helper that fed the airport column survives, so the column was hidden rather than removed');
+  const css = read(SITE, 'styles.css');
 
-  // 🔴 AND THE FIRST TWO CELLS ON A REAL ROW ARE THE TWO HALVES OF THE ROUTE. The head and the row are
-  // built in two different files, so a head that leads with departure over a row that leads with
-  // something else is a table whose headings do not describe its cells — the exact fault the group line
-  // used to cause.
-  //
-  // ⚠️ THE CLOSING TAG IS SEARCHED FOR FROM THE ROW'S OWN START. `indexOf('</tr>')` on the whole file
-  // finds one inside the empty-state sentence ABOVE this row — `'<tr><td colspan="6" …></tr>'` — which
-  // is earlier in the file, so the slice came back empty and the check failed on a file that was
-  // correct. That is a false failure, which is worse than no check, so the search starts at the row.
-  const rowFrom = app.indexOf('aircraft-row${');
-  assert.ok(rowFrom > -1, 'the row markup is gone');
-  const row = app.slice(rowFrom, app.indexOf('</tr>', rowFrom));
-  assert.ok(row.length > 200, 'the row could not be isolated, so this check is vacuous');
-  const rowDeparture = row.indexOf('this.departureCell(');
-  const rowDestination = row.indexOf('this.destinationCell(');
-  assert.ok(rowDeparture > -1, 'the departure cell is not on the row');
-  assert.ok(rowDestination > -1, 'the destination cell is not on the row');
-  assert.ok(rowDeparture < rowDestination, 'the destination is drawn before the departure');
-  assert.ok(rowDestination < row.indexOf('<td>${'), 'the route does not lead the row');
+  // George, 22 Sep 2026, in two messages: *"deelte ## What the feed can see right now"* — then
+  // *"delete ## What this cannot see — read this before you rely on it"*.
+  assert.equal(/id="live"/.test(page), false, 'the feed card is still on the page');
+  assert.equal(/id="honesty"/.test(page), false, 'the honesty card is still on the page');
+  assert.equal(/liveAsk|liveTable|aircraftBody/.test(page), false,
+    'an element of the deleted card survives in the markup');
 
-  // 🔴 `from` IN THE DEPARTURE CELL, `to` IN THE DESTINATION CELL, AND NO ARROW ANYWHERE. The order was
-  // the first complaint — *"use from and to with a little arrow, not to and from"* — and then the arrow
-  // went: George, 22 Sep 2026: *"remove →"*. Split into two columns, each label is in its own cell; a
-  // cell that carried both would be the one cell it was split out of.
-  const departCell = app.slice(app.indexOf('private departureCell'), app.indexOf('private destinationCell'));
-  const destCell = app.slice(app.indexOf('private destinationCell'), app.indexOf('private tickReadingAges'));
-  assert.ok(departCell.length > 200 && destCell.length > 200, 'a route cell is missing, so this check is vacuous');
-  assert.match(departCell, /dest-label">from/, 'the departure cell does not say "from"');
-  assert.match(destCell, /dest-label">to/, 'the destination cell does not say "to"');
-  assert.equal(/dest-label">to/.test(departCell), false, 'the departure cell also draws the destination leg');
-  assert.equal(/dest-label">from/.test(destCell), false, 'the destination cell also draws the departure leg');
-  assert.equal(/dest-arrow|→/.test(departCell + destCell), false, 'the arrow is back in a route cell');
-  const routeCss = read(SITE, 'styles.css');
-  assert.equal(/\.dest-arrow\s*\{/.test(routeCss), false, 'the arrow rule was left in the stylesheet');
+  // 🔴 AND NOTHING MAY STILL REACH FOR IT. The compiler catches a method that became unused; it cannot
+  // catch a renderer writing into an element that is no longer there, because `byId` returns null and
+  // the write is simply skipped — which looks exactly like working code. Comments are stripped first,
+  // because this change is discussed in them and a check that read the discussion would fail on a file
+  // that is correct.
+  const code = stripJs(app);
+  assert.equal(/liveAsk|liveTable|aircraftBody/.test(code), false,
+    'the source still holds a handle on an element the page no longer has');
+  assert.equal(/private departureCell|private destinationCell|private routeOf|private bearingCell/.test(code),
+    false, 'the route and cell builders survive the table that called them');
+  assert.equal(/['"]tr\.aircraft-row/.test(code), false, 'a press is still bound to a table row');
 
-  // 🔴 AND THE TAIL NUMBER SITS UNDER THE AIRCRAFT TYPE. George, 22 Sep 2026: *"for type list the tail
-  // under the aircraft type"*. It is printed only when the callsign column is not already carrying the
-  // same string, which is what stops one row naming the same aeroplane twice.
-  const decision = app.indexOf('const tailUnderType');
-  assert.ok(decision > -1, 'the tail-under-the-type decision is gone');
-  assert.match(app.slice(decision, decision + 1200), /cell-tail/,
-    'the tail is worked out and then never rendered under the type');
-  assert.match(routeCss, /\.cell-tail\s*\{[^}]*display:\s*block/,
-    'the tail under the type does not start a line of its own');
+  // 🟢 WHAT IS LEFT: the map is the list, and the alert is still gated — arming a bell with nothing
+  // picked is a bell about nothing.
+  assert.match(page, /id="notifyBlock"/, 'the alert block went with the card it moved into');
+  assert.match(code, /private syncAlertVisibility\(\): void/, 'nothing hides the alert when nothing is picked');
 
-  // 🔴 AND EACH ROUTE LEG IS ONE LINE, NOT TWO. The place name beside a code is `display: block` in the
-  // rule it keeps from the column that was removed, and left that way each leg would stack its own city
-  // underneath it — which on a one-leg cell is untidy and on a one-line cell is the wrong shape.
-  const styles = read(SITE, 'styles.css');
-  const place = styles.slice(styles.indexOf('.cell-city {'), styles.indexOf('}', styles.indexOf('.cell-city {')));
-  assert.ok(place.length > 20, 'the place rule could not be isolated, so this check is vacuous');
-  assert.equal(/display:\s*block/.test(place), false,
-    'the place beside a code still breaks the line, so each route leg takes two lines instead of one');
-  assert.match(styles, /\.dest-leg\s*\{[^}]*display:\s*block/, 'the two legs do not stack');
-
-  // A placeholder cell has to span the columns that are actually there, or the empty table is drawn
-  // with a column missing. Six either way: two route columns replaced one, and the phase column went.
-  assert.equal(/colspan="7"/.test(page) || /colspan="7"/.test(app), false,
-    'a cell still claims seven columns on a six-column table');
-  assert.match(page, /colspan="6"/, 'the placeholder cell does not span the table');
+  // And no rule is left styling a row that no longer exists.
+  const live = stripCss(css);
+  for (const gone of ['cell-tail', 'cell-type', 'cell-city', 'dest-leg', 'leg-time', 'watched-row']) {
+    assert.equal(app.includes(gone), false, `${gone} is still built in the source`);
+    assert.equal(new RegExp(`\\.${gone}\\s*[\\{:]`).test(live), false, `a rule for ${gone} survives`);
+  }
 });
 
 test('96 · the maker row names who built it, and claims a maker only when the name does', async () => {

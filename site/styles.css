@@ -662,188 +662,42 @@ main {
   color: var(--muted);
 }
 
-.tag-ground {
-  border-color: rgba(148, 163, 184, 0.5);
-}
-.tag-unknown {
-  border-style: dashed;
-}
-.tag-confirmed {
-  border-color: #4ade80;
-  color: #4ade80;
-}
-.tag-inferred {
-  border-color: #facc15;
-  color: #facc15;
-}
-.tag-watched {
-  border-color: var(--theme);
-  color: var(--theme);
-}
+/* 🔴 THE TAG VARIANTS ARE ALL GONE. `.tag-ground` and `.tag-unknown` were the phase tags on the table's
+ * rows, `.tag-confirmed` and `.tag-inferred` came from the old departure list, and `.tag-watched` from
+ * before that — measured 22 Sep 2026, not one of the five appears in `site/index.html` or `src/app.ts`.
+ * The base `.tag` above is still live: it is the kind chip on a row of the filter list. */
 
 /* -------------------------------------------------------------- table --- */
-.table-wrap {
-  overflow-x: auto;
-}
-
-.aircraft {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14.5px;
-}
-
-.aircraft th,
-.aircraft td {
-  text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--line);
-  white-space: nowrap;
-}
-
-.aircraft th {
-  color: var(--muted);
-  font-size: 12.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* The same gold as the star and the type row, for the same reason: this aircraft
- * is one of yours — and it now means the narrower thing. Every row in this table is
- * selected (the table only lists what was picked), so the highlight separates the tail
- * numbers the reader named themself from the aircraft that arrived because a starred type
- * was up. */
-.watched-row {
-  background: rgba(240, 190, 90, 0.1);
-}
-
-/* 🔴 THE AGE OF THE READING, BESIDE THE CLOCK TIME. George, 20 Sep 2026: *"last reading
- * should include fromnow()"*. It is set back from the time on purpose: the time says when,
- * and this says whether it still means anything, so it is the quieter of the two and the
- * eye lands on the clock first. Tabular figures so the column does not twitch sideways every
- * second as the digits change. */
-/* 🔴 THE PER-ROW AGE IS GONE WITH THE LAST-READING COLUMN. George, 22 Sep 2026: *"fdor last reading
- * just remove that"*. `.reading-ago` had no other caller — the page's own age is `#refreshedAgo`, above
- * the map — so the rule went with the column rather than being left here styling nothing. */
-
-/* Where the aircraft is. Set back like the age, because it is a fact to consult rather than
- * a column to read down — and the airport beside it is the answer most readers want. */
-.aircraft td.pos {
-  color: var(--muted);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* 🔴 THE COMPASS POINT: TWO OR THREE LETTERS, AND THAT IS THE POINT OF IT. George, 22 Sep 2026:
- * *"can be add bearing like NW, S, N, etc"* — asked for in the same message that said the table was
- * too wide, so it stays as narrow as the answer allows. Tabular figures so a column of them lines up,
- * and letter-spaced because two capitals are hard to tell apart when they are touching. */
-.aircraft td.bearing {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.5px;
-}
-
-/* ---------------------------------------------------------------------------
- * 🔴 THE REFRESHED LINE: TOP OF THE BLOCK, RIGHT-ALIGNED.
+/* 🔴 THE TABLE'S OWN RULES ARE GONE, AND THE WHOLE BLOCK WENT TOGETHER. The six-column list of what
+ * the feed can see was deleted on George's instruction (22 Sep 2026), so `.table-wrap`, `.aircraft`,
+ * `.watched-row`, `.cell-city`, `.cell-type`, `.cell-tail`, `.dest-*`, `.leg-time`, `.row-tag` and the
+ * `.aircraft tr.row-selected` family all styled elements the page no longer draws — verified by
+ * counting each class in `site/index.html` and `src/app.ts`, where every one of them now reads 0.
  *
- * George, 22 Sep 2026: *"top above map right aligned"*. It is the page's own clock rather than one of
- * the controls, so it sits against the right edge where it reads as a timestamp and does not push the
- * heading off the line the eye starts on.
- * ------------------------------------------------------------------------ */
+ * 🟢 WHAT STAYED, AND WHY: `.watch-type.row-selected` still describes a named tail in the watchlist,
+ * which can still be pressed for the same reason a row could; `.locmap-plane-pick` is the ring around
+ * the aeroplane the map is on; `.refreshed-line` is the page's own clock; and `.limits` styles the
+ * privacy list, not the honesty card. */
 .refreshed-line {
   margin: 0 0 2px;
   text-align: right;
 }
 
-/* ---------------------------------------------------------------------------
- * THE PLACE AN AIRPORT CODE STANDS FOR, BESIDE THE CODE.
- *
- * George, 22 Sep 2026: *"for departure and destinate can you put the city, state besides them"*.
- * A four-letter code is precise and useless to anybody who has not memorised the world's airports,
- * so no code is printed anywhere on this page without the place it means next to it.
- *
- * 🔴 IT USED TO BE `display: block` UNDER THE CODE, AND IT CANNOT BE ANY MORE. It rode under the
- * airport code in a column of its own; that column is gone (22 Sep 2026) and the place now sits
- * beside its code inside the route cell — and a `block` there would put each city on a line of its
- * own and turn a two-line route into four. It keeps its own non-monospace face so the name reads as
- * a place while the code beside it still reads as a code.
- * ------------------------------------------------------------------------ */
-.cell-city {
-  font-family: var(--font, inherit);
-  font-size: 11.5px;
-  line-height: 1.35;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-/* The type's NAME on its own line, under its code, on the row that used to rely on a header line to
- * carry it.
- *
- * 🔴 AND IT IS A NEW LINE BECAUSE THE TABLE WAS TOO WIDE. George, 22 Sep 2026: *"this is too wide. use
- * type, make a new line for airplane type"*. Side by side, `B38M` and `Boeing 737 MAX 8` made one cell
- * 23 characters across and set the width of the whole column; stacked, the widest line is 16 and the
- * column is as narrow as its longest NAME rather than its longest name PLUS its code. */
-.cell-type {
-  display: block;
-  margin-left: 0;
-  font-size: 12.5px;
-  line-height: 1.35;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-/* 🔴 THE TAIL NUMBER, UNDER THE TYPE IT IS. George, 22 Sep 2026: *"for type list the tail under the
- * aircraft type"*. Monospaced and quieter than the type's own name, because it is the aeroplane and the
- * type is what it is — and it appears only on the rows where the callsign column is showing a callsign
- * instead, so the same registration is never printed twice on one row. */
-.cell-tail {
-  display: block;
-  font-family: var(--mono, ui-monospace, monospace);
-  font-size: 11.5px;
-  line-height: 1.35;
-  color: var(--muted);
-  white-space: nowrap;
-}
+/* 🔴 AND THE PLACE BESIDE THE CODE, THE TYPE'S NAME, AND THE TAIL UNDER IT ALL WENT WITH THE TABLE.
+ * `.cell-city`, `.cell-type` and `.cell-tail` each styled a span inside a row of the deleted list, and
+ * measured on 22 Sep 2026 not one of the three appears in `site/index.html` or `src/app.ts`. */
 
 /* ===========================================================================
- * 🔴 THE PICKED FLIGHT, IN ONE GREEN HUE — ON THE ROW AND ON THE MAP.
+ * 🔴 THE PICKED FLIGHT, IN ONE GREEN HUE — ON THE WATCHLIST AND ON THE MAP.
  *
  * George, 22 Sep 2026: *"i want to be able to select one of those rows, if i do that i want the map to
  * zoom in to that flight. if slect again, it will unselect and zom back out again. the select and
  * unselected can be a simple green hue border"*.
  *
- * So the border is the whole of the selected state, and it is drawn in the SAME green in both places —
- * the row that was pressed, and the aeroplane the map is on. Two colours, or a colour here and a
- * different one there, would read as two different things being selected.
- *
- * 🔴 THE BORDER IS DRAWN ON THE CELLS, NOT ON THE ROW. The table is `border-collapse: collapse`, and a
- * border on a `<tr>` only shows where the cells do not already own that edge — which is why the
- * hairlines between rows win over one. Each cell takes the top and bottom edge and the two ends take the
- * sides, so the box closes around the whole row.
+ * ⚠️ THE TABLE'S HALF OF THIS WENT WITH THE TABLE. A named tail in the watchlist can still be
+ * pressed, and the rule below is the one that survived; the ring around the aeroplane on the map is
+ * `.locmap-plane-pick`, further down.
  * ------------------------------------------------------------------------ */
-.aircraft tr.row-selected td {
-  border-top: 2px solid #4ade80;
-  border-bottom: 2px solid #4ade80;
-  background: rgba(74, 222, 128, 0.08);
-}
-.aircraft tr.row-selected td:first-child {
-  border-left: 2px solid #4ade80;
-}
-.aircraft tr.row-selected td:last-child {
-  border-right: 2px solid #4ade80;
-}
-
-/* A row that can be pressed says so, and lights up under the pointer — the whole row is the target, so
- * the whole row is what responds. */
-.aircraft tr.aircraft-row {
-  cursor: pointer;
-}
-.aircraft tr.aircraft-row:hover td {
-  background: rgba(56, 189, 248, 0.07);
-}
-.aircraft tr.aircraft-row:focus-visible {
-  outline: 2px solid var(--theme);
-  outline-offset: -2px;
-}
 
 /* The same green on a named tail in the watchlist, which names one aircraft and can be pressed for the
  * same reason. A watched TYPE is not given this: it can cover several aircraft, so there is no single
@@ -863,16 +717,6 @@ main {
   box-shadow: inset 0 0 0 1px #4ade80;
 }
 
-/* 🔴 AND THE GREEN OUTRANKS THE HOVER, BECAUSE THE POINTER IS STILL SITTING ON THE ROW IT JUST PRESSED.
- *
- * Measured on the live page, 22 Sep 2026: after pressing a named tail the border read
- * `rgb(56, 189, 248)` — the theme cyan of the hover rule — because `[data-hex]:hover` is one class
- * heavier than `.row-selected`. So the selection looked as though it had not taken, on exactly the row
- * the reader was looking at. Both rules now carry the green, and the hover tint on the table row is the
- * same green rather than the cyan one, so a selected row reads as selected under the pointer. */
-.aircraft tr.row-selected:hover td {
-  background: rgba(74, 222, 128, 0.14);
-}
 .watch-type.row-selected:hover {
   border-color: #4ade80;
   box-shadow: inset 0 0 0 1px #4ade80;
@@ -909,77 +753,6 @@ main {
 /* The way back sits under the map on its own line, at the map's own width. */
 #flightAll {
   margin-top: 8px;
-}
-
-/* ---------------------------------------------------------------------------
- * THE ROUTE, LEADING THE ROW IN TWO CELLS: `from KDTW` then `to CYYZ`.
- *
- * George, 22 Sep 2026: *"move the DESTINATION column to be the first column, and use from and to
- * with a little arrow, not to and from"* — then *"remove →"*, then *"spil destination in to columns
- * called depature and desination"*. It leads because it is the one thing on the row that is not a
- * reading: where the aeroplane came from and where it is going is the question a reader has before
- * they ask anything of an altitude.
- *
- * 🔴 AND EACH LEG IS NOW ITS OWN CELL, WHICH ALSO KEEPS THE TABLE NARROW. The two legs were once
- * side by side in ONE cell, which set the width of the widest column on a table that has had to be
- * narrowed twice — the same fault that took the airport column out. Stacked, the widest line is one
- * city and its country; split into two cells, each is one line of the same length and the two cells
- * together are no wider than the one they replaced.
- *
- * 🔴 AND THE LEG THAT IS THE ANSWER IS THE BRIGHTER ONE. `from` is context and stays muted; `to` is
- * what the reader came for, in the cell's own colour. Both labels are quiet and small, because a
- * label that competes with its value is a label nobody reads.
- * ------------------------------------------------------------------------ */
-.dest-leg {
-  display: block;
-  font-size: 11.5px;
-  line-height: 1.4;
-  white-space: nowrap;
-}
-.dest-from {
-  color: var(--muted);
-}
-.dest-label {
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-/* 🔴 THE TIME UNDER AN AIRPORT CODE, IN THE READER'S OWN ZONE. George, 22 Sep 2026: *"in arrival list
- * the time it took off in the users locat time"*. It starts its own line rather than pushing the row
- * wider — the same reason every other secondary fact on this table took one — and it is smaller and
- * quieter than the airport above it, because the airport code is what a reader scans down and the time
- * is what they come back for. */
-.leg-time {
-  display: block;
-  font-family: var(--font, inherit);
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-/* 🔴 THE EXCEPTION, BESIDE THE CALLSIGN IT APPLIES TO. George, 22 Sep 2026: *"the airborn phase column
- * is redundant"* — and it was: the column said "airborne" on nearly every row, which is a column of the
- * same word. The one fact it carried that was ever news is the row that is NOT airborne, so that is what
- * survives, as a tag: an aircraft on the ground inside the fence, and one transmitting a position with no
- * altitude at all. A reader who wants to know whether a row is airborne reads the absence of this tag. */
-.row-tag {
-  margin-left: 6px;
-}
-
-/* 🔴 `.tag-air` IS DELETED WITH THE COLUMN THAT USED IT. It styled the word "airborne", and after
- * 22 Sep 2026 the page renders that word nowhere — the class sat in the stylesheet styling an element
- * that no longer exists, which is how a removed control keeps looking alive. */
-/* The little arrow is gone — see above. Its rule was deleted with it, rather than left behind: a rule
- * for an element the page no longer draws is how a removed control keeps looking alive. */
-
-/* A route still being looked up, and one that is not on file, are both quiet — but they say
- * different things, and neither is allowed to look like a blank cell. */
-.dest-waiting,
-.dest-none {
-  color: var(--muted);
 }
 
 /* -------------------------------------------------------------- lists --- */
@@ -2208,11 +1981,11 @@ main > #status {
   font-weight: 600;
 }
 
-/* Nothing is picked yet: the alert line and the table are removed rather than shown
- * empty — see the note in index.html. */
-#liveAsk {
-  margin: 10px 0 0;
-}
+/* 🔴 `#liveAsk` IS DELETED WITH THE CARD THAT HELD IT. It carried the sentence "nothing is picked yet,
+ * so there is nothing to list", which existed because the card printed an empty table under it. Neither
+ * the card nor the table is there any more — see the note in index.html — so the sentence had nothing
+ * left to explain. The alert block it used to be hidden alongside is still gated, by
+ * `syncAlertVisibility`. */
 
 /* The folded state must not be re-opened behind the reader's back by the gate,
  * and `[hidden]` still wins over it, because a step that is not yet unlocked is
