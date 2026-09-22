@@ -2303,6 +2303,19 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
     'a show-on-map switch can still be disabled, so it is a conditional control again');
   assert.equal(/watch-type[^`]*data-hex/.test(typeList), false, 'a watched type was made pressable, and it names no single flight');
 
+  // 🔴 AND THE DEFAULT IS EVERY ROW ON, BECAUSE THE STORED STATE IS THE ROWS SWITCHED OFF. George,
+  // 22 Sep 2026: *"if all switches are off, show them all, i dont want this, the default is to have
+  // switches on, and the user can turn them off"*. An empty set therefore means "nothing excluded" — so
+  // all-off is an empty map that says so, and never a silent reset to everything.
+  assert.match(app, /private mapHide = new Set<string>\(\);/, 'the default is not "every row on"');
+  assert.match(app, /const on = !this\.mapHide\.has\(key\);/, 'a switch does not start on');
+  assert.match(app, /if \(on\) this\.mapHide\.delete\(key\);\s*\n\s*else this\.mapHide\.add\(key\);/,
+    'the switch does not store the rows that are off, so all-off cannot mean nothing');
+  assert.match(app, /private rowVisible\(one: TrackState\): boolean/, 'nothing decides whether a row was switched off');
+  assert.match(app, /const rowFilter = this\.mapHide\.size > 0 && !pickedFlown;/,
+    'an all-off list is still treated as "no filter", which is the behaviour George rejected');
+  assert.equal(/mapShow/.test(app), false, 'the old switched-on set is still in the file');
+
   // 🔴 ONE GREEN HUE, ON THE ROW AND ON THE MAP. George, 22 Sep 2026: *"the select and unselected can be
   // a simple green hue border"*. On a `border-collapse: collapse` table the border goes on the cells,
   // because a border on the row only shows where a cell does not already own that edge.
