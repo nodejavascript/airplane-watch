@@ -889,6 +889,7 @@ class Page {
         this.bindLocate();
         this.bindChangePlace();
         this.bindVisibility();
+        this.bindRefresh();
         this.bindMapResize();
         // 🔴 A COMMA-SEPARATED LIST, BECAUSE SEVERAL CAN BE PICKED NOW. A value written
         // before this change is a single identifier, which splits to a list of one — so
@@ -1385,6 +1386,38 @@ class Page {
             this.pollSoon = null;
             void this.poll();
         }, 150);
+    }
+    /**
+     * 🔴 "REFRESH" — THE READER PRESSES THE POLL THEMSELVES. George, 22 Sep 2026: *"to the right of
+     * [Last refreshed], i want a refresh right aligned, this will reapply my filters to current
+     * data"*.
+     *
+     * The page already asks the feed on its own cadence, so this control does not exist to make the
+     * data arrive — it exists because the line above the map reads "Last refreshed 12s ago", and a
+     * reader who has just switched a row on wants the answer this moment rather than at the next tick.
+     * The filters re-apply for free: every one of them is read off its control as the map is drawn, so
+     * what comes back is drawn through the settings exactly as they stand when the answer lands.
+     *
+     * 🔴 THE IMMEDIATE LOOK GOES THROUGH `schedulePoll()`, NOT STRAIGHT TO THE FEED, and the clock is
+     * re-armed with it. That is the same coalescing path every other "something changed" takes, so a
+     * press in the same moment as a distance change is still ONE request — and re-arming means the next
+     * scheduled look is a full interval away rather than a second away.
+     */
+    refreshNow() {
+        if (!this.point() || !this.engine)
+            return;
+        this.setStatus('Asking the feed again…', 'working');
+        this.startTimer();
+        this.schedulePoll();
+    }
+    /** The one control above the map that is about the clock rather than about the distance. */
+    bindRefresh() {
+        document.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!target?.closest('#refreshNow'))
+                return;
+            this.refreshNow();
+        });
     }
     /**
      * 🔴 A TAB NOBODY IS LOOKING AT MUST NOT SPEND THE ALLOWANCE. The page asked the
@@ -2984,22 +3017,11 @@ class Page {
                 this.pickFlight(onMap.dataset.hex ?? '');
                 return;
             }
-            const named = target.closest('li.watch-type[data-hex]');
-            if (named)
-                this.pickFlight(named.dataset.hex ?? '');
         });
-        // And the same on the keyboard, because a shape that can only be pressed with a mouse is a shape some
-        // readers cannot press at all.
-        document.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== ' ')
-                return;
-            const target = event.target;
-            const row = target?.closest('li.watch-type[data-hex]');
-            if (!row)
-                return;
-            event.preventDefault();
-            this.pickFlight(row.dataset.hex ?? '');
-        });
+        // ⚠️ THE KEYBOARD BRANCH WENT WITH THE ROW LINK. It existed to let a watching row be pressed from the
+        // keyboard, which is the right thing to do for a control — and a control it no longer is: the row is a
+        // boolean now (see `mapSwitch`), the checkbox is focusable and changeable from the keyboard by the
+        // browser itself, and a keydown listener matching a selector nothing carries is dead code.
         // 🔴 AND THE SHOW-ON-MAP SWITCHES, WHICH ARE REBUILT WITH THE ROWS ON EVERY POLL AND SO CANNOT BE
         // BOUND BY ROW. Delegated like the rest of this handler for exactly that reason. It listens for
         // `change` rather than `click`: a checkbox is changeable from the keyboard, and a press on its label
@@ -3543,23 +3565,24 @@ class Page {
     /**
      * The switch itself.
      *
-     * 🔴 A ROW WITH NOTHING TO DRAW HAS A DISABLED SWITCH AND SAYS WHY. `can` is whether anything of
-     * this row is in the air inside the fence at this moment — the same test the status beside it uses.
-     * A switch that is offered and then zooms the map to nothing is worse than no switch: the reader
-     * cannot tell an empty sky from a broken page.
+     * 🔴 IT IS A BOOLEAN AND IT IS ALWAYS AVAILABLE — it does not care whether anything is airborne.
+     * George, 22 Sep 2026: *"even though the filight may or may not be in the air, i want this to be a
+     * boolean input, not a link"*. The first version disabled the switch on a row with nothing in the
+     * air, which made it a conditional control; the reader's question (*"show me this one"*) is not
+     * conditional, and an empty map that says why is a better answer than a control that will not move
+     * until the sky changes. The tooltip states the empty case instead of preventing it.
      */
-    mapSwitch(kind, value, can) {
+    mapSwitch(kind, value) {
         const key = Page.showKey(kind, value);
         const on = this.mapShow.has(key);
-        const why = can
-            ? on
-                ? 'This row is on the map. Switch it off to see everything you watch again.'
-                : 'Draw only this row on the map, and fit the frame to it.'
-            : 'Nothing of this row is in the air inside your circle at this moment, so there is nothing to '
-                + 'show. The switch comes alive when the feed hears it here.';
-        return (`<label class="map-switch${can ? '' : ' map-switch-off'}" title="${escapeHtml(why)}">` +
+        const why = on
+            ? 'This row is on the map. Switch it off to see everything you watch again — or press Show all '
+                + 'flights under the map.'
+            : 'Draw only this row on the map, and fit the frame to it. If nothing of it is in the air inside '
+                + 'your circle, the map will have nothing to draw and will say so.';
+        return (`<label class="map-switch" title="${escapeHtml(why)}">` +
             `<input type="checkbox" class="map-show" data-map-key="${escapeHtml(key)}" ` +
-            `data-ga="map-show"${on ? ' checked' : ''}${can ? '' : ' disabled'} />` +
+            `data-ga="map-show"${on ? ' checked' : ''} />` +
             '<span>show on map</span></label>');
     }
     /** The press: one filter changed, so the rows and the map are both redrawn in the same frame. */
@@ -3684,7 +3707,7 @@ class Page {
                 `title="${escapeHtml(state.why)}">${escapeHtml(state.text)}</span>` +
                 // 🔴 THE SWITCH, BESIDE THE ANSWER IT FILTERS. George, 22 Sep 2026: *"can we add a swtich
                 // called show on map, on change the map is reloaded and rezoomed"*.
-                this.mapSwitch('type', rule.type, airborne.length > 0) +
+                this.mapSwitch('type', rule.type) +
                 `<button type="button" class="linkish type-remove" data-type="${escapeHtml(rule.type)}" ` +
                 `data-ga="type-unwatch" title="Stop watching" ` +
                 `aria-label="Stop watching ${escapeHtml(info.name)}">${MARK_CROSS}</button>` +
@@ -3695,30 +3718,21 @@ class Page {
         const namedItems = this.watchlist
             .map((item) => {
             const state = this.watchStateOfTail(item, live);
-            // 🔴 AND A NAMED TAIL THAT IS IN THE AIR CAN BE PRESSED TO PUT THE MAP ON IT. The watchlist is
-            // where a reader is looking when they want to know what their aircraft is doing, and the map is
-            // directly underneath — so the row carries the hex of the aeroplane it names, and only while
-            // that aeroplane is actually reporting a position. A tail with nothing in the air has nothing to
-            // zoom to, so it stays a plain row rather than a control that does nothing.
-            const flying = live.find((one) => normaliseKey(one.registration) === normaliseKey(item) &&
-                typeof one.lat === 'number' &&
-                typeof one.lon === 'number');
-            const hex = flying ? String(flying.hex ?? '').toLowerCase() : '';
-            const picked = hex !== '' && this.selectedHex === hex;
-            return (`<li class="watch-type${picked ? ' row-selected' : ''}"` +
-                (hex !== ''
-                    ? ` data-hex="${escapeHtml(hex)}" tabindex="0"` +
-                        (picked
-                            ? ' aria-current="true" title="Showing this aircraft on the map — press again to go back to the whole fence"'
-                            : ' title="Press to put the map on this aircraft"')
-                    : '') +
-                '>' +
+            // 🔴 THE ROW IS A BOOLEAN, NOT A LINK. George, 22 Sep 2026: *"even though the filight may or may
+            // not be in the air, i want this to be a boolean input, not a link"*.
+            //
+            // It used to be a pressable `<li>`: the row carried the airframe's hex and a press put the map on
+            // it — but only while that aircraft was reporting a position, so the control existed and did
+            // nothing whenever the aeroplane was on the ground. That is a link with a hidden precondition. The
+            // same show-on-map switch a type row carries does the job better and without a condition: it is a
+            // boolean, it can be set at any time, and the map answers with what it has.
+            return ('<li class="watch-type">' +
                 `<span class="watch-what">${MARK_STAR}` +
                 `<span class="mono">${escapeHtml(item)}</span> — <b>this aircraft</b></span>` +
                 `<span class="watch-state" data-state="${state.kind}" ` +
                 `title="${escapeHtml(state.why)}">${escapeHtml(state.text)}</span>` +
                 // The same switch on a named tail — one aeroplane, which is the finest thing a row can mean.
-                this.mapSwitch('tail', item, hex !== '') +
+                this.mapSwitch('tail', item) +
                 `<button type="button" class="linkish watch-remove" data-key="${escapeHtml(item)}" ` +
                 `data-ga="unwatch" title="Stop watching" aria-label="Stop watching ${escapeHtml(item)}">${MARK_CROSS}</button></li>`);
         })

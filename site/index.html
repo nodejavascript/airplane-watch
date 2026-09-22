@@ -427,7 +427,15 @@
           day: *"Last refreshed not yet. start off my saying now."* A page that has just loaded has
           been refused nothing; the moment the first poll lands, this same line counts from it.
         -->
-        <p class="small muted refreshed-line" id="radiusRefreshed">Last refreshed <b id="refreshedAgo">now</b>.</p>
+        <p class="small muted refreshed-line" id="radiusRefreshed">Last refreshed <b id="refreshedAgo">now</b>.
+          <!-- 🔴 AND THE READER CAN ASK THEMSELVES. George, 22 Sep 2026: *"to the right of [Last
+               refreshed], i want a refresh right aligned, this will reapply my filters to current
+               data"*. It sits in this line because this line is the clock the press is about: it is
+               right-aligned with the rest of the line, and the label says the plain word, the way
+               `change location` and `delete my data` do. -->
+          <button type="button" class="linkish refresh-now" id="refreshNow" data-ga="refresh-now"
+                  title="Ask the feed again now, and draw what comes back through your filters.">refresh</button>
+        </p>
 
         <div id="watchMap"></div>
 

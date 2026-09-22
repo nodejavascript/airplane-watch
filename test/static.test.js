@@ -1282,6 +1282,25 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   assert.match(app, /#refreshedAgo/, 'nothing keeps the refreshed line honest');
   assert.match(app, /fromNow\(this\.lastPollAt\)/, 'the refreshed line is not counted from the last poll');
   assert.match(css, /\.refreshed-line\s*\{[\s\S]{0,120}text-align:\s*right/, 'the refreshed line is not right-aligned');
+
+  // 🔴 AND THE READER CAN PRESS THE CLOCK. George, 22 Sep 2026: *"to the right of [Last refreshed], i
+  // want a refresh right aligned, this will reapply my filters to current data"*. It is a real control
+  // inside that line — the same quiet `.linkish` shape the other two text controls use — and it asks
+  // through the COALESCING path with the clock re-armed, so a press cannot spend a second request on
+  // the same moment the scheduled look already covers.
+  assert.match(
+    code,
+    /id="refreshedAgo">now<\/b>\.\s*<!--[\s\S]*?<button type="button" class="linkish refresh-now" id="refreshNow"/,
+    'there is no refresh control on the refreshed line'
+  );
+  assert.equal((code.match(/id="refreshNow"/g) ?? []).length, 1, 'the refresh control is on the page twice');
+  assert.match(app, /private refreshNow\(\): void/, 'nothing answers the refresh control');
+  assert.match(
+    app,
+    /this\.startTimer\(\);\s*\n\s*this\.schedulePoll\(\);/,
+    'the refresh control does not re-arm the clock and ask through the coalescing path'
+  );
+  assert.match(css, /\.refresh-now\s*\{[\s\S]{0,80}margin-left:\s*0\.5rem/, 'the refresh control is not spaced off the sentence');
 });
 
 test('a watched tail is a NEUTRAL label, and green only when it is in the air', () => {

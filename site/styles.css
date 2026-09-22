@@ -683,6 +683,13 @@ main {
   text-align: right;
 }
 
+/* The one control on this line, and the gap that keeps it off the sentence it follows. It is
+ * deliberately the same `.linkish` shape `change location` and `delete my data` use, so the three
+ * quiet text controls on the page read as one kind of thing. */
+.refresh-now {
+  margin-left: 0.5rem;
+}
+
 /* 🔴 AND THE PLACE BESIDE THE CODE, THE TYPE'S NAME, AND THE TAIL UNDER IT ALL WENT WITH THE TABLE.
  * `.cell-city`, `.cell-type` and `.cell-tail` each styled a span inside a row of the deleted list, and
  * measured on 22 Sep 2026 not one of the three appears in `site/index.html` or `src/app.ts`. */
