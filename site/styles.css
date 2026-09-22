@@ -2004,21 +2004,24 @@ main > #status {
 /**
  * The path an aircraft has flown, drawn under the aeroplane and the markers.
  *
- * Deliberately quieter than the aircraft itself, but no longer as quiet as it first was: at 1.5px
- * and half opacity the line vanished against the live street map, which was measured on the real
- * page on 22 Sep 2026 — a feature the reader cannot see is not a feature. The dark casing is what
- * makes it read over both the pale land and the pale water; without it the line disappears wherever
- * the map happens to be light.
+ * 🔴 GREEN, AND IT IS GREEN ON PURPOSE. George, 22 Sep 2026: *"can you make the airplane trails a
+ * hue of green"*. The aeroplanes themselves are the site's blue, so a path in the same colour read as
+ * part of the mark rather than as where the aircraft had been; a green trace separates the two at a
+ * glance without adding a legend.
+ *
+ * Deliberately quieter than the aircraft, but not as quiet as it first was: at 1.5px and half opacity
+ * the line vanished against the live street map — measured on the real page on 22 Sep 2026, and a
+ * feature the reader cannot see is not a feature. The dark drop-shadow is what makes it read over
+ * both the pale land and the pale water; without it the line disappears wherever the map is light.
  */
 .locmap-trail {
   fill: none;
-  stroke: #0ea5e9;
+  stroke: #22c55e;
   stroke-width: 2.6;
   stroke-linejoin: round;
   stroke-linecap: round;
-  opacity: 0.85;
-  paint-order: stroke;
-  filter: drop-shadow(0 0 1.2px rgba(2, 6, 23, 0.85));
+  opacity: 0.9;
+  filter: drop-shadow(0 0 1.2px rgba(2, 6, 23, 0.9));
 }
 
 /* "B38M · C-GXXX" — the type first, then the tail, both in the mono face the rest of the

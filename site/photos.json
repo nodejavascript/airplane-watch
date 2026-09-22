@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-20T17:13:57.496Z",
+ "generated": "2026-09-22T16:16:39.171Z",
  "source": "https://www.wikipedia.org/ — the MediaWiki API, no key, no account",
  "licence": "Each photograph is under the licence named beside it, nearly always Creative Commons or public domain. The author and the file page travel with every entry, because all of those licences require the credit.",
  "method": "One search per aircraft type using the name this site already shows, taking the first result and its page image, then one batched query for the licence terms of every file.",
@@ -16,6 +16,28 @@
    "artist": "Contando Estrelas",
    "licence": "CC BY-SA 4.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Augusta_Westland_AW-139_EC-KXA_de_Helimer,_Salvamento_Mar%C3%ADtimo_(cropped).jpg"
+  },
+  "A169": {
+   "code": "A169",
+   "name": "Leonardo AW169",
+   "title": "AgustaWestland AW169",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bb/Agusta_Westland_AW_169_%28solo%29.jpg/500px-Agusta_Westland_AW_169_%28solo%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"AgustaWestland AW169\"",
+   "artist": "Adrian",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Agusta_Westland_AW_169_(solo).jpg"
+  },
+  "A20N": {
+   "code": "A20N",
+   "name": "Airbus A320neo",
+   "title": "Airbus A320neo family",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/IndiGo_Airbus_A320neo_F-WWDG_%28to_VT-ITI%29_%2828915135713%29.jpg/500px-IndiGo_Airbus_A320neo_F-WWDG_%28to_VT-ITI%29_%2828915135713%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "BriYYZ from Toronto",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:IndiGo_Airbus_A320neo_F-WWDG_(to_VT-ITI)_(28915135713).jpg"
   },
   "A21N": {
    "code": "A21N",
@@ -61,6 +83,17 @@
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Airbus_A321-231(w)_%E2%80%98N915US%E2%80%99_American_Airlines_(28442733186).jpg"
   },
+  "A332": {
+   "code": "A332",
+   "name": "Airbus A330-200",
+   "title": "Airbus A330",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/45/Delta_Air_Lines_Airbus_A330-300_N830NW_departing_Boston_July_2026_1.jpg/500px-Delta_Air_Lines_Airbus_A330-300_N830NW_departing_Boston_July_2026_1.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "4300streetcar",
+   "licence": "CC BY 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Delta_Air_Lines_Airbus_A330-300_N830NW_departing_Boston_July_2026_1.jpg"
+  },
   "A333": {
    "code": "A333",
    "name": "Airbus A330-300",
@@ -71,6 +104,17 @@
    "artist": "4300streetcar",
    "licence": "CC BY 4.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Delta_Air_Lines_Airbus_A330-300_N830NW_departing_Boston_July_2026_1.jpg"
+  },
+  "A339": {
+   "code": "A339",
+   "name": "Airbus A330-900",
+   "title": "Airbus A330neo",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c0/Airbus_A330neo_F-WTTN_37.jpg/500px-Airbus_A330neo_F-WTTN_37.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "New York-air",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Airbus_A330neo_F-WTTN_37.jpg"
   },
   "A359": {
    "code": "A359",
@@ -83,16 +127,126 @@
    "licence": "CC BY 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:EGLF_-_Airbus_A350-941_-_F-WZNW.jpg"
   },
+  "A35K": {
+   "code": "A35K",
+   "name": "Airbus A350-1000",
+   "title": "Airbus A350",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/EGLF_-_Airbus_A350-941_-_F-WZNW.jpg/500px-EGLF_-_Airbus_A350-941_-_F-WZNW.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Steve Lynes",
+   "licence": "CC BY 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:EGLF_-_Airbus_A350-941_-_F-WZNW.jpg"
+  },
+  "A388": {
+   "code": "A388",
+   "name": "Airbus A380-800",
+   "title": "Airbus A380",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/A6-EDY_A380_Emirates_31_jan_2013_jfk_%288442269364%29_%28cropped%29.jpg/500px-A6-EDY_A380_Emirates_31_jan_2013_jfk_%288442269364%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Maarten Visser from Capelle aan den IJssel, Nederland",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:A6-EDY_A380_Emirates_31_jan_2013_jfk_(8442269364)_(cropped).jpg"
+  },
+  "AA5": {
+   "code": "AA5",
+   "name": "Grumman American AA-5 Tiger",
+   "title": "Grumman American AA-5",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Grumman.aa-5.traveller.g-bezf.arp.jpg/500px-Grumman.aa-5.traveller.g-bezf.arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Arpingstone",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Grumman.aa-5.traveller.g-bezf.arp.jpg"
+  },
+  "AC11": {
+   "code": "AC11",
+   "name": "North American Rockwell Commander 112/114",
+   "title": "Rockwell Commander 112",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/Commander112landing.jpg/500px-Commander112landing.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"Rockwell Commander 112\"",
+   "artist": "FlugKerl2",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Commander112landing.jpg"
+  },
+  "AC90": {
+   "code": "AC90",
+   "name": "North American Rockwell Turbo Commander 690/840",
+   "title": "Aero Commander 500 family",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Jetprop_1000.jpg/500px-Jetprop_1000.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"Aero Commander 500 family\"",
+   "artist": "SDASM Archives",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Jetprop_1000.jpg"
+  },
   "AS21": {
    "code": "AS21",
-   "name": "AS21 (type not in this list)",
-   "title": "Lynx (Rheinmetall armoured fighting vehicle)",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Hungarian_Lynx_KF-41.jpg/500px-Hungarian_Lynx_KF-41.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "name": "AS21",
+   "title": "K21",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cc/2014.5.20_%EC%9C%A1%EA%B5%B0_%EC%88%98%EB%8F%84%EA%B8%B0%EA%B3%84%ED%99%94%EB%B3%B4%EB%B3%91%EC%82%AC%EB%8B%A8_K-21_%EC%9E%A5%EA%B0%91%EC%B0%A8_%EC%A0%84%ED%88%AC%EC%82%AC%EA%B2%A9%ED%9B%88%EB%A0%A8_K-21_combat_firing_practice%2C_Republic_of_Korea_Army_Capital_Mechanized_Infantry_Division_%2814299828042%29.jpg/500px-thumbnail.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": false,
-   "reason": "search matched \"Lynx (Rheinmetall armoured fighting vehicle)\"",
-   "artist": "Lukas1325",
+   "reason": "search matched \"K21\"",
+   "artist": "대한민국 국군 Republic of Korea Armed Forces",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:2014.5.20_%EC%9C%A1%EA%B5%B0_%EC%88%98%EB%8F%84%EA%B8%B0%EA%B3%84%ED%99%94%EB%B3%B4%EB%B3%91%EC%82%AC%EB%8B%A8_K-21_%EC%9E%A5%EA%B0%91%EC%B0%A8_%EC%A0%84%ED%88%AC%EC%82%AC%EA%B2%A9%ED%9B%88%EB%A0%A8_K-21_combat_firing_practice,_Republic_of_Korea_Army_Capital_Mechanized_Infantry_Division_(14299828042).jpg"
+  },
+  "AS50": {
+   "code": "AS50",
+   "name": "Airbus H125",
+   "title": "Eurocopter AS350 Écureuil",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/RAN_squirrel_helicopter_at_melb_GP_08.jpg/500px-RAN_squirrel_helicopter_at_melb_GP_08.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"Eurocopter AS350 Écureuil\"",
+   "artist": "fir0002 flagstaffotos [at] gmail.com Canon 20D + Canon 400mm f/5.6 L",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:RAN_squirrel_helicopter_at_melb_GP_08.jpg"
+  },
+  "AS55": {
+   "code": "AS55",
+   "name": "Airbus H155",
+   "title": "Eurocopter EC155",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/Eurocopter_EC_155B1_Dauphin%2C_Germany_-_Police_JP7199794.jpg/500px-Eurocopter_EC_155B1_Dauphin%2C_Germany_-_Police_JP7199794.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"Eurocopter EC155\"",
+   "artist": "Pedro Aragão",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Eurocopter_EC_155B1_Dauphin,_Germany_-_Police_JP7199794.jpg"
+  },
+  "AS65": {
+   "code": "AS65",
+   "name": "Airbus AS365 Dauphin",
+   "title": "Eurocopter AS365 Dauphin",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/ZJ780_8490634574_%28cropped%29.jpg/500px-ZJ780_8490634574_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"Eurocopter AS365 Dauphin\"",
+   "artist": "Mark Harkin",
    "licence": "CC BY-SA 4.0",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:Hungarian_Lynx_KF-41.jpg"
+   "creditPage": "https://commons.wikimedia.org/wiki/File:ZJ780_8490634574_(cropped).jpg"
+  },
+  "ASTR": {
+   "code": "ASTR",
+   "name": "IAI Astra",
+   "title": "Gulfstream G100",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/N916CG_%283996189731%29.jpg/500px-N916CG_%283996189731%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"Gulfstream G100\"",
+   "artist": "Eddie Maloney from North Las Vegas",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:N916CG_(3996189731).jpg"
+  },
+  "B06": {
+   "code": "B06",
+   "name": "Bell 206 JetRanger",
+   "title": "Bell 206",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/LAPD_Bell_206_Jetranger.jpg/500px-LAPD_Bell_206_Jetranger.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Mfield - Matthew Field, http://www.photography.mattfield.com",
+   "licence": "CC BY 2.5",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:LAPD_Bell_206_Jetranger.jpg"
   },
   "B190": {
    "code": "B190",
@@ -105,6 +259,17 @@
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Beech_1900D,_Air_New_Zealand_Link_(Eagle_Airways)_JP6920497.jpg"
   },
+  "B350": {
+   "code": "B350",
+   "name": "Beechcraft King Air 350",
+   "title": "Beechcraft Super King Air",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e2/Royal_Air_Force_King_Air_B200_Training_Aircraft_MOD_45153010.jpg/500px-Royal_Air_Force_King_Air_B200_Training_Aircraft_MOD_45153010.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Gordon Elias",
+   "licence": "OGL v1.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Royal_Air_Force_King_Air_B200_Training_Aircraft_MOD_45153010.jpg"
+  },
   "B38M": {
    "code": "B38M",
    "name": "Boeing 737 MAX 8",
@@ -116,27 +281,115 @@
    "licence": "CC BY-SA 4.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Alaska_737_Max_9.jpg"
   },
+  "B39M": {
+   "code": "B39M",
+   "name": "Boeing 737 MAX 9",
+   "title": "Boeing 737 MAX",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/32/Alaska_737_Max_9.jpg/500px-Alaska_737_Max_9.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "KirkXWB",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Alaska_737_Max_9.jpg"
+  },
+  "B407": {
+   "code": "B407",
+   "name": "Bell 407",
+   "title": "Bell 407",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4e/Nassau_County_Police_Bell_407.jpg/500px-Nassau_County_Police_Bell_407.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Robert Kowal",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Nassau_County_Police_Bell_407.jpg"
+  },
+  "B412": {
+   "code": "B412",
+   "name": "Bell 412",
+   "title": "Bell 412",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/32/%281%29Police_Helicopter_039.jpg/500px-%281%29Police_Helicopter_039.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Sardaka",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:(1)Police_Helicopter_039.jpg"
+  },
+  "B429": {
+   "code": "B429",
+   "name": "Bell 429",
+   "title": "Bell 429 GlobalRanger",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d6/8-19-11_NEW_2010_MERCY_FLIGHT_5_AT_WCCH_%28modified%29.jpg/500px-8-19-11_NEW_2010_MERCY_FLIGHT_5_AT_WCCH_%28modified%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Jim Duell",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:8-19-11_NEW_2010_MERCY_FLIGHT_5_AT_WCCH_(modified).jpg"
+  },
+  "B505": {
+   "code": "B505",
+   "name": "Bell 505 JetRanger X",
+   "title": "Bell 505 Jet Ranger X",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/20180617_Knokke_le_Zoute_Air_Trophy_%28587%29_copie-border_%2828014684427%29_2_%28cropped%29.jpg/500px-20180617_Knokke_le_Zoute_Air_Trophy_%28587%29_copie-border_%2828014684427%29_2_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "antoine alacusos",
+   "licence": "CC BY 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:20180617_Knokke_le_Zoute_Air_Trophy_(587)_copie-border_(28014684427)_2_(cropped).jpg"
+  },
+  "B732": {
+   "code": "B732",
+   "name": "Boeing 737-200",
+   "title": "Boeing 737",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e9/South_African_Airlink_Boeing_737-200_Advanced_Smith.jpg/500px-South_African_Airlink_Boeing_737-200_Advanced_Smith.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "File:South African Airlink Boeing 737-200 Smith.jpg : Montague Smit…",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:South_African_Airlink_Boeing_737-200_Advanced_Smith.jpg"
+  },
   "B733": {
    "code": "B733",
-   "name": "B733 (type not in this list)",
-   "title": "List of aircraft type designators",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Flag_of_ICAO.svg/500px-Flag_of_ICAO.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-   "confident": false,
-   "reason": "search matched \"List of aircraft type designators\"",
-   "artist": "International Civil Aviation Organization - specialized agency of t…",
-   "licence": "Public domain",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:Flag_of_ICAO.svg"
+   "name": "Boeing 737-300",
+   "title": "Boeing 737 Classic",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Classic_Colors_Southwest_Airlines_N648SW_Boeing_737-3H4_SJC.jpg/500px-Classic_Colors_Southwest_Airlines_N648SW_Boeing_737-3H4_SJC.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Dylan Ashe from San Jose",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Classic_Colors_Southwest_Airlines_N648SW_Boeing_737-3H4_SJC.jpg"
   },
   "B734": {
    "code": "B734",
-   "name": "B734 (type not in this list)",
-   "title": "List of aircraft type designators",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Flag_of_ICAO.svg/500px-Flag_of_ICAO.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-   "confident": false,
-   "reason": "search matched \"List of aircraft type designators\"",
-   "artist": "International Civil Aviation Organization - specialized agency of t…",
-   "licence": "Public domain",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:Flag_of_ICAO.svg"
+   "name": "Boeing 737-400",
+   "title": "Boeing 737 Classic",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Classic_Colors_Southwest_Airlines_N648SW_Boeing_737-3H4_SJC.jpg/500px-Classic_Colors_Southwest_Airlines_N648SW_Boeing_737-3H4_SJC.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Dylan Ashe from San Jose",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Classic_Colors_Southwest_Airlines_N648SW_Boeing_737-3H4_SJC.jpg"
+  },
+  "B735": {
+   "code": "B735",
+   "name": "Boeing 737-500",
+   "title": "Boeing 737 Classic",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Classic_Colors_Southwest_Airlines_N648SW_Boeing_737-3H4_SJC.jpg/500px-Classic_Colors_Southwest_Airlines_N648SW_Boeing_737-3H4_SJC.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Dylan Ashe from San Jose",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Classic_Colors_Southwest_Airlines_N648SW_Boeing_737-3H4_SJC.jpg"
+  },
+  "B736": {
+   "code": "B736",
+   "name": "Boeing 737-600",
+   "title": "Boeing 737 Next Generation",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Delta_Boeing_737-800_N371DA_departing_Boston_June_2025.jpg/500px-Delta_Boeing_737-800_N371DA_departing_Boston_June_2025.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "4300streetcar",
+   "licence": "CC BY 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Delta_Boeing_737-800_N371DA_departing_Boston_June_2025.jpg"
   },
   "B737": {
    "code": "B737",
@@ -171,6 +424,28 @@
    "licence": "CC BY 4.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Delta_Boeing_737-800_N371DA_departing_Boston_June_2025.jpg"
   },
+  "B744": {
+   "code": "B744",
+   "name": "Boeing 747-400",
+   "title": "Boeing 747-400",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Frankfurt_Airport_Lufthansa_Boeing_747-430_D-ABVY_%28DSC09727%29.jpg/500px-Frankfurt_Airport_Lufthansa_Boeing_747-430_D-ABVY_%28DSC09727%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "MarcelX42",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Frankfurt_Airport_Lufthansa_Boeing_747-430_D-ABVY_(DSC09727).jpg"
+  },
+  "B748": {
+   "code": "B748",
+   "name": "Boeing 747-8",
+   "title": "Boeing 747-8",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b1/D-ABYT_at_FRA.jpg/500px-D-ABYT_at_FRA.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Juke Schweizer",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:D-ABYT_at_FRA.jpg"
+  },
   "B752": {
    "code": "B752",
    "name": "Boeing 757-200",
@@ -181,6 +456,17 @@
    "artist": "4300streetcar",
    "licence": "CC BY 4.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Delta_757-200_N713TW_on_final_approach_to_Boston_Dec_2024_2.jpg"
+  },
+  "B762": {
+   "code": "B762",
+   "name": "Boeing 767-200",
+   "title": "Boeing 767",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Delta_Air_Lines_B767-332_N130DL.jpg/500px-Delta_Air_Lines_B767-332_N130DL.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Richard Snyder from San Jose, CA",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Delta_Air_Lines_B767-332_N130DL.jpg"
   },
   "B763": {
    "code": "B763",
@@ -193,6 +479,17 @@
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Delta_Air_Lines_B767-332_N130DL.jpg"
   },
+  "B772": {
+   "code": "B772",
+   "name": "Boeing 777-200",
+   "title": "Boeing 777",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Cathay_Pacific_Boeing_777-200%3B_B-HNL%40HKG.jpg/500px-Cathay_Pacific_Boeing_777-200%3B_B-HNL%40HKG.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Aero Icarus from Zürich, Switzerland",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cathay_Pacific_Boeing_777-200;_B-HNL@HKG.jpg"
+  },
   "B77L": {
    "code": "B77L",
    "name": "Boeing 777-200LR",
@@ -204,6 +501,28 @@
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Cathay_Pacific_Boeing_777-200;_B-HNL@HKG.jpg"
   },
+  "B77W": {
+   "code": "B77W",
+   "name": "Boeing 777-300ER",
+   "title": "Boeing 777",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Cathay_Pacific_Boeing_777-200%3B_B-HNL%40HKG.jpg/500px-Cathay_Pacific_Boeing_777-200%3B_B-HNL%40HKG.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Aero Icarus from Zürich, Switzerland",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cathay_Pacific_Boeing_777-200;_B-HNL@HKG.jpg"
+  },
+  "B788": {
+   "code": "B788",
+   "name": "Boeing 787-8 Dreamliner",
+   "title": "Boeing 787 Dreamliner",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4e/Boeing_787_N1015B_ANA_Airlines_%2827611880663%29_%28cropped%29.jpg/500px-Boeing_787_N1015B_ANA_Airlines_%2827611880663%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "pjs2005 from Hampshire",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Boeing_787_N1015B_ANA_Airlines_(27611880663)_(cropped).jpg"
+  },
   "B789": {
    "code": "B789",
    "name": "Boeing 787-9 Dreamliner",
@@ -214,6 +533,17 @@
    "artist": "pjs2005 from Hampshire",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Boeing_787_N1015B_ANA_Airlines_(27611880663)_(cropped).jpg"
+  },
+  "BALL": {
+   "code": "BALL",
+   "name": "Balloon",
+   "title": "Balloon",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/Congrats_bqt.jpg/500px-Congrats_bqt.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Photographer: Warren Denning. Creative Director: Stan Weir. Marketi…",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Congrats_bqt.jpg"
   },
   "BCS1": {
    "code": "BCS1",
@@ -237,6 +567,39 @@
    "licence": "CC BY-SA 4.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Airbus_A220-300.jpg"
   },
+  "BE10": {
+   "code": "BE10",
+   "name": "Beechcraft King Air 100",
+   "title": "Beechcraft King Air",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/Tc-90_04l.jpg/500px-Tc-90_04l.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "海上自衛隊",
+   "licence": "CC BY 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Tc-90_04l.jpg"
+  },
+  "BE20": {
+   "code": "BE20",
+   "name": "Beechcraft King Air 200",
+   "title": "Beechcraft Super King Air",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e2/Royal_Air_Force_King_Air_B200_Training_Aircraft_MOD_45153010.jpg/500px-Royal_Air_Force_King_Air_B200_Training_Aircraft_MOD_45153010.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Gordon Elias",
+   "licence": "OGL v1.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Royal_Air_Force_King_Air_B200_Training_Aircraft_MOD_45153010.jpg"
+  },
+  "BE35": {
+   "code": "BE35",
+   "name": "Beechcraft Bonanza 35",
+   "title": "Beechcraft Bonanza",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Beech_Bonanza_Takeoff_%285517383917%29.jpg/500px-Beech_Bonanza_Takeoff_%285517383917%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Bill Larkins",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Beech_Bonanza_Takeoff_(5517383917).jpg"
+  },
   "BE9L": {
    "code": "BE9L",
    "name": "Beechcraft King Air 90",
@@ -247,6 +610,17 @@
    "artist": "海上自衛隊",
    "licence": "CC BY 4.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Tc-90_04l.jpg"
+  },
+  "C10T": {
+   "code": "C10T",
+   "name": "Cessna P210 Turbine",
+   "title": "Cessna 210 Centurion",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/1976_Cessna_210L_N732GD_%285359315231%29.jpg/500px-1976_Cessna_210L_N732GD_%285359315231%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Tomás Del Coro from Las Vegas, Nevada",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:1976_Cessna_210L_N732GD_(5359315231).jpg"
   },
   "C152": {
    "code": "C152",
@@ -259,6 +633,17 @@
    "licence": "CC BY-SA 3.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:G-BRNE-Cessna152.jpg"
   },
+  "C170": {
+   "code": "C170",
+   "name": "Cessna 170",
+   "title": "Cessna 170",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Cessna170B_orange.jpg/500px-Cessna170B_orange.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "John Karns",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna170B_orange.jpg"
+  },
   "C172": {
    "code": "C172",
    "name": "Cessna 172 Skyhawk",
@@ -269,6 +654,28 @@
    "artist": "Peter Bakema",
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna_172S_Skyhawk_SP,_Private_JP6817606.jpg"
+  },
+  "C177": {
+   "code": "C177",
+   "name": "Cessna 177 Cardinal",
+   "title": "Cessna 177 Cardinal",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/84/Cessna177BCardinal05.jpg/500px-Cessna177BCardinal05.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Ahunt, usuario de la Wikipedia en inglés",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna177BCardinal05.jpg"
+  },
+  "C180": {
+   "code": "C180",
+   "name": "Cessna 180 Skywagon",
+   "title": "Cessna 180 Skywagon",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/1979_Cessna_180K%2C_C-N-_18053081_N2810K_%28without_the_floats%29_%285031770297%29.jpg/500px-1979_Cessna_180K%2C_C-N-_18053081_N2810K_%28without_the_floats%29_%285031770297%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Tomás Del Coro from Las Vegas, Nevada",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:1979_Cessna_180K,_C-N-_18053081_N2810K_(without_the_floats)_(5031770297).jpg"
   },
   "C182": {
    "code": "C182",
@@ -281,6 +688,28 @@
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna182t_skylane_n2231f_cotswoldairshow_2010_arp.jpg"
   },
+  "C185": {
+   "code": "C185",
+   "name": "Cessna 185 Skywagon",
+   "title": "Cessna 185 Skywagon",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/N914ST_Cessna_A185%28Floats%29_PAE_11JUL12_%287553419848%29.jpg/500px-N914ST_Cessna_A185%28Floats%29_PAE_11JUL12_%287553419848%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Ken Fielding",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:N914ST_Cessna_A185(Floats)_PAE_11JUL12_(7553419848).jpg"
+  },
+  "C206": {
+   "code": "C206",
+   "name": "Cessna 206 Stationair",
+   "title": "Cessna 206",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Cessna.206h.stationair2.arp.jpg/500px-Cessna.206h.stationair2.arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Arpingstone",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna.206h.stationair2.arp.jpg"
+  },
   "C208": {
    "code": "C208",
    "name": "Cessna 208 Caravan",
@@ -291,6 +720,17 @@
    "artist": "Lt. Col. Scott Voskovitch",
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Iraqi_Air_Force_Cessna_208_Caravan_training_mission.jpg"
+  },
+  "C25A": {
+   "code": "C25A",
+   "name": "Cessna Citation CJ2",
+   "title": "Cessna CitationJet/M2",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/OO-FLN.JPG/500px-OO-FLN.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Alf van Beem",
+   "licence": "CC0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:OO-FLN.JPG"
   },
   "C25B": {
    "code": "C25B",
@@ -305,14 +745,47 @@
   },
   "C414": {
    "code": "C414",
-   "name": "C414 (type not in this list)",
-   "title": "AKG (company)",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/AKG_at_Revox_B795_LP-player_%283870710127crop%29.jpg/500px-AKG_at_Revox_B795_LP-player_%283870710127crop%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-   "confident": false,
-   "reason": "search matched \"AKG (company)\"",
-   "artist": "touhotus",
-   "licence": "CC BY 2.0",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:AKG_at_Revox_B795_LP-player_(3870710127crop).jpg"
+   "name": "Cessna 414 Chancellor",
+   "title": "Cessna 414",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/PH-MZL_Cessna_414_Chancellor_%28EHMZ_1990-08-20%29.jpg/500px-PH-MZL_Cessna_414_Chancellor_%28EHMZ_1990-08-20%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "AirSafetyGuy at English Wikipedia",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:PH-MZL_Cessna_414_Chancellor_(EHMZ_1990-08-20).jpg"
+  },
+  "C421": {
+   "code": "C421",
+   "name": "Cessna 421 Executive Commuter",
+   "title": "Cessna 421 Golden Eagle",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/Cessna421B-Landing.jpg/500px-Cessna421B-Landing.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "FlugKerl2",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna421B-Landing.jpg"
+  },
+  "C501": {
+   "code": "C501",
+   "name": "Cessna Citation I",
+   "title": "Cessna Citation I",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/CN_Air_Cessna_501_Citation_I_SP.jpg/500px-CN_Air_Cessna_501_Citation_I_SP.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Luc Verkuringen",
+   "licence": "CC BY 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:CN_Air_Cessna_501_Citation_I_SP.jpg"
+  },
+  "C550": {
+   "code": "C550",
+   "name": "Cessna Citation II",
+   "title": "Cessna Citation II",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Cessna_550b_citation_bravo_cs-dhr_arp.jpg/500px-Cessna_550b_citation_bravo_cs-dhr_arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Adrian Pingstone",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna_550b_citation_bravo_cs-dhr_arp.jpg"
   },
   "C560": {
    "code": "C560",
@@ -325,6 +798,17 @@
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna_uc-35a_citation_560_ultra_v_arp.jpg"
   },
+  "C56X": {
+   "code": "C56X",
+   "name": "Cessna Citation Excel",
+   "title": "Cessna Citation Excel",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/Cessna_560XL_Citation_XLS.jpg/500px-Cessna_560XL_Citation_XLS.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Gerry Stegmeier",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna_560XL_Citation_XLS.jpg"
+  },
   "C68A": {
    "code": "C68A",
    "name": "Cessna Citation Latitude",
@@ -335,6 +819,17 @@
    "artist": "Markus Eigenheer from Genève, Schweiz",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:CS-LTI_Cessna_560_XLS_Citation_XLS_C56X_c_n_560-5798_-_NJE_(43222541880).jpg"
+  },
+  "C72R": {
+   "code": "C72R",
+   "name": "Cessna 172RG Cutlass RG",
+   "title": "Cessna R172",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/G-AYJW_Cessna172_Coventry_%2838886594634%29.jpg/500px-G-AYJW_Cessna172_Coventry_%2838886594634%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Rob Hodgkins",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:G-AYJW_Cessna172_Coventry_(38886594634).jpg"
   },
   "C750": {
    "code": "C750",
@@ -347,6 +842,72 @@
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:N975QS_2002_Cessna_750_C-N_750-0175_Citation_X_(7039507775).jpg"
   },
+  "C82R": {
+   "code": "C82R",
+   "name": "Cessna R182 Skylane RG",
+   "title": "Cessna 182 Skylane",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Cessna182t_skylane_n2231f_cotswoldairshow_2010_arp.jpg/500px-Cessna182t_skylane_n2231f_cotswoldairshow_2010_arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Adrian Pingstone ( Arpingstone )",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna182t_skylane_n2231f_cotswoldairshow_2010_arp.jpg"
+  },
+  "C82S": {
+   "code": "C82S",
+   "name": "Cessna T182 Turbo Skylane",
+   "title": "Cessna 182 Skylane",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Cessna182t_skylane_n2231f_cotswoldairshow_2010_arp.jpg/500px-Cessna182t_skylane_n2231f_cotswoldairshow_2010_arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Adrian Pingstone ( Arpingstone )",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna182t_skylane_n2231f_cotswoldairshow_2010_arp.jpg"
+  },
+  "CH7B": {
+   "code": "CH7B",
+   "name": "Bellanca 7 Citabria",
+   "title": "American Champion Citabria",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/03/Citabria_7GCBC.jpg/500px-Citabria_7GCBC.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"American Champion Citabria\"",
+   "artist": "Cwclark26 ( talk ) ( Uploads )",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Citabria_7GCBC.jpg"
+  },
+  "CL2P": {
+   "code": "CL2P",
+   "name": "Canadair CL-215",
+   "title": "Canadair CL-215",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/CL215_43_Grupo_%28cropped%29.jpg/500px-CL215_43_Grupo_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Javiramos43",
+   "licence": "CC BY 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:CL215_43_Grupo_(cropped).jpg"
+  },
+  "CL2T": {
+   "code": "CL2T",
+   "name": "Canadair CL-415 SuperScooper",
+   "title": "Canadair CL-415",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/I-DPCN_at_work_03_%28cropped%29.jpg/500px-I-DPCN_at_work_03_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Maarten Visser",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:I-DPCN_at_work_03_(cropped).jpg"
+  },
+  "CL30": {
+   "code": "CL30",
+   "name": "Bombardier Challenger 300",
+   "title": "Bombardier Challenger 300",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/22/Bombardier_BD-100-1A10_Challenger_300_AN1704544.jpg/500px-Bombardier_BD-100-1A10_Challenger_300_AN1704544.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Igor Dvurekov",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Bombardier_BD-100-1A10_Challenger_300_AN1704544.jpg"
+  },
   "CL35": {
    "code": "CL35",
    "name": "Bombardier Challenger 350",
@@ -357,6 +918,39 @@
    "artist": "Igor Dvurekov",
    "licence": "CC BY-SA 3.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Bombardier_BD-100-1A10_Challenger_300_AN1704544.jpg"
+  },
+  "CL60": {
+   "code": "CL60",
+   "name": "Bombardier Challenger 600",
+   "title": "Bombardier Challenger 600 series",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/OH-WII_CL604_pvt_%287950005490%29.jpg/500px-OH-WII_CL604_pvt_%287950005490%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Maarten Visser from Capelle aan den IJssel, Nederland",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:OH-WII_CL604_pvt_(7950005490).jpg"
+  },
+  "CRJ1": {
+   "code": "CRJ1",
+   "name": "Bombardier CRJ-100",
+   "title": "Bombardier CRJ100/200",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7f/N466SW_LAX_%2830314755488%29.jpg/500px-N466SW_LAX_%2830314755488%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "ERIC SALARD from PARIS",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:N466SW_LAX_(30314755488).jpg"
+  },
+  "CRJ7": {
+   "code": "CRJ7",
+   "name": "Bombardier CRJ-700",
+   "title": "Bombardier CRJ700 series",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/EC-JTU_%288544702097%29.jpg/500px-EC-JTU_%288544702097%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Mark Harkin",
+   "licence": "CC BY 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:EC-JTU_(8544702097).jpg"
   },
   "CRJ9": {
    "code": "CRJ9",
@@ -369,6 +963,28 @@
    "licence": "CC BY 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:EC-JTU_(8544702097).jpg"
   },
+  "DA40": {
+   "code": "DA40",
+   "name": "Diamond DA40",
+   "title": "Diamond DA40 Diamond Star",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Diamond_DA40_%288736184864%29.jpg/500px-Diamond_DA40_%288736184864%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "bomberpilot",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Diamond_DA40_(8736184864).jpg"
+  },
+  "DC3T": {
+   "code": "DC3T",
+   "name": "Douglas DC-3 (turbine)",
+   "title": "Douglas DC-3",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Douglas_DC-3%2C_SE-CFP.jpg/500px-Douglas_DC-3%2C_SE-CFP.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Towpilot",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Douglas_DC-3,_SE-CFP.jpg"
+  },
   "DH3T": {
    "code": "DH3T",
    "name": "de Havilland Canada DHC-3 Turbo Otter",
@@ -379,6 +995,28 @@
    "artist": "Tony Hisgett",
    "licence": "CC BY 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Harbour_Air_De_Havilland_Canada_DHC-3T_Vazar_Turbine_Otter_C-FHAS_3_(cropped).jpg"
+  },
+  "DH8A": {
+   "code": "DH8A",
+   "name": "Dash 8-100",
+   "title": "De Havilland Canada Dash 8",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Hamburg_Airport_Wider%C3%B8e_Bombardier_DHC-8-402Q_LN-WDR_%28DSC08713%29.jpg/500px-Hamburg_Airport_Wider%C3%B8e_Bombardier_DHC-8-402Q_LN-WDR_%28DSC08713%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "MarcelX42",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Hamburg_Airport_Wider%C3%B8e_Bombardier_DHC-8-402Q_LN-WDR_(DSC08713).jpg"
+  },
+  "DH8C": {
+   "code": "DH8C",
+   "name": "Dash 8-300",
+   "title": "De Havilland Canada Dash 8",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ec/Hamburg_Airport_Wider%C3%B8e_Bombardier_DHC-8-402Q_LN-WDR_%28DSC08713%29.jpg/500px-Hamburg_Airport_Wider%C3%B8e_Bombardier_DHC-8-402Q_LN-WDR_%28DSC08713%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "MarcelX42",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Hamburg_Airport_Wider%C3%B8e_Bombardier_DHC-8-402Q_LN-WDR_(DSC08713).jpg"
   },
   "DH8D": {
    "code": "DH8D",
@@ -402,6 +1040,17 @@
    "licence": "GFDL",
    "creditPage": "https://commons.wikimedia.org/wiki/File:VH-IDO_De_Havilland_Canada_DHC-2_Beaver_Mk1_Airwaves_Gold_Coast_(8402101541).jpg"
   },
+  "DHC3": {
+   "code": "DHC3",
+   "name": "de Havilland Canada DHC-3 Otter",
+   "title": "De Havilland Canada DHC-3 Otter",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cd/Harbour_Air_De_Havilland_Canada_DHC-3T_Vazar_Turbine_Otter_C-FHAS_3_%28cropped%29.jpg/500px-Harbour_Air_De_Havilland_Canada_DHC-3T_Vazar_Turbine_Otter_C-FHAS_3_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Tony Hisgett",
+   "licence": "CC BY 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Harbour_Air_De_Havilland_Canada_DHC-3T_Vazar_Turbine_Otter_C-FHAS_3_(cropped).jpg"
+  },
   "DHC6": {
    "code": "DHC6",
    "name": "de Havilland Canada Twin Otter",
@@ -412,6 +1061,17 @@
    "artist": "Timo Breidenstein",
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:WinAir_De_Havilland_Canada_DHC-6-300_Twin_Otter_Breidenstein.jpg"
+  },
+  "DV20": {
+   "code": "DV20",
+   "name": "Diamond DA20 Katana",
+   "title": "Diamond DA20 Katana",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Diamond_DA20_%288735090139%29.jpg/500px-Diamond_DA20_%288735090139%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "bomberpilot",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Diamond_DA20_(8735090139).jpg"
   },
   "E145": {
    "code": "E145",
@@ -446,16 +1106,49 @@
    "licence": "CC BY 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Wider%C3%B8e,_LN-WEA,_Embraer_E190-E2_@_HEL.jpg"
   },
+  "E45X": {
+   "code": "E45X",
+   "name": "Embraer ERJ-145XR",
+   "title": "Embraer ERJ family",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Embraer_ERJ-145LU%2C_Air_France_%28Regional_Compagnie_Aerienne%29_JP6914566.jpg/500px-Embraer_ERJ-145LU%2C_Air_France_%28Regional_Compagnie_Aerienne%29_JP6914566.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Aldo Bidini",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Embraer_ERJ-145LU,_Air_France_(Regional_Compagnie_Aerienne)_JP6914566.jpg"
+  },
+  "E545": {
+   "code": "E545",
+   "name": "Embraer Praetor 500",
+   "title": "Embraer Legacy 450/500 and Praetor 500/600",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/PT-ZHY_Embraer_EMB550_Legacy500_E550_%2814272527752%29.jpg/500px-PT-ZHY_Embraer_EMB550_Legacy500_E550_%2814272527752%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Markus Eigenheer from Genève",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:PT-ZHY_Embraer_EMB550_Legacy500_E550_(14272527752).jpg"
+  },
   "E550": {
    "code": "E550",
-   "name": "E550 (type not in this list)",
-   "title": "List of aircraft type designators",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Flag_of_ICAO.svg/500px-Flag_of_ICAO.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-   "confident": false,
-   "reason": "search matched \"List of aircraft type designators\"",
-   "artist": "International Civil Aviation Organization - specialized agency of t…",
-   "licence": "Public domain",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:Flag_of_ICAO.svg"
+   "name": "Embraer Praetor 600",
+   "title": "Embraer Legacy 450/500 and Praetor 500/600",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/PT-ZHY_Embraer_EMB550_Legacy500_E550_%2814272527752%29.jpg/500px-PT-ZHY_Embraer_EMB550_Legacy500_E550_%2814272527752%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Markus Eigenheer from Genève",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:PT-ZHY_Embraer_EMB550_Legacy500_E550_(14272527752).jpg"
+  },
+  "E55P": {
+   "code": "E55P",
+   "name": "Embraer Phenom 300",
+   "title": "Embraer Phenom 300",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/Embraer_505_Phenom_300%2C_Aerojet_JP7625910.jpg/500px-Embraer_505_Phenom_300%2C_Aerojet_JP7625910.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Aktug Ates",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Embraer_505_Phenom_300,_Aerojet_JP7625910.jpg"
   },
   "E75L": {
    "code": "E75L",
@@ -479,16 +1172,71 @@
    "licence": "CC BY-SA 4.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:KLM_Cityhopper_-_Embraer_190LR_-_AN2571563.jpg"
   },
+  "EC30": {
+   "code": "EC30",
+   "name": "Airbus H130",
+   "title": "Eurocopter EC130",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Eurocopter_130_SP-MTB_3_%28modified%29.jpg/500px-Eurocopter_130_SP-MTB_3_%28modified%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"Eurocopter EC130\"",
+   "artist": "Łukasz Golowanow & Maciej Hypś, Konflikty.pl",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Eurocopter_130_SP-MTB_3_(modified).jpg"
+  },
+  "EVSS": {
+   "code": "EVSS",
+   "name": "Evektor SportStar",
+   "title": "Evektor SportStar",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/N90MX_Evektor_SportStar.jpg/500px-N90MX_Evektor_SportStar.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Tomás Del Coro",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:N90MX_Evektor_SportStar.jpg"
+  },
+  "F900": {
+   "code": "F900",
+   "name": "Dassault Falcon 900",
+   "title": "Dassault Falcon 900",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/Spanish_Air_Force_Dassault_Falcon_900B.jpg/500px-Spanish_Air_Force_Dassault_Falcon_900B.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Luc Verkuringen",
+   "licence": "CC BY 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Spanish_Air_Force_Dassault_Falcon_900B.jpg"
+  },
+  "FA50": {
+   "code": "FA50",
+   "name": "Dassault Falcon 50",
+   "title": "Dassault Falcon 50",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Armee_de_l%27Air_-_Dassault_Falcon_50.jpg/500px-Armee_de_l%27Air_-_Dassault_Falcon_50.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "André Inácio",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Armee_de_l%27Air_-_Dassault_Falcon_50.jpg"
+  },
+  "GA6C": {
+   "code": "GA6C",
+   "name": "Gulfstream G600",
+   "title": "Gulfstream G400/G500/G600",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Gulfstream_G600.jpg/500px-Gulfstream_G600.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Dontenphotography",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Gulfstream_G600.jpg"
+  },
   "GL5T": {
    "code": "GL5T",
-   "name": "GL5T (type not in this list)",
-   "title": "List of aircraft type designators",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Flag_of_ICAO.svg/500px-Flag_of_ICAO.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-   "confident": false,
-   "reason": "search matched \"List of aircraft type designators\"",
-   "artist": "International Civil Aviation Organization - specialized agency of t…",
-   "licence": "Public domain",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:Flag_of_ICAO.svg"
+   "name": "Bombardier Global 5000/5500",
+   "title": "Bombardier Global Express",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/2010-07-08_BD700_Tyrolean_OE-IGS_EDDF_03.jpg/500px-2010-07-08_BD700_Tyrolean_OE-IGS_EDDF_03.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Wo st 01 (There are 682 Pictures in my Category ) See also Toolserver",
+   "licence": "CC BY-SA 3.0 de",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:2010-07-08_BD700_Tyrolean_OE-IGS_EDDF_03.jpg"
   },
   "GL7T": {
    "code": "GL7T",
@@ -501,16 +1249,60 @@
    "licence": "CC0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:N182QS-Global7500-120823.png"
   },
+  "GLEX": {
+   "code": "GLEX",
+   "name": "Bombardier Global Express",
+   "title": "Bombardier Global Express",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/2010-07-08_BD700_Tyrolean_OE-IGS_EDDF_03.jpg/500px-2010-07-08_BD700_Tyrolean_OE-IGS_EDDF_03.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Wo st 01 (There are 682 Pictures in my Category ) See also Toolserver",
+   "licence": "CC BY-SA 3.0 de",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:2010-07-08_BD700_Tyrolean_OE-IGS_EDDF_03.jpg"
+  },
+  "GLF4": {
+   "code": "GLF4",
+   "name": "Gulfstream IV",
+   "title": "Gulfstream IV",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/G4-1_%28Gulfstream%29.jpg/500px-G4-1_%28Gulfstream%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "NOAA; http://www.photolib.noaa.gov/aboutc.html",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:G4-1_(Gulfstream).jpg"
+  },
+  "GLF5": {
+   "code": "GLF5",
+   "name": "Gulfstream V",
+   "title": "Gulfstream V",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/Gulfstream_Aerospace_G-V_Gulfstream_V_AN0811210.jpg/500px-Gulfstream_Aerospace_G-V_Gulfstream_V_AN0811210.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "John Davies - CYOW Airport Watch",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Gulfstream_Aerospace_G-V_Gulfstream_V_AN0811210.jpg"
+  },
   "GLF6": {
    "code": "GLF6",
-   "name": "GLF6 (type not in this list)",
-   "title": "List of aircraft type designators",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Flag_of_ICAO.svg/500px-Flag_of_ICAO.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-   "confident": false,
-   "reason": "search matched \"List of aircraft type designators\"",
-   "artist": "International Civil Aviation Organization - specialized agency of t…",
-   "licence": "Public domain",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:Flag_of_ICAO.svg"
+   "name": "Gulfstream G650",
+   "title": "Gulfstream G650/G700/G800",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d6/G-ULFS_Gulfstream_G650_CVT_05-05-16_%2827046023031%29_%28cropped%29.jpg/500px-G-ULFS_Gulfstream_G650_CVT_05-05-16_%2827046023031%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Rob Hodgkins",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:G-ULFS_Gulfstream_G650_CVT_05-05-16_(27046023031)_(cropped).jpg"
+  },
+  "H25B": {
+   "code": "H25B",
+   "name": "Hawker 750/850",
+   "title": "Hawker 800",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Raytheon_Hawker_850XPi_AN1976827.jpg/500px-Raytheon_Hawker_850XPi_AN1976827.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Javier Bravo Muñoz",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Raytheon_Hawker_850XPi_AN1976827.jpg"
   },
   "H500": {
    "code": "H500",
@@ -523,6 +1315,28 @@
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Md_helicopters_md-500e_g-sscl_arp.jpg"
   },
+  "HDJT": {
+   "code": "HDJT",
+   "name": "Honda HA-420 HondaJet",
+   "title": "Honda HA-420 HondaJet",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/HondaJet_Ryabtsev.jpg/500px-HondaJet_Ryabtsev.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Sergey Ryabtsev",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:HondaJet_Ryabtsev.jpg"
+  },
+  "K100": {
+   "code": "K100",
+   "name": "Daher Kodiak 100",
+   "title": "Daher Kodiak",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/Quest_Kodiak_100_AN2150438.jpg/500px-Quest_Kodiak_100_AN2150438.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "André Du-pont (Mexico Air Spotters)",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Quest_Kodiak_100_AN2150438.jpg"
+  },
   "LA4": {
    "code": "LA4",
    "name": "Lake LA-4 Buccaneer",
@@ -534,9 +1348,141 @@
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:LakeLA-4-200BucaneerC-FZZN01.jpg"
   },
+  "LJ31": {
+   "code": "LJ31",
+   "name": "Learjet 31",
+   "title": "Learjet 31",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Learjet_31A_N312CC_KBFL_070207.jpg/500px-Learjet_31A_N312CC_KBFL_070207.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Alan Radecki",
+   "licence": "CC BY 2.5",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Learjet_31A_N312CC_KBFL_070207.jpg"
+  },
+  "LJ35": {
+   "code": "LJ35",
+   "name": "Learjet 35",
+   "title": "Learjet 35",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Learjet_35_%288738280921%29.jpg/500px-Learjet_35_%288738280921%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "bomberpilot",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Learjet_35_(8738280921).jpg"
+  },
+  "LJ45": {
+   "code": "LJ45",
+   "name": "Learjet 45",
+   "title": "Learjet 45",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Bombardier_Learjet_45_Gama_Aviation_%28GMA%29_G-ZXZX_-_MSN_45-005_%285590120278%29.jpg/500px-Bombardier_Learjet_45_Gama_Aviation_%28GMA%29_G-ZXZX_-_MSN_45-005_%285590120278%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Laurent ERRERA from L'Union",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Bombardier_Learjet_45_Gama_Aviation_(GMA)_G-ZXZX_-_MSN_45-005_(5590120278).jpg"
+  },
+  "LJ60": {
+   "code": "LJ60",
+   "name": "Learjet 60",
+   "title": "Learjet 60",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Bombardier.learjet60.oe-gtf.arp.jpg/500px-Bombardier.learjet60.oe-gtf.arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Adrian Pingstone",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Bombardier.learjet60.oe-gtf.arp.jpg"
+  },
+  "LJ75": {
+   "code": "LJ75",
+   "name": "Learjet 75",
+   "title": "Learjet 70/75",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/G-ZNTH_Learjet_75_LJ75_c_n_45-540_-_BZE_%2846212773245%29.jpg/500px-G-ZNTH_Learjet_75_LJ75_c_n_45-540_-_BZE_%2846212773245%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Markus Eigenheer from Genève, Schweiz",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:G-ZNTH_Learjet_75_LJ75_c_n_45-540_-_BZE_(46212773245).jpg"
+  },
+  "LNC4": {
+   "code": "LNC4",
+   "name": "Lancair IV",
+   "title": "Lancair IV",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/2005_HOLMES_A_LANCAIR_IV-P_N798CB_LIV-549_Experimental_%284975757491%29.jpg/500px-2005_HOLMES_A_LANCAIR_IV-P_N798CB_LIV-549_Experimental_%284975757491%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Tomás Del Coro from Las Vegas, Nevada",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:2005_HOLMES_A_LANCAIR_IV-P_N798CB_LIV-549_Experimental_(4975757491).jpg"
+  },
+  "M20P": {
+   "code": "M20P",
+   "name": "Mooney M20",
+   "title": "Mooney M20",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/Mooney.m20j.g-muni.arp.jpg/500px-Mooney.m20j.g-muni.arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Arpingstone",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Mooney.m20j.g-muni.arp.jpg"
+  },
+  "M20T": {
+   "code": "M20T",
+   "name": "Mooney M20T",
+   "title": "Mooney M20",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/Mooney.m20j.g-muni.arp.jpg/500px-Mooney.m20j.g-muni.arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Arpingstone",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Mooney.m20j.g-muni.arp.jpg"
+  },
+  "M600": {
+   "code": "M600",
+   "name": "Piper M600",
+   "title": "Piper PA-46",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Piper_PA-46-500TP_Malibu_Meridian_AN1805813.jpg/500px-Piper_PA-46-500TP_Malibu_Meridian_AN1805813.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Alan Lebeda",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Piper_PA-46-500TP_Malibu_Meridian_AN1805813.jpg"
+  },
+  "MR35": {
+   "code": "MR35",
+   "name": "Murphy SR-3500 Super Rebel",
+   "title": "List of military aid to Ukraine during the Russo-Ukrainian war",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Delivering_military_aid_to_Ukraine_-_detailed.svg/500px-Delivering_military_aid_to_Ukraine_-_detailed.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"List of military aid to Ukraine during the Russo-Ukrainian war\"",
+   "artist": "Discombobulates",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Delivering_military_aid_to_Ukraine_-_detailed.svg"
+  },
+  "P06T": {
+   "code": "P06T",
+   "name": "Tecnam P2006T",
+   "title": "Tecnam P2006T",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/GDN_SP-DZW_%28cropped%29.jpg/500px-GDN_SP-DZW_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Andrzej Otrębski",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:GDN_SP-DZW_(cropped).jpg"
+  },
   "P28A": {
    "code": "P28A",
    "name": "Piper PA-28 Cherokee",
+   "title": "Piper PA-28 Cherokee",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg/500px-G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Mike Burdett",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg"
+  },
+  "P28B": {
+   "code": "P28B",
+   "name": "Piper PA-28-235 Cherokee",
    "title": "Piper PA-28 Cherokee",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg/500px-G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
@@ -556,13 +1502,68 @@
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg"
   },
+  "P28T": {
+   "code": "P28T",
+   "name": "Piper PA-28RT-201 Arrow",
+   "title": "Piper PA-28 Cherokee",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg/500px-G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Mike Burdett",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg"
+  },
+  "PA24": {
+   "code": "PA24",
+   "name": "Piper PA-24 Comanche",
+   "title": "Piper PA-24 Comanche",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Pa24-N5760P-071126-01-16.jpg/500px-Pa24-N5760P-071126-01-16.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Alan Radecki Akradecki",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Pa24-N5760P-071126-01-16.jpg"
+  },
+  "PA27": {
+   "code": "PA27",
+   "name": "Piper PA-23-250 Aztec",
+   "title": "Piper PA-23",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/1960PA-23-250.jpg/500px-1960PA-23-250.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "FlugKerl2",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:1960PA-23-250.jpg"
+  },
+  "PA31": {
+   "code": "PA31",
+   "name": "Piper PA-31 Navajo",
+   "title": "Piper PA-31 Navajo",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Piper_PA-31-..._Navajo_...%2C_West_Capital_Aviation_AN0644817.jpg/500px-Piper_PA-31-..._Navajo_...%2C_West_Capital_Aviation_AN0644817.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "John Davies - CYOW Airport Watch",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Piper_PA-31-..._Navajo_...,_West_Capital_Aviation_AN0644817.jpg"
+  },
+  "PA32": {
+   "code": "PA32",
+   "name": "Piper PA-32 Cherokee Six",
+   "title": "Piper PA-32 Cherokee Six",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/Piper.pa32.cherokee.six.g-bxwp.arp.jpg/500px-Piper.pa32.cherokee.six.g-bxwp.arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Unknown",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Piper.pa32.cherokee.six.g-bxwp.arp.jpg"
+  },
   "PA34": {
    "code": "PA34",
-   "name": "PA34 (type not in this list)",
+   "name": "Piper PA-34 Seneca",
    "title": "Piper PA-34 Seneca",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Piper_PA-34_Naples_run_%28cropped%29.jpg/500px-Piper_PA-34_Naples_run_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-   "confident": false,
-   "reason": "search matched \"Piper PA-34 Seneca\"",
+   "confident": true,
+   "reason": "search matched the type name",
    "artist": "Sky Larson",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Piper_PA-34_Naples_run_(cropped).jpg"
@@ -578,6 +1579,17 @@
    "licence": "CC BY-SA 3.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Piper-pa-44.jpg"
   },
+  "PA46": {
+   "code": "PA46",
+   "name": "Piper PA-46 Malibu",
+   "title": "Piper PA-46",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Piper_PA-46-500TP_Malibu_Meridian_AN1805813.jpg/500px-Piper_PA-46-500TP_Malibu_Meridian_AN1805813.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Alan Lebeda",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Piper_PA-46-500TP_Malibu_Meridian_AN1805813.jpg"
+  },
   "PC12": {
    "code": "PC12",
    "name": "Pilatus PC-12",
@@ -588,6 +1600,83 @@
    "artist": "Chris Finney",
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Pilatus_PC-12-45,_Royal_Flying_Doctor_Service_AN0636290.jpg"
+  },
+  "PC24": {
+   "code": "PC24",
+   "name": "Pilatus PC-24",
+   "title": "Pilatus PC-24",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/Pilatus_PC-24%2C_P01%2C_HB-VXA_%2818743050229%29_%28cropped%29.jpg/500px-Pilatus_PC-24%2C_P01%2C_HB-VXA_%2818743050229%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Stephan Widmer",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Pilatus_PC-24,_P01,_HB-VXA_(18743050229)_(cropped).jpg"
+  },
+  "PIVI": {
+   "code": "PIVI",
+   "name": "Pipistrel Virus",
+   "title": "Pipistrel Virus",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/G-PIVI_Pipistrel_Virus_SW127.jpg/500px-G-PIVI_Pipistrel_Virus_SW127.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Mike Burdett",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:G-PIVI_Pipistrel_Virus_SW127.jpg"
+  },
+  "R44": {
+   "code": "R44",
+   "name": "Robinson R44",
+   "title": "Robinson R44",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Robinson_R44_II_%28cropped%29.jpg/500px-Robinson_R44_II_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "D. Miller",
+   "licence": "CC BY 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Robinson_R44_II_(cropped).jpg"
+  },
+  "R66": {
+   "code": "R66",
+   "name": "Robinson R66",
+   "title": "Robinson R66",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/Robinson_R66_G-CIZG.jpg/500px-Robinson_R66_G-CIZG.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Alan Wilson",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Robinson_R66_G-CIZG.jpg"
+  },
+  "RV6": {
+   "code": "RV6",
+   "name": "Van's RV-6",
+   "title": "Van's Aircraft RV-6",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Van%27s_RV-6_AN1857161.jpg/500px-Van%27s_RV-6_AN1857161.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Anthony Noble",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Van%27s_RV-6_AN1857161.jpg"
+  },
+  "RV9": {
+   "code": "RV9",
+   "name": "Van's RV-9",
+   "title": "Van's Aircraft RV-9",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/VansRV-9AC-FBVP10.jpg/500px-VansRV-9AC-FBVP10.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Ahunt at English Wikipedia",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:VansRV-9AC-FBVP10.jpg"
+  },
+  "S22T": {
+   "code": "S22T",
+   "name": "Cirrus SR22T",
+   "title": "Cirrus SR22",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/Cirrus_SR-22_G3_GTS_AN1594917.jpg/500px-Cirrus_SR-22_G3_GTS_AN1594917.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Alan Lebeda",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cirrus_SR-22_G3_GTS_AN1594917.jpg"
   },
   "S76": {
    "code": "S76",
@@ -600,43 +1689,126 @@
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Pesca_1_(3737941060).jpg"
   },
+  "SF34": {
+   "code": "SF34",
+   "name": "Saab 340",
+   "title": "Saab 340",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Saab_340_G-LGNC_IMG_3425_%2811712072893%29.jpg/500px-Saab_340_G-LGNC_IMG_3425_%2811712072893%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Ronnie Robertson",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Saab_340_G-LGNC_IMG_3425_(11712072893).jpg"
+  },
+  "SF50": {
+   "code": "SF50",
+   "name": "Cirrus SF50 Vision Jet",
+   "title": "Cirrus Vision SF50",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/Cirrus_Vision_SF50_N124MW_cn_0009_%2828664083278%29.jpg/500px-Cirrus_Vision_SF50_N124MW_cn_0009_%2828664083278%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Markus Eigenheer from Genève, Schweiz",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cirrus_Vision_SF50_N124MW_cn_0009_(28664083278).jpg"
+  },
+  "SLG2": {
+   "code": "SLG2",
+   "name": "Airplane Factory Sling 2",
+   "title": "Sling Aircraft Sling 2",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/Sling2_OnGround_ZUSOL.jpg/500px-Sling2_OnGround_ZUSOL.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"Sling Aircraft Sling 2\"",
+   "artist": "Michael Blyth",
+   "licence": "CC0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Sling2_OnGround_ZUSOL.jpg"
+  },
+  "SR20": {
+   "code": "SR20",
+   "name": "Cirrus SR20",
+   "title": "Cirrus SR20",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/CIRRUS_DESIGN_CORP_SR20_N345BS_%282059%29_%285056614400%29.jpg/500px-CIRRUS_DESIGN_CORP_SR20_N345BS_%282059%29_%285056614400%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Tomás Del Coro from Las Vegas, Nevada",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:CIRRUS_DESIGN_CORP_SR20_N345BS_(2059)_(5056614400).jpg"
+  },
+  "SS2P": {
+   "code": "SS2P",
+   "name": "Rockwell Thrush Commander",
+   "title": "Ayres Thrush",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/AyresThrushC-GVVZ.JPG/500px-AyresThrushC-GVVZ.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"Ayres Thrush\"",
+   "artist": "Ahunt at English Wikipedia",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:AyresThrushC-GVVZ.JPG"
+  },
+  "ST75": {
+   "code": "ST75",
+   "name": "Stearman Kaydet",
+   "title": "Boeing-Stearman Model 75",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Boeing_PT-17-BW_Kaydet_%E2%80%9823_-_23_-_U.S.Navy%E2%80%99_%28N7058Q%29_%2850906088841%29.jpg/500px-Boeing_PT-17-BW_Kaydet_%E2%80%9823_-_23_-_U.S.Navy%E2%80%99_%28N7058Q%29_%2850906088841%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Alan Wilson",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Boeing_PT-17-BW_Kaydet_%E2%80%9823_-_23_-_U.S.Navy%E2%80%99_(N7058Q)_(50906088841).jpg"
+  },
   "SW4": {
    "code": "SW4",
-   "name": "SW4 (type not in this list)",
-   "title": "List of aircraft type designators",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Flag_of_ICAO.svg/500px-Flag_of_ICAO.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-   "confident": false,
-   "reason": "search matched \"List of aircraft type designators\"",
-   "artist": "International Civil Aviation Organization - specialized agency of t…",
-   "licence": "Public domain",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:Flag_of_ICAO.svg"
+   "name": "Swearingen Metro",
+   "title": "Fairchild Swearingen Metroliner",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/aa/VH-VEK_Fairchild_SA-227DC_Metro_23_Vee_H_Aviation_%2810877945016%29.jpg/500px-VH-VEK_Fairchild_SA-227DC_Metro_23_Vee_H_Aviation_%2810877945016%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Robert Frola",
+   "licence": "GFDL",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:VH-VEK_Fairchild_SA-227DC_Metro_23_Vee_H_Aviation_(10877945016).jpg"
   },
   "T206": {
    "code": "T206",
-   "name": "T206 (type not in this list)",
-   "title": "T206 Honus Wagner",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/Honus_wagner_t206_baseball_card.jpg/500px-Honus_wagner_t206_baseball_card.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "name": "Cessna T206 Turbo Stationair",
+   "title": "Cessna 206",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Cessna.206h.stationair2.arp.jpg/500px-Cessna.206h.stationair2.arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
    "reason": "search matched the type name",
-   "artist": "Unknown author Unknown author",
+   "artist": "Arpingstone",
    "licence": "Public domain",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:Honus_wagner_t206_baseball_card.jpg"
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna.206h.stationair2.arp.jpg"
+  },
+  "TBM9": {
+   "code": "TBM9",
+   "name": "Daher TBM 900",
+   "title": "SOCATA TBM",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Daher-Socata_TBM_900_Air_to_Air.jpg/500px-Daher-Socata_TBM_900_Air_to_Air.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": false,
+   "reason": "search matched \"SOCATA TBM\"",
+   "artist": "Michael Mainiero",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Daher-Socata_TBM_900_Air_to_Air.jpg"
+  },
+  "WW24": {
+   "code": "WW24",
+   "name": "IAI 1124 Westwind",
+   "title": "IAI Westwind",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/IAI_Westwind_%282323424886%29.jpg/500px-IAI_Westwind_%282323424886%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "search matched the type name",
+   "artist": "Eddie Maloney from North Las Vegas",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:IAI_Westwind_(2323424886).jpg"
   }
  },
  "missing": [
   {
+   "code": "A5",
+   "name": "A5 (type not in this list)",
+   "why": "no page image"
+  },
+  {
    "code": "C150",
    "name": "Cessna 150",
-   "why": "no page image"
-  },
-  {
-   "code": "C82R",
-   "name": "C82R (type not in this list)",
-   "why": "no page image"
-  },
-  {
-   "code": "EVSS",
-   "name": "EVSS (type not in this list)",
    "why": "no page image"
   },
   {
@@ -645,13 +1817,8 @@
    "why": "no page image"
   },
   {
-   "code": "LJ75",
-   "name": "LJ75 (type not in this list)",
-   "why": "no page image"
-  },
-  {
-   "code": "PA27",
-   "name": "PA27 (type not in this list)",
+   "code": "RCAL",
+   "name": "RCAL",
    "why": "no page image"
   }
  ]

@@ -374,14 +374,16 @@ test('the reader is offered KILOMETRES, and never the word "nm"', () => {
 });
 
 test('the type section exists and says the list is measured, not remembered', () => {
-  assert.match(htmlCode, /<section class="card" id="step-3">/);
+  // ⚠️ TOLERANT OF THE REST OF THE TAG, because the section carries its step class and its
+  // hidden state as well — a pattern demanding `class="card"` exactly failed a correct page.
+  assert.match(htmlCode, /<section[^>]*class="[^"]*\bcard\b[^"]*"[^>]*id="step-3"/);
   assert.match(htmlCode, /id="typeList"/);
   assert.match(htmlCode, /id="typeFilter"/);
   assert.match(htmlCode, /measured, not remembered/i);
 });
 
 test('what you are watching is its own section, and tail numbers are optional', () => {
-  assert.match(htmlCode, /<section class="card" id="step-4">/);
+  assert.match(htmlCode, /<section[^>]*class="[^"]*\bcard\b[^"]*"[^>]*id="step-4"/);
   assert.match(htmlCode, /<ul class="watchlist" id="watchList"><\/ul>/);
   assert.match(htmlCode, /Narrow to a tail number/);
 });
@@ -404,7 +406,9 @@ test('types.json exists, is honest about its method, and is not empty', () => {
   assert.ok(survey.types.length >= 10, `only ${survey.types.length} types were measured`);
   assert.ok(survey.aircraftInspected > 100, 'the sample is too small to call a list');
   // The page shows these words, so they have to be there and they have to be true.
-  assert.match(survey.method, /rounds? of \d+ nm/);
+  // The radius is written in the unit the READER chose, which is kilometres — it was nm once,
+  // and the page then said so in a unit nobody had asked for.
+  assert.match(survey.method, /rounds? of \d+ km/);
   assert.match(String(survey.counted), /sighting/i);
   assert.ok(typeof survey.generated === 'string' && survey.generated.length >= 10);
 });
@@ -563,7 +567,10 @@ test('the rate limit is caught by its STATUS, before anything tries to parse the
 test('the warplanes class holds the historic codes, read from the feed own database', () => {
   const source = readSrc('src/typeinfo.ts');
   assert.match(source, /'military'/, 'there is no military class');
-  assert.match(source, /military: 'Warplanes'/, 'the class is not called Warplanes');
+  // 🔴 RENAMED, AND THE OLD NAME WAS THE BUG. `Warplanes` put the Cessna 172 and the Dash 8
+  // under a war label — the note above the table says so at length.
+  assert.match(source, /military: 'Heritage & war planes'/,
+    "the class is no longer called 'Heritage & war planes'");
   assert.match(source, /LANC: \['Avro Lancaster', 'military'\]/, 'the Lancaster is not a warplane type');
   assert.match(source, /tar1090-db/, 'the codes must cite the database they were read from');
   assert.match(source, /C07DD7;C-GVRA;LANC/, 'the Lancaster entry must carry the line it was verified from');
