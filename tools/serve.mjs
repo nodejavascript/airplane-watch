@@ -137,7 +137,7 @@ function normaliseRoute(payload) {
  * 200. Node sends no user agent by default, so a proxy that forgets this gets a
  * 403 that looks like the feed being down.
  */
-const USER_AGENT = 'aircraft-demo (local development)';
+const USER_AGENT = 'planewatch (local development)';
 
 function upstreamPath(requestUrl) {
   const url = new URL(requestUrl, 'http://localhost');
@@ -1022,5 +1022,5 @@ const server = createServer((request, response) => {
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`aircraft-demo → http://127.0.0.1:${PORT}/  (proxying /api to ${UPSTREAM})`);
+  console.log(`planewatch → http://127.0.0.1:${PORT}/  (proxying /api to ${UPSTREAM})`);
 });

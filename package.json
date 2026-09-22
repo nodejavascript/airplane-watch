@@ -1,9 +1,9 @@
 {
-  "name": "aircraft-demo",
+  "name": "planewatch",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Watch a named aircraft leave a named airport, and be told when it does. Static site for aircraft-demo.nodejavascript.com",
+  "description": "Watch a named aircraft leave a named airport, and be told when it does. Static site for planewatch.nodejavascript.com",
   "scripts": {
     "build": "tsc",
     "serve": "npm run build && node tools/serve.mjs",

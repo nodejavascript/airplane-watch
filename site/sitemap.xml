@@ -5,7 +5,7 @@
      fragment is not a page. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://aircraft-demo.nodejavascript.com/</loc>
+    <loc>https://planewatch.nodejavascript.com/</loc>
     <lastmod>2026-09-20</lastmod>
     <changefreq>weekly</changefreq>
   </url>

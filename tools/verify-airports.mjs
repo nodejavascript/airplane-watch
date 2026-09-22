@@ -38,7 +38,7 @@ function identifiersFromSource() {
 async function ask(icao) {
   for (let attempt = 1; attempt <= 4; attempt += 1) {
     const response = await fetch(`${UPSTREAM}/api/0/airport/${icao}`, {
-      headers: { accept: 'application/json', 'user-agent': 'aircraft-demo airport check' },
+      headers: { accept: 'application/json', 'user-agent': 'planewatch airport check' },
       signal: AbortSignal.timeout(20_000),
     });
     if (response.status === 429) {

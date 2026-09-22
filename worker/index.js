@@ -3,7 +3,7 @@
  *
  * The page calls `/api/...` on its OWN origin. In development that is handled by
  * tools/serve.mjs. In production it is handled here, on a route bound to
- * `aircraft-demo.nodejavascript.com/api/*`.
+ * `planewatch.nodejavascript.com/api/*`.
  *
  * 🔴 WHY A PROXY, AND WHY IT CANNOT BE AVOIDED — measured 20 Sep 2026.
  * `api.adsb.lol` answers a plain GET with **no `Access-Control-Allow-Origin`
@@ -198,7 +198,7 @@ async function servePhoto(raw) {
  * user agent → 200. So a request with no user agent is refused, and the failure
  * looks like the feed being down rather than like the request being turned away.
  */
-const USER_AGENT = 'aircraft-demo.nodejavascript.com';
+const USER_AGENT = 'planewatch.nodejavascript.com';
 
 /**
  * A place, searched by NAME.
@@ -468,7 +468,7 @@ export default {
     let upstream;
     try {
       upstream = await fetch(target, {
-        headers: { accept: 'application/json', 'user-agent': 'aircraft-demo.nodejavascript.com' },
+        headers: { accept: 'application/json', 'user-agent': 'planewatch.nodejavascript.com' },
         signal: AbortSignal.timeout(12_000),
       });
     } catch (error) {

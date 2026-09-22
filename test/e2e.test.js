@@ -263,7 +263,7 @@ test('no URL ending in .html is served as a page', async () => {
 test('robots.txt and the sitemap answer, and the sitemap lists one URL', async () => {
   const robots = await fetch(`${BASE}robots.txt`);
   assert.equal(robots.status, 200);
-  assert.match(await robots.text(), /Sitemap: https:\/\/aircraft-demo\.nodejavascript\.com\/sitemap\.xml/);
+  assert.match(await robots.text(), /Sitemap: https:\/\/planewatch\.nodejavascript\.com\/sitemap\.xml/);
 
   const sitemap = await fetch(`${BASE}sitemap.xml`);
   assert.equal(sitemap.status, 200);

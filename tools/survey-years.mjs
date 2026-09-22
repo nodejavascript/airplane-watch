@@ -54,7 +54,7 @@ const aliases = existsSync(ALIAS_FILE)
  * for. A request with no user agent is refused by some of their edges.
  */
 const UA = {
-  'user-agent': 'aircraft-demo/1.0 (https://aircraft-demo.nodejavascript.com; [redacted])',
+  'user-agent': 'planewatch/1.0 (+https://planewatch.nodejavascript.com)',
   accept: 'application/json',
 };
 const API = 'https://www.wikidata.org/w/api.php';

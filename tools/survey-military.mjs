@@ -42,7 +42,7 @@ const FEED = 'https://api.adsb.lol';
  *   no user-agent header      → 403 Forbidden
  *   `accept: application/json` only → 403 Forbidden
  *   `user-agent: curl/8.5.0`  → 200 OK
- *   `user-agent: aircraft-demo/1.0 (+https://…)` → 200 OK
+ *   `user-agent: planewatch/1.0 (+https://…)` → 200 OK
  *   a browser user agent      → 200 OK
  *
  * So a request with no user agent at all is refused, which is exactly what Node
@@ -51,7 +51,7 @@ const FEED = 'https://api.adsb.lol';
  */
 const HEADERS = {
   accept: 'application/json',
-  'user-agent': 'aircraft-demo/1.0 (+https://aircraft-demo.nodejavascript.com; tools/survey-military.mjs)',
+  'user-agent': 'planewatch/1.0 (+https://planewatch.nodejavascript.com; tools/survey-military.mjs)',
 };
 
 /** The feed is volunteer-funded and rate-limits. Measured: 429 after a handful. */

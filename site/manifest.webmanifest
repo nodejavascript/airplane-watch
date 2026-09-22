@@ -1,6 +1,6 @@
 {
-  "name": "aircraft-demo",
-  "short_name": "aircraft-demo",
+  "name": "planewatch",
+  "short_name": "planewatch",
   "description": "Watch a named aircraft leave a named airport.",
   "start_url": "/",
   "display": "standalone",

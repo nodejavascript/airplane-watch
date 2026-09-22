@@ -60,7 +60,7 @@ const tally = new Map();
 async function json(path) {
   for (let attempt = 1; attempt <= 4; attempt += 1) {
     const response = await fetch(UPSTREAM + path, {
-      headers: { accept: 'application/json', 'user-agent': 'aircraft-demo type survey' },
+      headers: { accept: 'application/json', 'user-agent': 'planewatch type survey' },
       signal: AbortSignal.timeout(20_000),
     });
     if (response.status === 429) {

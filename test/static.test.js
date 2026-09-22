@@ -26,7 +26,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const SITE = join(ROOT, 'site');
 
-const HOST = 'aircraft-demo.nodejavascript.com';
+const HOST = 'planewatch.nodejavascript.com';
 const THEME = '#38bdf8';
 const BACKGROUND = '#04101a';
 
@@ -160,7 +160,7 @@ test('3 · the brand goes to THIS SITE, not to nodejavascript.com', () => {
 test('3 · the mark, the label and the parent name are all in the bar', () => {
   const header = htmlCode.match(/<header[\s\S]*?<\/header>/)[0];
   assert.match(header, /class="mark"/);
-  assert.match(header, /<b>aircraft-demo<\/b>/);
+  assert.match(header, /<b>planewatch<\/b>/);
   assert.match(header, /<small>nodejavascript\.com<\/small>/);
 });
 
@@ -367,15 +367,22 @@ test('detect.js ships as plain JavaScript the browser can run', () => {
 
 /* ------------------------------------------------- kilometres, not nm --- */
 
-test('the reader is offered KILOMETRES, and never the word "nm"', () => {
+test('the reader is offered KILOMETRES, and never the word "nm" in a label', () => {
   // "nobody understand nm" — George, 20 Sep 2026. A nautical mile is an aviation
   // unit and a visitor arriving here is not obliged to know one, so distances the
   // READER MEETS are in km. The word may appear in a comment explaining the
   // conversion, which is why the comments are stripped first.
+  //
+  // 🔴 AND THE UNIT NOW LIVES IN THE CODE, NOT IN THE MARKUP. The distance chips are built by
+  // `buildRadiusButtons()`, so `index.html` carries no distance at all any more — this check used to
+  // read the page and pass, and it read the page and failed the moment the chips moved into script. The
+  // rule is unchanged; the place it can be read from is the chip's own label and tooltip.
   const visible = htmlCode + css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const app = readSrc('src/app.ts');
   assert.equal(/\bnm\b/.test(htmlCode), false, 'the page shows "nm" to the reader');
-  assert.match(htmlCode, /\bkm\b/, 'no distance in kilometres anywhere on the page');
-  assert.match(htmlCode, /kilometres/, 'the page never says the distances are kilometres');
+  assert.match(app, /km === RADIUS_ALL \? 'All' : `\$\{km\} km`/,
+    'the distance chips do not print kilometres');
+  assert.match(app, /`\$\{km\} kilometres`/, 'the tooltip never says the distances are kilometres');
   assert.ok(visible.length > 0);
 });
 
@@ -385,22 +392,37 @@ test('the type section exists and says the list is measured, not remembered', ()
   assert.match(htmlCode, /<section[^>]*class="[^"]*\bcard\b[^"]*"[^>]*id="step-3"/);
   assert.match(htmlCode, /id="typeList"/);
   assert.match(htmlCode, /id="typeFilter"/);
-  assert.match(htmlCode, /measured, not remembered/i);
+  // The sentence changed with the section: it now says the list is what was MEASURED, in those words.
+  assert.match(htmlCode, /measured from the feed/i);
 });
 
 test('what you are watching is its own section, and tail numbers are optional', () => {
+  const app = readSrc('src/app.ts');
   assert.match(htmlCode, /<section[^>]*class="[^"]*\bcard\b[^"]*"[^>]*id="step-4"/);
-  assert.match(htmlCode, /<ul class="watchlist" id="watchList"><\/ul>/);
-  assert.match(htmlCode, /Narrow to a tail number/);
+  assert.match(htmlCode, /<ul class="watch-list" id="watchList"><\/ul>/);
+  // 🔴 THE RULE IS THAT A TYPE CAN BE WATCHED WHOLE OR NARROWED TO TAIL NUMBERS, and it is still true —
+  // but the box it used to be asked in is gone. *Prior assertion, preserved and now dead:* the page was
+  // checked for the words "Narrow to a tail number", which was a text box inside every watched row.
+  // George removed that row ("no more features"), and tails are now ticked where the types are, so the
+  // rule is read where it lives: a rule with tails is a narrowed rule.
+  assert.match(app, /const narrowed = rule\.tails\.length > 0/,
+    'nothing distinguishes a whole-type rule from one narrowed to tail numbers');
 });
 
 test('the range limiter is on the page, not hidden behind a wrong number', () => {
   // Measured 20 Sep 2026: seven airports polled back to back had five refused by
   // the third round. Hiding that behind "0 aircraft" would be a lie about a rate
   // limit, and the reader would think the sky was empty.
-  assert.match(htmlCode, /429/);
+  //
+  // 🔴 THE SENTENCE IS WRITTEN IN SCRIPT, SO IT IS READ THERE. The page's markup no longer carries the
+  // reader-facing words at all — `feedTrouble()` composes them — and this check had been reading the
+  // markup for "429" and for "slow down", which is a fact about where a sentence lives rather than
+  // about whether the rate limit is explained.
+  const app = readSrc('src/app.ts');
+  assert.match(app, /status === 429/);
+  assert.match(app, /The feed asked us to slow down \(HTTP 429\)/,
+    'a rate limit is still not explained to the reader in the response the page would show');
   assert.match(appJs, /status === 429/);
-  assert.match(appJs, /slow down/);
 });
 
 /* ------------------------------------------- the measured type list --- */

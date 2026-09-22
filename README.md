@@ -1,8 +1,8 @@
-# aircraft-demo
+# planewatch
 
 Watch a named aircraft leave a named airport, and be told when it does.
 
-Live: **https://aircraft-demo.nodejavascript.com** *(not yet deployed — see below)*
+Live: **https://planewatch.nodejavascript.com** *(not yet deployed — see below)*
 Local: `npm run serve` → http://127.0.0.1:4340/
 
 ## What it does
@@ -257,7 +257,7 @@ House rule **7a**: DNS is created at deployment, never before. This is a demo on
 port, not a subdomain, so four things do not exist yet and are made together on
 the day it goes live:
 
-1. the DNS record for `aircraft-demo.nodejavascript.com`
+1. the DNS record for `planewatch.nodejavascript.com`
 2. its own Google Analytics property in the `mcp` account, named with the full domain
 3. its row in the family theme register
 4. its link from `nodejavascript.com`
