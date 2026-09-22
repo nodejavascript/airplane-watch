@@ -1747,8 +1747,8 @@ class Page {
       // there and none of them the reader's.
       body.innerHTML =
         all.length === 0
-          ? '<tr><td colspan="7" class="muted">Nothing in the fence at this moment. Aircraft appear and disappear as they pass.</td></tr>'
-          : '<tr><td colspan="7" class="muted">Nothing in the fence matches what you picked. ' +
+          ? '<tr><td colspan="6" class="muted">Nothing in the fence at this moment. Aircraft appear and disappear as they pass.</td></tr>'
+          : '<tr><td colspan="6" class="muted">Nothing in the fence matches what you picked. ' +
             `The feed can see ${all.length} aircraft right now, and none of them is on your list — ` +
             'star a type in step 3, or name a tail number, and they will appear here.</td></tr>';
       // 🔴 THE MAP IS DRAWN ON THIS PATH TOO, AND IT DID NOT USE TO BE.
@@ -1772,10 +1772,16 @@ class Page {
     // column on the row it belongs to, and the rows are still SORTED by type, so the list reads in
     // exactly the order it did before — without the line that did not fit its own columns.
     //
-    // 🔴 AND EVERY AIRPORT CODE IS FOLLOWED BY THE PLACE IT STANDS FOR. George, 22 Sep 2026: *"for
-    // departure and destinate can you put the city, state besides them"*. A four-letter code is
-    // precise and useless to anybody who has not memorised four thousand of them, so the row says
-    // which city it means, from the airport file this page already carries.
+    // 🔴 THE AIRPORT COLUMN IS GONE, AND THE ROUTE CARRIES ITS OWN CITIES. George, 22 Sep 2026:
+    // *"remove airport column, and move the DESTINATION column to be the first column"*. The column
+    // said which airport the aeroplane was nearest — a fact about WHERE IT IS, on a row that already
+    // answers that twice over with the bearing and the position, and it was the widest cell on a
+    // table that has had to be narrowed twice. The city now rides with the code it belongs to, in the
+    // one cell where a four-letter code without a place beside it would be a code nobody can read.
+    //
+    // ⚠️ THE NEAREST AIRPORT IS STILL WORKED OUT, because it still orders the list. Two aircraft of
+    // the same type, passing two different airports, hold a stable order that way instead of sorting
+    // by nothing; it is simply no longer printed.
     const rowsSorted = rows
       .map((state) => ({ state, airport: this.nearestAirportTo(state) }))
       .sort((a, b) => {
@@ -1789,7 +1795,7 @@ class Page {
       });
 
     const html: string[] = [];
-    for (const { state, airport } of rowsSorted) {
+    for (const { state } of rowsSorted) {
       const label = state.callsign || state.registration || state.hex;
       // 🔴 NAMED BY THE READER, OR CAUGHT BY A TYPE THEY STARRED. Every row here is
       // selected — that is the whole point of the filter above — so the highlight can no
@@ -1811,9 +1817,15 @@ class Page {
         // saying there was nothing to show. Measured: one rewritten test passed on the
         // placeholder alone, which is a false pass, and a false pass is worse than a
         // failure because it is read as cover.
+        // 🔴 THE DESTINATION IS THE FIRST COLUMN, AND IT READS IN THE DIRECTION IT TRAVELLED. George,
+        // 22 Sep 2026: *"move the DESTINATION column to be the first column, and use from and to with
+        // a little arrow, not to and from"*. It led with the arrival airport and mentioned the
+        // departure underneath, which is the fact in the wrong order — a reader wants to know where it
+        // came FROM before they are told where it is going, and the arrow is what carries the one to
+        // the other. The cell itself is built by `destinationCell`, so the three states an answer can
+        // be in — on its way, none on file, and known — are all decided in one place.
         `<tr class="aircraft-row${byName ? ' watched-row' : ''}">` +
-        `<td class="mono">${airport ? escapeHtml(airport) : '<span class="muted">not placed</span>'}` +
-        `${this.placeSpan(airport)}</td>` +
+        this.destinationCell(this.routeOf(state.callsign)) +
         `<td>${
           info
             ? `<span class="mono">${escapeHtml(info.code)}</span>` +
@@ -1840,7 +1852,6 @@ class Page {
         // second way to do the same thing, in the one place a reader is trying to read.
         // Four decimals is about eleven metres, which is as much as the position means.
         `<td class="mono pos">${positionText(state)}</td>` +
-        this.destinationCell(this.routeOf(state.callsign)) +
         '</tr>'
       );
     }
@@ -1869,28 +1880,6 @@ class Page {
     // And the row's own status is brought up to date in the same pass, so the row and the map
     // cannot describe different moments — see `tickWatchStates`.
     this.tickWatchStates();
-  }
-
-  /**
-   * The city an airport code stands for, from the airport file this page already carries —
-   * "Hamilton, CA", never a code on its own. Empty when the code is not one of the airports the
-   * site holds, because inventing a city from a four-letter code is the failure this project keeps
-   * having to remove.
-   */
-  private cityOf(icao: string): string {
-    const listed = this.findListed(icao);
-    if (!listed) return '';
-    return [listed.location, listed.country]
-      .map((part) => String(part ?? '').trim())
-      .filter((part) => part !== '')
-      .join(', ');
-  }
-
-  /** The city under an airport code, as markup — or nothing at all when there is none to give. */
-  private placeSpan(icao: string | null): string {
-    if (!icao) return '';
-    const city = this.cityOf(icao);
-    return city === '' ? '' : `<span class="cell-city">${escapeHtml(city)}</span>`;
   }
 
   /**
@@ -1976,8 +1965,18 @@ class Page {
   }
 
   /**
-   * The destination cell: where it is going, where it left from, and — when there is nothing on
-   * file — a dash that says so rather than a blank.
+   * The route cell — which LEADS the row — in one direction, from where it came to where it is going.
+   *
+   * 🔴 IT READS `from … → to …`, IN THAT ORDER. George, 22 Sep 2026: *"use from and to with a little
+   * arrow, not to and from"*. The cell used to open with the ARRIVAL airport and mention the departure
+   * underneath, which is the direction the route is booked in rather than the direction a reader reads
+   * it: the question in front of them is where this aeroplane came from, and the arrow is what carries
+   * them from one end to the other. Each leg keeps its own city, because a four-letter code on its own
+   * is the thing this page has already had to fix once.
+   *
+   * Three states, and all three say something: still being looked up, nothing on file, and known. A
+   * dash is never a blank, because "nobody has a route for this callsign" and "this page has not
+   * finished asking" are different answers and a reader is entitled to tell them apart.
    */
   private destinationCell(route: RouteInfo | null | undefined): string {
     if (route === undefined) {
@@ -1997,7 +1996,7 @@ class Page {
     // 🔴 THE BRACKETS GO, AND THE COLUMN NARROWS WITH THEM. `San José (Alajuela)` is the airport's own
     // way of naming the city and it is twice as long as the city is: `stripBrackets` is the same
     // helper the place line uses, and the full name stays in the title for anyone who wants it.
-    const place = [stripBrackets(destination.city), destination.country]
+    const to = [stripBrackets(destination.city), destination.country]
       .filter((part) => part !== '')
       .join(', ');
     const from = [stripBrackets(origin.city), origin.country]
@@ -2007,12 +2006,21 @@ class Page {
       `On file for this callsign: ${origin.icao} ${origin.city}` +
       ` → ${destination.icao} ${destination.city}${airline ? ` · ${airline}` : ''}.` +
       ' A route is looked up, not transmitted by the aircraft, so a diversion or a reused callsign can make it wrong.';
+    // 🔴 TWO LEGS, STACKED, WITH THE ARROW OPENING THE SECOND. Side by side the pair would set the
+    // width of the widest column on the table — which is what the airport column was doing when it was
+    // taken out. Stacked, the widest line is a city and a country.
     return (
       `<td class="mono dest" title="${escapeHtml(whole)}">` +
-      `${escapeHtml(destination.icao)}` +
-      (place ? `<span class="cell-city">${escapeHtml(place)}</span>` : '') +
-      `<span class="dest-from">from ${escapeHtml(origin.icao)}` +
-      (from ? ` · ${escapeHtml(from)}` : '') +
+      `<span class="dest-leg dest-from">` +
+      '<span class="dest-label">from</span> ' +
+      `<b>${escapeHtml(origin.icao)}</b>` +
+      (from ? ` <span class="cell-city">${escapeHtml(from)}</span>` : '') +
+      '</span>' +
+      `<span class="dest-leg dest-to">` +
+      '<span class="dest-arrow" aria-hidden="true">→</span>' +
+      '<span class="dest-label">to</span> ' +
+      `<b>${escapeHtml(destination.icao)}</b>` +
+      (to ? ` <span class="cell-city">${escapeHtml(to)}</span>` : '') +
       '</span></td>'
     );
   }

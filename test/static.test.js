@@ -1727,3 +1727,66 @@ test('93 · a re-aim hands the remembered tracks over instead of starting from n
   assert.equal(/firedAt/.test(handover), false,
     'the handover carries the departure cooldown as well, which would silence a real departure');
 });
+
+test('94 · the route leads the row, and reads from → to', () => {
+  const page = read(SITE, 'index.html');
+  const head = page.slice(page.indexOf('<thead>'), page.indexOf('</thead>'));
+  assert.ok(head.length > 40, 'the table head could not be isolated, so this check is vacuous');
+
+  // 🔴 THE ROUTE IS THE FIRST COLUMN. George, 22 Sep 2026: *"move the DESTINATION column to be the
+  // first column"*. Asserted as an ORDER rather than as a presence, because a column that exists but
+  // sits last has not been moved.
+  const dest = head.indexOf('Destination</th>');
+  const type = head.indexOf('Type</th>');
+  assert.ok(dest > -1, 'the route column is gone from the head');
+  assert.ok(dest < type, 'the route column is not the first one');
+
+  // 🔴 AND THE AIRPORT COLUMN IS GONE, in the head and in the row that is built under it.
+  assert.equal(/Airport<\/th>/.test(head), false, 'the airport column is still in the head');
+  const app = readSrc('src/app.ts');
+  assert.equal(/placeSpan|private cityOf\(/.test(app), false,
+    'the helper that fed the airport column survives, so the column was hidden rather than removed');
+
+  // 🔴 AND THE FIRST CELL ON A REAL ROW IS THE ROUTE. The head and the row are built in two different
+  // files, so a head that leads with the route over a row that leads with something else is a table
+  // whose headings do not describe its cells — the exact fault the group line used to cause.
+  //
+  // ⚠️ THE CLOSING TAG IS SEARCHED FOR FROM THE ROW'S OWN START. `indexOf('</tr>')` on the whole file
+  // finds one inside the empty-state sentence ABOVE this row — `'<tr><td colspan="6" …></tr>'` — which
+  // is earlier in the file, so the slice came back empty and the check failed on a file that was
+  // correct. That is a false failure, which is worse than no check, so the search starts at the row.
+  const rowFrom = app.indexOf('aircraft-row${');
+  assert.ok(rowFrom > -1, 'the row markup is gone');
+  const row = app.slice(rowFrom, app.indexOf('</tr>', rowFrom));
+  assert.ok(row.length > 200, 'the row could not be isolated, so this check is vacuous');
+  assert.ok(row.indexOf('this.destinationCell(') < row.indexOf('<td>${'),
+    'the route is not the first cell on the row');
+
+  // 🔴 `from`, THEN THE ARROW, THEN `to`. The complaint was the ORDER — *"use from and to with a
+  // little arrow, not to and from"* — so the order is what is checked, not merely that all three
+  // words appear somewhere in the file.
+  const cell = app.slice(app.indexOf('private destinationCell'), app.indexOf('private tickReadingAges'));
+  const label = (word) => cell.indexOf(`dest-label">${word}`);
+  const arrow = cell.indexOf('dest-arrow');
+  assert.ok(label('from') > -1, 'the first leg is not labelled');
+  assert.ok(label('to') > -1, 'the second leg is not labelled');
+  assert.ok(arrow > -1, 'there is no arrow between the two legs');
+  assert.ok(label('from') < arrow, 'the arrow comes before the leg it leads into, which reads to and from');
+  assert.ok(label('to') > arrow, 'the arrival leg is printed before the arrow, which reads to and from');
+
+  // 🔴 AND THE TWO LEGS DO NOT EACH COME APART INTO FOUR LINES. The place name beside a code is
+  // `display: block` in the rule it keeps from the column that was removed, and left that way each leg
+  // would stack its own city underneath it.
+  const styles = read(SITE, 'styles.css');
+  const place = styles.slice(styles.indexOf('.cell-city {'), styles.indexOf('}', styles.indexOf('.cell-city {')));
+  assert.ok(place.length > 20, 'the place rule could not be isolated, so this check is vacuous');
+  assert.equal(/display:\s*block/.test(place), false,
+    'the place beside a code still breaks the line, so each route leg takes two lines instead of one');
+  assert.match(styles, /\.dest-leg\s*\{[^}]*display:\s*block/, 'the two legs do not stack');
+
+  // A placeholder cell has to span the columns that are actually there, or the empty table is drawn
+  // with a column missing.
+  assert.equal(/colspan="7"/.test(page) || /colspan="7"/.test(app), false,
+    'a cell still claims seven columns on a six-column table');
+  assert.match(page, /colspan="6"/, 'the placeholder cell does not span the table');
+});

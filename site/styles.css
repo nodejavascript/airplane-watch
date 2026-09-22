@@ -692,16 +692,19 @@ main {
 }
 
 /* ---------------------------------------------------------------------------
- * THE PLACE AN AIRPORT CODE STANDS FOR, UNDER THE CODE.
+ * THE PLACE AN AIRPORT CODE STANDS FOR, BESIDE THE CODE.
  *
  * George, 22 Sep 2026: *"for departure and destinate can you put the city, state besides them"*.
  * A four-letter code is precise and useless to anybody who has not memorised the world's airports,
- * so every code in this table is followed by the place it means. It goes on its own line so a
- * column of codes stays a column the eye can run down, while the name stays attached to the thing
- * it names.
+ * so no code is printed anywhere on this page without the place it means next to it.
+ *
+ * 🔴 IT USED TO BE `display: block` UNDER THE CODE, AND IT CANNOT BE ANY MORE. It rode under the
+ * airport code in a column of its own; that column is gone (22 Sep 2026) and the place now sits
+ * beside its code inside the route cell — and a `block` there would put each city on a line of its
+ * own and turn a two-line route into four. It keeps its own non-monospace face so the name reads as
+ * a place while the code beside it still reads as a code.
  * ------------------------------------------------------------------------ */
 .cell-city {
-  display: block;
   font-family: var(--font, inherit);
   font-size: 11.5px;
   line-height: 1.35;
@@ -725,13 +728,42 @@ main {
   white-space: nowrap;
 }
 
-/* "from KMCO · Orlando, US" — the other end of the route this site looked up. */
-.dest-from {
+/* ---------------------------------------------------------------------------
+ * THE ROUTE, LEADING THE ROW: `from KDTW → to CYYZ`.
+ *
+ * George, 22 Sep 2026: *"move the DESTINATION column to be the first column, and use from and to
+ * with a little arrow, not to and from"*. It leads because it is the one thing on the row that is
+ * not a reading: where the aeroplane came from and where it is going is the question a reader has
+ * before they ask anything of an altitude.
+ *
+ * 🔴 TWO LEGS, STACKED, WITH THE ARROW OPENING THE SECOND. Side by side they would set the width of
+ * the widest column on a table that has had to be narrowed twice — which is what the airport column
+ * was doing when it was taken out. Stacked, the widest line is one city and its country.
+ *
+ * 🔴 AND THE LEG THAT IS THE ANSWER IS THE BRIGHTER ONE. `from` is context and stays muted; `to` is
+ * what the reader came for, in the cell's own colour. Both labels are quiet and small, because a
+ * label that competes with its value is a label nobody reads.
+ * ------------------------------------------------------------------------ */
+.dest-leg {
   display: block;
   font-size: 11.5px;
-  line-height: 1.35;
-  color: var(--muted);
+  line-height: 1.4;
   white-space: nowrap;
+}
+.dest-from {
+  color: var(--muted);
+}
+.dest-label {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* The little arrow. It opens the second leg, so it takes the margin that puts a space between itself
+ * and the label it leads — not the space after it, which belongs to the label. */
+.dest-arrow {
+  margin-right: 4px;
+  color: var(--muted);
 }
 
 /* A route still being looked up, and one that is not on file, are both quiet — but they say

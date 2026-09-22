@@ -82,11 +82,15 @@ Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
 
 ## The table, the trail and the card that went (22 Sep 2026)
 
-- **Every row names its own type, and every airport code carries its city.** The table used to name a type in
+- **The route leads the row, and the airport column is gone.** The table used to name a type in
   a full-width `<tr>`, which read as a row that did not fit its own columns — *"the line in the middle is
-  confusing"* — and said only "1 aircraft" when a type had one example. The rows are still sorted by type.
-  Beside `CYHM` sits `Hamilton, CA`, because a four-letter code is precise and useless to anyone who has not
-  memorised four thousand of them.
+  confusing"* — and said only "1 aircraft" when a type had one example; the rows are still sorted by type.
+  The nearest airport had a column of its own, and it went on 22 Sep 2026 — *"remove airport column, and
+  move the DESTINATION column to be the first column"* — because it answered a question the same row
+  already answers twice, with the bearing and the position. The route now leads, in the direction a reader
+  reads it: **`from KDTW → to CYYZ`**, each leg carrying its own city, because a four-letter code is
+  precise and useless to anyone who has not memorised four thousand of them. Every code in the table is
+  still printed with the place it means beside it.
 - **Destination is looked up, not heard, and the card says so.** Measured 22 Sep 2026: the feed's own callsign
   endpoint returns hex, registration, type, altitude and track — and no origin, destination or route. ADS-B
   carries who the aircraft is, never where it is booked to. So `Destination` comes from a free callsign lookup

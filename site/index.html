@@ -379,17 +379,23 @@
             <caption class="visually-hidden">Aircraft currently inside the fence that match the types and tail numbers you picked, sorted by type</caption>
             <thead>
               <tr>
-                <th scope="col">Airport</th>
+                <!--
+                  🔴 THE ROUTE LEADS, AND THE AIRPORT COLUMN IS GONE. George, 22 Sep 2026: *"remove
+                  airport column, and move the DESTINATION column to be the first column, and use from
+                  and to with a little arrow, not to and from"*. It is the one thing on the row that is
+                  not a reading — where it came from and where it is going is the question a reader has
+                  before they ask anything of an altitude — so it goes first.
+                -->
+                <th scope="col">Destination</th>
                 <th scope="col">Type</th>
                 <th scope="col">Callsign</th>
                 <th scope="col">Phase</th>
                 <th scope="col">Bearing</th>
                 <th scope="col">Position</th>
-                <th scope="col">Destination</th>
               </tr>
             </thead>
             <tbody id="aircraftBody">
-              <tr><td colspan="7" class="muted">Waiting for the first poll…</td></tr>
+              <tr><td colspan="6" class="muted">Waiting for the first poll…</td></tr>
             </tbody>
           </table>
         </div>
