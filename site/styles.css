@@ -284,6 +284,58 @@ main {
 }
 
 /* -------------------------------------------------------------- controls --- */
+/* ---------------------------------------------------------------------------
+ * 🔴 ONE PANEL, FOUR ALIGNED ROWS — THE FILTERS ARE THE ONE PLACE THE EYE SHOULD BE ABLE TO
+ * SCAN DOWN.
+ *
+ * George, 22 Sep 2026, looking at it: *"the filtering section is ugly look at it, its too
+ * cluttered"*. The clutter was structural: four rows of pills with a label floating at the start of
+ * each, each row wrapping wherever it ran out of width (`Interesting` alone under Kind; `this year /
+ * no data` alone under Last seen), so nothing lined up with anything.
+ *
+ * The fix is a grid, and it is three things: the labels sit in a fixed, right-aligned column so they
+ * read as a list of their own; every row's chips begin at the same x, wrapped lines included; and the
+ * whole block is one bordered panel rather than four stray lines.
+ *
+ * ⚠️ THE PADDING COMES DOWN WITH IT. The chips were sized for a page where a filter row was the only
+ * thing in its card; inside a panel with four of them, at 8px of padding and 14px of type, twenty-eight
+ * pills become a wall. At 4px and 12.5px they are still comfortably pressable — the whole chip is the
+ * target, not the text — and the widest row now fits on one line.
+ * ------------------------------------------------------------------------ */
+.filters {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(4, 16, 26, 0.35);
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+}
+
+.filter-row .chip-label {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.filter-row .chips {
+  margin: 0;
+  gap: 5px;
+}
+
+.filter-row .chip {
+  padding: 4px 10px;
+  font-size: 12.5px;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

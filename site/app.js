@@ -822,12 +822,6 @@ class Page {
         if (!host)
             return;
         host.innerHTML = '';
-        // 🔴 AND IT WEARS THE SAME LABEL AS THE OTHER THREE FILTER ROWS. George, 22 Sep 2026: *"### How far
-        // out from you? iws not the same font and color as the others, call is distance instead"*. It was an
-        // `<h3 class="subhead">`, which is the heading the page uses for a section — so the fourth filter
-        // was drawn as a section title, in different type from `Kind`, `Year` and `Last seen` beside it.
-        // One word, `Distance`, in the same `chip-label` span as the rest.
-        this.labelChips(host, 'Distance', 'radiusButtonsLabel');
         for (const km of RADIUS_LADDER) {
             const button = document.createElement('button');
             button.type = 'button';
@@ -881,7 +875,6 @@ class Page {
         if (!host)
             return;
         host.innerHTML = '';
-        this.labelChips(host, 'Kind', 'typeFilterLabel');
         // 🔴 WARPLANES FIRST. George, 20 Sep 2026: *"war plans should be first
         // option"*. It is the one filter somebody arriving at this page is most
         // likely to be looking for — it is the whole reason the class was asked for —
@@ -2144,20 +2137,25 @@ class Page {
      * points at it — which is also better for a screen reader than the invisible `aria-label` it
      * replaces, because what is announced is now the text the reader can see.
      */
-    labelChips(host, text, id) {
-        const label = document.createElement('span');
-        label.className = 'chip-label';
-        label.id = id;
-        label.textContent = text;
-        host.appendChild(label);
-        host.setAttribute('aria-labelledby', id);
-    }
+    /*
+     * 🔴 `labelChips()` WAS HERE, AND IT IS GONE BECAUSE THE LABEL IS MARKUP NOW.
+     *
+     * It built the row's name as a `<span class="chip-label">` INSIDE the chips row — a flex item in a
+     * wrapping row, exactly like every chip beside it. That is why the four filter rows could not share a
+     * column and why the block read as clutter: the label was never aligned with anything, and a wrapped
+     * row put its chips back at the left edge under the label. George, 22 Sep 2026: *"the filtering
+     * section is ugly look at it, its too cluttered"*.
+     *
+     * The four labels are `<span class="chip-label" id="…">` siblings of the chips in `site/index.html`
+     * now, so `.filter-row` can put them in a fixed column, and each chips row carries
+     * `aria-labelledby` to the same span. The compiler caught the leftover method the moment the last
+     * caller went, which is the whole reason it is deleted rather than left sitting here unused.
+     */
     buildSeenFilter() {
         const host = byId('seenFilter');
         if (!host)
             return;
         host.innerHTML = '';
-        this.labelChips(host, 'Last seen', 'seenFilterLabel');
         // 🔴 EVERY CHOICE IS DRAWN, ALWAYS, AND THERE IS NO CONDITION HERE ANY MORE. This used
         // to skip a window while the recorded history was shorter than it, on the argument that
         // a chip which cannot change the list teaches the reader the filter is broken. The
@@ -2321,7 +2319,6 @@ class Page {
         if (!host)
             return;
         host.innerHTML = '';
-        this.labelChips(host, 'First flown', 'yearFilterLabel');
         for (const era of ERAS) {
             const button = document.createElement('button');
             button.type = 'button';

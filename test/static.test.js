@@ -1120,8 +1120,30 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   assert.equal(code.includes('id="radiusHead"'), false, 'the distance heading is back on the page');
   assert.equal(/radiusHead/.test(readSrc('src/app.ts')), false,
     'the code still reaches for the distance heading');
-  assert.match(readSrc('src/app.ts'), /labelChips\(host, 'Distance', 'radiusButtonsLabel'\)/,
-    'the distance row is not labelled Distance like the rows around it');
+
+  // 🔴 AND THE LABEL IS MARKUP, IN A COLUMN THAT LINES UP WITH THE OTHER THREE.
+  // George, 22 Sep 2026: *"the filtering section is ugly look at it, its too cluttered"* — the labels
+  // were injected into the chips rows by `labelChips()`, which made each one a flex item in a wrapping
+  // row: never aligned with anything, and abandoned at the left edge by any wrapped line. They are
+  // siblings of the chips now, inside `.filter-row`, which is what lets a fixed column exist at all.
+  assert.match(code, /<span class="chip-label" id="radiusButtonsLabel">Distance<\/span>/,
+    'the distance row is not labelled Distance');
+  assert.match(code, /id="radiusButtons" role="group" aria-labelledby="radiusButtonsLabel"/,
+    'the distance row is not attached to its own label');
+  assert.equal(/labelChips\(host/.test(readSrc('src/app.ts')), false,
+    'a label is still injected into a chips row instead of being markup');
+
+  const panelAt = code.indexOf('class="filters"');
+  assert.ok(panelAt > -1, 'the four filters are not one panel');
+  const panel = code.slice(panelAt, code.indexOf('id="filterNote"'));
+  for (const id of ['typeFilter', 'radiusButtons', 'yearFilter', 'seenFilter']) {
+    assert.ok(panel.includes(`id="${id}"`), `${id} is not inside the filter panel`);
+  }
+  const panelCss = read(SITE, 'styles.css');
+  assert.match(panelCss, /\.filter-row\s*\{[\s\S]{0,200}grid-template-columns:\s*\d+px/,
+    'the filter labels are not in a fixed column');
+  assert.match(panelCss, /\.filters\s*\{[\s\S]{0,140}border-radius/,
+    'the filters are not drawn as one panel');
 
   // 🔴 AND THE STOPS DOUBLE, WHICH IS WHAT MAKES IT LOGARITHMIC. George, 22 Sep 2026: *"make the option
   // logrythmic"* and *"thse 4 filters are getting cluttery"* — so the ladder is six stops of twice the

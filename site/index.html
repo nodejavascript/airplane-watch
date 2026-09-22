@@ -233,29 +233,61 @@
       <section class="card step-gated" id="step-3" data-step="3" hidden>
         <h2><span class="step">3</span> Pick an aircraft type</h2>
         <p class="sub">The aircraft that actually fly here, measured from the feed. Star the ones you care about. Each row carries the year its type first flew and when it was last seen here. <b>Heritage &amp; war planes</b> is deliberately short: many military aircraft never transmit at all.</p>
-        <div class="chips" id="typeFilter" role="group" aria-label="Filter the type list by kind"></div>
-
         <!--
-          🔴 THE DISTANCE IS ASKED HERE, WITH THE AIRCRAFT, BECAUSE THAT IS WHAT IT DOES.
+          🔴 THE FOUR FILTERS ARE ONE PANEL WITH A LABEL COLUMN, NOT FOUR RAGGED ROWS.
 
-          George, 22 Sep 2026: *"i forgot the slider is actually a filter for pic an aircraf. lets
-          remove the slider and ask the distance about the pick an aircraf under kind"*.
+          George, 22 Sep 2026, looking at it: *"the filtering section is ugly look at it, its too
+          cluttered"*. He was right, and the clutter was structural rather than a matter of taste: four
+          rows of unaligned labels and pills, each row wrapping wherever it happened to run out —
+          `Interesting` alone on a second line under Kind, `this year / no data` alone on a second line
+          under Last seen — so the eye had to find each label again on every row.
 
-          He is describing what the control ACTUALLY does, and he is right: the distance does not
-          decorate the map. It decides how far out the feed is asked, and therefore which aircraft are
-          on the list at all — it is part of choosing what to watch, so it belongs where the choosing
-          happens rather than in the card that shows the result. It sat above the map for one day
-          (*"i want this above the map"*) and it never fitted there: a control that changes the list
-          was drawn in the card that reads the list.
+          Now: the labels sit in a fixed column, right-aligned, so they line up as a list of their own;
+          the chips of all four rows start at the same x; and the whole thing is one bordered panel, so
+          it reads as one control panel instead of four stray lines of pills.
 
-          ⚠️ AND IT IS NO LONGER A SLIDER. A slider is dragged, so it can land between two stops —
-          which is false precision for a fence — and it hides its own answers behind a gesture. Every
-          other choice on this page is a chip: one press, one answer, and the answer is printed on the
-          chip before you press it. The stops themselves are unchanged.
+          🔴 AND THE LABEL IS IN THE MARKUP, NOT INJECTED BY SCRIPT. It was a `<span>` built by
+          `labelChips()` inside each chips row, which is why the four rows could not share a column:
+          the label was a flex item in a wrapping row like any chip. As a sibling in a grid row it can
+          be aligned. It keeps the `chip-label` class, because that is the class the tooling looks for.
         -->
-        <div class="chips" id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
-        <div class="chips" id="yearFilter" role="group" aria-label="Filter the type list by the year the type first flew"></div>
-        <div class="chips" id="seenFilter" role="group" aria-label="Filter the type list by when it was last seen"></div>
+        <div class="filters">
+          <div class="filter-row">
+            <span class="chip-label" id="typeFilterLabel">Kind</span>
+            <div class="chips" id="typeFilter" role="group" aria-labelledby="typeFilterLabel"></div>
+          </div>
+
+          <!--
+            🔴 THE DISTANCE IS ASKED HERE, WITH THE AIRCRAFT, BECAUSE THAT IS WHAT IT DOES.
+
+            George, 22 Sep 2026: *"i forgot the slider is actually a filter for pic an aircraf. lets
+            remove the slider and ask the distance about the pick an aircraf under kind"*.
+
+            He is describing what the control ACTUALLY does, and he is right: the distance does not
+            decorate the map. It decides how far out the feed is asked, and therefore which aircraft are
+            on the list at all — it is part of choosing what to watch, so it belongs where the choosing
+            happens rather than in the card that shows the result.
+
+            ⚠️ AND IT IS NO LONGER A SLIDER. A slider is dragged, so it can land between two stops —
+            which is false precision for a fence — and it hides its own answers behind a gesture. Every
+            other choice on this page is a chip: one press, one answer, and the answer is printed on the
+            chip before you press it.
+          -->
+          <div class="filter-row">
+            <span class="chip-label" id="radiusButtonsLabel">Distance</span>
+            <div class="chips" id="radiusButtons" role="group" aria-labelledby="radiusButtonsLabel"></div>
+          </div>
+
+          <div class="filter-row">
+            <span class="chip-label" id="yearFilterLabel">First flown</span>
+            <div class="chips" id="yearFilter" role="group" aria-labelledby="yearFilterLabel"></div>
+          </div>
+
+          <div class="filter-row">
+            <span class="chip-label" id="seenFilterLabel">Last seen</span>
+            <div class="chips" id="seenFilter" role="group" aria-labelledby="seenFilterLabel"></div>
+          </div>
+        </div>
         <p class="small muted" id="filterNote">Loading what the feed has been showing…</p>
         <div class="typelist" id="typeList"></div>
         <p class="small muted" id="typeNote">Loading what the feed has been showing…</p>
