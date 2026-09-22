@@ -20,6 +20,9 @@ import {
   kmToNm,
   nmToKm,
   phaseOf,
+  TRACK_TTL_MS,
+  TRAIL_POINTS,
+  TRAIL_WINDOW_MS,
 } from '../site/detect.js';
 
 const CYHM = { lat: 43.173599, lon: -79.934998 };
@@ -339,4 +342,147 @@ test('an unwatched departure still lands on the board, marked as unwatched', () 
   assert.equal(found.length, 1);
   assert.equal(found[0].watched, false);
   assert.equal(found[0].matchedBy, null);
+});
+
+/* --------------------------------------- which way it is going, and where --- */
+
+/**
+ * George, 22 Sep 2026: *"the icon is always an airplane pointing up, but the airplane should point
+ * towards its trajectory"* — and, of the lower map, *"are you able to trace its flight?"*.
+ *
+ * Both are things the feed has been answering all along and this site was throwing away: `track` was
+ * in every reading and was not in the Reading interface at all. These cases pin the answers and,
+ * more importantly, pin what happens when the feed says nothing — because "no heading" must not
+ * become "heading north", and "one position" must not become "a flight path".
+ */
+const at = 1_000_000;
+
+test('the heading comes from the track over the ground, which IS the trajectory', () => {
+  const engine = new DetectionEngine(options);
+  engine.ingest([{ hex: 'abc123', lat: 43.18, lon: -79.93, track: 271.5 }], at);
+  assert.equal(engine.stateOf('abc123')?.trackDeg, 271.5);
+});
+
+test('the track is preferred, and the two heading fields are only fallbacks — in that order', () => {
+  const engine = new DetectionEngine(options);
+  // All three present: the ground track wins, because that is the direction of travel.
+  engine.ingest(
+    [{ hex: 'aaa111', lat: 43.18, lon: -79.93, track: 90, true_heading: 80, mag_heading: 70 }],
+    at
+  );
+  assert.equal(engine.stateOf('aaa111')?.trackDeg, 90);
+
+  // No track: the nose direction, which is true rather than magnetic.
+  engine.ingest([{ hex: 'bbb222', lat: 43.18, lon: -79.93, true_heading: 80, mag_heading: 70 }], at);
+  assert.equal(engine.stateOf('bbb222')?.trackDeg, 80);
+
+  // Only magnetic is left. It is about 11 degrees out here and it is the LAST resort — but it is
+  // still a real direction, and better than pretending the aircraft is heading north.
+  engine.ingest([{ hex: 'ccc333', lat: 43.18, lon: -79.93, mag_heading: 70 }], at);
+  assert.equal(engine.stateOf('ccc333')?.trackDeg, 70);
+});
+
+test('a heading the feed did not send is NOT north — it is absent', () => {
+  const engine = new DetectionEngine(options);
+  engine.ingest([{ hex: 'abc123', lat: 43.18, lon: -79.93 }], at);
+  // Undefined, not 0. This is the whole defect in one line: the icon pointed north because nothing
+  // said otherwise, and "nothing said otherwise" is not the same as "it is going north".
+  assert.equal(engine.stateOf('abc123')?.trackDeg, undefined);
+});
+
+test('a heading that is not a finite number is refused rather than drawn', () => {
+  const engine = new DetectionEngine(options);
+  for (const [hex, track] of [
+    ['nan000', Number.NaN],
+    ['inf000', Number.POSITIVE_INFINITY],
+    ['str000', 'north'],
+  ]) {
+    engine.ingest([{ hex, lat: 43.18, lon: -79.93, track }], at);
+    assert.equal(engine.stateOf(hex)?.trackDeg, undefined, `${hex} was given a heading it cannot have`);
+  }
+});
+
+test('a heading is normalised, so the feed 360 reads as north', () => {
+  const engine = new DetectionEngine(options);
+  engine.ingest([{ hex: 'aaa111', lat: 43.18, lon: -79.93, track: 360 }], at);
+  assert.equal(engine.stateOf('aaa111')?.trackDeg, 0);
+  engine.ingest([{ hex: 'bbb222', lat: 43.18, lon: -79.93, track: -10 }], at);
+  assert.equal(engine.stateOf('bbb222')?.trackDeg, 350);
+});
+
+test('a reading with no heading keeps the last one, and does not blank it', () => {
+  const engine = new DetectionEngine(options);
+  engine.ingest([{ hex: 'abc123', lat: 43.18, lon: -79.93, track: 180 }], at);
+  // A shorter frame a second later. Without the carried value the aeroplane would snap back to
+  // pointing north for one poll and then back again — a flicker that reads as a broken page.
+  engine.ingest([{ hex: 'abc123', lat: 43.19, lon: -79.94 }], at + 20_000);
+  assert.equal(engine.stateOf('abc123')?.trackDeg, 180);
+});
+
+test('the flight path accumulates one point per new position', () => {
+  const engine = new DetectionEngine(options);
+  engine.ingest([{ hex: 'abc123', lat: 43.18, lon: -79.93 }], at);
+  engine.ingest([{ hex: 'abc123', lat: 43.19, lon: -79.94 }], at + 20_000);
+  engine.ingest([{ hex: 'abc123', lat: 43.2, lon: -79.95 }], at + 40_000);
+
+  const trail = engine.stateOf('abc123')?.trail ?? [];
+  assert.deepEqual(
+    trail.map((point) => point.lat),
+    [43.18, 43.19, 43.2]
+  );
+  assert.deepEqual(
+    trail.map((point) => point.at),
+    [at, at + 20_000, at + 40_000]
+  );
+});
+
+test('one position is not a path, and a repeated position adds nothing', () => {
+  const engine = new DetectionEngine(options);
+  engine.ingest([{ hex: 'abc123', lat: 43.18, lon: -79.93 }], at);
+  assert.equal(engine.stateOf('abc123')?.trail?.length, 1);
+
+  // Same place, a poll later. A second identical point would draw a segment of zero length and make
+  // the path look like more flying than happened.
+  engine.ingest([{ hex: 'abc123', lat: 43.18, lon: -79.93 }], at + 20_000);
+  assert.equal(engine.stateOf('abc123')?.trail?.length, 1);
+});
+
+test('a reading with no position never invents one, and the path still ages out', () => {
+  const engine = new DetectionEngine(options);
+  engine.ingest([{ hex: 'abc123', lat: 43.18, lon: -79.93 }], at);
+  engine.ingest([{ hex: 'abc123' }], at + 20_000);
+  // The path is unchanged — no borrowed point, no moved one.
+  assert.deepEqual(engine.stateOf('abc123')?.trail?.map((p) => p.lat), [43.18]);
+
+  // And a point older than the window is dropped even though nothing new was added.
+  engine.ingest([{ hex: 'abc123' }], at + TRAIL_WINDOW_MS + 1);
+  assert.equal(engine.stateOf('abc123')?.trail, undefined);
+});
+
+test('the path is capped, and it is the OLDEST that goes', () => {
+  const engine = new DetectionEngine(options);
+  for (let i = 0; i < TRAIL_POINTS + 8; i += 1) {
+    engine.ingest([{ hex: 'abc123', lat: 43.18 + i * 0.001, lon: -79.93 }], at + i * 1_000);
+  }
+  const trail = engine.stateOf('abc123')?.trail ?? [];
+  assert.equal(trail.length, TRAIL_POINTS);
+  // The newest reading is the one on the end, and the first point is the eighth — a cap that kept
+  // the old end would leave the aeroplane at the head of a path it has left.
+  assert.equal(trail[trail.length - 1].lat, 43.18 + (TRAIL_POINTS + 7) * 0.001);
+  assert.equal(trail[0].lat, 43.18 + 8 * 0.001);
+});
+
+test('a track nobody has heard from in a long time is forgotten', () => {
+  // 🔴 THE LEAK THIS CLOSES. `tracks` was never pruned, so every aircraft ever heard stayed for the
+  // life of the tab — tolerable for a dozen fields, not once each track also carries a flight path.
+  const engine = new DetectionEngine(options);
+  engine.ingest([{ hex: 'abc123', lat: 43.18, lon: -79.93 }], at);
+  engine.ingest([{ hex: 'def456', lat: 43.4, lon: -79.9 }], at);
+
+  // Another aircraft keeps the engine ingesting, so this is a real poll and not a paused page.
+  engine.ingest([{ hex: 'zzz999', lat: 43.5, lon: -79.8 }], at + TRACK_TTL_MS + 1);
+
+  assert.equal(engine.stateOf('abc123'), undefined, 'a stale track was kept');
+  assert.equal(engine.stateOf('def456'), undefined, 'a stale track was kept');
+  assert.ok(engine.stateOf('zzz999'), 'the aircraft that was just heard was dropped too');
 });

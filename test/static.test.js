@@ -1363,18 +1363,27 @@ test('the map mark is an aeroplane, then the type, then the tail', () => {
  * 🔴 BOTH NAMES CARRY THEIR OPENING BRACE, because `this.renderWatchlist();` is also a match for
  * `renderWatchlist()` and a call site comes FIRST in the file. Slicing from a call site reads
  * somebody else's code and reports a pass — a false pass, which is worse than a false failure,
- * because nothing tells the reader to look. The brace pins it to the definition, and the bound
- * below makes a wrong marker fail loudly instead of quietly widening the slice.
+ * because nothing tells the reader to look.
+ *
+ * 🔴 AND THE SLICE MUST HOLD EXACTLY ONE METHOD. A byte limit was tried first and it was a guess
+ * that had to be re-guessed: `renderWatchMap` is 8,358 characters of emitted code and the limit was
+ * 8,000, so a CORRECT boundary was rejected. Counting method definitions is exact instead — if the
+ * end marker is not the very next method, the ones it skipped appear inside the slice and the count
+ * is not zero. The pattern demands a definition (indented four spaces, ending `) {`), so a call
+ * site or a continued expression cannot be mistaken for one.
  */
 function method(name, nextName) {
   const start = appJs.indexOf(name);
-  const end = appJs.indexOf(nextName, start + 1);
   assert.ok(start > -1, `${name} is not in the shipped bundle`);
+  const end = appJs.indexOf(nextName, start + 1);
   assert.ok(end > start, `${nextName} could not be found, so the check for ${name} is vacuous`);
-  assert.ok(end - start < 8000,
-    `the slice for ${name} is ${end - start} characters, so the end marker is not the next method ` +
-      'and this check would be reading code that is not the method it names');
-  return appJs.slice(start, end);
+  const body = appJs.slice(start, end);
+  const skipped = body.match(/\n    [A-Za-z_][A-Za-z_0-9]*\([^\n]*\)\s*\{\n/g) ?? [];
+  assert.equal(skipped.length, 0,
+    `${nextName} is not the method after ${name} — the slice swallowed ${skipped.length} more ` +
+      `(${skipped.map((line) => line.trim()).join(', ')}), so these checks would be reading code ` +
+      'this test did not name');
+  return body;
 }
 
 /**
@@ -1470,4 +1479,63 @@ test('90 · the rows on the list are the ones being watched, and each says how t
   assert.ok(section.indexOf('watchList') > -1, 'the watching list is not in the watching section');
   assert.ok(section.indexOf('watchMap') > -1,
     'the map of positions is not in the watching section, so the two are not in one place');
+});
+
+/* --------------------- part 16 · which way it points, and where it has been --- */
+
+/**
+ * George, 22 Sep 2026, of the lower map:
+ *
+ *   "are you able to trace its flight?  the icon is always an airplane pointing up, but the
+ *    airplane should point towards its trajectory"
+ *
+ * Both were already in the feed and were being thrown away — `track` was on every aircraft in a
+ * live Hamilton response and was not in the `Reading` interface at all. These guards hold the two
+ * things that would make the feature lie rather than the two things that make it work: an aeroplane
+ * that points NORTH when the feed said nothing, and a "flight path" joined from a single point.
+ */
+test('91 · the aeroplane points along its track, and points nowhere in particular when there is none', () => {
+  const body = method('renderWatchMap() {', 'bindMapResize() {');
+  assert.ok(body.length > 500, 'the map body could not be isolated, so this check is vacuous');
+
+  // 🔴 ROTATION IS DRIVEN BY THE FEED'S OWN TRACK, not by a hard-coded direction and not by the
+  // direction the aircraft moved between two polls — which is unavailable on the first sighting and
+  // wrong on any turn.
+  assert.match(body, /typeof one\.trackDeg === 'number'/,
+    'the mark does not ask whether a heading was transmitted');
+  assert.match(body, /rotate\(\$\{one\.trackDeg\.toFixed\(1\)\}\)/,
+    'the mark is not rotated by the heading the feed sent');
+  // And no heading means NO rotation — the shape points north on its own, so a default of 0 here
+  // would assert the aircraft is heading north.
+  assert.match(body, /_?:\s*''/m, 'a missing heading is not left un-rotated');
+  assert.match(appJs, /PLANE_PATH/, 'the aeroplane shape has gone');
+  // The heading must reach the map at all: the engine's snapshot is what carries it.
+  assert.match(stripJs(read(SITE, 'detect.js')), /trackDeg/,
+    'the engine does not carry a heading for the map to draw');
+});
+
+test('92 · a flight path is drawn, under the aircraft, only where there is a path', () => {
+  const body = method('renderWatchMap() {', 'bindMapResize() {');
+
+  // A path takes TWO points. One point is a position, and joining one point would draw a line that
+  // says something the page does not know.
+  assert.match(body, /trail\.length >= 2/,
+    'a path can be drawn from a single point, which is not a path');
+  assert.match(body, /class="locmap-trail"/, 'no path is drawn on the map');
+
+  // 🔴 UNDER EVERYTHING. The paths are collected separately and laid down before the marks, so a
+  // path can never be drawn across the aeroplane it belongs to.
+  const pathsAt = body.indexOf('paths +');
+  const marksAt = body.indexOf('marks +', pathsAt + 1);
+  assert.ok(pathsAt > -1, 'the paths are never placed on the map');
+  assert.ok(marksAt > pathsAt, 'the paths are drawn over the aircraft instead of under them');
+  assert.match(appJs, /let paths = ''/, 'the paths are not kept apart from the marks');
+
+  // The legend appears only when a path is actually there — a key for a line that is absent sends
+  // the reader looking for something that is not on the map.
+  assert.match(body, /traced > 0/, 'the note does not check whether a path is on the map');
+
+  assert.match(css, /\.locmap-trail\s*\{/, 'the path has no styling');
+  assert.match(css, /\.locmap-trail\s*\{[^}]*stroke-linejoin:\s*round/,
+    'the path has no round joins, so a turn grows a spike at the corner');
 });

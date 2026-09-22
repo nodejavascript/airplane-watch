@@ -2001,6 +2001,26 @@ main > #status {
   stroke-linejoin: round;
 }
 
+/**
+ * The path an aircraft has flown, drawn under the aeroplane and the markers.
+ *
+ * Deliberately quieter than the aircraft itself, but no longer as quiet as it first was: at 1.5px
+ * and half opacity the line vanished against the live street map, which was measured on the real
+ * page on 22 Sep 2026 — a feature the reader cannot see is not a feature. The dark casing is what
+ * makes it read over both the pale land and the pale water; without it the line disappears wherever
+ * the map happens to be light.
+ */
+.locmap-trail {
+  fill: none;
+  stroke: #0ea5e9;
+  stroke-width: 2.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.85;
+  paint-order: stroke;
+  filter: drop-shadow(0 0 1.2px rgba(2, 6, 23, 0.85));
+}
+
 /* "B38M · C-GXXX" — the type first, then the tail, both in the mono face the rest of the
  * codes on this page use. Stroked so the text survives being drawn over a busy tile. */
 .locmap-plane-label {

@@ -4052,6 +4052,9 @@ class Page {
     // Where "here" is, drawn before the aircraft so no aeroplane is ever covered by it.
     const here = this.centre ?? this.point();
     let marks = '';
+    // The flight paths, kept apart from the marks so they are laid down FIRST — a path drawn over
+    // an aeroplane would hide the thing the reader came to look at.
+    let paths = '';
     if (here) {
       const spot = spotOf(here.lat, here.lon);
       marks +=
@@ -4060,11 +4063,28 @@ class Page {
         `y="${(spot.y + 18).toFixed(1)}" text-anchor="middle">${this.centre ? 'you' : 'watched'}</text>`;
     }
     let drawn = 0;
+    let traced = 0;
     for (const one of placed.slice(0, 60)) {
       const spot = spotOf(one.lat, one.lon);
       // Off the view is off the view, and saying so below is better than clipping it silently.
       if (spot.x < 0 || spot.x > VIEW_W || spot.y < 0 || spot.y > VIEW_H) continue;
       drawn += 1;
+
+      // 🔴 THE FLIGHT PATH TRAILS THE AIRCRAFT, AND IT IS KEPT SEPARATE FROM THE MARKS SO IT IS
+      // DRAWN UNDER THEM. George, 22 Sep 2026: *"in the lower map are you able to trace its
+      // flight?"*. The feed reports only where an aircraft is now, so this is what the page has
+      // heard over the last few minutes — and it takes two points to be a path. One point is a
+      // position, and drawing a path of one point would say something the page does not know.
+      const trail = one.trail ?? [];
+      if (trail.length >= 2) {
+        traced += 1;
+        const points = trail
+          .map((point) => spotOf(point.lat, point.lon))
+          .map((at) => `${at.x.toFixed(1)} ${at.y.toFixed(1)}`)
+          .join(' ');
+        paths += `<polyline class="locmap-trail" points="${points}" />`;
+      }
+
       // 🔴 THE AEROPLANE, THEN WHAT IT IS, THEN WHICH ONE IT IS — AND WHAT IT IS IS ITS WHOLE
       // NAME, NOT ITS FOUR-LETTER CODE. George, 21 Sep 2026: *"i want the map identifying planes
       // by their full airplane name **Cirrus SR22T** like this"*. The type list has always named
@@ -4077,8 +4097,16 @@ class Page {
       const what = [name, tail || null]
         .filter((part): part is string => part !== null && part !== '')
         .join(' · ');
+      // 🔴 AND IT POINTS WHERE IT IS GOING. George, 22 Sep 2026: *"the icon is always an airplane
+      // pointing up, but the airplane should point towards its trajectory"*. The shape's nose is at
+      // the top of its box — which is north — and a true track is degrees clockwise from north, so
+      // a plain `rotate()` on the same origin as the translate puts the nose on the trajectory. No
+      // heading from the feed means no rotation: the icon keeps pointing up, and the page does not
+      // pretend the aircraft is heading north.
+      const heading =
+        typeof one.trackDeg === 'number' ? ` rotate(${one.trackDeg.toFixed(1)})` : '';
       marks +=
-        `<g class="locmap-plane-mark" transform="translate(${spot.x.toFixed(1)} ${spot.y.toFixed(1)})">` +
+        `<g class="locmap-plane-mark" transform="translate(${spot.x.toFixed(1)} ${spot.y.toFixed(1)})${heading}">` +
         `<path class="locmap-plane-icon" transform="scale(0.72) translate(-12 -12)" d="${PLANE_PATH}" />` +
         '</g>' +
         `<text class="locmap-plane-label" x="${(spot.x + 11).toFixed(1)}" ` +
@@ -4093,8 +4121,10 @@ class Page {
       `aria-label="${escapeHtml(
         drawn === 0
           ? 'A map of the area you are watching, with no aircraft on it at the moment'
-          : `${drawn} aircraft you are watching, plotted where the feed last reported them`
+          : `${drawn} aircraft you are watching, plotted where the feed last reported them, ` +
+            'each pointing along its track with its recent flight path behind it'
       )}">` +
+      paths +
       marks +
       '</svg></div>' +
       '<p class="small muted locmap-note">' +
@@ -4103,6 +4133,12 @@ class Page {
           'no aircraft on it — it stays where it is, and one appears the moment the feed sees it. '
         : 'Every aircraft on your list and inside the fence, named in full and drawn where the ' +
           'feed last reported it. ') +
+      // Said only when a path is actually on the map — a legend for a line that is not there is
+      // worse than no legend, because it sends the reader looking for something absent.
+      (traced > 0
+        ? 'The line behind an aircraft is the path it has flown in the last few minutes, drawn ' +
+          'from what this page has heard — the feed reports only where a plane is now. '
+        : '') +
       'In the same frame as the map above, so the two agree about where things are. ' +
       (unplaced > 0
         ? `${unplaced} ${unplaced === 1 ? 'is' : 'are'} on the list without a reported position ` +

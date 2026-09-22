@@ -1949,3 +1949,95 @@ test('43 · a status is not frozen as "not seen yet" while the record is still i
 
   await context.close();
 });
+
+/**
+ * 🔴 GEORGE, 22 SEP 2026, of the lower map:
+ *
+ *   "are you able to trace its flight?  the icon is always an airplane pointing up, but the
+ *    airplane should point towards its trajectory"
+ *
+ * Two aircraft readings, a little apart in time and space, with the feed's own `track` on each —
+ * which is what a real Hamilton response sends and what this page was ignoring.
+ */
+test('44 · the aeroplane points along its track, with its flight path drawn behind it', async () => {
+  const { context, page } = await openPage([
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 5000, lat: 43.19, lon: -79.93, track: 90 }],
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 5600, lat: 43.22, lon: -79.98, track: 300 }],
+  ]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  // 🔴 THE PAGE MUST BE VISIBLE, OR IT HAS STOPPED POLLING. `bindVisibility` stops the feed entirely
+  // for a tab nobody is looking at — a real and deliberate rule, and in a headless browser the page
+  // can be hidden from the start. Asserted here rather than left to time out, because a hidden page
+  // and a missing trail look identical from the outside: both are a thirty-second silence.
+  await page.bringToFront();
+  assert.equal(
+    await page.evaluate(() => document.visibilityState),
+    'visible',
+    'the page is hidden, so it has stopped polling and no second reading can arrive'
+  );
+  await answerStep1(page);
+  await page.waitForSelector('#typeList .typerow');
+  await page.$$eval('#typeList .typerow', (items) => {
+    items.find((item) => /Boeing 737 MAX 8/.test(item.textContent)).querySelector('.type-toggle').click();
+  });
+  await page.waitForSelector('#watchMap .locmap-plane-icon', { timeout: 20_000 });
+
+  // ONE POSITION IS NOT A PATH. The first poll carries one reading, and joining a single point
+  // would draw a line that claims flying the page has not seen.
+  assert.equal(
+    await page.$$eval('#watchMap .locmap-trail', (nodes) => nodes.length),
+    0,
+    'a flight path was drawn from a single position'
+  );
+
+  // 🔴 AND THE SECOND READING HAS TO COME FROM THE PAGE'S OWN TIMER. The obvious shortcut — nudge
+  // the distance slider to force an immediate poll — is wrong here, and instructively so: the
+  // `change` handler calls `rearm()`, which builds a NEW engine, and a new engine has no history.
+  // A re-aim therefore throws away every flight path, so a test that nudged the fence would delete
+  // the trail it was waiting for. Twenty seconds is the page's own cadence; wait for it.
+  await page.waitForFunction(
+    () => {
+      const trail = document.querySelector('#watchMap .locmap-trail');
+      if (!trail) return false;
+      // Two points is four numbers — the point of waiting is the SECOND position, not the element.
+      return (trail.getAttribute('points') || '').trim().split(/\s+/).length >= 4;
+    },
+    null,
+    { timeout: 30_000 }
+  );
+
+  const points = await page.$eval('#watchMap .locmap-trail', (element) =>
+    (element.getAttribute('points') || '').trim().split(/\s+/)
+  );
+  assert.ok(points.length >= 4, `the path has fewer than two points: ${points.join(' ')}`);
+
+  // 🔴 THE AEROPLANE IS TURNED ONTO ITS TRACK — the feed's own number, not north and not a guess.
+  const transform = await page.$eval('#watchMap .locmap-plane-mark', (element) =>
+    element.getAttribute('transform') || ''
+  );
+  assert.match(transform, /rotate\(300(\.0)?\)/,
+    `the aeroplane was not turned onto its track of 300 degrees: ${transform}`);
+  assert.match(transform, /^translate\(/,
+    `the mark is no longer placed where the aircraft is: ${transform}`);
+
+  // 🔴 AND THE PATH IS UNDER EVERYTHING. A path drawn over an aeroplane hides the thing the reader
+  // came to look at, and a path drawn over the "watched" marker hides where they are.
+  const order = await page.$$eval('#watchMap svg > *', (nodes) =>
+    nodes.map((node) => node.getAttribute('class') || node.tagName)
+  );
+  const trailAt = order.findIndex((name) => /locmap-trail/.test(name));
+  const planeAt = order.findIndex((name) => /locmap-plane-mark/.test(name));
+  assert.ok(trailAt > -1, 'the path is not in the map at all');
+  assert.ok(planeAt > trailAt, `the path is drawn over the aircraft: ${order.join(', ')}`);
+
+  // The key for the line appears only because the line is there.
+  const note = await page.$eval('#watchMap', (element) =>
+    element.querySelector('.locmap-note')?.textContent ?? ''
+  );
+  assert.match(note, /path it has flown/i,
+    `the map draws a line without saying what it is: ${note}`);
+
+  await context.close();
+});

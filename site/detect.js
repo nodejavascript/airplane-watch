@@ -35,6 +35,24 @@
  * in. That is why test/detect.test.js can drive ten years of edge cases in
  * milliseconds without a browser, and why the browser code below it is small.
  */
+/**
+ * How much of a flight path is kept. Thirty points at the 20-second poll is ten minutes of flying,
+ * which at a jet's 450 knots is about 75 nautical miles of path — long enough to read a turn, and
+ * bounded so a long session cannot grow without limit.
+ */
+export const TRAIL_POINTS = 30;
+/** A point older than this is dropped, so a path never outlives the flight it describes. */
+export const TRAIL_WINDOW_MS = 10 * 60 * 1000;
+/**
+ * 🔴 AND THE WHOLE TRACK IS FORGOTTEN AFTER THIS, WHICH IT NEVER WAS BEFORE.
+ *
+ * `tracks` was never pruned: every aircraft ever heard stayed in the map for the life of the tab.
+ * That was survivable when a track was a dozen fields. It is not once each one also carries a
+ * flight path, which is what this round added — so the leak is closed here rather than multiplied.
+ * A track not heard from in 45 minutes is stale by every rule in this file (a READING is stale
+ * after 60 seconds) and unreachable from the page, so it is dropped.
+ */
+export const TRACK_TTL_MS = 45 * 60 * 1000;
 export const DEFAULTS = {
     radiusNm: 10,
     staleAfterSec: 60,
@@ -51,6 +69,52 @@ export const DEFAULTS = {
  * lives here rather than inside the page so a test can check it.
  */
 export const KM_PER_NM = 1.852;
+/**
+ * Which way it is going, in degrees clockwise from true north — or undefined when the feed said
+ * nothing usable.
+ *
+ * 🔴 THE ORDER IS THE POINT. `track` is the ground track, which IS the trajectory and is what
+ * George asked the icon to follow. `true_heading` is where the nose points — a different thing,
+ * separated from the path by the wind correction angle. `mag_heading` is magnetic, about 11 degrees
+ * west of true in southern Ontario, so it is last and it is the only one that carries a known
+ * error. A value that is not finite is not a heading, and a wrong heading is worse than none here:
+ * the reader has no way to tell that the aeroplane is pointing somewhere it is not going.
+ *
+ * A finite value is normalised rather than rejected, so the feed's own 360 reads as 0 (north) and
+ * anything outside the range still lands somewhere sensible instead of being thrown away.
+ */
+function headingOf(reading) {
+    for (const raw of [reading.track, reading.true_heading, reading.mag_heading]) {
+        if (typeof raw !== 'number' || !Number.isFinite(raw))
+            continue;
+        return ((raw % 360) + 360) % 360;
+    }
+    return undefined;
+}
+/**
+ * The flight path so far, with this reading added — or the old path, pruned.
+ *
+ * 🔴 A POINT IS NEVER INVENTED, AND NEVER REPEATED. An aircraft the feed reports without a position
+ * adds nothing, and an aircraft that has not moved adds nothing either — a repeated point draws a
+ * dot on top of itself and makes a path look longer than the flying it describes. In both cases the
+ * window is still applied, so a path ages out even while nothing is being appended to it.
+ */
+function appendTrail(previous, reading, now) {
+    const kept = (previous ?? []).filter((point) => now - point.at <= TRAIL_WINDOW_MS);
+    const { lat, lon } = reading;
+    if (typeof lat !== 'number' || typeof lon !== 'number') {
+        return kept.length > 0 ? kept : undefined;
+    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        return kept.length > 0 ? kept : undefined;
+    }
+    const last = kept[kept.length - 1];
+    if (last && last.lat === lat && last.lon === lon) {
+        return kept.length > 0 ? kept : undefined;
+    }
+    const grown = [...kept, { lat, lon, at: now }];
+    return grown.length > TRAIL_POINTS ? grown.slice(grown.length - TRAIL_POINTS) : grown;
+}
 /** Kilometres the reader chose → whole nautical miles the feed takes. */
 export function kmToNm(km) {
     return Math.max(1, Math.round(km / KM_PER_NM));
@@ -301,9 +365,26 @@ export class DetectionEngine {
                 type: reading.t || previous?.type || '',
                 lat: Number.isFinite(reading.lat) ? reading.lat : previous?.lat,
                 lon: Number.isFinite(reading.lon) ? reading.lon : previous?.lon,
+                // A reading with no heading keeps the last one, for the same reason a reading with no
+                // position keeps the last position: the aircraft does not stop pointing when the feed
+                // sends a shorter frame.
+                trackDeg: headingOf(reading) ?? previous?.trackDeg,
+                trail: appendTrail(previous?.trail, reading, now),
                 watched,
             };
             this.tracks.set(hex, next);
+        }
+        // 🔴 AND THE ONES NOBODY HAS HEARD FROM GO — see `TRACK_TTL_MS`. Deleting from a Map while
+        // iterating it is defined behaviour in JavaScript, so this needs no copy.
+        for (const [hex, track] of this.tracks) {
+            if (now - track.observedAt > TRACK_TTL_MS)
+                this.tracks.delete(hex);
+        }
+        // The cooldown stamps are the same kind of leak and are dead the moment the cooldown expires,
+        // so they are dropped in the same pass rather than kept for the session.
+        for (const [hex, at] of this.firedAt) {
+            if (now - at > this.options.cooldownMs)
+                this.firedAt.delete(hex);
         }
         return found;
     }
@@ -313,8 +394,7 @@ export class DetectionEngine {
  *
  * Kept as a function rather than written out in each setter, because two copies of a
  * normaliser is how a tail number ends up matching a star but not a bell.
- */
-function normaliseRules(rules) {
+ */ function normaliseRules(rules) {
     return [...rules]
         .filter((rule) => String(rule?.type ?? '').trim() !== '')
         .map((rule) => ({
