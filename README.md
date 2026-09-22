@@ -143,11 +143,37 @@ Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
   right align a link on the row for Your location Hamilton change location called delete my data, with
   confirmation box. this effectivly resets their location, and everything else"* — then *"this rests all defalt
   filters too"*. So it is the **last item on the location row**, pushed to the right with `margin-left: auto`,
-  quieter than "change location", and it opens a `window.confirm` before anything happens; saying no does
-  nothing at all — no event, no reload, no removal. What it clears is everything the page remembers, which is
-  mostly filters: the place and the community inside it, the distance, the airports, the starred types, the
-  alert bells, the named tails, the kind, maker, era and last-seen choices, and the cookie answer — so the page
-  comes back a first visit with every default in place.
+  quieter than "change location", and it asks before anything happens; saying no does nothing at all — no event,
+  no reload, no removal. What it clears is everything the page remembers, which is mostly filters: the place and
+  the community inside it, the distance, the airports, the starred types, the alert bells, the named tails, the
+  kind, maker, era and last-seen choices, and the cookie answer — so the page comes back a first visit with every
+  default in place.
+- 🔴 **AND THE BOX IS THIS PAGE'S OWN, NOT THE BROWSER'S.** *Prior value, preserved and now dead:* *"it opens a
+  `window.confirm` before anything happens"*. George, 22 Sep 2026: ***"the delete should not use browser
+  confirm."*** A browser confirm wears the browser's name, orders its own buttons, and cannot be read as part of
+  the page — so the question is now a `<dialog>` opened with `showModal()`, drawn in this site's colours, with
+  **Keep it** offered first and **Delete everything** last. Every guarantee that mattered is kept: nothing
+  happens until an answer, **Escape means no**, and focus cannot leave the box. The question and the deed are in
+  **different methods** (`bindForgetMine` only opens the box; `wipeMyData` is the only thing that deletes), so the
+  question can be read and seen to do nothing else. **And if a browser cannot open a modal, the control is taken
+  away rather than asked in a browser box** — a delete with no way to ask is worse than no delete.
+- 🔴 **AND A DELETED PAGE LEAVES NOTHING BEHIND — NOT EVEN THE AIRPORT IT GAVE ITSELF.** George, 22 Sep 2026,
+  after pressing delete: ***"and when i deleted, i retained the airport im watching"***. Measured: the store came
+  back from a wipe holding `aircraft_airport`, because every load wrote the picked set and a first visit's set is
+  the one airport this page hands a new reader — **the page was undoing its own wipe.** Now the store holds a
+  **choice** and nothing else: while the set is still exactly the default, nothing is written. Measured after:
+  a fresh visit stores **zero keys**, and a delete leaves **zero keys**.
+- 🔴 **AND THE READER CANNOT FOLD THE CARDS — THE GATE ALONE DECIDES.** George, 22 Sep 2026: ***"for all cards i
+  dont want the user to collapse and uncollpase, just hide the cards if they havent completed the prequisite
+  steps."*** The hiding was already the page's own rule (`updateSteps` reveals a step only once the one before it
+  is answered); what went was the **affordance** — the pointer cursor, the rotating chevron, the 26px reserved for
+  it, the `.step-folded` rules, `bindStepToggles` and the `step_folded` event. **The arrival glide stays**: that is
+  the gate announcing itself, not the reader tidying up after it.
+- 🔴 **AND IN THE TYPE COLUMN THE AIRCRAFT TYPE SITS ON TOP OF THE TAIL.** George, 22 Sep 2026: ***"in type put
+  airplaye type on top of tail"*** — the second time he asked for that arrangement in one day: *"for type list the
+  tail under the aircraft type"*. The tail was printed only when the type was **recognised**, which is a fact about
+  this site's type table and not about the airframe, so a row whose type code was not in the table showed a bare
+  code and no tail at all. The registration now decides it.
 - 🔴 **AND THE WIPE FINDS ITS KEYS, IT DOES NOT REMEMBER THEM.** Every key this page writes begins `aircraft_`,
   so `storedKeys()` enumerates what is actually in the browser and matches the prefix. That is not tidiness: the
   **older "Start over" button carried a hand-written list of nine keys, and the page had grown two more since**

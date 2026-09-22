@@ -2056,48 +2056,80 @@ main > #status {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * THE STEP HEADINGS ARE CONTROLS. George, 20 Sep 2026: *"you didnt do the
- * collpase / expand like i asked"*. The automatic gate decides what ARRIVES; this
- * is what the reader decides to keep open. A step you have finished with folds
- * away so the one you care about is not a screenful further down.
+ * THE STEP HEADINGS ARE NOT CONTROLS, AND THEY NO LONGER LOOK LIKE ANYTHING YOU CAN PRESS.
+ *
+ * George, 22 Sep 2026: *"for all cards i dont want the user to collapse and uncollpase, just hide
+ * the cards if they havent completed the prequisite steps."* That is already what the page does on
+ * its own — `updateSteps` reveals a step only once the one before it is answered — so what was left
+ * to remove was the AFFORDANCE: the pointer cursor, the rotating chevron, the 26px of padding
+ * reserved for it, and the `.step-folded` rules that hid everything but the heading. A heading that
+ * looks pressable and does nothing is worse than a heading that simply reads.
+ *
+ * The glide on arrival stays (`step-arrive`): that is the gate announcing itself, not the reader
+ * tidying up after it.
  * ══════════════════════════════════════════════════════════════════════════ */
-.step-gated > h2 {
+
+/* ------------------------------------------------- the confirmation box --- */
+/* 🔴 THIS SITE'S OWN BOX, NOT THE BROWSER'S. George, 22 Sep 2026: *"the delete should not use
+ * browser confirm."* A `window.confirm` is drawn by the browser — it wears the browser's name, its
+ * buttons are in the browser's order rather than this page's, and it cannot be read as part of the
+ * page. `<dialog>` + `showModal()` keeps every guarantee that mattered (nothing happens until an
+ * answer, Escape means no, focus stays inside) and lets the box look like the page it belongs to. */
+#forgetDialog {
+  width: min(520px, calc(100vw - 32px));
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 22px;
+  background: var(--panel, #08192a);
+  color: var(--ink, #e8f4fc);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+#forgetDialog::backdrop {
+  background: rgba(2, 8, 14, 0.68);
+  backdrop-filter: blur(2px);
+}
+
+#forgetDialog h2 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+
+#forgetDialog p {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+#forgetDialog .confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* The safe answer is first and it is the quiet one; the destructive answer is last and it carries
+ * the only warm colour in the box, because it is the one that cannot be undone. */
+#forgetDialog .confirm-actions .ghost {
+  order: 1;
+}
+
+#forgetDialog .confirm-actions .danger {
+  order: 2;
+  border: 1px solid rgba(240, 138, 90, 0.55);
+  background: rgba(240, 138, 90, 0.14);
+  color: #f6b795;
+  border-radius: 9px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13.5px;
   cursor: pointer;
-  user-select: none;
-  position: relative;
-  padding-right: 26px;
 }
 
-/* The mark says which way it will go, not which way it is — a chevron that
- * rotates is read at a glance; two different glyphs have to be compared. */
-.step-gated > h2::after {
-  content: '';
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid var(--muted);
-  border-bottom: 2px solid var(--muted);
-  transform: translateY(-70%) rotate(45deg);
-  transition: transform 240ms ease;
-}
-
-.step-gated > h2:hover::after {
-  border-color: var(--theme);
-}
-
-.step-gated.step-folded > h2::after {
-  transform: translateY(-30%) rotate(-135deg);
-}
-
-.step-gated.step-folded > h2 {
-  margin-bottom: 0;
-}
-
-/* Everything except the heading folds away — the h2 is the handle. */
-.step-gated.step-folded > *:not(h2) {
-  display: none !important;
+#forgetDialog .confirm-actions .danger:hover,
+#forgetDialog .confirm-actions .danger:focus-visible {
+  background: rgba(240, 138, 90, 0.24);
 }
 
 /* ------------------------------------------------------ the picked airports --- */

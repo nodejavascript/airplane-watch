@@ -1028,7 +1028,6 @@ class Page {
         this.renderWatchlist();
         this.bindNotify();
         this.renderWatchButton();
-        this.bindStepToggles();
         this.bindStartOver();
         this.bindForgetMine();
         this.bindFlightPick();
@@ -1445,7 +1444,17 @@ class Page {
      * the page disagreeing with itself.
      */
     afterAirportChange() {
-        writeStore(AIRPORT_KEY, this.chosenIcaos().join(','));
+        // 🔴 A DEFAULT THE PAGE GAVE ITSELF IS NOT THE READER'S SETTING, SO IT IS NOT STORED. George,
+        // 22 Sep 2026, after pressing delete my data: *"and when i deleted, i retained the airport im
+        // watching"*. Every load wrote the picked set, and on a first visit that set is the single airport
+        // this page hands a new reader — so the page undid its own wipe: the store came back holding
+        // `aircraft_airport` before the reader had chosen anything, and "delete my data" could never leave
+        // an empty store. Now the store holds a CHOICE and nothing else: while the set is still exactly
+        // the default, nothing is written, and the first visit is genuinely empty.
+        const picked = this.chosenIcaos();
+        const isTheDefault = picked.length === 1 && picked[0] === DEFAULT_AIRPORT;
+        if (!isTheDefault)
+            writeStore(AIRPORT_KEY, picked.join(','));
         // 🔴 THERE IS NO SUMMARY LINE ANY MORE. George, 20 Sep 2026: *"you can remove this
         // 5 airports watched: CYHM — Hamilton · CYSN — St Catharines ..."*. The chips are
         // gold when they are picked and the map draws them; a sentence repeating the list
@@ -1834,11 +1843,15 @@ class Page {
                 this.destinationCell(route, state) +
                 `<td>${info
                     ? `<span class="mono">${escapeHtml(info.code)}</span>` +
-                        (info.known ? `<span class="cell-type">${escapeHtml(info.name)}</span>` : '') +
-                        (info.known && tailUnderType
-                            ? `<span class="cell-tail">${escapeHtml(tailReg)}</span>`
-                            : '')
-                    : '<span class="muted">not transmitted</span>'}</td>` +
+                        (info.known ? `<span class="cell-type">${escapeHtml(info.name)}</span>` : '')
+                    : '<span class="muted">not transmitted</span>'}${ /* 🔴 THE TAIL SITS UNDER THE AIRCRAFT TYPE, AND IT NO LONGER DEPENDS ON THE TYPE TABLE. George,
+                22 Sep 2026: *"in type put airplaye type on top of tail"* — the second time he has asked for this
+                arrangement today: *"for type list the tail under the aircraft type"*. It was printed only when
+                the type was RECOGNISED (`info.known`), which is a fact about this site's type table and not about
+                the airframe — so a row whose type code is not in the table showed a bare code and no tail at
+                all, which is the thing he was looking at. The registration is known whenever the feed sent one,
+                so that is what decides it now. The one guard kept is the duplicate: a row whose callsign IS its
+                registration prints the tail under the type and not twice in the same row. */tailUnderType ? `<span class="cell-tail">${escapeHtml(tailReg)}</span>` : ''}</td>` +
                 // 🔴 THE WORD "airborne" IS NOT PRINTED, BUT THE OTHER TWO ARE — see `phaseTag` above. This
                 // cell is the callsign and, on the rare row that needs it, the one fact about the aircraft that
                 // air traffic control would care about.
@@ -3476,20 +3489,6 @@ class Page {
         }
     }
     /**
-     * 🔴 EVERY STEP HEADING COLLAPSES AND EXPANDS, AND THE READER OWNS IT.
-     *
-     * George, 20 Sep 2026: *"you didnt do the collpase / expand like i asked"*. The
-     * automatic sequence above decides what ARRIVES; this decides what STAYS OPEN.
-     * A reader who has finished with where they are should be able to fold it away
-     * and get on with the part they care about, rather than scrolling past a step
-     * they have already answered.
-     *
-     * Delegated on the document, so every step works including the ones revealed
-     * later — a listener bound to the headings at load would only ever know about the
-     * steps that existed at load. That is the same mistake that made the cookie gate's
-     * footer door dead on the other sites in this family.
-     */
-    /**
      * 🔴 START OVER, BECAUSE THERE IS NO OTHER WAY TO GET RID OF A STALE PAGE.
      *
      * George, 20 Sep 2026: *"maybe you need a start over that deletes my cookie or
@@ -3520,65 +3519,62 @@ class Page {
         });
     }
     /**
-     * 🔴 "DELETE MY DATA" — THE READER'S OWN WAY OUT, AND IT ASKS FIRST.
+     * 🔴 "DELETE MY DATA" — THE READER'S OWN WAY OUT, AND IT ASKS FIRST IN THIS PAGE, NOT IN A
+     * BROWSER BOX.
      *
-     * George, 22 Sep 2026: *"last item, right align a link on the row for Your location
-     * Hamilton change location called delete my data, with confirmation box. this effectivly
-     * resets their location, and everything else"* — then *"this rests all defalt filters
-     * too"*.
+     * George, 22 Sep 2026: *"last item, right align a link on the row for Your location Hamilton
+     * change location called delete my data, with confirmation box. this effectivly resets their
+     * location, and everything else"* — then *"this rests all defalt filters too"* — and then,
+     * about the box itself: *"the delete should not use browser confirm."*
      *
-     * WHAT IT DELETES IS EVERYTHING THE PAGE REMEMBERS, AND THAT IS MOSTLY FILTERS: where
-     * you are and the community inside it, the distance, the airports, the types you starred,
-     * the alert bells, the tail numbers you named, and the kind, maker, era and last-seen
-     * choices. The page therefore comes back as a first visit with every default in place,
-     * which is what "resets their location, and everything else" has to mean.
+     * 🔴 WHY A `<dialog>` AND NOT `window.confirm`. A browser confirm is a small grey rectangle with
+     * the browser's name on it, its buttons are ordered by the browser rather than by the site, it
+     * cannot be read by a screen reader as part of the page, and on this page it looks like an
+     * accident. `<dialog>` + `showModal()` is the same guarantee — nothing happens until the reader
+     * answers, Escape says no, focus cannot leave the box — drawn in this site's own colours, with
+     * the safe answer first.
      *
-     * 🔴 IT IS A CONFIRMATION AND NOT A COUNTDOWN. Nothing can be undone — the page keeps no
-     * copy, so a list of starred types and named tails is gone — and a confirm box is the one
-     * control a reader cannot miss on the way past and cannot dismiss by accident.
+     * 🔴 AND IF THE BROWSER CANNOT OPEN A MODAL, THE CONTROL IS TAKEN AWAY RATHER THAN ASKED IN A
+     * BROWSER BOX. A delete with no way to ask is worse than no delete, and a browser confirm is the
+     * one thing this change exists to remove.
      *
-     * 🔴 AND SAYING NO DOES NOTHING AT ALL: no event, no reload, no removal. A destructive
-     * control that acts first and asks afterwards has not asked.
+     * WHAT IT DELETES IS EVERYTHING THE PAGE REMEMBERS, AND THAT IS MOSTLY FILTERS: where you are and
+     * the community inside it, the distance, the airports, the types you starred, the alert bells, the
+     * tail numbers you named, and the kind, maker, era and last-seen choices. The page therefore comes
+     * back as a first visit with every default in place, which is what "resets their location, and
+     * everything else" has to mean.
+     *
+     * 🔴 AND SAYING NO DOES NOTHING AT ALL: no event, no reload, no removal. A destructive control that
+     * acts first and asks afterwards has not asked.
      */
     bindForgetMine() {
         const button = byId('forgetMine');
         if (!button)
             return;
-        button.addEventListener('click', () => {
-            const go = window.confirm('Delete everything this page has saved in this browser?\n\n' +
-                'That is where you are and the community you picked inside it, the distance, the ' +
-                'airports, the types you starred, the alerts you set, the tail numbers you named, ' +
-                'the kind, maker, era and last-seen filters, and your answer to the cookie ' +
-                'question. All of it is kept in this browser, and all of it goes back to the ' +
-                'defaults.\n\n' +
-                'The page keeps no copy of any of it, so this cannot be undone. It reloads as a ' +
-                'first visit, and if you allowed Analytics it asks you again.');
-            if (!go)
-                return;
-            forgetStored(true);
-            track('data_deleted', {});
-            window.location.reload();
+        const dialog = byId('forgetDialog');
+        if (!dialog || typeof dialog.showModal !== 'function') {
+            // No modal support: the way out cannot be offered honestly, so it is not offered at all.
+            button.hidden = true;
+            return;
+        }
+        button.addEventListener('click', () => dialog.showModal());
+        byId('forgetGo')?.addEventListener('click', () => {
+            dialog.close();
+            this.wipeMyData();
         });
+        byId('forgetCancel')?.addEventListener('click', () => dialog.close());
     }
-    bindStepToggles() {
-        document.addEventListener('click', (event) => {
-            // 🔴 A DESCENDANT SELECTOR, NOT A CHILD ONE. `closest` matches a selector
-            // against each ancestor, and the first version of this used `.step-gated > h2`
-            // — which reads as a child selector and did not fire in Chrome. Matching on
-            // the plain descendant and checking the parent explicitly is the same test
-            // written so it cannot be ambiguous.
-            const target = event.target;
-            const heading = target?.closest('h2');
-            if (!(heading instanceof HTMLElement))
-                return;
-            const section = heading.parentElement;
-            if (!(section instanceof HTMLElement) || !section.classList.contains('step-gated'))
-                return;
-            section.classList.toggle('step-folded');
-            const folded = section.classList.contains('step-folded');
-            heading.setAttribute('aria-expanded', String(!folded));
-            track('step_folded', { step: section.dataset.step ?? '', folded });
-        });
+    /**
+     * Forget everything this page holds in this browser, say so, and start again.
+     *
+     * It is separate from the dialog so the dialog can only ever ask: the two halves of a destructive
+     * control are the question and the deed, and keeping them in different methods is what makes it
+     * possible to read the question and see that it does nothing else.
+     */
+    wipeMyData() {
+        forgetStored(true);
+        track('data_deleted', {});
+        window.location.reload();
     }
     /**
      * 🔴 PRESSING AN AIRCRAFT PUTS THE MAP ON IT, AND PRESSING IT AGAIN TAKES IT OFF.

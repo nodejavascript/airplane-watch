@@ -44,9 +44,15 @@ function stripHtml(source) {
   return source.replace(/<!--[\s\S]*?-->/g, '');
 }
 
+/** Strip /* *\/ from CSS, for the same reason — a comment that names a rule is not that rule. */
+function stripCss(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
 const html = read(SITE, 'index.html');
 const htmlCode = stripHtml(html);
 const css = read(SITE, 'styles.css');
+const cssCode = stripCss(css);
 const consentJs = stripJs(read(SITE, 'consent.js'));
 const appJs = stripJs(read(SITE, 'app.js'));
 const detectJs = stripJs(read(SITE, 'detect.js'));
@@ -2416,35 +2422,68 @@ test('100 · "delete my data" is the last item on the location row, asks first, 
   const align = css.slice(alignAt, css.indexOf('}', alignAt));
   assert.match(align, /margin-left: auto/, 'the control is not pushed to the right of the row');
 
-  const handler = app.slice(app.indexOf('private bindForgetMine('), app.indexOf('private bindStepToggles('));
+  // 🔴 AND IT ASKS IN THIS PAGE'S OWN BOX, NOT IN A BROWSER BOX. George, 22 Sep 2026: *"the delete
+  // should not use browser confirm."* So the handler is checked for what it does NOT contain as well
+  // as for what it does — the question and the deed live in different methods, and this one is the
+  // question only.
+  const handler = app.slice(app.indexOf('private bindForgetMine('), app.indexOf('private wipeMyData('));
   assert.ok(handler.length > 400, 'the handler is gone, so this check is vacuous');
+  assert.match(handler, /dialog\.showModal\(\)/, "the control does not open the page's own box");
+  assert.equal(handler.includes('forgetStored'), false,
+    'the question and the deed are in one method again, so nothing separates asking from deleting');
+  assert.equal(handler.includes('reload'), false, 'the handler reloads, so it could reload without an answer');
+  assert.equal(handler.includes('track('), false, 'the handler records something, which means it acts');
 
-  // 🔴 IT ASKS FIRST, AND THE ORDER IS THE WHOLE POINT. A check for `window.confirm` alone passes on a
-  // control that confirms AFTER it has already deleted everything, so the guard is compared by position.
-  assert.match(handler, /window\.confirm\(/, 'the control deletes without asking');
-  assert.ok(handler.indexOf('if (!go) return;') > -1, 'there is no guard on the answer');
-  assert.ok(handler.indexOf('if (!go) return;') < handler.indexOf('forgetStored(true)'),
-    'it forgets the reader BEFORE reading their answer — a confirmation that acts first has not asked');
-  assert.ok(handler.indexOf('track(') > handler.indexOf('if (!go) return;'),
-    'the deletion is recorded even when the reader said no');
-  assert.match(handler, /window\.location\.reload\(\)/, 'the page is left holding what it just deleted');
-  assert.equal(handler.includes('removeItem'), false,
-    'the handler carries its own list of keys instead of going through the wipe');
+  // No browser confirm anywhere in the page's own code — the instruction, stated once, where any new
+  // control would have to walk past it.
+  const sources = ['src/app.ts', 'src/detect.ts', 'src/consent.ts', 'src/airports.ts', 'site/index.html']
+    .map((file) => (file.endsWith('.html') ? stripHtml(read(SITE, 'index.html')) : readSrc(file)))
+    .join('\n');
+  assert.equal(/window\.confirm/.test(sources), false, 'a browser confirm is somewhere in the page code');
 
-  // 🔴 "THIS RESETS ALL DEFAULT FILTERS TOO" — so the confirmation says so, in the reader's words.
-  //
-  // ⚠ AND THE MESSAGE IS READ AS ASSEMBLED, NOT AS WRITTEN. The sentence is built from concatenated
-  // string literals, so the raw source has a `' +` in the middle of it and a regex for the phrase
-  // fails against code that is perfectly correct — a false failure of exactly the kind this file's
-  // header warns about. The literals are joined the way the browser joins them, and the check is run
-  // against the sentence the reader actually reads.
-  const confirmAt = handler.indexOf('window.confirm(');
-  const argument = handler.slice(confirmAt, handler.indexOf(');', confirmAt));
-  const message = [...argument.matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((match) => match[1]).join('');
-  assert.ok(message.length > 200, 'the confirmation message could not be read, so this check is vacuous');
-  assert.match(message, /the kind, maker, era and last-seen filters/,
-    'the confirmation does not tell the reader that the filters go with it');
-  assert.match(message, /back to the defaults/, 'the confirmation does not say the page returns to its defaults');
+  // 🔴 THE DEED IS IN ONE PLACE, AND ONLY THE CONFIRM BUTTON CAN REACH IT.
+  const deed = app.slice(app.indexOf('private wipeMyData('), app.indexOf('private bindFlightPick('));
+  assert.ok(deed.length > 100, 'the deed is gone, so this check is vacuous');
+  assert.match(deed, /forgetStored\(true\)/, 'the deed does not clear the cookie answer with the rest');
+  assert.match(deed, /track\('data_deleted'/, 'the deletion is not recorded');
+  assert.match(deed, /window\.location\.reload\(\)/, 'the page is left holding what it just deleted');
+  assert.equal([...app.matchAll(/this\.wipeMyData\(\)/g)].length, 1,
+    'the deletion is reachable from more than one place');
+  const goAt = app.indexOf("byId('forgetGo')");
+  assert.ok(goAt > -1, 'the confirmation has no button that deletes');
+  assert.match(app.slice(goAt, app.indexOf('});', goAt)), /this\.wipeMyData\(\)/,
+    'the deletion is not performed by the button that says it will be');
+
+  // 🔴 AND THE BOX IS THE PAGE'S OWN MARKUP, OUTSIDE EVERY CARD. A modal inside a card that the
+  // prerequisite gate can hide would be a box that cannot open, so its position is checked rather
+  // than assumed.
+  const dialogAt = page.indexOf('<dialog id="forgetDialog"');
+  assert.ok(dialogAt > -1, 'the page carries no confirmation box');
+  assert.ok(dialogAt > page.indexOf('</footer>'), 'the box is inside the card stack, where the gate can hide it');
+  const box = page.slice(dialogAt, page.indexOf('</dialog>', dialogAt));
+  assert.deepEqual([...box.matchAll(/<button[^>]*id="([^"]+)"/g)].map((match) => match[1]),
+    ['forgetCancel', 'forgetGo'], 'the safe answer must be offered first and the destructive one last');
+  // ⚠ AND THE BOX IS READ AS TEXT, WITH WHITESPACE COLLAPSED. The sentence is wrapped across lines in
+  // the markup, so a regex for the phrase fails against a box that is perfectly correct — the same
+  // false failure this file's header warns about, met twice today: once as a wrapped string literal,
+  // and once as a wrapped line of HTML. Read the words the reader reads, never the source's layout.
+  const boxText = box.replace(/\s+/g, ' ');
+  assert.match(boxText, /the kind, maker, era and last-seen filters/,
+    'the box does not tell the reader that the filters go with it');
+  assert.match(boxText, /goes back to the defaults/, 'the box does not say the page returns to its defaults');
+  assert.match(boxText, /keeps no copy of any of it/, 'the box does not say the deletion cannot be undone');
+
+  // 🔴 AND THE AIRPORT THE PAGE GAVE ITSELF DOES NOT SURVIVE A WIPE. George, 22 Sep 2026, after pressing
+  // delete my data: *"and when i deleted, i retained the airport im watching"*. Measured on the live
+  // page: the store came back from a wipe holding `aircraft_airport`, because every load wrote the
+  // picked set and a first visit's set is the single airport this page hands a new reader — so the page
+  // undid its own wipe. The store holds a CHOICE now, and nothing else.
+  const afterAirport = app.slice(app.indexOf('private afterAirportChange('), app.indexOf('private stop('));
+  assert.ok(afterAirport.length > 200, 'the airport-change path is gone, so this check is vacuous');
+  assert.match(afterAirport, /const isTheDefault = picked\.length === 1 && picked\[0\] === DEFAULT_AIRPORT;/,
+    'the default airport is not recognised, so the page stores it and undoes its own wipe');
+  assert.match(afterAirport, /if \(!isTheDefault\) writeStore\(AIRPORT_KEY, picked\.join\(','\)\);/,
+    'the airport is written unconditionally, so a first visit — and a wipe — ends with a key in the store');
 
   // 🔴 AND THE WIPE FINDS ITS KEYS RATHER THAN REMEMBERING THEM.
   const wipe = app.slice(app.indexOf('function storedKeys('), app.indexOf('function forgetStored('));
@@ -2477,4 +2516,49 @@ test('100 · "delete my data" is the last item on the location row, asks first, 
   // And the policy tells the reader the control exists, because a way out nobody can find is not a way out.
   assert.match(page, /<b>delete my data<\/b> link/, 'the privacy section does not name the control');
   assert.match(page, /which asks you to confirm and then clears/, 'the privacy section does not say that it asks');
+});
+
+test('101 · the cards are hidden until their prerequisite is met, and cannot be folded — and the type sits over the tail', () => {
+  const app = readSrc('src/app.ts');
+  const page = stripHtml(read(SITE, 'index.html'));
+
+  // 🔴 THE GATE STAYS, THE FOLD GOES. George, 22 Sep 2026: *"for all cards i dont want the user to
+  // collapse and uncollpase, just hide the cards if they havent completed the prequisite steps."*
+  // The page already did the hiding on its own; what was left to remove was the fold the reader could
+  // drive, so BOTH halves are checked — the gate still gates, and nothing can fold.
+  const gate = app.slice(app.indexOf('private updateSteps('), app.indexOf('private bindStartOver('));
+  assert.ok(gate.length > 600, 'the prerequisite gate is gone, so this check is vacuous');
+  assert.match(gate, /const show = step === 1 \? true/, 'the first step is no longer always shown');
+  assert.match(gate, /section\.hidden = true/, 'a step whose prerequisite is unmet is no longer hidden');
+  assert.match(gate, /if \(show && section\.hidden\)/, 'a step is never revealed by the gate');
+  assert.match(gate, /const answered1 = place;/, 'the first prerequisite is no longer a place');
+  assert.match(gate, /const answered2 = answered1 && picked;/, 'the second prerequisite is no longer a pick');
+
+  // And the fold is gone from the code, the stylesheet AND the page — all three, because a rule removed
+  // in one of them and left in another is exactly how a control comes back.
+  const everything = `${app}\n${cssCode}\n${page}`;
+  assert.equal(/step-folded|step_folded|bindStepToggles/.test(everything), false,
+    'the fold machinery is back in the code, the styles or the page');
+  assert.equal(/aria-expanded/.test(everything), false,
+    'a step heading still advertises itself as something you can open and close');
+  assert.equal(/\.step-gated > h2\s*\{[^}]*cursor:\s*pointer/.test(cssCode), false,
+    'the step headings still show a pointer cursor, so they still look pressable');
+  assert.equal(/\.step-gated > h2::after/.test(cssCode), false, 'the chevron is back on the step headings');
+  // The glide on arrival is NOT the fold, and removing it would be a different change: keep it.
+  assert.match(cssCode, /step-arrive/, 'the arrival glide was removed along with the fold');
+
+  // 🔴 AND THE AIRCRAFT TYPE SITS ON TOP OF THE TAIL. George, 22 Sep 2026: *"in type put airplaye type
+  // on top of tail"* — the second time he asked for this arrangement today: *"for type list the tail
+  // under the aircraft type"*.
+  assert.match(app, /tailUnderType \? `<span class="cell-tail">\$\{escapeHtml\(tailReg\)\}<\/span>` : ''\}/,
+    'the tail is no longer drawn under the type');
+  assert.equal(/info\.known && tailUnderType/.test(app), false,
+    "the tail is hidden again whenever the type code is not in this site's type table — a fact about the table, not about the airframe");
+  // `display: block` on both is what makes "under" true; two inline spans would put them on one line.
+  const typeRule = cssCode.slice(cssCode.indexOf('.cell-type {'), cssCode.indexOf('}', cssCode.indexOf('.cell-type {')));
+  const tailRule = cssCode.slice(cssCode.indexOf('.cell-tail {'), cssCode.indexOf('}', cssCode.indexOf('.cell-tail {')));
+  assert.match(typeRule, /display: block/, '.cell-type is not stacked, so the type and the tail would share a line');
+  assert.match(tailRule, /display: block/, '.cell-tail is not stacked, so the tail cannot sit under the type');
+  assert.ok(cssCode.indexOf('.cell-tail {') > cssCode.indexOf('.cell-type {'),
+    'the tail rule comes first in the stylesheet, so the order on the row is no longer stated by the styles');
 });

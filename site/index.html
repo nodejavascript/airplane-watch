@@ -777,5 +777,39 @@
       </p>
       <p class="footer-copy">© 2026 aircraft-demo.nodejavascript.com. All rights reserved.</p>
     </footer>
+
+    <!--
+      🔴 THE CONFIRMATION BOX IS THIS PAGE'S OWN, NOT THE BROWSER'S. George, 22 Sep 2026: *"the
+      delete should not use browser confirm."*
+
+      A `window.confirm` is a small grey rectangle with the browser's name on it: its buttons are in
+      the browser's order rather than this page's, it cannot be read by a screen reader as part of
+      the page, and on a page that has been written this carefully it arrives looking like an
+      accident. `<dialog>` + `showModal()` keeps every guarantee that mattered — nothing happens
+      until the reader answers, Escape means no, focus cannot wander out of the box — and the box is
+      drawn in this site's own colours.
+
+      It sits OUTSIDE every card on purpose: a modal inside a card that the prerequisite gate can
+      hide would be a box that cannot open. And the wording is the same sentence the browser box
+      carried, because the scope of a deletion is the last thing that should change when the box
+      does.
+    -->
+    <dialog id="forgetDialog" aria-labelledby="forgetTitle">
+      <h2 id="forgetTitle">Delete everything this page has saved in this browser?</h2>
+      <p>
+        That is where you are and the community you picked inside it, the distance, the airports, the
+        types you starred, the alerts you set, the tail numbers you named, the kind, maker, era and
+        last-seen filters, and your answer to the cookie question. All of it is kept in this browser,
+        and all of it goes back to the defaults.
+      </p>
+      <p>
+        The page keeps no copy of any of it, so this cannot be undone. It reloads as a first visit,
+        and if you allowed Analytics it asks you again.
+      </p>
+      <div class="confirm-actions">
+        <button id="forgetCancel" class="ghost" type="button">Keep it</button>
+        <button id="forgetGo" class="danger" type="button">Delete everything</button>
+      </div>
+    </dialog>
   </body>
 </html>
