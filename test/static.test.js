@@ -1053,8 +1053,8 @@ test('an aircraft whose type code has no source is reported as UNKNOWN, not as n
 
 test('the three filter rows live INSIDE the gated type section, so whatever opens it shows them', () => {
   // 🔴 THIS IS WHY THE FILTERS "WENT MISSING" AND IT IS NOT A BUG TO FIX BY MOVING THEM. They are
-  // inside `#step-3` on purpose — the section opens on `place && radiusChosen`, and a reader who
-  // has not answered step 1 has nothing for a type filter to act on. What matters is that the
+  // inside `#step-3` on purpose — the section opens on a place, and a reader who has not said where
+  // they are has nothing for a type filter to act on. What matters is that the
   // chips and the list share ONE container: if a chip ever leaves it, the filters and the rows
   // can be shown and hidden independently, which is the state that looks like "my filters are
   // gone" while the rows are still there.
@@ -1070,18 +1070,60 @@ test('the three filter rows live INSIDE the gated type section, so whatever open
   assert.ok(section.length > 0, 'the step-3 section was not found at all');
 });
 
-test('the type section opens on a place AND a distance, and both are restored from storage', () => {
+test('the type section opens on a PLACE — the distance no longer gates it', () => {
   const app = readSrc('src/app.ts');
-  // The unlock condition, exactly.
-  assert.match(app, /const answered1 = place && this\.radiusChosen/,
-    'the unlock condition for the type section has changed shape');
+  // 🔴 THE UNLOCK CONDITION, AND WHY IT CHANGED. George moved the distance control above the map on
+  // 22 Sep 2026 (*"i want this above the map"*), and the map is in step 4 — which step 3 unlocks.
+  // `place && radiusChosen` was therefore a gate waiting on a control inside the very card it was
+  // holding shut: the distance could only be chosen after a distance had been chosen. The gate is
+  // the place alone now, and a distance is in use from the start.
+  assert.match(app, /const answered1 = place;/, 'the unlock condition for the type section has changed shape');
+  assert.equal(
+    /const answered1 = place && this\.radiusChosen/.test(app),
+    false,
+    'the type section still waits for a distance that is chosen in the card it unlocks'
+  );
 
-  // And BOTH halves have to survive a reload, or a returning reader gets a page with no filters
-  // and no explanation. `radiusChosen` is restored beside the radius; the centre is restored from
-  // its own key. If either stops being restored, step 3 never opens again for that reader.
-  assert.match(app, /this\.radiusKm = keptRadius/, 'the saved distance is no longer restored');
-  assert.match(app, /this\.radiusChosen = true/, 'the saved distance no longer counts as answered');
+  // The place still has to survive a reload, or a returning reader gets a page with no filters and
+  // no explanation — and a kept distance is still restored, because it is applied from the start.
   assert.match(app, /JSON\.parse\(readStore\(CENTRE_KEY/, 'the saved location is no longer restored');
+  assert.match(app, /this\.radiusKm = keptRadius/, 'the saved distance is no longer restored');
+  assert.match(app, /this\.radiusChosen = true/, 'the saved distance no longer counts as chosen');
+});
+
+test('the distance control sits ABOVE the map it draws, with the refreshed line under it', () => {
+  // 🔴 George, 22 Sep 2026: *"i want this above the map"*, and then *"and last refreshed
+  // fromnow()"*. Both halves are a POSITION, so the check is an order: the heading and the slider,
+  // then the note, then the refreshed line, then the map. A control that drifted back down the
+  // page would still be on it, and a reader would still be told the circle is somewhere it is not.
+  const code = htmlCode;
+  const head = code.indexOf('id="radiusHead"');
+  const buttons = code.indexOf('id="radiusButtons"');
+  const note = code.indexOf('id="radiusNote"');
+  const refreshed = code.indexOf('id="refreshedAgo"');
+  const map = code.indexOf('id="watchMap"');
+
+  for (const [what, at] of [
+    ['the distance heading', head],
+    ['the distance slider', buttons],
+    ['the distance note', note],
+    ['the refreshed line', refreshed],
+    ['the map', map],
+  ]) {
+    assert.ok(at > -1, `${what} is not on the page at all`);
+  }
+  assert.ok(head < buttons && buttons < note && note < refreshed && refreshed < map,
+    'the distance control and the refreshed line are not above the map, in that order');
+
+  // And it is in the WATCHING card, not back in step 1.
+  const step4 = code.slice(code.indexOf('id="step-4"'), code.indexOf('id="live"'));
+  assert.ok(step4.includes('id="radiusButtons"'), 'the distance slider is not in the map\'s own card');
+
+  // The line is filled by the same ticker that ages every row, or it would freeze at whatever it
+  // said when the poll landed.
+  const app = readSrc('src/app.ts');
+  assert.match(app, /#refreshedAgo/, 'nothing keeps the refreshed line honest');
+  assert.match(app, /fromNow\(this\.lastPollAt\)/, 'the refreshed line is not counted from the last poll');
 });
 
 test('an empty type list NAMES THE WINDOW when the window is the reason', () => {

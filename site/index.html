@@ -178,7 +178,7 @@
       <div id="selectView">
 
       <section class="card step-gated" id="step-1" data-step="1">
-        <h2><span class="step">1</span> Where you are, and how far out</h2>
+        <h2><span class="step">1</span> Where you are</h2>
         <div id="placeAsk">
           <p class="sub" id="placeSub">Where you are — search for a place by name, or let the browser find you. Everything below follows from it, and the map is fitted so your gap fits whole. A place name or a position is sent to this site's own server to be looked up, and is not stored.</p>
 
@@ -228,25 +228,6 @@
           database, and rendering it is what `renderHistoric` does.
         -->
         <div id="historicPanel" class="historic" hidden></div>
-
-        <h3 class="subhead" id="radiusHead">How far out from you?</h3>
-        <div id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
-
-        <!--
-          🔴 WHAT THE FENCE IS MEASURED FROM, SAID OUT LOUD.
-
-          George, 21 Sep 2026: *"i wanrt from my location"*. The page already
-          measures from the reader once a place is known — but with no place it
-          falls back to an AIRPORT, and the only sign is the heading asking a
-          slightly different question. A reader who has picked Hamilton and never
-          said where they are gets a 20 km circle drawn round CYHM and a list of
-          what is near the AIRPORT, which is not the question this site exists to
-          answer. So the distance control now states its own centre, and when that
-          centre is not the reader it offers the one click that makes it so.
-        -->
-        <p class="small muted" id="radiusNote">Everything on this page is measured from here. The
-          circle that shows it — and the map it is drawn on — sits under the aircraft list in
-          step 3, beside the things it is showing you.</p>
       </section>
 
       <section class="card step-gated" id="step-3" data-step="3" hidden>
@@ -308,6 +289,40 @@
           centre onto the reader, belong to the circle — so they sit directly above the map that
           draws it, exactly as they did before.
         -->
+        <!--
+          🔴 THE DISTANCE CONTROL LIVES ABOVE THE MAP IT DRAWS. George, 22 Sep 2026: *"i want this
+          above the map"* — and he pasted the block back: *"How far out from you? / 20 km /
+          Everything on this page is measured from here…"*.
+
+          It used to sit in step 1, where it ALSO unlocked step 3 (`place && radiusChosen`). That was
+          sound while the two were in one card, and it became a circle the moment the control moved
+          here: step 4 is revealed only after something is picked in step 3, so a distance that could
+          only be chosen in step 4 could never be chosen at all, step 3 would never arrive, and nothing
+          could ever be picked. So the distance no longer gates anything — a distance is in use from
+          the start (20 km, or whatever the reader last chose), step 3 arrives as soon as a place is
+          known, and the slider here re-draws the circle and re-asks the feed at the distance chosen.
+        -->
+        <h3 class="subhead" id="radiusHead">How far out from you?</h3>
+        <div id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
+
+        <!--
+          🔴 WHAT THE FENCE IS MEASURED FROM, SAID OUT LOUD.
+
+          George, 21 Sep 2026: *"i wanrt from my location"*. The page already
+          measures from the reader once a place is known — but with no place it
+          falls back to an AIRPORT, and the only sign is the heading asking a
+          slightly different question. A reader who has picked Hamilton and never
+          said where they are gets a 20 km circle drawn round CYHM and a list of
+          what is near the AIRPORT, which is not the question this site exists to
+          answer. So the distance control now states its own centre, and when that
+          centre is not the reader it offers the one click that makes it so.
+        -->
+        <p class="small muted" id="radiusNote">Everything on this page is measured from here: the
+          aircraft listed, and the circle drawn on the map below. A distance is in use from the start,
+          so the page fills in without waiting for you — and moving the slider re-draws the circle and
+          re-asks the feed at the distance you chose.</p>
+        <p class="small muted" id="radiusRefreshed">Last refreshed <b id="refreshedAgo">not yet</b>.</p>
+
         <p class="small muted" id="fenceFrom"></p>
         <button type="button" class="ghost" id="fenceFromLocate" data-ga="fence-from-locate" hidden>Measure from my location</button>
         <div id="watchMap"></div>

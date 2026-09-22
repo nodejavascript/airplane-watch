@@ -665,17 +665,16 @@ class Page {
     routeRetryAt = new Map();
     routeRepaint = null;
     /**
-     * Whether the reader has answered the distance half of step 1 by moving the slider.
+     * Whether the reader has moved the distance slider — which is now a record of a CHOICE, not of an
+     * answered step.
      *
-     * 🔴 IT USED TO SAY "step 2", AND THERE IS NO STEP 2 ANY MORE. The distance and the place
-     * are one card — George, 20 Sep 2026: *"the circle in the map should be based on the how
-     * far out from you distance, so lets combine those cards nicely"* — so the status line was
-     * sending the reader to look for a step that is not on the page.
-     *
-     * 🔴 IT IS NOT PRESELECTED, AND THAT IS THE POINT. A distance applied silently is a step
-     * that answers itself, and a step that answers itself cannot be waited on — which is why
-     * the first attempt at this revealed steps 2, 3 and 5 together. The reader moves the
-     * slider, and the next step arrives because they did.
+     * 🔴 IT NO LONGER GATES ANYTHING, AND THAT IS THE WHOLE POINT OF IT NOW. George moved the control
+     * on 22 Sep 2026 (*"i want this above the map"*) into step 4, which step 3 unlocks — so a gate of
+     * `place && radiusChosen` would have waited on a control inside the card that gate was holding
+     * shut. The distance is in use from the start, `updateSteps` gates on the place alone, and this
+     * flag is left with the two jobs it can still do honestly: it is `first` on the analytics event
+     * for the reader's first move, and it is what the restored radius sets when a kept distance is
+     * read back out of storage.
      */
     radiusChosen = false;
     /** Types the feed showed in THIS session, which may be newer than the survey. */
@@ -835,9 +834,9 @@ class Page {
             this.renderMap();
         });
         slider.addEventListener('change', () => {
-            // 🔴 MOVING THE SLIDER IS WHAT ANSWERS STEP 1, and until it is answered step 3 is
-            // not on the page. Nothing is applied silently, so the reader can see which step
-            // the page is waiting on.
+            // 🔴 MOVING THE SLIDER IS A CHOICE, NOT AN ANSWER TO A STEP — and it used to be both. It
+            // re-aims the fence at the distance the reader actually wants, keeps it for the next visit,
+            // and re-asks the feed, which is the only thing on this page a distance changes.
             const first = !this.radiusChosen;
             this.radiusChosen = true;
             const km = RADIUS_LADDER[Number(slider.value)];
@@ -1144,13 +1143,13 @@ class Page {
         const at = this.point();
         if (!at || !this.engine)
             return;
-        // 🔴 NOTHING IS ASKED OF THE FEED UNTIL STEP 2 IS ANSWERED. The page is waiting
-        // on a choice, and saying so beats showing a count of aircraft in a fence the
-        // reader has not picked.
-        if (!this.radiusChosen) {
-            this.setStatus('Set how far out to look at the top of the page, and this fills in.', 'working');
-            return;
-        }
+        // 🔴 THE FEED IS ASKED AS SOON AS THERE IS A POINT — it is not held back until a distance is
+        // chosen any more. That guard made sense while the distance control sat in step 1 and the
+        // reader had to answer it: there was nothing to ask about until they had. The control now lives
+        // above the map in step 4, so waiting on it would mean the page never filled in at all — and a
+        // distance is in use from the start (20 km, or the last one chosen), so there IS something to
+        // ask. The status line said "Set how far out to look at the top of the page" for exactly this
+        // case, which is precisely what stopped being true.
         const url = `/api/v2/point/${at.lat}/${at.lon}/${kmToNm(this.radiusKm)}`;
         try {
             const response = await fetch(url, { headers: { accept: 'application/json' } });
@@ -1533,6 +1532,14 @@ class Page {
                 if (Number.isFinite(at))
                     spread.textContent = ` · ${fromNow(at)}`;
             }
+            // 🔴 AND THE ONE AGE THAT IS ABOUT THE WHOLE PAGE. George, 22 Sep 2026: *"and last refreshed
+            // fromnow()"* — the time every other reading on the page is aged against, sitting with the
+            // distance control above the map. It is painted by this same ticker, for the same reason the
+            // row ages are: "12s ago" is wrong a second after it is written, and a stale age on a live
+            // feed is the most reassuring thing a stalled page can say.
+            const refreshed = document.querySelector('#refreshedAgo');
+            if (refreshed)
+                refreshed.textContent = this.lastPollAt === 0 ? 'not yet' : fromNow(this.lastPollAt);
         };
         paint();
         if (this.ageTicker !== undefined)
@@ -2650,20 +2657,21 @@ class Page {
             // a third of a second apart, *"you didnt do the collpase / expand like i
             // asked"*. He was right: a stagger is not a sequence.
             //
-            // 🔴 THE DISTANCE STEP IS GONE, FOLDED INTO STEP 1. George, 20 Sep 2026: *"the
-            // circle in the map should be based on the how far out from you distance, so
-            // lets combine those cards nicely"*. They are one question — where you are, and
-            // how far out from there — so they are one card, and the circle now sits
-            // directly under the chips that decide it.
+            // 🔴 THE DISTANCE IS NO LONGER PART OF THE SEQUENCE, AND IT CANNOT BE. George moved the
+            // control on 22 Sep 2026 — *"i want this above the map"* — and the map is in step 4, which
+            // step 3 unlocks. `place && radiusChosen` therefore became a circle that could never be
+            // entered: the distance could only be chosen in a card that appears after a distance has been
+            // chosen. The gate is the PLACE alone now, a distance is in use from the start, and the
+            // distance card says so in its own note.
             //
-            //   1  where you are + how far out → ANSWERED by a place AND a distance
+            //   1  where you are                 → ANSWERED by a place
             //                                    → unlocks 3
-            //   3  the aircraft types          → ANSWERED when something is starred
-            //                                    → unlocks 4
-            //   5  name one aircraft           → the alternative to 3, so it rides with it
-            //   4, 6, 7                        → a watchlist, a board and a chart are all
+            //   3  the aircraft types            → ANSWERED when something is starred
+            //                                    → unlocks 4 (which carries the distance and the map)
+            //   5  name one aircraft             → the alternative to 3, so it rides with it
+            //   4, 6                             → a watchlist, a map and a board are all
             //                                    empty until something has been picked
-            const answered1 = place && this.radiusChosen;
+            const answered1 = place;
             const answered2 = answered1 && picked;
             const show = step === 1 ? true : step === 3 || step === 5 ? answered1 : answered2;
             if (show && section.hidden) {
