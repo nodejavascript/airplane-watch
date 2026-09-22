@@ -1763,10 +1763,6 @@ test('the watching section plots the aircraft on the list', async () => {
   // PASSED run alone and FAILED inside the full suite, which is exactly the signature of a
   // test that slept rather than waited. A condition with a timeout is honest about the wait.
   await page.waitForSelector('#watchMap .locmap-plane-icon', { timeout: 20_000 });
-  // TEMPORARY: capture the plotted map so it can be looked at.
-  await page.$eval('#watchMap', (element) => element.scrollIntoView({ block: 'center' })).catch(() => {});
-  await page.waitForTimeout(900);
-  await page.screenshot({ path: '/tmp/watchmap-plot.png' });
 
   // It is in the watching section, not somewhere else.
   assert.equal(await page.$$eval('#watchMap', (nodes) => nodes.length), 1,
