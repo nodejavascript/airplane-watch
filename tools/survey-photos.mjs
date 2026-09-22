@@ -81,10 +81,34 @@ function cleanArtist(raw) {
   return text || 'Unknown';
 }
 
-async function ask(params, api = API) {
+/**
+ * One API call, and IT WAITS WHEN IT IS TOLD TO.
+ *
+ * 🔴 THE 429 IS NOT AN ERROR TO REPORT, IT IS AN INSTRUCTION TO SLOW DOWN — AND IT COST SIXTEEN
+ * PHOTOGRAPHS TO LEARN THAT. Measured 22 Sep 2026: naming 24 more types took the run past Wikipedia's
+ * request budget partway through, and from that point every call answered *"Wikipedia answered 429"*.
+ * Sixteen codes were written into `missing` as if no article existed — including the **HondaJet, the
+ * Avro Lancaster, four Learjets and the Mooney M20**, every one of which the previous run had found a
+ * photograph for. A page that reports a rate limit as an absence makes the run look worse than it is
+ * AND loses photographs that were already working, which is the same false-negative trap the flight
+ * feed taught this project (ten requests three seconds apart refused from the third onward).
+ *
+ * So a 429 or a 503 waits — for the `Retry-After` the server names, or a growing backoff — and asks
+ * again, up to six times. Anything else still throws.
+ */
+async function ask(params, api = API, attempt = 0) {
   const url = `${api}?${new URLSearchParams({ format: 'json', formatversion: '2', ...params })}`;
   const response = await fetch(url, { headers: { 'user-agent': UA, accept: 'application/json' } });
-  if (!response.ok) throw new Error(`Wikipedia answered ${response.status}`);
+  if (!response.ok) {
+    if ((response.status === 429 || response.status === 503) && attempt < 6) {
+      const named = Number(response.headers.get('retry-after'));
+      const wait = Number.isFinite(named) && named > 0 ? named : 4 * (attempt + 1);
+      console.log(`  rate limited (${response.status}) — waiting ${wait}s, then asking again`);
+      await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+      return ask(params, api, attempt + 1);
+    }
+    throw new Error(`Wikipedia answered ${response.status}`);
+  }
   return response.json();
 }
 
@@ -139,6 +163,11 @@ function modelTokens(name) {
     if (/\d/.test(token) && token.length >= 3) out.add(token);
   }
   return [...out];
+}
+
+/** The designation tokens of a name that are long enough to be evidence — see `modelTokens`. */
+function strongTokens(name) {
+  return modelTokens(name).filter((token) => token.length >= 3);
 }
 
 /**
@@ -248,7 +277,7 @@ function judge(page, name) {
   // thousand page titles that have nothing to do with them, so a short token is only ever a
   // tie-breaker: a type named that way has to have its name in the article's TITLE, which is how
   // `ICON A-5` finds `Icon A5` and `Bellanca 7 Citabria` does not find a list of aircraft types.
-  const strong = modelTokens(name).filter((token) => token.length >= 3);
+  const strong = strongTokens(name);
   const words = nameWords(name).filter(distinctive);
   const parts = String(name ?? '').trim().split(/\s+/);
   const multiWord = parts.length >= 2;
@@ -272,7 +301,6 @@ function judge(page, name) {
   // for `Balloon`, because the word is in those articles' first sentences.
   const aboutThisAeroplane = titleEquals || titleStarts || titleToken !== '' || wordHit !== '';
   if (!isAirframePage || !aboutThisAeroplane) return null;
-
   const evidence = [];
   let kind = 1;
   if (titleEquals) {
@@ -345,7 +373,20 @@ async function directArticle(name) {
   // resolved page on sight would have put a party balloon beside the type `Balloon`, while the article
   // the site wants (`Hot air balloon`) sat one line down the search results. A page that already IS the
   // name is not evidence of anything; the search route decides that case on its own merits.
-  if ((data.query?.redirects ?? []).length === 0) return null;
+  // 🔴 A REDIRECT IS EVIDENCE, AND SO IS AN EXACT TITLE — BUT NOT FOR A ONE-WORD NAME.
+  // Measured 22 Sep 2026: the type `Kaman K-MAX` was given a photograph of the **Kaman HH-43 Huskie**, a
+  // different helicopter from the same maker, because "Kaman" is in both titles — while the K-MAX's own
+  // article, with an image, sat two lines further down the search results. This route refused to look at
+  // a page whose title is simply the type's own name.
+  //
+  // ⚠️ `Balloon` IS WHY THE REFUSAL EXISTED, so it is kept for exactly that case: the article `Balloon`
+  // is about PARTY balloons, and accepting an exact title would have put one beside the type `Balloon`
+  // while `Hot air balloon` — the article the page actually wants — sat one line up. A ONE-WORD name
+  // that is also a common noun is the ambiguous case, so for those the search route still decides.
+  const redirected = (data.query?.redirects ?? []).length > 0;
+  const isTheArticleItself = squashed(withoutBrackets(page.title)) === squashed(name);
+  const oneWord = String(name ?? '').trim().split(/\s+/).length === 1;
+  if (!redirected && !(isTheArticleItself && !oneWord)) return null;
   // A redirect to a SECTION arrives as a page whose title still carries the fragment, and a redirect to
   // a LIST is not an aeroplane. Both are refused rather than shown.
   if (/#/.test(String(page.title))) return null;
@@ -355,7 +396,6 @@ async function directArticle(name) {
   // AIRFRAME: a redirect can point at a list, an operator's fleet or a manufacturer just as easily.
   if (!isAirframe(page)) return null;
   if (!page.pageimage || !page.thumbnail?.source) return null;
-  const redirected = squashed(page.title) !== squashed(name);
   return {
     title: page.title,
     file: page.pageimage,
@@ -517,8 +557,9 @@ for (const code of wanted) {
   } catch (error) {
     misses.push({ code, name, why: error.message });
   }
-  // Wikimedia asks for a reasonable rate, same as the flight feed does.
-  await new Promise((resolve) => setTimeout(resolve, 220));
+  // Wikimedia asks for a reasonable rate, same as the flight feed does — and a code can now cost TWO
+  // requests (the redirect check, then the search), so the pause between codes is larger than it was.
+  await new Promise((resolve) => setTimeout(resolve, 400));
 }
 
 /**

@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-22T18:48:27.772Z",
+ "generated": "2026-09-22T19:14:10.419Z",
  "source": "https://www.wikipedia.org/ — the MediaWiki API, no key, no account",
  "licence": "Each photograph is under the licence named beside it, nearly always Creative Commons or public domain. The author and the file page travel with every entry, because all of those licences require the credit.",
  "method": "One search per type code, six candidate articles each, and a candidate is only used when its own categories say it is an aircraft AND it is about that type — its title carries the model token, or the whole name, or its own first paragraph names the token (which is how a renamed type like the Airbus H125 is recognised in the Eurocopter AS350 article, with no alias table to go stale). The best-scoring candidate wins; a title that carries no usable image falls back to the Commons file whose NAME states both the maker and the designation. Then one batched query for the licence terms of every file. The 22 Sep 2026 rewrite replaced \"take the first search result and check its title contains the first word of the name\", which threw away fourteen correct matches (Leonardo AW139 lives at AgustaWestland AW139) and accepted wrong ones (AS21 matched an armoured fighting vehicle).",
@@ -45,7 +45,7 @@
    "title": "Airbus A321neo",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e9/HA-LVA%40PEK_%2820200403093313%29.jpg/500px-HA-LVA%40PEK_%2820200403093313%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "N509FZ",
    "licence": "CC BY-SA 4.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:HA-LVA@PEK_(20200403093313).jpg"
@@ -56,7 +56,7 @@
    "title": "Airbus A319",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/United_Airbus_A319_%2813942617705%29.jpg/500px-United_Airbus_A319_%2813942617705%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Joao Carlos Medau from Campinas, Brazil",
    "licence": "CC BY 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:United_Airbus_A319_(13942617705).jpg"
@@ -78,7 +78,7 @@
    "title": "Airbus A321",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Airbus_A321-231%28w%29_%E2%80%98N915US%E2%80%99_American_Airlines_%2828442733186%29.jpg/500px-Airbus_A321-231%28w%29_%E2%80%98N915US%E2%80%99_American_Airlines_%2828442733186%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 2 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Alan Wilson from Stilton, Peterborough, Cambs",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Airbus_A321-231(w)_%E2%80%98N915US%E2%80%99_American_Airlines_(28442733186).jpg"
@@ -148,6 +148,17 @@
    "artist": "Maarten Visser from Capelle aan den IJssel, Nederland",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:A6-EDY_A380_Emirates_31_jan_2013_jfk_(8442269364)_(cropped).jpg"
+  },
+  "A400": {
+   "code": "A400",
+   "name": "Airbus A400M",
+   "title": "Airbus A400M Atlas",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/German_Air_Force_Airbus_A400M_%28out_cropped%29.jpg/500px-German_Air_Force_Airbus_A400M_%28out_cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "Wikipedia redirects \"Airbus A400M\" to this article, so the site takes Wikipedia at its word that they are the same aeroplane; it leads with an image and its categories are those of an airframe",
+   "artist": "Peng Chen",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:German_Air_Force_Airbus_A400M_(out_cropped).jpg"
   },
   "A5": {
    "code": "A5",
@@ -232,7 +243,7 @@
    "title": "Beechcraft 1900",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/Beech_1900D%2C_Air_New_Zealand_Link_%28Eagle_Airways%29_JP6920497.jpg/500px-Beech_1900D%2C_Air_New_Zealand_Link_%28Eagle_Airways%29_JP6920497.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Eugene Butler",
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Beech_1900D,_Air_New_Zealand_Link_(Eagle_Airways)_JP6920497.jpg"
@@ -243,7 +254,7 @@
    "title": "Bell 212",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6f/Kachina-b212-N212KA-030909-02cr.jpg/500px-Kachina-b212-N212KA-030909-02cr.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "own work",
    "licence": "CC BY 2.5",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Kachina-b212-N212KA-030909-02cr.jpg"
@@ -287,7 +298,7 @@
    "title": "Bell 407",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4e/Nassau_County_Police_Bell_407.jpg/500px-Nassau_County_Police_Bell_407.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Robert Kowal",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Nassau_County_Police_Bell_407.jpg"
@@ -298,7 +309,7 @@
    "title": "Bell 412",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/32/%281%29Police_Helicopter_039.jpg/500px-%281%29Police_Helicopter_039.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Sardaka",
    "licence": "CC BY-SA 4.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:(1)Police_Helicopter_039.jpg"
@@ -416,24 +427,24 @@
   "B744": {
    "code": "B744",
    "name": "Boeing 747-400",
-   "title": "Boeing 747",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/B-747_Iberia.jpg/500px-B-747_Iberia.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "title": "Boeing 747-400",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Frankfurt_Airport_Lufthansa_Boeing_747-430_D-ABVY_%28DSC09727%29.jpg/500px-Frankfurt_Airport_Lufthansa_Boeing_747-430_D-ABVY_%28DSC09727%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "its title carries 747, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 4 that passed, from 6 returned)",
-   "artist": "Iberia Airlines",
-   "licence": "CC BY 2.0",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:B-747_Iberia.jpg"
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "MarcelX42",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Frankfurt_Airport_Lufthansa_Boeing_747-430_D-ABVY_(DSC09727).jpg"
   },
   "B748": {
    "code": "B748",
    "name": "Boeing 747-8",
-   "title": "Boeing 747",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/B-747_Iberia.jpg/500px-B-747_Iberia.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "title": "Boeing 747-8",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b1/D-ABYT_at_FRA.jpg/500px-D-ABYT_at_FRA.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "its title carries 747, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 4 that passed, from 6 returned)",
-   "artist": "Iberia Airlines",
-   "licence": "CC BY 2.0",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:B-747_Iberia.jpg"
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "Juke Schweizer",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:D-ABYT_at_FRA.jpg"
   },
   "B752": {
    "code": "B752",
@@ -464,6 +475,17 @@
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Delta_Air_Lines_B767-332_N130DL.jpg/500px-Delta_Air_Lines_B767-332_N130DL.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
    "reason": "Wikipedia redirects \"Boeing 767-300\" to this article, so the site takes Wikipedia at its word that they are the same aeroplane; it leads with an image and its categories are those of an airframe",
+   "artist": "Richard Snyder from San Jose, CA",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Delta_Air_Lines_B767-332_N130DL.jpg"
+  },
+  "B764": {
+   "code": "B764",
+   "name": "Boeing 767-400",
+   "title": "Boeing 767",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Delta_Air_Lines_B767-332_N130DL.jpg/500px-Delta_Air_Lines_B767-332_N130DL.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "Wikipedia redirects \"Boeing 767-400\" to this article, so the site takes Wikipedia at its word that they are the same aeroplane; it leads with an image and its categories are those of an airframe",
    "artist": "Richard Snyder from San Jose, CA",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Delta_Air_Lines_B767-332_N130DL.jpg"
@@ -589,6 +611,17 @@
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Beech_Bonanza_Takeoff_(5517383917).jpg"
   },
+  "BE55": {
+   "code": "BE55",
+   "name": "Beechcraft 55 Baron",
+   "title": "Beechcraft Baron",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/Beechcraft_Baron_58.jpg/500px-Beechcraft_Baron_58.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "it is about baron, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "artist": "San Diego Air & Space Museum Archives",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Beechcraft_Baron_58.jpg"
+  },
   "BE9L": {
    "code": "BE9L",
    "name": "Beechcraft King Air 90",
@@ -611,6 +644,17 @@
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:1976_Cessna_210L_N732GD_(5359315231).jpg"
   },
+  "C130": {
+   "code": "C130",
+   "name": "Lockheed C-130 Hercules",
+   "title": "Lockheed C-130 Hercules",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cc/Lockheed_C-130_Hercules.jpg/500px-Lockheed_C-130_Hercules.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "U.S. Air Force photo by Tech. Sgt. Howard Blair",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Lockheed_C-130_Hercules.jpg"
+  },
   "C150": {
    "code": "C150",
    "name": "Cessna 150",
@@ -628,10 +672,21 @@
    "title": "Cessna 152",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/G-BRNE-Cessna152.jpg/500px-G-BRNE-Cessna152.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "MilborneOne",
    "licence": "CC BY-SA 3.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:G-BRNE-Cessna152.jpg"
+  },
+  "C17": {
+   "code": "C17",
+   "name": "Boeing C-17 Globemaster III",
+   "title": "Boeing C-17 Globemaster III",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/C-17_test_sortie.jpg/500px-C-17_test_sortie.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "U.S. Air Force",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:C-17_test_sortie.jpg"
   },
   "C170": {
    "code": "C170",
@@ -639,7 +694,7 @@
    "title": "Cessna 170",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Cessna170B_orange.jpg/500px-Cessna170B_orange.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "John Karns",
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna170B_orange.jpg"
@@ -661,7 +716,7 @@
    "title": "Cessna 177 Cardinal",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/84/Cessna177BCardinal05.jpg/500px-Cessna177BCardinal05.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Ahunt, usuario de la Wikipedia en inglés",
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna177BCardinal05.jpg"
@@ -672,7 +727,7 @@
    "title": "Cessna 180 Skywagon",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/1979_Cessna_180K%2C_C-N-_18053081_N2810K_%28without_the_floats%29_%285031770297%29.jpg/500px-1979_Cessna_180K%2C_C-N-_18053081_N2810K_%28without_the_floats%29_%285031770297%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 2 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Tomás Del Coro from Las Vegas, Nevada",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:1979_Cessna_180K,_C-N-_18053081_N2810K_(without_the_floats)_(5031770297).jpg"
@@ -683,7 +738,7 @@
    "title": "Cessna 182 Skylane",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Cessna182t_skylane_n2231f_cotswoldairshow_2010_arp.jpg/500px-Cessna182t_skylane_n2231f_cotswoldairshow_2010_arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Adrian Pingstone ( Arpingstone )",
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna182t_skylane_n2231f_cotswoldairshow_2010_arp.jpg"
@@ -691,13 +746,13 @@
   "C185": {
    "code": "C185",
    "name": "Cessna 185 Skywagon",
-   "title": "Cessna 180 Skywagon",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/1979_Cessna_180K%2C_C-N-_18053081_N2810K_%28without_the_floats%29_%285031770297%29.jpg/500px-1979_Cessna_180K%2C_C-N-_18053081_N2810K_%28without_the_floats%29_%285031770297%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "title": "Cessna 185 Skywagon",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/N914ST_Cessna_A185%28Floats%29_PAE_11JUL12_%287553419848%29.jpg/500px-N914ST_Cessna_A185%28Floats%29_PAE_11JUL12_%287553419848%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "it is about skywagon, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 2 that passed, from 6 returned)",
-   "artist": "Tomás Del Coro from Las Vegas, Nevada",
-   "licence": "CC BY-SA 2.0",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:1979_Cessna_180K,_C-N-_18053081_N2810K_(without_the_floats)_(5031770297).jpg"
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "Ken Fielding",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:N914ST_Cessna_A185(Floats)_PAE_11JUL12_(7553419848).jpg"
   },
   "C206": {
    "code": "C206",
@@ -716,7 +771,7 @@
    "title": "Cessna 208 Caravan",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/Iraqi_Air_Force_Cessna_208_Caravan_training_mission.jpg/500px-Iraqi_Air_Force_Cessna_208_Caravan_training_mission.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 3 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Lt. Col. Scott Voskovitch",
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Iraqi_Air_Force_Cessna_208_Caravan_training_mission.jpg"
@@ -743,6 +798,50 @@
    "licence": "CC0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:OO-FLN.JPG"
   },
+  "C27J": {
+   "code": "C27J",
+   "name": "Alenia C-27J Spartan",
+   "title": "Alenia C-27J Spartan",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Alenia_C27J_Spartan_2_%28cropped%29.jpg/500px-Alenia_C27J_Spartan_2_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "Dmitry A. Mottl",
+   "licence": "CC0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Alenia_C27J_Spartan_2_(cropped).jpg"
+  },
+  "C295": {
+   "code": "C295",
+   "name": "CASA C-295 Persuader",
+   "title": "Airbus C295",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Polish_Air_Force_C-295_%28cropped%29.jpg/500px-Polish_Air_Force_C-295_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "Wikipedia redirects \"CASA C-295 Persuader\" to this article, so the site takes Wikipedia at its word that they are the same aeroplane; it leads with an image and its categories are those of an airframe",
+   "artist": "Gerard van der Schaaf",
+   "licence": "CC BY 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Polish_Air_Force_C-295_(cropped).jpg"
+  },
+  "C30J": {
+   "code": "C30J",
+   "name": "Lockheed Martin C-130J Hercules",
+   "title": "Lockheed Martin C-130J Super Hercules",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/C-130J_135th_AS_Maryland_ANG_in_flight.jpg/500px-C-130J_135th_AS_Maryland_ANG_in_flight.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "Wikipedia redirects \"Lockheed Martin C-130J Hercules\" to this article, so the site takes Wikipedia at its word that they are the same aeroplane; it leads with an image and its categories are those of an airframe",
+   "artist": "USAF",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:C-130J_135th_AS_Maryland_ANG_in_flight.jpg"
+  },
+  "C310": {
+   "code": "C310",
+   "name": "Cessna 310",
+   "title": "Cessna 310",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/4X-CCL_Rami_Mizrahi.jpg/500px-4X-CCL_Rami_Mizrahi.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "Rami Mizrahi on Jetphotos",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:4X-CCL_Rami_Mizrahi.jpg"
+  },
   "C414": {
    "code": "C414",
    "name": "Cessna 414 Chancellor",
@@ -768,13 +867,13 @@
   "C501": {
    "code": "C501",
    "name": "Cessna Citation I",
-   "title": "Cessna Citation II",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Cessna_550b_citation_bravo_cs-dhr_arp.jpg/500px-Cessna_550b_citation_bravo_cs-dhr_arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "title": "Cessna Citation I",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/CN_Air_Cessna_501_Citation_I_SP.jpg/500px-CN_Air_Cessna_501_Citation_I_SP.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article title begins with the type name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 2 that passed, from 6 returned)",
-   "artist": "Adrian Pingstone",
-   "licence": "Public domain",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna_550b_citation_bravo_cs-dhr_arp.jpg"
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "Luc Verkuringen",
+   "licence": "CC BY 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:CN_Air_Cessna_501_Citation_I_SP.jpg"
   },
   "C550": {
    "code": "C550",
@@ -782,7 +881,7 @@
    "title": "Cessna Citation II",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/25/Cessna_550b_citation_bravo_cs-dhr_arp.jpg/500px-Cessna_550b_citation_bravo_cs-dhr_arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Adrian Pingstone",
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna_550b_citation_bravo_cs-dhr_arp.jpg"
@@ -793,7 +892,7 @@
    "title": "Cessna Citation V",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Cessna_uc-35a_citation_560_ultra_v_arp.jpg/500px-Cessna_uc-35a_citation_560_ultra_v_arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Adrian Pingstone",
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna_uc-35a_citation_560_ultra_v_arp.jpg"
@@ -804,7 +903,7 @@
    "title": "Cessna Citation Excel",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/Cessna_560XL_Citation_XLS.jpg/500px-Cessna_560XL_Citation_XLS.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Gerry Stegmeier",
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna_560XL_Citation_XLS.jpg"
@@ -815,7 +914,7 @@
    "title": "Cessna Citation Sovereign",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/01/Cessna_Citation_Sovereign_Rafael_Luiz_%2814725958464%29.jpg/500px-Cessna_Citation_Sovereign_Rafael_Luiz_%2814725958464%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Rafael Luiz Canossa",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna_Citation_Sovereign_Rafael_Luiz_(14725958464).jpg"
@@ -826,7 +925,7 @@
    "title": "Cessna Citation Latitude",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/CS-LTI_Cessna_560_XLS_Citation_XLS_C56X_c_n_560-5798_-_NJE_%2843222541880%29.jpg/500px-CS-LTI_Cessna_560_XLS_Citation_XLS_C56X_c_n_560-5798_-_NJE_%2843222541880%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Markus Eigenheer from Genève, Schweiz",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:CS-LTI_Cessna_560_XLS_Citation_XLS_C56X_c_n_560-5798_-_NJE_(43222541880).jpg"
@@ -848,7 +947,7 @@
    "title": "Cessna Citation X",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/69/N975QS_2002_Cessna_750_C-N_750-0175_Citation_X_%287039507775%29.jpg/500px-N975QS_2002_Cessna_750_C-N_750-0175_Citation_X_%287039507775%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Tomás Del Coro from Las Vegas, Nevada",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:N975QS_2002_Cessna_750_C-N_750-0175_Citation_X_(7039507775).jpg"
@@ -892,7 +991,7 @@
    "title": "Canadair CL-215",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/CL215_43_Grupo_%28cropped%29.jpg/500px-CL215_43_Grupo_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 5 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Javiramos43",
    "licence": "CC BY 3.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:CL215_43_Grupo_(cropped).jpg"
@@ -903,7 +1002,7 @@
    "title": "Canadair CT-114 Tutor",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Canadair_CT-114_Tutor_%28CL-41A%29%2C_Canada_-_Air_Force_AN0223592.jpg/500px-Canadair_CT-114_Tutor_%28CL-41A%29%2C_Canada_-_Air_Force_AN0223592.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "it is about canadair, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 5 that passed, from 6 returned)",
+   "reason": "it is about canadair, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 6 that passed, from 6 returned)",
    "artist": "John Davies - CYOW Airport Watch",
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Canadair_CT-114_Tutor_(CL-41A),_Canada_-_Air_Force_AN0223592.jpg"
@@ -914,7 +1013,7 @@
    "title": "Bombardier Challenger 300",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/22/Bombardier_BD-100-1A10_Challenger_300_AN1704544.jpg/500px-Bombardier_BD-100-1A10_Challenger_300_AN1704544.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Igor Dvurekov",
    "licence": "CC BY-SA 3.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Bombardier_BD-100-1A10_Challenger_300_AN1704544.jpg"
@@ -940,6 +1039,17 @@
    "artist": "Maarten Visser from Capelle aan den IJssel, Nederland",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:OH-WII_CL604_pvt_(7950005490).jpg"
+  },
+  "CN35": {
+   "code": "CN35",
+   "name": "CASA CN-235",
+   "title": "CASA/IPTN CN-235",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Festival_A%C3%A9reo_de_Vigo_2010_%284807526294%29.jpg/500px-Festival_A%C3%A9reo_de_Vigo_2010_%284807526294%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "Wikipedia redirects \"CASA CN-235\" to this article, so the site takes Wikipedia at its word that they are the same aeroplane; it leads with an image and its categories are those of an airframe",
+   "artist": "Contando Estrelas from Vigo, España / Spain",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Festival_A%C3%A9reo_de_Vigo_2010_(4807526294).jpg"
   },
   "CRJ1": {
    "code": "CRJ1",
@@ -995,6 +1105,17 @@
    "artist": "Towpilot",
    "licence": "CC BY-SA 3.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Douglas_DC-3,_SE-CFP.jpg"
+  },
+  "DC93": {
+   "code": "DC93",
+   "name": "McDonnell Douglas DC-9-30",
+   "title": "McDonnell Douglas DC-9",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Northwest_N756NW_DC9_%28cropped_16_9%29.JPG/500px-Northwest_N756NW_DC9_%28cropped_16_9%29.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "Wikipedia redirects \"McDonnell Douglas DC-9-30\" to this article, so the site takes Wikipedia at its word that they are the same aeroplane; it leads with an image and its categories are those of an airframe",
+   "artist": "Anthony92931",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Northwest_N756NW_DC9_(cropped_16_9).JPG"
   },
   "DH3T": {
    "code": "DH3T",
@@ -1068,7 +1189,7 @@
    "title": "De Havilland Canada DHC-3 Otter",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cd/Harbour_Air_De_Havilland_Canada_DHC-3T_Vazar_Turbine_Otter_C-FHAS_3_%28cropped%29.jpg/500px-Harbour_Air_De_Havilland_Canada_DHC-3T_Vazar_Turbine_Otter_C-FHAS_3_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Tony Hisgett",
    "licence": "CC BY 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Harbour_Air_De_Havilland_Canada_DHC-3T_Vazar_Turbine_Otter_C-FHAS_3_(cropped).jpg"
@@ -1090,7 +1211,7 @@
    "title": "Diamond DA20 Katana",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Diamond_DA20_%288735090139%29.jpg/500px-Diamond_DA20_%288735090139%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 4 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "bomberpilot",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Diamond_DA20_(8735090139).jpg"
@@ -1178,7 +1299,7 @@
    "title": "Embraer Phenom 300",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8f/Embraer_505_Phenom_300%2C_Aerojet_JP7625910.jpg/500px-Embraer_505_Phenom_300%2C_Aerojet_JP7625910.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 2 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Aktug Ates",
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Embraer_505_Phenom_300,_Aerojet_JP7625910.jpg"
@@ -1244,7 +1365,7 @@
    "title": "Evektor SportStar",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/N90MX_Evektor_SportStar.jpg/500px-N90MX_Evektor_SportStar.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 2 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Tomás Del Coro",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:N90MX_Evektor_SportStar.jpg"
@@ -1252,24 +1373,46 @@
   "F900": {
    "code": "F900",
    "name": "Dassault Falcon 900",
-   "title": "Dassault Falcon 7X",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/VQ-BGG%40PEK_%2820170314150921%29.jpg/500px-VQ-BGG%40PEK_%2820170314150921%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "title": "Dassault Falcon 900",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/Spanish_Air_Force_Dassault_Falcon_900B.jpg/500px-Spanish_Air_Force_Dassault_Falcon_900B.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "it is about dassault, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 5 that passed, from 6 returned)",
-   "artist": "N509FZ",
-   "licence": "CC BY-SA 4.0",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:VQ-BGG@PEK_(20170314150921).jpg"
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "Luc Verkuringen",
+   "licence": "CC BY 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Spanish_Air_Force_Dassault_Falcon_900B.jpg"
   },
   "FA50": {
    "code": "FA50",
    "name": "Dassault Falcon 50",
-   "title": "Dassault Falcon 7X",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/99/VQ-BGG%40PEK_%2820170314150921%29.jpg/500px-VQ-BGG%40PEK_%2820170314150921%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "title": "Dassault Falcon 50",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Armee_de_l%27Air_-_Dassault_Falcon_50.jpg/500px-Armee_de_l%27Air_-_Dassault_Falcon_50.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "it is about dassault, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 6 that passed, from 6 returned)",
-   "artist": "N509FZ",
-   "licence": "CC BY-SA 4.0",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:VQ-BGG@PEK_(20170314150921).jpg"
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "André Inácio",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Armee_de_l%27Air_-_Dassault_Falcon_50.jpg"
+  },
+  "FA6X": {
+   "code": "FA6X",
+   "name": "Dassault Falcon 6X",
+   "title": "Dassault Falcon 6X",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/F-WSIX_-_Dassault_Falcon_6X.jpg/500px-F-WSIX_-_Dassault_Falcon_6X.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "dylan3300",
+   "licence": "CC0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:F-WSIX_-_Dassault_Falcon_6X.jpg"
+  },
+  "G280": {
+   "code": "G280",
+   "name": "Gulfstream G280",
+   "title": "Gulfstream G280",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/IAI_Gulfstream_G280_-_Gulfstrem_Aerospace_%2818701234531%29.jpg/500px-IAI_Gulfstream_G280_-_Gulfstrem_Aerospace_%2818701234531%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "flybyeigenheer",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:IAI_Gulfstream_G280_-_Gulfstrem_Aerospace_(18701234531).jpg"
   },
   "GA6C": {
    "code": "GA6C",
@@ -1299,7 +1442,7 @@
    "title": "Bombardier Global 7500",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cc/N182QS-Global7500-120823.png/500px-N182QS-Global7500-120823.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "KeepPhlyingHigh",
    "licence": "CC0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:N182QS-Global7500-120823.png"
@@ -1310,7 +1453,7 @@
    "title": "Bombardier Global Express",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/2010-07-08_BD700_Tyrolean_OE-IGS_EDDF_03.jpg/500px-2010-07-08_BD700_Tyrolean_OE-IGS_EDDF_03.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Wo st 01 (There are 682 Pictures in my Category ) See also Toolserver",
    "licence": "CC BY-SA 3.0 de",
    "creditPage": "https://commons.wikimedia.org/wiki/File:2010-07-08_BD700_Tyrolean_OE-IGS_EDDF_03.jpg"
@@ -1321,7 +1464,7 @@
    "title": "Gulfstream IV",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/G4-1_%28Gulfstream%29.jpg/500px-G4-1_%28Gulfstream%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "NOAA; http://www.photolib.noaa.gov/aboutc.html",
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:G4-1_(Gulfstream).jpg"
@@ -1332,7 +1475,7 @@
    "title": "Gulfstream V",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/21/Gulfstream_Aerospace_G-V_Gulfstream_V_AN0811210.jpg/500px-Gulfstream_Aerospace_G-V_Gulfstream_V_AN0811210.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "John Davies - CYOW Airport Watch",
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Gulfstream_Aerospace_G-V_Gulfstream_V_AN0811210.jpg"
@@ -1370,6 +1513,17 @@
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Hawker_Hurricane_I_%27R4118_UP-W%27_(G-HUPW)_(41455530471).jpg"
   },
+  "H47": {
+   "code": "H47",
+   "name": "Boeing-Vertol CH-47 Chinook",
+   "title": "Boeing CH-47 Chinook",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/CH-47_assigned_to_3rd_General_Support_Aviation_Battalion%2C_82nd_Combat_Aviation_Brigade.jpg/500px-CH-47_assigned_to_3rd_General_Support_Aviation_Battalion%2C_82nd_Combat_Aviation_Brigade.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "Wikipedia redirects \"Boeing-Vertol CH-47 Chinook\" to this article, so the site takes Wikipedia at its word that they are the same aeroplane; it leads with an image and its categories are those of an airframe",
+   "artist": "Sgt. Steven Galimore",
+   "licence": "CC0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:CH-47_assigned_to_3rd_General_Support_Aviation_Battalion,_82nd_Combat_Aviation_Brigade.jpg"
+  },
   "H500": {
    "code": "H500",
    "name": "Hughes 500",
@@ -1387,10 +1541,21 @@
    "title": "Sikorsky UH-60 Black Hawk",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/National-Guard-UH-60-Black-Hawk-operations-at-Fort-McCoy.jpg/500px-National-Guard-UH-60-Black-Hawk-operations-at-Fort-McCoy.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 5 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "147th Aviation Regiment",
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:National-Guard-UH-60-Black-Hawk-operations-at-Fort-McCoy.jpg"
+  },
+  "HAWK": {
+   "code": "HAWK",
+   "name": "BAE Systems Hawk",
+   "title": "BAE Systems Hawk",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Hawk_-_RIAT_2011_%286122004254%29.jpg/500px-Hawk_-_RIAT_2011_%286122004254%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "Tim Felce (Airwolfhound)",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Hawk_-_RIAT_2011_(6122004254).jpg"
   },
   "HDJT": {
    "code": "HDJT",
@@ -1398,7 +1563,7 @@
    "title": "Honda HA-420 HondaJet",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/HondaJet_Ryabtsev.jpg/500px-HondaJet_Ryabtsev.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Sergey Ryabtsev",
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:HondaJet_Ryabtsev.jpg"
@@ -1413,6 +1578,28 @@
    "artist": "André Du-pont (Mexico Air Spotters)",
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Quest_Kodiak_100_AN2150438.jpg"
+  },
+  "K35R": {
+   "code": "K35R",
+   "name": "Boeing KC-135 Stratotanker",
+   "title": "Boeing KC-135 Stratotanker",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/F-15C_Eagle_from_the_67th_Fighter_Squadron_at_Kadena_AB_is_refueled_by_a_KC-135R_Stratotanker_from_the_909th_Air_Refueling_Squadron_.jpg/500px-F-15C_Eagle_from_the_67th_Fighter_Squadron_at_Kadena_AB_is_refueled_by_a_KC-135R_Stratotanker_from_the_909th_Air_Refueling_Squadron_.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "U.S. Air Force photo/Tech. Sgt. Angelique Perez",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:F-15C_Eagle_from_the_67th_Fighter_Squadron_at_Kadena_AB_is_refueled_by_a_KC-135R_Stratotanker_from_the_909th_Air_Refueling_Squadron_.jpg"
+  },
+  "KMAX": {
+   "code": "KMAX",
+   "name": "Kaman K-MAX",
+   "title": "Kaman K-MAX",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/Kaman_K-1200_Rotex.jpg/500px-Kaman_K-1200_Rotex.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "André Völzke",
+   "licence": "CC BY-SA 3.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Kaman_K-1200_Rotex.jpg"
   },
   "LA4": {
    "code": "LA4",
@@ -1431,7 +1618,7 @@
    "title": "Avro Lancaster",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Battle_of_Britain_Memorial_flight_Avro_Lancaster_%28cropped%29.jpg/500px-Battle_of_Britain_Memorial_flight_Avro_Lancaster_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 3 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Cpl Phil Major ABIPP",
    "licence": "OGL v1.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Battle_of_Britain_Memorial_flight_Avro_Lancaster_(cropped).jpg"
@@ -1442,7 +1629,7 @@
    "title": "Learjet 31",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Learjet_31A_N312CC_KBFL_070207.jpg/500px-Learjet_31A_N312CC_KBFL_070207.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Alan Radecki",
    "licence": "CC BY 2.5",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Learjet_31A_N312CC_KBFL_070207.jpg"
@@ -1453,7 +1640,7 @@
    "title": "Learjet 35",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Learjet_35_%288738280921%29.jpg/500px-Learjet_35_%288738280921%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "bomberpilot",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Learjet_35_(8738280921).jpg"
@@ -1464,7 +1651,7 @@
    "title": "Learjet 45",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Bombardier_Learjet_45_Gama_Aviation_%28GMA%29_G-ZXZX_-_MSN_45-005_%285590120278%29.jpg/500px-Bombardier_Learjet_45_Gama_Aviation_%28GMA%29_G-ZXZX_-_MSN_45-005_%285590120278%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Laurent ERRERA from L'Union",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Bombardier_Learjet_45_Gama_Aviation_(GMA)_G-ZXZX_-_MSN_45-005_(5590120278).jpg"
@@ -1475,7 +1662,7 @@
    "title": "Learjet 60",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Bombardier.learjet60.oe-gtf.arp.jpg/500px-Bombardier.learjet60.oe-gtf.arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Adrian Pingstone",
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Bombardier.learjet60.oe-gtf.arp.jpg"
@@ -1497,7 +1684,7 @@
    "title": "Lancair IV",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/2005_HOLMES_A_LANCAIR_IV-P_N798CB_LIV-549_Experimental_%284975757491%29.jpg/500px-2005_HOLMES_A_LANCAIR_IV-P_N798CB_LIV-549_Experimental_%284975757491%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 5 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Tomás Del Coro from Las Vegas, Nevada",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:2005_HOLMES_A_LANCAIR_IV-P_N798CB_LIV-549_Experimental_(4975757491).jpg"
@@ -1508,7 +1695,7 @@
    "title": "Mooney M20",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bf/Mooney.m20j.g-muni.arp.jpg/500px-Mooney.m20j.g-muni.arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 4 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Arpingstone",
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Mooney.m20j.g-muni.arp.jpg"
@@ -1524,6 +1711,17 @@
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Mooney.m20j.g-muni.arp.jpg"
   },
+  "M4": {
+   "code": "M4",
+   "name": "Maule M-4",
+   "title": "Maule M-4",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cd/Maule_M-4-210C_Rocket_C-FWZM_02.JPG/500px-Maule_M-4-210C_Rocket_C-FWZM_02.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "Ahunt",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Maule_M-4-210C_Rocket_C-FWZM_02.JPG"
+  },
   "M600": {
    "code": "M600",
    "name": "Piper M600",
@@ -1535,13 +1733,24 @@
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Piper_PA-46-500TP_Malibu_Meridian_AN1805813.jpg"
   },
+  "M700": {
+   "code": "M700",
+   "name": "Piper M700 Fury",
+   "title": "Piper PA-46",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Piper_PA-46-500TP_Malibu_Meridian_AN1805813.jpg/500px-Piper_PA-46-500TP_Malibu_Meridian_AN1805813.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "Wikipedia redirects \"Piper M700 Fury\" to this article, so the site takes Wikipedia at its word that they are the same aeroplane; it leads with an image and its categories are those of an airframe",
+   "artist": "Alan Lebeda",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Piper_PA-46-500TP_Malibu_Meridian_AN1805813.jpg"
+  },
   "P06T": {
    "code": "P06T",
    "name": "Tecnam P2006T",
    "title": "Tecnam P2006T",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/GDN_SP-DZW_%28cropped%29.jpg/500px-GDN_SP-DZW_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 3 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Andrzej Otrębski",
    "licence": "CC BY-SA 4.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:GDN_SP-DZW_(cropped).jpg"
@@ -1552,7 +1761,7 @@
    "title": "Piper PA-28 Cherokee",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg/500px-G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Mike Burdett",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg"
@@ -1590,13 +1799,24 @@
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:G-AVRZ_Piper_PA-28-180_Cherokee_C_at_Northrepps.jpg"
   },
+  "P8": {
+   "code": "P8",
+   "name": "Boeing P-8 Poseidon",
+   "title": "Boeing P-8 Poseidon",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/US_Navy_P-8_Poseidon_taking_off_at_Perth_Airport.jpg/500px-US_Navy_P-8_Poseidon_taking_off_at_Perth_Airport.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "Darren Koch",
+   "licence": "GFDL 1.2",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:US_Navy_P-8_Poseidon_taking_off_at_Perth_Airport.jpg"
+  },
   "PA24": {
    "code": "PA24",
    "name": "Piper PA-24 Comanche",
    "title": "Piper PA-24 Comanche",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Pa24-N5760P-071126-01-16.jpg/500px-Pa24-N5760P-071126-01-16.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 2 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Alan Radecki Akradecki",
    "licence": "CC BY-SA 4.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Pa24-N5760P-071126-01-16.jpg"
@@ -1615,13 +1835,13 @@
   "PA31": {
    "code": "PA31",
    "name": "Piper PA-31 Navajo",
-   "title": "Piper PA-31T Cheyenne",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Piper_PA-31T1_Cheyenne_I_Ursella%2C_LUX_Luxembourg_%28Findel%29%2C_Luxembourg_PP1267311070.jpg/500px-Piper_PA-31T1_Cheyenne_I_Ursella%2C_LUX_Luxembourg_%28Findel%29%2C_Luxembourg_PP1267311070.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "title": "Piper PA-31 Navajo",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Piper_PA-31-..._Navajo_...%2C_West_Capital_Aviation_AN0644817.jpg/500px-Piper_PA-31-..._Navajo_...%2C_West_Capital_Aviation_AN0644817.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "its title carries pa31, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 2 that passed, from 6 returned)",
-   "artist": "Peter Bakema",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "John Davies - CYOW Airport Watch",
    "licence": "GFDL 1.2",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:Piper_PA-31T1_Cheyenne_I_Ursella,_LUX_Luxembourg_(Findel),_Luxembourg_PP1267311070.jpg"
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Piper_PA-31-..._Navajo_...,_West_Capital_Aviation_AN0644817.jpg"
   },
   "PA32": {
    "code": "PA32",
@@ -1629,7 +1849,7 @@
    "title": "Piper PA-32 Cherokee Six",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/Piper.pa32.cherokee.six.g-bxwp.arp.jpg/500px-Piper.pa32.cherokee.six.g-bxwp.arp.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 2 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Unknown",
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Piper.pa32.cherokee.six.g-bxwp.arp.jpg"
@@ -1640,7 +1860,7 @@
    "title": "Piper PA-34 Seneca",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Piper_PA-34_Naples_run_%28cropped%29.jpg/500px-Piper_PA-34_Naples_run_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Sky Larson",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Piper_PA-34_Naples_run_(cropped).jpg"
@@ -1651,7 +1871,7 @@
    "title": "Piper PA-44 Seminole",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Piper-pa-44.jpg/500px-Piper-pa-44.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "KGG1951",
    "licence": "CC BY-SA 3.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Piper-pa-44.jpg"
@@ -1673,7 +1893,7 @@
    "title": "Pilatus PC-12",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Pilatus_PC-12-45%2C_Royal_Flying_Doctor_Service_AN0636290.jpg/500px-Pilatus_PC-12-45%2C_Royal_Flying_Doctor_Service_AN0636290.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 5 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Chris Finney",
    "licence": "GFDL 1.2",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Pilatus_PC-12-45,_Royal_Flying_Doctor_Service_AN0636290.jpg"
@@ -1681,13 +1901,13 @@
   "PC24": {
    "code": "PC24",
    "name": "Pilatus PC-24",
-   "title": "Pilatus PC-7",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Swiss_Air_Force_Pilatus_PC-7_%28cropped%29.jpg/500px-Swiss_Air_Force_Pilatus_PC-7_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "title": "Pilatus PC-24",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/Pilatus_PC-24%2C_P01%2C_HB-VXA_%2818743050229%29_%28cropped%29.jpg/500px-Pilatus_PC-24%2C_P01%2C_HB-VXA_%2818743050229%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "it is about pilatus, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 5 that passed, from 6 returned)",
-   "artist": "Yannick Bammert",
-   "licence": "CC BY 2.0",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:Swiss_Air_Force_Pilatus_PC-7_(cropped).jpg"
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "Stephan Widmer",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Pilatus_PC-24,_P01,_HB-VXA_(18743050229)_(cropped).jpg"
   },
   "PIVI": {
    "code": "PIVI",
@@ -1695,7 +1915,7 @@
    "title": "Pipistrel Virus",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/G-PIVI_Pipistrel_Virus_SW127.jpg/500px-G-PIVI_Pipistrel_Virus_SW127.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 4 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Mike Burdett",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:G-PIVI_Pipistrel_Virus_SW127.jpg"
@@ -1706,7 +1926,7 @@
    "title": "Robinson R44",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Robinson_R44_II_%28cropped%29.jpg/500px-Robinson_R44_II_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 3 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "D. Miller",
    "licence": "CC BY 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Robinson_R44_II_(cropped).jpg"
@@ -1714,13 +1934,24 @@
   "R66": {
    "code": "R66",
    "name": "Robinson R66",
-   "title": "Robinson R44",
-   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Robinson_R44_II_%28cropped%29.jpg/500px-Robinson_R44_II_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "title": "Robinson R66",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/Robinson_R66_G-CIZG.jpg/500px-Robinson_R66_G-CIZG.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "it is about robinson, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 3 that passed, from 6 returned)",
-   "artist": "D. Miller",
-   "licence": "CC BY 2.0",
-   "creditPage": "https://commons.wikimedia.org/wiki/File:Robinson_R44_II_(cropped).jpg"
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "Alan Wilson",
+   "licence": "CC BY-SA 2.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Robinson_R66_G-CIZG.jpg"
+  },
+  "RJ1H": {
+   "code": "RJ1H",
+   "name": "Avro RJ100",
+   "title": "British Aerospace 146",
+   "src": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Logo_BAE_Avro_RJ.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+   "confident": true,
+   "reason": "Wikipedia redirects \"Avro RJ100\" to this article, so the site takes Wikipedia at its word that they are the same aeroplane; it leads with an image and its categories are those of an airframe",
+   "artist": "BAE Systems",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:Logo_BAE_Avro_RJ.jpg"
   },
   "RV6": {
    "code": "RV6",
@@ -1761,7 +1992,7 @@
    "title": "Sikorsky S-76",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Pesca_1_%283737941060%29.jpg/500px-Pesca_1_%283737941060%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 3 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Contando Estrelas from Vigo, España / Spain",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Pesca_1_(3737941060).jpg"
@@ -1772,7 +2003,7 @@
    "title": "Saab 340",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Saab_340_G-LGNC_IMG_3425_%2811712072893%29.jpg/500px-Saab_340_G-LGNC_IMG_3425_%2811712072893%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 3 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Ronnie Robertson",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Saab_340_G-LGNC_IMG_3425_(11712072893).jpg"
@@ -1805,7 +2036,7 @@
    "title": "Cirrus SR20",
    "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/CIRRUS_DESIGN_CORP_SR20_N345BS_%282059%29_%285056614400%29.jpg/500px-CIRRUS_DESIGN_CORP_SR20_N345BS_%282059%29_%285056614400%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
    "confident": true,
-   "reason": "the article IS the type, by name, and its categories are those of an airframe, not of a maker, a fleet or a crash (candidate 1 of 1 that passed, from 6 returned)",
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
    "artist": "Tomás Del Coro from Las Vegas, Nevada",
    "licence": "CC BY-SA 2.0",
    "creditPage": "https://commons.wikimedia.org/wiki/File:CIRRUS_DESIGN_CORP_SR20_N345BS_(2059)_(5056614400).jpg"
@@ -1854,6 +2085,39 @@
    "licence": "Public domain",
    "creditPage": "https://commons.wikimedia.org/wiki/File:Cessna.206h.stationair2.arp.jpg"
   },
+  "T38": {
+   "code": "T38",
+   "name": "Northrop T-38 Talon",
+   "title": "Northrop T-38 Talon",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/T-38_Talon_over_Edwards_AFB.jpg/500px-T-38_Talon_over_Edwards_AFB.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "U.S. Department of Defense",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:T-38_Talon_over_Edwards_AFB.jpg"
+  },
+  "TEX2": {
+   "code": "TEX2",
+   "name": "Beechcraft T-6 Texan II",
+   "title": "Beechcraft T-6 Texan II",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/T-6A_Texan_II.jpg/500px-T-6A_Texan_II.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "the article is this type by name, leads with an image, and its categories are those of an airframe",
+   "artist": "U.S. Air Force photo by Master Sgt. David Richards",
+   "licence": "Public domain",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:T-6A_Texan_II.jpg"
+  },
+  "V22": {
+   "code": "V22",
+   "name": "Bell Boeing V-22 Osprey",
+   "title": "Bell–Boeing V-22 Osprey",
+   "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/MV-22_mcas_Miramar_2014.JPG/500px-MV-22_mcas_Miramar_2014.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+   "confident": true,
+   "reason": "Wikipedia redirects \"Bell Boeing V-22 Osprey\" to this article, so the site takes Wikipedia at its word that they are the same aeroplane; it leads with an image and its categories are those of an airframe",
+   "artist": "FOX 52",
+   "licence": "CC BY-SA 4.0",
+   "creditPage": "https://commons.wikimedia.org/wiki/File:MV-22_mcas_Miramar_2014.JPG"
+  },
   "WW24": {
    "code": "WW24",
    "name": "IAI 1124 Westwind",
@@ -1867,11 +2131,6 @@
   }
  },
  "missing": [
-  {
-   "code": "A400",
-   "name": "A400 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
   {
    "code": "AC90",
    "name": "North American Rockwell Turbo Commander 690/840",
@@ -1888,104 +2147,9 @@
    "why": "no article on that name is both an aircraft and about this type"
   },
   {
-   "code": "B764",
-   "name": "B764 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "BE55",
-   "name": "BE55 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "C130",
-   "name": "C130 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "C17",
-   "name": "C17 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "C27J",
-   "name": "C27J (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "C295",
-   "name": "C295 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "C30J",
-   "name": "C30J (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "C310",
-   "name": "C310 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "CN35",
-   "name": "CN35 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "DC93",
-   "name": "DC93 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "FA6X",
-   "name": "FA6X (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "G280",
-   "name": "G280 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "H47",
-   "name": "H47 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "HAWK",
-   "name": "HAWK (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "K35R",
-   "name": "K35R (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "KMAX",
-   "name": "KMAX (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "M4",
-   "name": "M4 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "M700",
-   "name": "M700 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
    "code": "MR35",
    "name": "Murphy SR-3500 Super Rebel",
    "why": "no article on that name is both an aircraft and about this type"
-  },
-  {
-   "code": "P8",
-   "name": "P8 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
   },
   {
    "code": "RCAL",
@@ -1993,29 +2157,9 @@
    "why": "the page has no name for this type, so there is nothing to search for"
   },
   {
-   "code": "RJ1H",
-   "name": "RJ1H (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "T38",
-   "name": "T38 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
    "code": "TBM9",
    "name": "Daher TBM 900",
    "why": "no article on that name is both an aircraft and about this type"
-  },
-  {
-   "code": "TEX2",
-   "name": "TEX2 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
-  },
-  {
-   "code": "V22",
-   "name": "V22 (type not in this list)",
-   "why": "the page has no name for this type, so there is nothing to search for"
   }
  ]
 }

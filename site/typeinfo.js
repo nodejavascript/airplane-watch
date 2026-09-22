@@ -22,6 +22,7 @@ const CLASS_LABEL = {
     light: 'Light & training',
     helicopter: 'Helicopter',
     military: 'Heritage & war planes',
+    interesting: 'Interesting',
     other: 'Other',
 };
 export function classLabel(klass) {
@@ -353,18 +354,73 @@ const TABLE = {
     ST75: ['Stearman Kaydet', 'military'],
     /* other */
     AS21: ['AS21', 'other'], // NOT in the database — see the note at the end of this block
-    BALL: ['Balloon', 'other'],
+    /*
+     * 🔴 THE BALLOON IS NOT AN AEROPLANE, SO IT GETS A KIND OF ITS OWN RATHER THAN A DRAWING.
+     * George, 22 Sep 2026: *"i see ballon as a selectable item, can that be a new kind called interesting
+     * where other things not just ballos but non aricraft go?"* — so anything the feed reveals that is not
+     * an aircraft is filed under **Interesting**: a balloon today, and whatever else turns up. It is a real
+     * thing the feed reports and a reader may want to watch it, so it is not hidden; it is labelled
+     * honestly instead, under a heading that does not claim it is an aeroplane. Its photograph is the
+     * `Hot air balloon` article, which is what the code means.
+     */
+    BALL: ['Balloon', 'interesting'],
     CL2P: ['Canadair CL-215', 'other'],
     CL2T: ['Canadair CL-415 SuperScooper', 'other'],
     RCAL: ['RCAL', 'other'], // NOT in the database — see the note at the end of this block
     SS2P: ['Rockwell Thrush Commander', 'other'],
+    /* ------------------------------------------------- the military codes of the feed, named 22 Sep 2026
+     *
+     * 🔴 EVERY NAME BELOW WAS READ OUT OF THE FEED'S OWN AIRCRAFT DATABASE, NOT WRITTEN FROM MEMORY —
+     * `https://raw.githubusercontent.com/wiedehopf/tar1090-db/csv/aircraft.csv.gz`, re-downloaded
+     * 22 Sep 2026. The number in each comment is how many of its 618,617 airframes carry that code, and
+     * the name is that file's own string. So C130 is **not** "the site thinks the C-130 is called this":
+     * 484 airframes in the database a receiver uses to turn a transponder into a type say
+     * `LOCKHEED C-130 Hercules`.
+     *
+     * 🔴 WHY THEY WERE MISSING, AND WHY IT WAS NOT ONLY A MISSING LABEL. These codes arrive from the
+     * feed's own military list, so the survey found them while this table did not know them — and the
+     * photograph survey SEARCHES THE NAME. An unnamed code was searched as the sentence
+     * *"C130 (type not in this list)"*, which matches nothing, so one missing name cost the label AND
+     * the photograph. George, 22 Sep 2026: *"fix the problem of some airplane types do not have images"*.
+     *
+     * ⚠️ AND TWO ARE STILL DELIBERATELY NAMELESS at the end of this block. The database has no name for
+     * them either, and a name invented for a code nobody can source is worse than the code itself.
+     */
+    A400: ['Airbus A400M', 'military'], //       142
+    C130: ['Lockheed C-130 Hercules', 'military'], //       484
+    C17: ['Boeing C-17 Globemaster III', 'military'], //       181
+    C27J: ['Alenia C-27J Spartan', 'military'], //        65
+    C295: ['CASA C-295 Persuader', 'military'], //       207
+    C30J: ['Lockheed Martin C-130J Hercules', 'military'], //       193
+    CN35: ['CASA CN-235', 'military'], //        80
+    H47: ['Boeing-Vertol CH-47 Chinook', 'military'], //       691
+    HAWK: ['BAE Systems Hawk', 'military'], //       151 — the database's own field names the US Navy
+    //                 variant it happens to hold airframes for (T-45 Goshawk); the
+    //                 aircraft is the Hawk, and it is named as the article names it.
+    K35R: ['Boeing KC-135 Stratotanker', 'military'], //       393
+    P8: ['Boeing P-8 Poseidon', 'military'], //       376
+    T38: ['Northrop T-38 Talon', 'military'], //       405
+    TEX2: ['Beechcraft T-6 Texan II', 'military'], //       517
+    V22: ['Bell Boeing V-22 Osprey', 'military'], //       229
+    B764: ['Boeing 767-400', 'airliner'], //        38
+    DC93: ['McDonnell Douglas DC-9-30', 'airliner'], //        22
+    RJ1H: ['Avro RJ100', 'regional'], //        39
+    FA6X: ['Dassault Falcon 6X', 'business'], //        41
+    G280: ['Gulfstream G280', 'business'], //       331
+    BE55: ['Beechcraft 55 Baron', 'light'], //       547
+    C310: ['Cessna 310', 'light'], //      1793
+    M4: ['Maule M-4', 'light'], //       225
+    M700: ['Piper M700 Fury', 'light'], //        64
+    KMAX: ['Kaman K-MAX', 'helicopter'], //        39
     /*
      * 🔴 TWO CODES ARE DELIBERATELY LEFT AS THEMSELVES, AND THAT IS THE HONEST ANSWER.
      * A name invented for a code the database does not hold would be a fact the page
      * cannot support — and a wrong name beside a photograph is worse than no name at all.
+     * AS21 — the database has no name for this code (15 airframes, blank name column), and a search for
+     *        "AS21" returns a road, a rifle and an armoured vehicle rather than an aeroplane.
+     * RCAL — it is not in the database at all, and a search for it returns a laboratory method and a
+     *        children's television programme.
      */
-    // AS21 — the database has no name for this code, and a search for "AS21" returns a road, a rifle and an armoured vehicle rather than an aeroplane.
-    // RCAL — the database has no name for this code, and a search for "RCAL" returns a laboratory method and a children's television programme.
 };
 /** The name for a code, its class, and whether we actually know the code. */
 export function describeType(code) {
@@ -410,5 +466,6 @@ export const CLASS_ORDER = [
     'business',
     'light',
     'helicopter',
+    'interesting',
     'other',
 ];

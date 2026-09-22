@@ -1063,7 +1063,7 @@ test('the three filter rows live INSIDE the gated type section, so whatever open
   const end = section.indexOf('</section>');
   const inner = section.slice(0, end === -1 ? section.length : end);
 
-  for (const id of ['typeFilter', 'radiusHead', 'radiusButtons', 'yearFilter', 'seenFilter', 'filterNote', 'typeList']) {
+  for (const id of ['typeFilter', 'radiusButtons', 'yearFilter', 'seenFilter', 'filterNote', 'typeList']) {
     assert.ok(inner.includes(`id="${id}"`), `${id} is not inside the step-3 section`);
   }
   assert.ok(html.includes('class="card step-gated" id="step-3"'), 'step 3 is no longer a gated section');
@@ -1102,19 +1102,37 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   const code = htmlCode;
   const step3 = code.slice(code.indexOf('id="step-3"'), code.indexOf('id="step-4"'));
   const kind = step3.indexOf('id="typeFilter"');
-  const head = step3.indexOf('id="radiusHead"');
   const chips = step3.indexOf('id="radiusButtons"');
   const year = step3.indexOf('id="yearFilter"');
   for (const [what, at] of [
     ['the kind filter', kind],
-    ['the distance heading', head],
     ['the distance chips', chips],
     ['the year filter', year],
   ]) {
     assert.ok(at > -1, `${what} is not in the card where aircraft are picked`);
   }
-  assert.ok(kind < head && head < chips && chips < year,
-    'the distance is not asked under the kind filter');
+  assert.ok(kind < chips && chips < year, 'the distance is not asked under the kind filter');
+
+  // 🔴 AND IT WEARS THE SAME LABEL AS THE OTHER FILTER ROWS. George, 22 Sep 2026: *"### How far out from
+  // you? iws not the same font and color as the others, call is distance instead"*. The heading is gone,
+  // not hidden — a hidden duplicate label is read out twice — and the row is labelled `Distance` in the
+  // same `chip-label` span as `Kind`, `Year` and `Last seen`.
+  assert.equal(code.includes('id="radiusHead"'), false, 'the distance heading is back on the page');
+  assert.equal(/radiusHead/.test(readSrc('src/app.ts')), false,
+    'the code still reaches for the distance heading');
+  assert.match(readSrc('src/app.ts'), /labelChips\(host, 'Distance', 'radiusButtonsLabel'\)/,
+    'the distance row is not labelled Distance like the rows around it');
+
+  // 🔴 AND THE STOPS DOUBLE, WHICH IS WHAT MAKES IT LOGARITHMIC. George, 22 Sep 2026: *"make the option
+  // logrythmic"* and *"thse 4 filters are getting cluttery"* — so the ladder is six stops of twice the
+  // one before it, not seventeen of a quarter more.
+  const ladder = /const RADIUS_LADDER = \[([^\]]+)\]/.exec(readSrc('src/app.ts'));
+  assert.ok(ladder, 'the distance ladder is gone');
+  const stops = ladder[1].split(',').map((one) => Number(one.trim()));
+  assert.ok(stops.length >= 5 && stops.length <= 8, `the ladder is ${stops.length} stops long`);
+  for (let i = 1; i < stops.length; i += 1) {
+    assert.equal(stops[i], stops[i - 1] * 2, `${stops[i]} is not twice ${stops[i - 1]}`);
+  }
 
   // And it is NOT asked in the map's card any more — it is the same one control, not a second copy.
   const step4 = code.slice(code.indexOf('id="step-4"'), code.indexOf('id="live"'));

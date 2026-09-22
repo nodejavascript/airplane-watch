@@ -87,29 +87,23 @@ const POLL_MAX_MS = 180_000;
  * number and "the airport and the city around it" is an answer.
  */
 /**
- * 🔴 THE DISTANCE IS A LOGARITHMIC LADDER, AND THE STOPS OUTLIVED THE SLIDER.
+ * 🔴 THE DISTANCE IS A SHORT LOGARITHMIC LADDER: EVERY STOP IS TWICE THE ONE BEFORE IT.
  *
- * George, 20 Sep 2026: *"How far out from you? maybe this should be a slider? logrythmic?"* — and
- * then, 22 Sep 2026: *"i forgot the slider is actually a filter for pic an aircraf. lets remove the
- * slider and ask the distance about the pick an aircraf under kind"*.
+ * George, 20 Sep 2026: *"How far out from you? maybe this should be a slider? logrythmic?"* — then,
+ * 22 Sep 2026: *"i forgot the slider is actually a filter for pic an aircraf. lets remove the slider and
+ * ask the distance about the pick an aircraf under kind"*, and in the same message *"make the option
+ * logrythmic"* and *"thse 4 filters are getting cluttery"*.
  *
- * The REASON for the ladder is unchanged, and it is why there are seventeen stops rather than three
- * buttons: three chips offered three answers, and the two that mattered sat at the ends — the
- * difference between 10 and 20 km is the whole difference between catching an aircraft on the ground
- * and not, while the difference between 20 and 50 is barely noticeable. Equal steps in RATIO (each
- * about a quarter larger than the last) put the detail where the eye can use it.
+ * 🔴 SO THE STOPS WERE CUT FROM SEVENTEEN TO SIX, AND THE PROGRESSION IS THE REASON. Equal RATIOS are
+ * what a logarithmic scale means: 5 → 10 → 20 → 40 → 80 → 160 km puts the detail where the reader can
+ * use it (the difference between 5 and 10 km is the difference between seeing an aircraft on the apron
+ * and not) and spends no width on stops nobody can tell apart (the difference between 100 and 125 km is
+ * nothing at all). Seventeen chips that doubled the row into three lines was the clutter he named.
  *
- * What the slider contributed was the dragging, and that is what went: it could stop between two
- * stops, which is false precision for a fence, and it hid its answers behind a gesture. The chips
- * print every answer and one press is one answer.
- *
- * 5 km to 200 km covers everything the page is good at: below 5 the round loses the
- * airport's own apron, and above 200 on a 30-minute poll the fence is wider than any
- * aircraft can be watched across.
+ * 5 km to 160 km still covers what the page is good at: below 5 the round loses the airport's own apron,
+ * and past 160 the fence on a 30-minute poll is wider than any aircraft can be watched across.
  */
-const RADIUS_LADDER = [
-    5, 6, 8, 10, 12, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200,
-];
+const RADIUS_LADDER = [5, 10, 20, 40, 80, 160];
 const ERAS = [
     // 🔴 SHORT TOO, UNDER ITS OWN LABEL. The row is labelled "First flown", so a chip reading
     // "first flown before 1970" beside it would be the phrase the label just removed. George
@@ -828,6 +822,12 @@ class Page {
         if (!host)
             return;
         host.innerHTML = '';
+        // 🔴 AND IT WEARS THE SAME LABEL AS THE OTHER THREE FILTER ROWS. George, 22 Sep 2026: *"### How far
+        // out from you? iws not the same font and color as the others, call is distance instead"*. It was an
+        // `<h3 class="subhead">`, which is the heading the page uses for a section — so the fourth filter
+        // was drawn as a section title, in different type from `Kind`, `Year` and `Last seen` beside it.
+        // One word, `Distance`, in the same `chip-label` span as the rest.
+        this.labelChips(host, 'Distance', 'radiusButtonsLabel');
         for (const km of RADIUS_LADDER) {
             const button = document.createElement('button');
             button.type = 'button';
@@ -4291,21 +4291,20 @@ class Page {
         // list. It now lives in step 4, whose own gating decides whether it can be seen at all, so a
         // `hidden` flag set here would fight it — and would leave the map invisible for good the first
         // time a reader reached step 4 with no place picked yet.
-        for (const id of ['radiusHead', 'radiusButtons']) {
+        // ⚠️ THE HEADING IS NOT IN THIS LIST ANY MORE, BECAUSE THERE IS NO HEADING. The distance used to be
+        // an `<h3>How far out from you?</h3>` and this method both hid it and rewrote it (*"How far out from
+        // the airports you picked?"*). George, 22 Sep 2026: *"### How far out from you? iws not the same
+        // font and color as the others, call is distance instead"* — so the label is a `chip-label` inside
+        // the row now, the same as `Kind`, `Year` and `Last seen`. What the heading carried that the label
+        // does not is the one thing that mattered: that the fence is measured from the reader or from the
+        // airports. That is `#fenceFrom`'s job, and it already says it — in the airport case only.
+        for (const id of ['radiusButtons']) {
             const element = byId(id);
             if (element)
                 element.hidden = !shown;
         }
         if (!shown)
             return;
-        const head = byId('radiusHead');
-        if (head) {
-            head.textContent = hasCentre
-                ? 'How far out from you?'
-                : this.airports.length > 1
-                    ? 'How far out from the airports you picked?'
-                    : 'How far out from the airport?';
-        }
         this.renderMap();
     }
     computeNearby(lat, lon, label = '', town = '', areas = [], 

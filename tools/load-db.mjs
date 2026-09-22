@@ -264,7 +264,25 @@ async function main() {
       );
       n += 1;
     }
-    console.log(`photos          ${n} upserted`);
+    // 🔴 AND A PHOTOGRAPH THE FILE NO LONGER CARRIES IS REMOVED, NOT LEFT BEHIND.
+    //
+    // An upsert alone was not enough, and the failure was invisible from the file. Measured 22 Sep 2026:
+    // `site/photos.json` held **193** photographs while the page served **198**, because five rows the
+    // survey had freshly REFUSED — the Kaman K-MAX's wrong helicopter, the TBM 900 and the Turbo
+    // Commander matched to family articles, and code removed in the same pass — were still in the table
+    // from an earlier run and were being served to the reader. So the page showed the very photographs
+    // the survey had just decided against, and the JSON said otherwise.
+    //
+    // The file is the whole set: it covers every code the page can render, and a code with no entry is a
+    // code that keeps its drawing. So anything in the table that is not in this file is stale by
+    // definition, and it goes. `deleted` is reported rather than silent, because a prune that removes
+    // more than the diff expected is worth seeing.
+    const codes = Object.keys(photos.found ?? {});
+    const pruned = await client.query(
+      codes.length > 0 ? `delete from photos where code <> all($1::text[])` : 'delete from photos',
+      codes.length > 0 ? [codes] : []
+    );
+    console.log(`photos          ${n} upserted, ${pruned.rowCount ?? 0} withdrawn (no longer in the file)`);
   } else {
     console.log('photos          (site/photos.json not found)');
   }
