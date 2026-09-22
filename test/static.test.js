@@ -1835,17 +1835,29 @@ test('94 · the route leads the row, and reads from → to', () => {
   assert.ok(row.indexOf('this.destinationCell(') < row.indexOf('<td>${'),
     'the route is not the first cell on the row');
 
-  // 🔴 `from`, THEN THE ARROW, THEN `to`. The complaint was the ORDER — *"use from and to with a
-  // little arrow, not to and from"* — so the order is what is checked, not merely that all three
-  // words appear somewhere in the file.
+  // 🔴 `from` ABOVE `to`, AND NO ARROW BETWEEN THEM ANY MORE. The order was the first complaint — *"use
+  // from and to with a little arrow, not to and from"* — and then the arrow itself went: George,
+  // 22 Sep 2026: *"remove →"*. So the order is still checked, and the glyph is now checked to be ABSENT
+  // — in the source, and in the stylesheet that used to draw it. A rule left behind for an element the
+  // page no longer renders is exactly how a deleted control keeps looking alive.
   const cell = app.slice(app.indexOf('private destinationCell'), app.indexOf('private tickReadingAges'));
   const label = (word) => cell.indexOf(`dest-label">${word}`);
-  const arrow = cell.indexOf('dest-arrow');
   assert.ok(label('from') > -1, 'the first leg is not labelled');
   assert.ok(label('to') > -1, 'the second leg is not labelled');
-  assert.ok(arrow > -1, 'there is no arrow between the two legs');
-  assert.ok(label('from') < arrow, 'the arrow comes before the leg it leads into, which reads to and from');
-  assert.ok(label('to') > arrow, 'the arrival leg is printed before the arrow, which reads to and from');
+  assert.ok(label('from') < label('to'), 'the legs are not in the order from, then to');
+  assert.equal(/dest-arrow|→/.test(cell), false, 'the arrow is back in the route cell');
+  const routeCss = read(SITE, 'styles.css');
+  assert.equal(/\.dest-arrow\s*\{/.test(routeCss), false, 'the arrow rule was left in the stylesheet');
+
+  // 🔴 AND THE TAIL NUMBER SITS UNDER THE AIRCRAFT TYPE. George, 22 Sep 2026: *"for type list the tail
+  // under the aircraft type"*. It is printed only when the callsign column is not already carrying the
+  // same string, which is what stops one row naming the same aeroplane twice.
+  const decision = app.indexOf('const tailUnderType');
+  assert.ok(decision > -1, 'the tail-under-the-type decision is gone');
+  assert.match(app.slice(decision, decision + 1200), /cell-tail/,
+    'the tail is worked out and then never rendered under the type');
+  assert.match(routeCss, /\.cell-tail\s*\{[^}]*display:\s*block/,
+    'the tail under the type does not start a line of its own');
 
   // 🔴 AND THE TWO LEGS DO NOT EACH COME APART INTO FOUR LINES. The place name beside a code is
   // `display: block` in the rule it keeps from the column that was removed, and left that way each leg
@@ -1862,4 +1874,52 @@ test('94 · the route leads the row, and reads from → to', () => {
   assert.equal(/colspan="7"/.test(page) || /colspan="7"/.test(app), false,
     'a cell still claims seven columns on a six-column table');
   assert.match(page, /colspan="6"/, 'the placeholder cell does not span the table');
+});
+
+test('95 · the honest page and the honest code agree about the feed', () => {
+  const page = read(SITE, 'index.html');
+  const app = readSrc('src/app.ts');
+
+  // 🔴 THE PAGE SAID "EVERY TEN SECONDS" WHILE THE CODE SAID TWENTY, AND NOTHING COMPARED THEM. The
+  // sentence was true when it was written and the cadence moved out from under it — the same class of
+  // fault as a stale date in a plan, and the same remedy: read the number out of the code and require
+  // the sentence to carry it, rather than trusting a number typed twice.
+  const number = (name) => {
+    const found = new RegExp(`const ${name} = ([\\d_]+)`).exec(app);
+    return found ? Number(found[1].replace(/_/g, '')) / 1000 : NaN;
+  };
+  const start = number('POLL_START_MS');
+  const floor = number('POLL_MIN_MS');
+  assert.ok(Number.isFinite(start) && Number.isFinite(floor),
+    'the poll cadence could not be read out of the code, so this check would be vacuous');
+  assert.match(page, new RegExp(`looks every ${start} seconds`),
+    `the page does not state the ${start}-second cadence the code uses`);
+  assert.match(page, new RegExp(`never more often than every ${floor}`),
+    `the page does not state the ${floor}-second floor the code uses`);
+
+  // 🔴 AND IT MUST NOT PROMISE A MARK THAT NO ROW CARRIES. The departures board was removed on
+  // 20 Sep 2026 and took the "seen on the ground first / first seen climbing" labels with it — so a
+  // section headed "what this cannot see" was promising the reader a distinction the table had stopped
+  // drawing. A caveat that describes a feature which is gone is worse than no caveat: it is believed.
+  const honesty = page.slice(page.indexOf('What this cannot see'), page.indexOf('How it works'));
+  assert.ok(honesty.length > 400, 'the honesty section could not be isolated, so this check is vacuous');
+  assert.equal(/first seen climbing/i.test(honesty), false,
+    'the page still promises a mark no row carries, so the caveat describes a feature that is gone');
+  assert.equal(/ADS-B/.test(honesty), false,
+    'the honesty section leans on a protocol name where plain words say it better');
+  assert.equal(/seven airports polled/.test(honesty), false,
+    'the honesty section still carries a measurement taken about the airport polling that no longer happens');
+
+  // 🔴 AND THE PRIVACY SECTION MUST NOT CLAIM THAT NOTHING IS TRANSMITTED. A place name IS looked up
+  // through this site's own server, and so are the callsigns inside the fence; the section said neither,
+  // and went further — it said "nothing you type is sent to this site", which was simply untrue.
+  const privacy = page.slice(page.indexOf('id="privacy"'), page.indexOf('consentBar'));
+  assert.ok(privacy.length > 400, 'the privacy section could not be isolated, so this check is vacuous');
+  assert.match(privacy, /place name you search for/, 'the privacy section does not admit the place lookup');
+  assert.match(privacy, /callsigns of the aircraft inside your fence/,
+    'the privacy section does not admit the callsign lookups');
+  assert.equal(/Nothing you type is sent to this site/.test(privacy), false,
+    'the privacy section is back to claiming that nothing is transmitted, which the code contradicts');
+  assert.match(privacy, /last changed on 22 September 2026/,
+    'the policy was rewritten without moving its own date');
 });

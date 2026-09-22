@@ -465,40 +465,43 @@
         <h2>What this cannot see — read this before you rely on it</h2>
         <ul class="limits">
           <li>
-            <b>It cannot tell you the wheels are leaving the ground.</b> It tells you an aircraft that was in the fence
-            is airborne. Surface coverage from a receiver far away is poor, so the usual case is a departure noticed a
-            few seconds late. Each row is marked as <b>seen on the ground first</b> (a fact) or <b>first seen
-            climbing</b> (a strong inference).
+            <b>It cannot tell you the wheels are leaving the ground.</b> The feed reports where an aircraft is, not
+            that it has gone. What this page can say is that something it had on the ground is now airborne — and the
+            usual case is a departure noticed a few seconds late, because surface coverage from a far-off receiver is
+            poor. An aircraft that is never heard while it is low is never seen to leave at all.
           </li>
           <li>
-            <b>Only aircraft that transmit ADS-B appear.</b> Aircraft that have asked not to be published, and older
-            aircraft that only carry Mode S, are either absent or arrive without a position. An aircraft missing from
-            this page is not an aircraft that is not flying.
+            <b>Only aircraft that broadcast their own position appear.</b> One that has asked not to be published, or
+            an older one that sends only its identity, is either absent or arrives with no position at all. Missing
+            from this page is not the same as not flying.
           </li>
           <li>
-            <b>A missing altitude is not an aircraft on the ground.</b> Some transponders send position without
-            altitude, and those readings are shown as <b>no altitude</b> and are never used to decide a departure.
+            <b>A missing altitude is not an aircraft on the ground.</b> Some transponders send a position and no
+            altitude. Those readings are shown as <b>no altitude</b>, and they are never used to decide that something
+            has left the ground.
           </li>
           <li>
-            <b>A flyover is not a departure.</b> An aircraft already known to be airborne that enters the fence is
-            ignored, however low it is — which means a genuine departure from a neighbouring airfield, climbing through
-            the fence, will not be reported. That is the deliberate cost of not crying wolf.
+            <b>A flyover is not a departure.</b> An aircraft already airborne when it enters your fence is ignored,
+            however low it is. That is deliberate, and this is what it costs: a real departure from a nearby airfield,
+            climbing through your fence, is not reported.
           </li>
           <li>
-            <b>The fence is a circle, and reception is not.</b> A receiver's range depends on the aircraft's altitude,
-            the terrain and the weather, so what the page shows you is what one network could hear, not what is up
-            there. Distances you choose are in kilometres; the feed itself works in nautical miles, which is 1.852 km,
-            and the conversion is exact rather than approximate.
+            <b>The fence is a circle, and reception is not.</b> How far a receiver reaches depends on the aircraft's
+            height, the terrain and the weather, so this page shows what one network could hear, not what is up there.
+            Distances are in kilometres; the feed works in nautical miles, one of which is 1.852 km, and the conversion
+            is exact.
           </li>
           <li>
-            <b>The free feed rate-limits, and it says so.</b> Asking too often is answered with <span class="mono">HTTP
-            429</span>, which the page reports rather than hiding. The proxy in front of it caches for a few seconds so
-            a crowd does not multiply the load. Measured 20 Sep 2026: seven airports polled back to back had five
-            refused by the third round.
+            <b>The feed will refuse you, and the page says so instead of hiding it.</b> Ask too often and the answer is
+            a refusal, <span class="mono">HTTP 429</span>. So the page slows itself: it looks every 20 seconds at
+            first, never more often than every 15, doubles the gap after a refusal up to three minutes, recovers on its
+            own, and stops altogether while the tab is in the background. A proxy in front of the feed caches for a few
+            seconds, so a crowd does not multiply the load. Measured on 20 September 2026: ten requests three seconds
+            apart were refused from the third or fourth onwards.
           </li>
           <li>
-            <b>Positions are approximate and delayed.</b> The feed updates in seconds, and the map-precision of a
-            position derived by multilateration is worse than one the aircraft reported itself.
+            <b>Positions are approximate, and not quite now.</b> The feed updates in seconds, and a position worked out
+            from several receivers is coarser than one the aircraft reported itself.
           </li>
         </ul>
       </section>
@@ -507,28 +510,31 @@
         <h2>How it works</h2>
         <ol class="howto">
           <li>
-            <b>Where the position comes from.</b> Aircraft broadcast their identity, position and altitude over
-            1090 MHz. Volunteers with a cheap receiver and an antenna hear those broadcasts and send them to
+            <b>Where the position comes from.</b> Aircraft broadcast who they are, where they are and how high they
+            are, on 1090 MHz. Volunteers with a cheap receiver and an antenna hear those broadcasts and send them to
             <a href="https://adsb.lol/" rel="noopener">adsb.lol</a>, which republishes the merged picture for anyone
             to read.
           </li>
           <li>
             <b>Why there is a proxy in the middle.</b> The feed sends no cross-origin headers, so a browser is not
             allowed to read it directly — the request goes out, the answer comes back, and the browser discards it.
-            Every call from this page therefore goes to <span class="mono">/api/…</span> on this domain, and a small
-            proxy passes it on and adds the header the browser needs.
+            Every call this page makes therefore goes to <span class="mono">/api/…</span> on this domain, and a small
+            proxy passes it on and adds the header the browser needs. The map squares and the photographs of each type
+            are fetched the same way, so this page asks no other site for anything.
           </li>
           <li>
-            <b>How a departure is decided.</b> Once every ten seconds the page asks for every aircraft within the
-            distance you chose. Each reading is classified as on the ground, airborne, or unknown, and compared with
-            the same aircraft's previous reading. Ground to airborne inside the distance is a departure; seen only
-            after it is already climbing is a probable one; already airborne is ignored; a stale reading proves
-            nothing. A match against one of your rules is what marks a row as watched, and what makes the page
-tell you when that aircraft leaves.
+            <b>How a departure is decided.</b> Every twenty seconds at first — more slowly if the feed refuses, and not
+            at all while the tab is in the background — the page asks for every aircraft inside the distance you chose.
+            Each reading is classified as on the ground, airborne, or unknown, and compared with the same aircraft's
+            previous reading. Ground to airborne inside your fence is a departure; seen only once it is already
+            climbing is a probable one; already airborne is ignored; a reading too old to compare proves nothing. A
+            departure is what can set off an alert — but only for something on your list, a type you starred or a tail
+            number you named.
           </li>
           <li>
-            <b>Where it is kept.</b> Nowhere on a server. The watchlist, the chosen airport and your place name live in this
-            browser's own storage and are removed when you clear site data.
+            <b>Where it is kept.</b> Nowhere on a server. Your watchlist, the place you gave, the distance you set, the
+            filters you chose and the tails you highlighted live in this browser's own storage, and go when you clear
+            this site's data.
           </li>
         </ol>
       </section>
@@ -537,20 +543,23 @@ tell you when that aircraft leaves.
         <h2>Privacy</h2>
         <p>
           This policy governs <span class="mono">aircraft-demo.nodejavascript.com</span>, and it is written from what
-          the code does rather than from a template. It was last changed on 20 September 2026.
+          the code does rather than from a template. It was last changed on 22 September 2026.
         </p>
         <ul class="limits">
           <li>
-            <b>There is no account and no server-side store.</b> Nothing you type is sent to this site. Your watchlist,
-            your chosen airport, the aircraft types you picked and the distance you set are kept in your own browser's
-            storage and are never transmitted anywhere.
+            <b>There is no account and no server-side store.</b> Your watchlist, the place you gave, the airport you
+            aimed the fence at, the distance you set, the filters you chose and the tails you highlighted are kept in
+            your own browser's storage. Two things do leave your browser, and only so they can be looked up: a place
+            name you search for, and the callsigns of the aircraft inside your fence, which are looked up to find where
+            they came from and where they are going. Neither is written down by this site.
           </li>
           <li>
             <b>Google Analytics loads only after you say yes.</b> Google's script is not in the page. It is added by
             <span class="mono">consent.js</span> when you press Accept all, and if you press Reject all then
             <b>no request is made to Google at all</b> and no cookie is set. What it would record is anonymous: the
-            page you are on, which controls you press, how far down you scroll, and which airport and radius you
-            chose. It never records a tail number, a callsign or anything else you type.
+            page you are on, which controls you press, how far down you scroll, the distance and the filters you chose,
+            and the airport code the page worked out for you. It never records a tail number, a callsign, or the place
+            name you typed.
           </li>
           <li>
             <b>The only cookie is the analytics one</b>, and it exists only if you accepted. Your answer itself is
@@ -562,11 +571,21 @@ tell you when that aircraft leaves.
             Rejecting after accepting reloads the page so that counting genuinely stops.
           </li>
           <li>
-            <b>What leaves this machine while the page is open:</b> a request every ten seconds to
-            <span class="mono">/api/…</span> on this domain, which is passed to the third-party feed
-            <a href="https://adsb.lol/" rel="noopener">adsb.lol</a>. That request contains the airport and radius you
-            chose and your IP address, and no identifier for you. The feed's own terms and licence are the
-            Open Database License, and its site explains what it does with requests.
+            <b>What leaves your machine while the page is open.</b> Every request goes to this domain — your address
+            reaches this site's server, as it does for any page you open — and this site's own server passes the
+            request on, so your browser asks no other site for anything, whether or not you accept cookies. Four
+            things travel that way: a request for the aircraft inside your fence every twenty seconds or so, passed to
+            the flight feed <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> and carrying the centre and the
+            distance you chose; a lookup of each callsign inside your fence, passed to
+            <a href="https://www.adsbdb.com/" rel="noopener">adsbdb.com</a>, which holds the route for a callsign; the
+            place name you search for, or a position you asked the browser to find, passed to OpenStreetMap's
+            <a href="https://nominatim.openstreetmap.org/" rel="noopener">Nominatim</a> and
+            <a href="https://photon.komoot.io/" rel="noopener">Photon</a> lookups to be turned into a place; and the
+            map squares and the photographs of each type, passed to
+            <a href="https://www.openstreetmap.org/" rel="noopener">OpenStreetMap</a> and to
+            <a href="https://www.wikipedia.org/" rel="noopener">Wikipedia</a>. Those services are asked by this
+            site's server and are not given your address. The flight feed is under the Open Database License, the map
+            squares under OpenStreetMap's own, and each photograph under the licence named beside it.
           </li>
           <li>
             <b>Aircraft data is about aircraft, not about people.</b> The feed carries no passenger information, and

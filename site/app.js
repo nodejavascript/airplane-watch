@@ -1367,6 +1367,14 @@ class Page {
         const html = [];
         for (const { state } of rowsSorted) {
             const label = state.callsign || state.registration || state.hex;
+            // 🔴 THE TAIL NUMBER, PRINTED UNDER THE AIRCRAFT TYPE. George, 22 Sep 2026: *"for type list the
+            // tail under the aircraft type"*. A row whose callsign column is carrying a callsign (ACA123)
+            // leaves the aeroplane itself unnamed, and the registration is the name a reader can act on — it
+            // is the one step 5 watches by. It is printed only when the callsign column is not already showing
+            // the same string, so no row ever names the same aeroplane twice, and only when a type is named,
+            // because on a row where nothing was transmitted there is no type for it to sit under.
+            const tailReg = (state.registration ?? '').trim();
+            const tailUnderType = tailReg !== '' && normaliseKey(tailReg) !== normaliseKey(label);
             // 🔴 NAMED BY THE READER, OR CAUGHT BY A TYPE THEY STARRED. Every row here is
             // selected — that is the whole point of the filter above — so the highlight can no
             // longer mean "selected". It means the narrower and rarer thing: you named this
@@ -1397,7 +1405,10 @@ class Page {
                 this.destinationCell(this.routeOf(state.callsign)) +
                 `<td>${info
                     ? `<span class="mono">${escapeHtml(info.code)}</span>` +
-                        (info.known ? `<span class="cell-type">${escapeHtml(info.name)}</span>` : '')
+                        (info.known ? `<span class="cell-type">${escapeHtml(info.name)}</span>` : '') +
+                        (info.known && tailUnderType
+                            ? `<span class="cell-tail">${escapeHtml(tailReg)}</span>`
+                            : '')
                     : '<span class="muted">not transmitted</span>'}</td>` +
                 `<td><b>${escapeHtml(label)}</b></td>` +
                 `<td>${phase}</td>` +
@@ -1532,12 +1543,14 @@ class Page {
     /**
      * The route cell — which LEADS the row — in one direction, from where it came to where it is going.
      *
-     * 🔴 IT READS `from … → to …`, IN THAT ORDER. George, 22 Sep 2026: *"use from and to with a little
-     * arrow, not to and from"*. The cell used to open with the ARRIVAL airport and mention the departure
-     * underneath, which is the direction the route is booked in rather than the direction a reader reads
-     * it: the question in front of them is where this aeroplane came from, and the arrow is what carries
-     * them from one end to the other. Each leg keeps its own city, because a four-letter code on its own
-     * is the thing this page has already had to fix once.
+     * 🔴 `from … → to …` BECAME `from …` OVER `to …`. George, 22 Sep 2026: *"remove →"*. The two legs have
+     * been stacked since the morning, when he asked for the order — *"use from and to with a little arrow,
+     * not to and from"* — and the arrow was what opened the second leg. Taken away, the second leg opens
+     * with its own label, the two lines align on the left, and nothing is lost: `from` and `to` are the
+     * words that carry the direction, and a glyph between them was decoration on a 12-pixel cell.
+     *
+     * Each leg keeps its own city, because a four-letter code on its own is the thing this page has
+     * already had to fix once.
      *
      * Three states, and all three say something: still being looked up, nothing on file, and known. A
      * dash is never a blank, because "nobody has a route for this callsign" and "this page has not
@@ -1563,12 +1576,12 @@ class Page {
         const from = [stripBrackets(origin.city), origin.country]
             .filter((part) => part !== '')
             .join(', ');
-        const whole = `On file for this callsign: ${origin.icao} ${origin.city}` +
-            ` → ${destination.icao} ${destination.city}${airline ? ` · ${airline}` : ''}.` +
+        const whole = `On file for this callsign: from ${origin.icao} ${origin.city}` +
+            ` to ${destination.icao} ${destination.city}${airline ? ` · ${airline}` : ''}.` +
             ' A route is looked up, not transmitted by the aircraft, so a diversion or a reused callsign can make it wrong.';
-        // 🔴 TWO LEGS, STACKED, WITH THE ARROW OPENING THE SECOND. Side by side the pair would set the
-        // width of the widest column on the table — which is what the airport column was doing when it was
-        // taken out. Stacked, the widest line is a city and a country.
+        // 🔴 TWO LEGS, STACKED. Side by side the pair would set the width of the widest column on the table
+        // — which is what the airport column was doing when it was taken out. Stacked, the widest line is a
+        // city and a country, and both legs start at the same edge.
         return (`<td class="mono dest" title="${escapeHtml(whole)}">` +
             `<span class="dest-leg dest-from">` +
             '<span class="dest-label">from</span> ' +
@@ -1576,7 +1589,6 @@ class Page {
             (from ? ` <span class="cell-city">${escapeHtml(from)}</span>` : '') +
             '</span>' +
             `<span class="dest-leg dest-to">` +
-            '<span class="dest-arrow" aria-hidden="true">→</span>' +
             '<span class="dest-label">to</span> ' +
             `<b>${escapeHtml(destination.icao)}</b>` +
             (to ? ` <span class="cell-city">${escapeHtml(to)}</span>` : '') +
