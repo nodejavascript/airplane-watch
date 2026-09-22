@@ -2229,18 +2229,27 @@ class Page {
    */
   private watchStateOf(
     code: string,
-    live: { type?: string; registration?: string }[]
+    live: { type?: string; registration?: string; phase?: string }[]
   ): { kind: 'air' | 'recent' | 'never'; text: string; why: string } {
+    // 🔴 "IN THE AIR" NOW MEANS AIRBORNE, AND IT DID NOT. The count used to be every track of this
+    // type the engine was holding — which includes aircraft the feed is reporting ON THE GROUND — so
+    // a row could say "in the air" with nothing of the type in the air at all, and never mind the
+    // greens: the words themselves were false. George caught the other half of the same contradiction
+    // on 22 Sep 2026 (*"you sday in the air but shouldnt at lease on tail be highlighed in the same
+    // green?"*). Two statements about one moment have to be counted from one thing, and this is it.
     const count = Page.countMatching(
       live,
-      (one: { type?: string; registration?: string }) =>
-        normaliseKey(one.type ?? '') === normaliseKey(code)
+      (one: { type?: string; registration?: string; phase?: string }) =>
+        one.phase === 'airborne' && normaliseKey(one.type ?? '') === normaliseKey(code)
     );
     if (count > 0) {
       return {
         kind: 'air',
         text: count === 1 ? 'in the air' : `${count} in the air`,
-        why: 'The feed can hear this type inside your fence right now, so it is on the map below.',
+        why:
+          'The feed is hearing this type AIRBORNE inside your fence right now, so it is on the map ' +
+          'below. A tail number is green only when that particular aeroplane is one of them, and many ' +
+          'transponders never send a registration at all.',
       };
     }
 
@@ -2304,18 +2313,22 @@ class Page {
   /** The same question for one named aircraft, which is watched by its tail number. */
   private watchStateOfTail(
     tail: string,
-    live: { type?: string; registration?: string }[]
+    live: { type?: string; registration?: string; phase?: string }[]
   ): { kind: 'air' | 'recent'; text: string; why: string } {
+    // 🔴 THE SAME CORRECTION AS THE TYPE ROW: "in the air" means AIRBORNE. This counted every track
+    // carrying that registration, including one the feed reports on the ground, so a named aeroplane
+    // sitting on the apron was described as being in the air. The two rows are read together and must
+    // mean the same thing by the same word.
     const count = Page.countMatching(
       live,
-      (one: { type?: string; registration?: string }) =>
-        normaliseKey(one.registration ?? '') === normaliseKey(tail)
+      (one: { type?: string; registration?: string; phase?: string }) =>
+        one.phase === 'airborne' && normaliseKey(one.registration ?? '') === normaliseKey(tail)
     );
     if (count > 0) {
       return {
         kind: 'air',
         text: 'in the air',
-        why: 'The feed can hear this aircraft inside your fence right now, so it is on the map.',
+        why: 'The feed is hearing this aircraft AIRBORNE inside your fence right now, so it is on the map.',
       };
     }
     return {
@@ -2375,24 +2388,23 @@ class Page {
     if (statusKey === this.lastStatusKey) return;
     this.lastStatusKey = statusKey;
 
-    for (const row of host.querySelectorAll<HTMLLIElement>('li.watch-type')) {
-      const state = row.querySelector<HTMLElement>('.watch-state');
-      if (!state) continue;
-      const asType = row.querySelector<HTMLButtonElement>('.type-remove');
-      const asTail = row.querySelector<HTMLButtonElement>('.watch-remove');
-      // A row is one or the other; reading the button is how the row says which it is.
-      const next = asType
-        ? this.watchStateOf(asType.dataset.type ?? '', live)
-        : asTail
-          ? this.watchStateOfTail(asTail.dataset.key ?? '', live)
-          : null;
-      if (!next) continue;
-      if (state.textContent !== next.text) state.textContent = next.text;
-      if (state.dataset.state !== next.kind) state.dataset.state = next.kind;
-      // The explanation travels with the wording — a stale title would describe the status the
-      // row used to have.
-      if (state.title !== next.why) state.title = next.why;
-    }
+    // 🔴 THE ROW IS REBUILT NOW, NOT PATCHED. It used to rewrite the three things in the status cell
+    // and leave the rest of the row alone, which was right while the status text was the only thing on
+    // a row that could change between polls.
+    //
+    // 🔴 IT IS NOT THE ONLY THING ANY MORE, AND LEAVING IT AS IT WAS IS WHAT GEORGE SAW. George,
+    // 22 Sep 2026, pasting the row back: *"Boeing 737 MAX 8 B38M 2016 in the air ✕ C-FFIP C-GJKK …
+    // you sday in the air but shouldnt at lease on tail be highlighed in the same green?"* The status
+    // said "in the air" and not one chip was green — because the STATUS was refreshed on every tick
+    // and the CHIPS were drawn once, when the row was created, and never again. An aircraft that took
+    // off while the page was open turned the words on and could not turn a chip green. A row whose two
+    // halves are updated by different clocks will always disagree eventually; the honest repair is one
+    // clock.
+    //
+    // The guard above is what keeps that cheap: the key is the set of aircraft the engine is holding,
+    // by hex, type and registration, so this rebuild happens when the picture actually changes and not
+    // once a second.
+    this.renderWatchlist();
   }
 
   /**
@@ -3805,25 +3817,47 @@ class Page {
         // which is the record plus anything picked by hand that the record no longer lists.
         const chosen = new Set(rule.tails.map((tail) => normaliseKey(tail)));
         const tails = this.tailListOf(rule.type);
-        // 🔴 THE GREEN MEANS "IN THE AIR", AND IT MEANS ONLY THAT.
+        // 🔴 THE AIRCRAFT OF *THIS TYPE* THAT ARE AIRBORNE RIGHT NOW — the same set the status beside
+        // them is counted from, because the two statements have to agree.
         //
-        // George, 22 Sep 2026: *"the yellow labels are not good, make them neutral, and make green hue
-        // only if the tail is in the air"*. So a chip here is a LABEL and not a light: it is neutral in
-        // every state, and the one colour it ever spends is the one thing a reader watching a feed
-        // actually wants — whether that aeroplane is up there now.
+        // 🔴 THEY DID NOT AGREE, AND GEORGE CAUGHT IT. George, 22 Sep 2026, pasting the row back:
+        // *"Boeing 737 MAX 8 B38M 2016 in the air ✕ C-FFIP C-GJKK … you sday in the air but shouldnt
+        // at lease on tail be highlighed in the same green?"* The row said "in the air" and not one
+        // chip was green. There were TWO faults behind it, both the page's:
         //
-        // 🔴 THE YELLOW HAD STOPPED SAYING ANYTHING. Every chip on a whole-type rule was gold, because a
-        // whole-type rule watches every tail under it — a row of identical lights that distinguished
-        // nothing and made the two chips that DID matter, the flying ones, the ones hardest to pick out.
+        //   1. the STATUS counted every track of the type the engine was holding, including aircraft
+        //      the feed is reporting ON THE GROUND — so it could say "in the air" with nothing of the
+        //      type in the air at all. Fixed where the count is made (see `watchStateOf`).
+        //   2. the GREEN was matched on the REGISTRATION, and a large share of transponders never
+        //      send one. An aeroplane could be up there, of the type, and match no chip on the row.
         //
-        // `live` is the same snapshot the status column beside it is drawn from, so the chip and the
-        // words cannot describe different moments.
-        const airborne = new Set(
-          live
-            .filter((one) => one.phase === 'airborne')
-            .map((one) => normaliseKey(one.registration))
-            .filter((key) => key !== '')
+        // This is the fix for the second: the registrations that ARE identifying themselves are put on
+        // the row whether or not the survey ever recorded them, and the ones that are not are COUNTED
+        // rather than left as an unexplained gap between the words and the chips.
+        const typeKey = normaliseKey(rule.type);
+        const airborne = live.filter(
+          (one) => one.phase === 'airborne' && normaliseKey(one.type ?? '') === typeKey
         );
+        const flyingRegs = new Set(
+          airborne.map((one) => normaliseKey(one.registration)).filter((key) => key !== '')
+        );
+        const unidentified = airborne.filter((one) => normaliseKey(one.registration) === '').length;
+        const quietWhy =
+          `${unidentified} aircraft of this type ${unidentified === 1 ? 'is' : 'are'} airborne inside ` +
+          'your fence without a registration on the air, so ' +
+          (unidentified === 1 ? 'it' : 'they') +
+          ' cannot be matched to a tail number. Many transponders never send one — it is not a fault in ' +
+          'the feed.';
+        // Every tail that identified itself belongs on the row, whether or not the survey ever
+        // recorded it — that is the only way the green can ever appear for an aeroplane the record
+        // happens to have missed.
+        const seen = new Set(tails.map((tail) => normaliseKey(tail)));
+        for (const one of airborne) {
+          const reg = (one.registration ?? '').trim();
+          if (reg === '' || seen.has(normaliseKey(reg))) continue;
+          tails.push(reg);
+          seen.add(normaliseKey(reg));
+        }
         const tailsHtml =
           tails.length === 0
             ? '<div class="watch-tails"><span class="small muted">' +
@@ -3837,7 +3871,7 @@ class Page {
                 .map((tail) => {
                   const key = normaliseKey(tail);
                   const watched = !narrowed || chosen.has(key);
-                  const flying = airborne.has(key);
+                  const flying = flyingRegs.has(key);
                   const what = flying
                     ? watched
                       ? 'In the air now, and watched'
@@ -3852,6 +3886,14 @@ class Page {
                   );
                 })
                 .join('') +
+              // 🔴 AND HOW MANY OF THEM CANNOT BE NAMED AT ALL. Without this the row could still say
+              // "2 in the air" beside a single green chip, and the reader would be left to guess
+              // whether the page had lost one or the transponder never said. It never said, and now
+              // the row says so.
+              (unidentified > 0
+                ? `<span class="tail-chip tail-quiet" title="${escapeHtml(quietWhy)}">` +
+                  `+${unidentified} unidentified</span>`
+                : '') +
               '</div>';
         return (
           `<li class="watch-type">` +

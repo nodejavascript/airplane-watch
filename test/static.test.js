@@ -1173,6 +1173,33 @@ test('a watched tail is a NEUTRAL label, and green only when it is in the air', 
   // words could describe different moments.
   assert.match(app, /const live = this\.engine \? this\.engine\.snapshot\(\) : \[\]/,
     'the chips are not read from the same snapshot as the row status');
+
+  // 🔴 AND "IN THE AIR" MEANS AIRBORNE, IN BOTH KINDS OF ROW. George, 22 Sep 2026: *"you sday in the
+  // air but shouldnt at lease on tail be highlighed in the same green?"* — the status counted every
+  // track of the type the engine held, INCLUDING aircraft the feed reports on the ground, so the words
+  // could be false whether or not any chip was green.
+  assert.match(app, /one\.phase === 'airborne' &&\s*normaliseKey\(one\.type/,
+    'a type row still counts aircraft on the ground as "in the air"');
+  assert.match(app, /one\.phase === 'airborne' &&\s*normaliseKey\(one\.registration/,
+    'a named-aircraft row still counts an aircraft on the ground as "in the air"');
+
+  // 🔴 AND THE ROW HAS ONE CLOCK. The status used to be patched on every tick while the chips were
+  // drawn once, so an aircraft that took off while the page was open turned the words on and could not
+  // turn a chip green — which is exactly the row George pasted back.
+  //
+  // ⚠️ A FIXED-LENGTH SLICE ON PURPOSE. `indexOf('private watchStateOf')` finds the METHOD ABOVE this
+  // one, so the slice came back empty and the check failed on the file being fine — a false failure,
+  // which is worse than no check at all. The body is well under 3000 characters.
+  const tickAt = app.indexOf('private tickWatchStates');
+  assert.ok(tickAt > -1, 'tickWatchStates is gone');
+  const tick = app.slice(tickAt, tickAt + 3000);
+  assert.match(tick, /this\.renderWatchlist\(\)/, 'the status is refreshed on a tick and the chips are not');
+  assert.equal(/querySelectorAll<HTMLLIElement>\('li\.watch-type'\)/.test(tick), false,
+    'the tick still patches the status cell instead of redrawing the row');
+
+  // And an aircraft that is up there without a registration is COUNTED rather than left as a silence.
+  assert.match(app, /tail-quiet/, 'the aircraft that cannot be named are not shown on the row');
+  assert.match(css, /\.watch-list \.watch-tails \.tail-chip\.tail-quiet/, 'the unidentified chip has no styling');
 });
 
 test('an empty type list NAMES THE WINDOW when the window is the reason', () => {

@@ -2126,6 +2126,21 @@ main > #status {
   opacity: 0.5;
 }
 
+/* ---------------------------------------------------------------------------
+ * THE ONES THAT CANNOT BE NAMED.
+ *
+ * 🔴 George, 22 Sep 2026: *"you sday in the air but shouldnt at lease on tail be highlighed in the
+ * same green?"* — and the honest answer is that one of them cannot be: many transponders never send a
+ * registration, so `+1 unidentified` is the aircraft that is up there and cannot be matched to a tail
+ * number. It is deliberately NOT green — green means "this tail is flying" and there is no tail to
+ * say it about — and it is deliberately not gold, because nothing here is a mark the reader made.
+ * ------------------------------------------------------------------------ */
+.watch-list .watch-tails .tail-chip.tail-quiet {
+  border-style: dashed;
+  color: var(--muted);
+  opacity: 0.85;
+}
+
 /* The way out is a small ✕ at the end of the row, after the status — it keeps its own label
  * for a screen reader, so nothing is lost by it no longer spelling itself out. */
 .watch-list .type-remove,
