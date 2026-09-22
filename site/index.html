@@ -208,11 +208,21 @@
           the browser find you ... but if a user want to change their location, delete
           thier location and bring it back up"*. So the two versions are one line or the
           other, and the way back is a button on the line that says where you are.
+
+          🔴 AND THE FAR END OF THAT LINE IS THE WAY OUT OF EVERYTHING. George, 22 Sep
+          2026: *"last item, right align a link on the row for Your location Hamilton
+          change location called delete my data, with confirmation box. this effectivly
+          resets their location, and everything else"* — then, so the scope could not be
+          read narrowly: *"this rests all defalt filters too"*. It therefore sits on the
+          one row that states something this page remembers about the reader, it is the
+          LAST item so it reads as the end of the row, it is pushed to the right, and it
+          asks before it does anything.
         -->
         <p class="place-line" id="placeKnown" hidden>
           <span class="place-label">Your location</span>
           <b class="place-value" id="placeName"></b>
           <button type="button" class="linkish" id="changePlace" data-ga="change-place">change location</button>
+          <button type="button" class="linkish place-forget" id="forgetMine" data-ga="forget-mine">delete my data</button>
         </p>
         <div class="chips" id="areaPicker" role="group" aria-label="Which community in this area" hidden></div>
 
@@ -612,6 +622,13 @@
             your own browser's storage. Two things do leave your browser, and only so they can be looked up: a place
             name you search for, and the callsigns of the aircraft inside your fence, which are looked up to find where
             they came from and where they are going. Neither is written down by this site.
+          </li>
+          <li>
+            <b>All of it can be deleted, by you, at any time.</b> The row that shows your location ends with a
+            <b>delete my data</b> link, which asks you to confirm and then clears every one of those settings — your
+            place and the community inside it, your distance, your airports, your starred types, your alerts, your
+            tails, every filter, and your answer to the cookie question — and reloads the page as a first visit.
+            There is no copy on this side, so nothing has to be requested from anyone.
           </li>
           <li>
             <b>Google Analytics loads only after you say yes.</b> Google's script is not in the page. It is added by

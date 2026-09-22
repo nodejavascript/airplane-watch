@@ -1986,6 +1986,23 @@ main > #status {
   margin-left: 2px;
 }
 
+/* 🔴 THE WAY OUT OF EVERYTHING SITS AT THE FAR END OF THE SAME ROW. George, 22 Sep 2026:
+ * *"last item, right align a link on the row ... called delete my data"*. `margin-left:
+ * auto` in a flex row takes all the space nobody else claimed, so it lands on the far
+ * edge — and because the row already carries `flex-wrap: wrap`, on a narrow screen it
+ * drops to a line of its own and is still right-aligned rather than crowding the location
+ * it sits beside. It is quieter than "change location" on purpose: it is the last resort
+ * of the row, not the thing to press first. */
+.place-line .linkish.place-forget {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.place-line .linkish.place-forget:hover,
+.place-line .linkish.place-forget:focus-visible {
+  color: var(--theme);
+}
+
 /* ------------------------------------------------------ the photograph --- */
 /* 🔴 A REAL PHOTOGRAPH, FROM A FREE SOURCE, WITH ITS CREDIT ON THE ROW. George,
  * 20 Sep 2026: *"where are the photos. there are free opensource photos online"*.

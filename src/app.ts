@@ -96,6 +96,30 @@ const MAKER_KEY = 'aircraft_maker';
 const ERA_KEY = 'aircraft_era';
 const SEEN_KEY = 'aircraft_seen';
 /**
+ * 🔴 A WIPE FINDS ITS KEYS — IT DOES NOT REMEMBER THEM. George, 22 Sep 2026: *"last item,
+ * right align a link on the row ... called delete my data, with confirmation box. this
+ * effectivly resets their location, and everything else"* — and then, so the scope could
+ * not be read narrowly: *"this rests all defalt filters too"*.
+ *
+ * Every key this page writes begins with this prefix, so a wipe can enumerate what is
+ * actually there instead of carrying a list of names. That matters, because the list the
+ * older "Start over" button carries had already fallen behind the page twice: `ALERTS_KEY`
+ * and `AREA_KEY` were added after it was written and were never added to it, so pressing
+ * Start over left the alert bells and the chosen community behind. A prefix cannot fall
+ * behind — a key added tomorrow is deleted tomorrow without anyone remembering.
+ */
+const STORE_PREFIX = 'aircraft_';
+/**
+ * The cookie gate's own two keys. `consent.ts` owns them and holds the same names, but it
+ * is compiled as a separate script for the page and is not a module this file can import
+ * from, so the names are repeated here deliberately.
+ *
+ * 🔴 DELETING THEM CAN ONLY EVER REDUCE WHAT LEAVES THE BROWSER. With no answer on file
+ * the gate loads no tag at all until the reader answers again — so the moment after a
+ * wipe is a moment in which nothing is sent, whatever the reader had said before.
+ */
+const CONSENT_KEYS = ['analytics_consent', 'ga_opt_out'];
+/**
  * 🔴 THE PAGE ASKS A VOLUNTEER FEED, SO IT ASKS AS LITTLE AS IT CAN.
  *
  * George was shown this on 20 Sep 2026:
@@ -813,6 +837,42 @@ function writeStore(key: string, value: string): void {
 }
 
 /**
+ * Every key in this browser that this page is responsible for, FOUND rather than listed.
+ *
+ * `includeConsent` is the one thing the two wipes disagree about, and the disagreement is
+ * the point of them: "Start over" is a way to get a clean page, so it leaves the reader's
+ * cookie answer alone; "delete my data" is the reader asking for all of it gone, so that
+ * one takes the cookie answer too.
+ */
+function storedKeys(includeConsent: boolean): string[] {
+  const found: string[] = [];
+  try {
+    for (let at = 0; at < localStorage.length; at += 1) {
+      const key = localStorage.key(at);
+      if (key === null) continue;
+      if (key.startsWith(STORE_PREFIX) || (includeConsent && CONSENT_KEYS.includes(key))) {
+        found.push(key);
+      }
+    }
+  } catch {
+    /* private mode: nothing was stored, so there is nothing to find */
+  }
+  return found;
+}
+
+/** Drop every key this page owns — the place, the distance, the airports, the types, the
+ * alerts, the tails, and all four filters — so the page comes back as a first visit. */
+function forgetStored(includeConsent: boolean): void {
+  for (const key of storedKeys(includeConsent)) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* private mode refuses to remove as well as to store */
+    }
+  }
+}
+
+/**
  * The starts of the calendar windows the "last seen" filter measures against.
  *
  * All five are LOCAL time, because the question "has it been up today?" is asked in the
@@ -1270,6 +1330,7 @@ class Page {
     this.renderWatchButton();
     this.bindStepToggles();
     this.bindStartOver();
+    this.bindForgetMine();
     this.bindFlightPick();
     this.bindLocate();
     this.bindChangePlace();
@@ -3919,14 +3980,55 @@ class Page {
     const button = byId('startOver');
     if (!button) return;
     button.addEventListener('click', () => {
-      for (const key of [WATCH_KEY, TYPES_KEY, AIRPORT_KEY, CENTRE_KEY, RADIUS_KEY, KIND_KEY, MAKER_KEY, ERA_KEY, SEEN_KEY]) {
-        try {
-          localStorage.removeItem(key);
-        } catch {
-          /* private mode refuses to remove as well as to store */
-        }
-      }
+      // 🔴 THE HAND-WRITTEN LIST THAT USED TO BE HERE IS GONE, AND IT IS WORTH SAYING WHY.
+      // It named nine keys, and the page had grown two more since it was written —
+      // `ALERTS_KEY` and `AREA_KEY` — so Start over quietly left the alert bells and the
+      // chosen community behind. A wipe that enumerates cannot fall behind the page it is
+      // wiping. See `storedKeys`.
+      forgetStored(false);
       track('start_over', {});
+      window.location.reload();
+    });
+  }
+
+  /**
+   * 🔴 "DELETE MY DATA" — THE READER'S OWN WAY OUT, AND IT ASKS FIRST.
+   *
+   * George, 22 Sep 2026: *"last item, right align a link on the row for Your location
+   * Hamilton change location called delete my data, with confirmation box. this effectivly
+   * resets their location, and everything else"* — then *"this rests all defalt filters
+   * too"*.
+   *
+   * WHAT IT DELETES IS EVERYTHING THE PAGE REMEMBERS, AND THAT IS MOSTLY FILTERS: where
+   * you are and the community inside it, the distance, the airports, the types you starred,
+   * the alert bells, the tail numbers you named, and the kind, maker, era and last-seen
+   * choices. The page therefore comes back as a first visit with every default in place,
+   * which is what "resets their location, and everything else" has to mean.
+   *
+   * 🔴 IT IS A CONFIRMATION AND NOT A COUNTDOWN. Nothing can be undone — the page keeps no
+   * copy, so a list of starred types and named tails is gone — and a confirm box is the one
+   * control a reader cannot miss on the way past and cannot dismiss by accident.
+   *
+   * 🔴 AND SAYING NO DOES NOTHING AT ALL: no event, no reload, no removal. A destructive
+   * control that acts first and asks afterwards has not asked.
+   */
+  private bindForgetMine(): void {
+    const button = byId('forgetMine');
+    if (!button) return;
+    button.addEventListener('click', () => {
+      const go = window.confirm(
+        'Delete everything this page has saved in this browser?\n\n' +
+          'That is where you are and the community you picked inside it, the distance, the ' +
+          'airports, the types you starred, the alerts you set, the tail numbers you named, ' +
+          'the kind, maker, era and last-seen filters, and your answer to the cookie ' +
+          'question. All of it is kept in this browser, and all of it goes back to the ' +
+          'defaults.\n\n' +
+          'The page keeps no copy of any of it, so this cannot be undone. It reloads as a ' +
+          'first visit, and if you allowed Analytics it asks you again.',
+      );
+      if (!go) return;
+      forgetStored(true);
+      track('data_deleted', {});
       window.location.reload();
     });
   }

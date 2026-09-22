@@ -2387,3 +2387,94 @@ test('99 · the list and the map show the same aircraft: what you watch, inside 
   assert.match(page, /an aircraft on the ground is not listed until it takes off/,
     'the page does not say what happened to the ground rows');
 });
+
+/* ----------------------------------- part 4 · the way out of the settings --- */
+
+test('100 · "delete my data" is the last item on the location row, asks first, and takes the filters with it', () => {
+  const app = readSrc('src/app.ts');
+  const page = stripHtml(read(SITE, 'index.html'));
+
+  // 🔴 WHERE IT IS, AND THAT IT IS LAST. George, 22 Sep 2026: *"last item, right align a link on the
+  // row for Your location Hamilton change location called delete my data, with confirmation box. this
+  // effectivly resets their location, and everything else"*.
+  const rowAt = page.indexOf('<p class="place-line" id="placeKnown"');
+  assert.ok(rowAt > -1, 'the location row is gone, so this check is vacuous');
+  const row = page.slice(rowAt, page.indexOf('</p>', rowAt));
+  const onTheRow = [...row.matchAll(/<button[^>]*id="([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(onTheRow, ['changePlace', 'forgetMine'],
+    `the location row's controls are ${onTheRow.join(', ')} — delete my data must be the LAST item on it`);
+  assert.match(row,
+    /<button type="button" class="linkish place-forget" id="forgetMine" data-ga="forget-mine">delete my data<\/button>/,
+    'the control is missing, is not a button (so it cannot be reached from the keyboard), or its label is not "delete my data"');
+
+  // 🔴 AND IT SITS ON THE RIGHT. Equal-specifity rules and source order are the two ways a right-align
+  // quietly does nothing, so both are checked: this rule is more specific than `.place-line .linkish`
+  // (three classes beat two) and it also comes later in the file.
+  const alignAt = css.indexOf('.place-line .linkish.place-forget {');
+  assert.ok(alignAt > css.indexOf('.place-line .linkish {'),
+    'the right-align rule is gone, or it comes before the rule it has to beat');
+  const align = css.slice(alignAt, css.indexOf('}', alignAt));
+  assert.match(align, /margin-left: auto/, 'the control is not pushed to the right of the row');
+
+  const handler = app.slice(app.indexOf('private bindForgetMine('), app.indexOf('private bindStepToggles('));
+  assert.ok(handler.length > 400, 'the handler is gone, so this check is vacuous');
+
+  // 🔴 IT ASKS FIRST, AND THE ORDER IS THE WHOLE POINT. A check for `window.confirm` alone passes on a
+  // control that confirms AFTER it has already deleted everything, so the guard is compared by position.
+  assert.match(handler, /window\.confirm\(/, 'the control deletes without asking');
+  assert.ok(handler.indexOf('if (!go) return;') > -1, 'there is no guard on the answer');
+  assert.ok(handler.indexOf('if (!go) return;') < handler.indexOf('forgetStored(true)'),
+    'it forgets the reader BEFORE reading their answer — a confirmation that acts first has not asked');
+  assert.ok(handler.indexOf('track(') > handler.indexOf('if (!go) return;'),
+    'the deletion is recorded even when the reader said no');
+  assert.match(handler, /window\.location\.reload\(\)/, 'the page is left holding what it just deleted');
+  assert.equal(handler.includes('removeItem'), false,
+    'the handler carries its own list of keys instead of going through the wipe');
+
+  // 🔴 "THIS RESETS ALL DEFAULT FILTERS TOO" — so the confirmation says so, in the reader's words.
+  //
+  // ⚠ AND THE MESSAGE IS READ AS ASSEMBLED, NOT AS WRITTEN. The sentence is built from concatenated
+  // string literals, so the raw source has a `' +` in the middle of it and a regex for the phrase
+  // fails against code that is perfectly correct — a false failure of exactly the kind this file's
+  // header warns about. The literals are joined the way the browser joins them, and the check is run
+  // against the sentence the reader actually reads.
+  const confirmAt = handler.indexOf('window.confirm(');
+  const argument = handler.slice(confirmAt, handler.indexOf(');', confirmAt));
+  const message = [...argument.matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((match) => match[1]).join('');
+  assert.ok(message.length > 200, 'the confirmation message could not be read, so this check is vacuous');
+  assert.match(message, /the kind, maker, era and last-seen filters/,
+    'the confirmation does not tell the reader that the filters go with it');
+  assert.match(message, /back to the defaults/, 'the confirmation does not say the page returns to its defaults');
+
+  // 🔴 AND THE WIPE FINDS ITS KEYS RATHER THAN REMEMBERING THEM.
+  const wipe = app.slice(app.indexOf('function storedKeys('), app.indexOf('function forgetStored('));
+  assert.match(wipe, /for \(let at = 0; at < localStorage\.length; at \+= 1\)/,
+    'the wipe does not enumerate the store, so it must be carrying a list of names');
+  assert.match(wipe, /key\.startsWith\(STORE_PREFIX\)/, 'the wipe does not match the page\'s own prefix');
+  assert.match(wipe, /includeConsent && CONSENT_KEYS\.includes\(key\)/,
+    'the cookie answer survives the wipe, so the page keeps something the reader asked it to drop');
+
+  // THE ASSERTION THAT WOULD HAVE CAUGHT THE HAND LIST: every stored key the file declares must be covered
+  // by the prefix. Start over used to carry nine names and miss two — `aircraft_alerts` and
+  // `aircraft_place_area` — so the alert bells and the community survived it. A key that does not begin with
+  // the prefix is invisible to the wipe, and this fails on it by name.
+  const declared = [...app.matchAll(/const ([A-Z][A-Z_]*_KEY) = '([^']+)';/g)].map((match) => [match[1], match[2]]);
+  assert.ok(declared.length >= 11, `only ${declared.length} stored keys are declared, so this check is vacuous`);
+  const uncovered = declared.filter(([, value]) => !value.startsWith('aircraft_'));
+  assert.deepEqual(uncovered.map(([name, value]) => `${name}=${value}`), [],
+    'these stored keys do not begin with the prefix, so a wipe leaves them behind');
+  for (const wanted of ['KIND_KEY', 'MAKER_KEY', 'ERA_KEY', 'SEEN_KEY']) {
+    assert.ok(declared.some(([name]) => name === wanted),
+      `${wanted} is no longer declared — the wipe can only cover what the page still stores`);
+  }
+
+  // And Start over goes through the same enumerator, keeping the cookie answer it has always kept.
+  const startOver = app.slice(app.indexOf('private bindStartOver('), app.indexOf('private bindForgetMine('));
+  assert.match(startOver, /forgetStored\(false\)/, 'Start over no longer wipes anything');
+  assert.equal(/\[WATCH_KEY, TYPES_KEY/.test(startOver), false,
+    'Start over carries a hand-written list of keys again — the list that had already fallen behind the page');
+
+  // And the policy tells the reader the control exists, because a way out nobody can find is not a way out.
+  assert.match(page, /<b>delete my data<\/b> link/, 'the privacy section does not name the control');
+  assert.match(page, /which asks you to confirm and then clears/, 'the privacy section does not say that it asks');
+});

@@ -139,6 +139,25 @@ Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
   chosen, and **seen in the air**. An aircraft on the ground is not listed or drawn — it is still tracked, so
   the moment it takes off it appears with its takeoff time on it. Measured after: at **25 km, 4 rows and 4
   marks on the map, all four within 25 km of the centre, none on the ground**.
+- 🔴 **AND "DELETE MY DATA" IS THE READER'S OWN WAY OUT, AND IT ASKS FIRST.** George, 22 Sep 2026: *"last item,
+  right align a link on the row for Your location Hamilton change location called delete my data, with
+  confirmation box. this effectivly resets their location, and everything else"* — then *"this rests all defalt
+  filters too"*. So it is the **last item on the location row**, pushed to the right with `margin-left: auto`,
+  quieter than "change location", and it opens a `window.confirm` before anything happens; saying no does
+  nothing at all — no event, no reload, no removal. What it clears is everything the page remembers, which is
+  mostly filters: the place and the community inside it, the distance, the airports, the starred types, the
+  alert bells, the named tails, the kind, maker, era and last-seen choices, and the cookie answer — so the page
+  comes back a first visit with every default in place.
+- 🔴 **AND THE WIPE FINDS ITS KEYS, IT DOES NOT REMEMBER THEM.** Every key this page writes begins `aircraft_`,
+  so `storedKeys()` enumerates what is actually in the browser and matches the prefix. That is not tidiness: the
+  **older "Start over" button carried a hand-written list of nine keys, and the page had grown two more since**
+  — `aircraft_alerts` and `aircraft_place_area` — so pressing it left the alert bells and the chosen community
+  behind. Both controls now go through the same enumerator; Start over keeps the reader's cookie answer
+  (`forgetStored(false)`) while "delete my data" takes it too (`forgetStored(true)`), because that is the
+  difference between wanting a clean page and asking for everything gone. Deletion can only ever reduce what
+  leaves the browser: with no answer on file the gate loads no tag at all until the reader answers again.
+  **Asserted key by key in `test/static.test.js` test 100**, which reads every declared `*_KEY` constant and
+  fails if any of them does not begin with the prefix — the check that would have caught the hand list.
 - 🔴 **AND AN EMPTY LIST NAMES WHICH EMPTY IT IS.** There are three limits now, not two, so the empty state
   counts each separately — *"N are outside your 25 km fence"*, *"N are on the ground, not in the air"* — and
   says so instead of the generic "nothing matches what you picked" that would be a different answer.
