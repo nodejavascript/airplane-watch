@@ -69,6 +69,11 @@ Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
   writes `site/types.json` — the aircraft that *actually* come and go, counted, with the date and the method
   beside them. A type is watched **whole** until you add tail numbers to it; removing the last tail widens it
   back to the whole type. The page never invents a type: an unknown code is shown as itself.
+- **"What you are watching" names the aeroplanes.** The row for a watched type lists every tail number on
+  record for it, under the type, with the ones being watched in yellow — a whole-type rule marks every tail
+  it lists. It does **not** answer with a phrase: *"every one of them"* named nothing, so it was removed
+  (George, 22 Sep 2026). The list is the same sample the card shows — what identified itself, never a fleet
+  list.
 
 **`site/types.json` is data, not code** — refresh it by re-running one script rather than by editing the site.
 The survey is polite about the feed's rate limit and reports any round it could not get (measured: seven

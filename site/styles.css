@@ -1976,6 +1976,38 @@ main > #status {
   color: #f0be5a;
 }
 
+/* ---------------------------------------------------------------------------
+ * THE TAIL NUMBERS OF A WATCHED TYPE, LISTED UNDER THE TYPE THEY BELONG TO.
+ *
+ * 🔴 THE ROW USED TO ANSWER "every one of them", WHICH NAMES NO AEROPLANE. George,
+ * 22 Sep 2026: *"list available tails below them, the ones that are favourited. if it
+ * every one of them, list all tails. dont say everyone of them."* So the list is the
+ * answer, and the yellow is the mark that says which of them are being watched — the
+ * same colour the chips in the card use, because one colour has to mean one thing.
+ *
+ * It takes a line of its own (`flex: 1 1 100%`) below the star, the status and the way
+ * out, so every watched type reads the same way down the card.
+ * ------------------------------------------------------------------------ */
+.watch-list .watch-tails {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+/* A chip here is a statement of what is watched, not a control — pressing it is done
+ * in the card in step 3, which is the one place a choice is made. */
+.watch-list .watch-tails .tail-chip {
+  cursor: default;
+}
+
+.watch-list .watch-tails .tail-chip[data-watched='true'] {
+  border-color: #f0be5a;
+  background: rgba(240, 190, 90, 0.16);
+  color: #f0be5a;
+}
+
 /* The way out is a small ✕ at the end of the row, after the status — it keeps its own label
  * for a screen reader, so nothing is lost by it no longer spelling itself out. */
 .watch-list .type-remove,

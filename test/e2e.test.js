@@ -774,7 +774,16 @@ test('a type can be watched whole, and then narrowed to tail numbers', async () 
 
   let watchlist = await page.$eval('#watchList', (element) => element.textContent);
   assert.match(watchlist, /Boeing 737 MAX 8/);
-  assert.match(watchlist, /every one of them/, 'a new type rule must start WIDE');
+  // 🔴 George, 22 Sep 2026: *"if it every one of them, list all tails. dont say everyone of
+  // them."* A brand-new rule watches the whole type — so it answers with the aeroplanes, not a
+  // phrase: every tail number on record, each one marked as watched.
+  assert.equal(/every one of them/.test(watchlist), false,
+    'the watching panel answers with a phrase instead of the tail numbers');
+  const wholeTails = await page.$$eval('#watchList .watch-tails .tail-chip', (items) =>
+    items.map((item) => item.dataset.watched));
+  assert.ok(wholeTails.length > 0, 'a whole-type rule listed no tail numbers');
+  assert.ok(wholeTails.every((state) => state === 'true'),
+    'a whole-type rule did not mark every tail under it as watched');
 
   // 🔴 THE AIRPLANES GEORGE COULD NOT SEE. He asked for this list back on
   // 21 Sep 2026 — *"i dont see airplanes to click from. you used to have that,
@@ -940,12 +949,21 @@ test('ticking a tail number inside a type narrows the rule, and unticking widens
   await page.waitForTimeout(250);
 
   const watch = await page.$eval('#watchList', (element) => element.textContent);
-  assert.match(watch, /1 tail number/, `ticking a box did not narrow the rule: ${watch.slice(0, 200)}`);
+  assert.match(watch, /Boeing 737 MAX 8/, `ticking a box did not narrow the rule: ${watch.slice(0, 200)}`);
+  const narrowedTails = await page.$$eval('#watchList .watch-tails .tail-chip', (items) =>
+    items.map((item) => item.dataset.watched));
+  assert.deepEqual(narrowedTails.filter((state) => state === 'true'), ['true'],
+    'ticking one tail did not leave exactly one tail marked as watched');
 
   await page.$$eval('#typeList .tail-box input', (inputs) => inputs[0].click());
   await page.waitForTimeout(250);
   const widened = await page.$eval('#watchList', (element) => element.textContent);
-  assert.match(widened, /every one of them/, 'unticking the last tail did not widen the rule again');
+  assert.equal(/every one of them/.test(widened), false,
+    'the watching panel still answers with a phrase instead of the tail numbers');
+  const widenedTails = await page.$$eval('#watchList .watch-tails .tail-chip', (items) =>
+    items.map((item) => item.dataset.watched));
+  assert.ok(widenedTails.length > 0 && widenedTails.every((state) => state === 'true'),
+    'unticking the last tail did not widen the rule back to every tail');
 
   await context.close();
 });
@@ -1201,14 +1219,21 @@ test('tail numbers are chips on the row, and highlighting one unfavourites the w
     items.find((item) => /Dash 8-400/.test(item.textContent))?.querySelector('.type-toggle').click();
   });
   await page.waitForTimeout(300);
-  assert.match(await page.$eval('#watchList', (element) => element.textContent), /every one of them/,
-    'favouriting a type did not watch the whole type');
+  const whole = await page.$eval('#watchList', (element) => element.textContent);
+  assert.equal(/every one of them/.test(whole), false,
+    'the watching panel answers with a phrase instead of the tail numbers');
+  const wholeMarked = await page.$$eval('#watchList .watch-tails .tail-chip', (items) =>
+    items.map((item) => item.dataset.watched));
+  assert.ok(wholeMarked.length > 0 && wholeMarked.every((state) => state === 'true'),
+    'favouriting a type did not watch every tail listed under it');
 
   await page.$eval('#typeList .typerow .tail-chip', (element) => element.click());
   await page.waitForTimeout(300);
 
-  const watch = await page.$eval('#watchList', (element) => element.textContent);
-  assert.match(watch, /1 tail number/, `highlighting a tail did not narrow the rule: ${watch.slice(0, 200)}`);
+  const marked = await page.$$eval('#watchList .watch-tails .tail-chip', (items) =>
+    items.map((item) => item.dataset.watched));
+  assert.deepEqual(marked.filter((state) => state === 'true'), ['true'],
+    'highlighting one tail did not leave exactly one tail marked as watched');
 
   const pressed = await page.$$eval('#typeList .tail-chip[aria-pressed="true"]', (items) => items.length);
   assert.equal(pressed, 1, 'the highlighted chip does not show as highlighted');

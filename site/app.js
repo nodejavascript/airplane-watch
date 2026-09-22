@@ -1748,6 +1748,38 @@ class Page {
         const at = new Date(row.lastSeen);
         return Number.isNaN(at.getTime()) ? null : at;
     }
+    /**
+     * 🔴 EVERY TAIL NUMBER THE RECORD HOLDS FOR ONE TYPE — THE LIST ITSELF, NOT A SUMMARY.
+     *
+     * George, 22 Sep 2026, quoting the row he was looking at: *"**Bombardier CRJ-700** CRJ7 —
+     * **every one of them** you used to list available tails below them, the ones that are
+     * favourited. if it every one of them, list all tails. dont say everyone of them."*
+     *
+     * So a whole-type rule no longer ANSWERS with a phrase. It answers with the aeroplanes: every
+     * registration the survey caught for that type, printed under the type, with the ones being
+     * watched marked — the same yellow the card's chips use, because one colour means one thing.
+     * A narrowed rule marks only the tails that were ticked; a whole-type rule watches them all, so
+     * every chip is marked.
+     *
+     * 🔴 IT IS STILL A SAMPLE, AND THE PAGE STILL SAYS SO. Many transponders never transmit a
+     * registration, so this is what identified itself and not a fleet list — the sentence is in
+     * `types.json`'s own `registrationsNote` and is printed under the type list. This method must
+     * never be presented as a complete fleet.
+     *
+     * 🔴 A TAIL THE READER PICKED AND THE RECORD DOES NOT LIST IS KEPT, AT THE END. The survey is
+     * re-run and its list changes; a choice somebody made must not disappear because a later look
+     * at the sky happened not to catch that aeroplane identifying itself.
+     */
+    tailListOf(code) {
+        const upper = code.toUpperCase();
+        const row = this.survey?.types.find((one) => one.code.toUpperCase() === upper);
+        const listed = (row?.registrations ?? []).map((item) => item.reg);
+        const chosen = this.typeRules
+            .filter((rule) => rule.type.toUpperCase() === upper)
+            .flatMap((rule) => rule.tails)
+            .filter((tail) => !listed.some((reg) => normaliseKey(reg) === normaliseKey(tail)));
+        return [...listed, ...chosen];
+    }
     /** "seen just now" / "seen 3 hours ago" / "seen 12 days ago", in plain words. */
     sinceText(at) {
         if (at === null)
@@ -2996,14 +3028,35 @@ class Page {
             const narrowed = rule.tails.length > 0;
             const entry = this.yearOf(rule.type);
             const state = this.watchStateOf(rule.type, live);
+            // 🔴 THE TAIL NUMBERS THEMSELVES, UNDER THE TYPE THEY BELONG TO — because a phrase names
+            // no aeroplane. George, 22 Sep 2026: *"if it every one of them, list all tails. dont say
+            // everyone of them."* A whole-type rule watches every tail under it, so every chip is
+            // marked; a narrowed rule marks only the ones ticked. The list comes from `tailListOf`,
+            // which is the record plus anything picked by hand that the record no longer lists.
+            const chosen = new Set(rule.tails.map((tail) => normaliseKey(tail)));
+            const tails = this.tailListOf(rule.type);
+            const tailsHtml = tails.length === 0
+                ? '<div class="watch-tails"><span class="small muted">' +
+                    escapeHtml('No tail number for this type is on record here yet — the feed has not caught one ' +
+                        'identifying itself.') +
+                    '</span></div>'
+                : '<div class="watch-tails">' +
+                    tails
+                        .map((tail) => {
+                        const on = !narrowed || chosen.has(normaliseKey(tail));
+                        return (`<span class="tail-chip" data-watched="${on}" ` +
+                            `title="${escapeHtml(on
+                                ? narrowed
+                                    ? 'Watching this aeroplane'
+                                    : 'The whole type is watched, so this one is too'
+                                : 'Not watched — tick it in step 3 to watch only this aeroplane')}">${escapeHtml(tail)}</span>`);
+                    })
+                        .join('') +
+                    '</div>';
             return (`<li class="watch-type">` +
                 `<span class="watch-what">${MARK_STAR}<b>${escapeHtml(info.name)}</b> ` +
                 `<span class="mono muted">${escapeHtml(rule.type)}</span>` +
                 (entry ? ` <span class="year-tag">${entry.year}</span>` : '') +
-                ` — <b>${narrowed
-                    ? `${rule.tails.length} tail number${rule.tails.length === 1 ? '' : 's'}`
-                    : 'every one of them'}</b>` +
-                (narrowed ? ` <span class="mono muted">${escapeHtml(rule.tails.join(', '))}</span>` : '') +
                 '</span>' +
                 // The status replaces the words "stop watching" — see `watchStateOf`. Its `title`
                 // carries the longer explanation, so the column stays one line and the reasoning is
@@ -3013,6 +3066,7 @@ class Page {
                 `<button type="button" class="linkish type-remove" data-type="${escapeHtml(rule.type)}" ` +
                 `data-ga="type-unwatch" title="Stop watching" ` +
                 `aria-label="Stop watching ${escapeHtml(info.name)}">✕</button>` +
+                tailsHtml +
                 '</li>');
         })
             .join('');
@@ -3136,7 +3190,7 @@ class Page {
         if (note && this.listedAirports) {
             const dropped = this.listedAirports.dropped ?? [];
             this.airportsNote =
-                `${this.listedAirports.kept} airports, every one of them confirmed by asking the feed where it is. ` +
+                `${this.listedAirports.kept} airports, each one confirmed by asking the feed where it is. ` +
                     'Press as many as you like: each one you press is watched, and the map is drawn to fit all of them. ' +
                     (dropped.length > 0
                         ? `${dropped.length} identifier was dropped because the feed could not place it: ${dropped.join(', ')}.`
