@@ -567,10 +567,20 @@ test('the rate limit is caught by its STATUS, before anything tries to parse the
 test('the warplanes class holds the historic codes, read from the feed own database', () => {
   const source = readSrc('src/typeinfo.ts');
   assert.match(source, /'military'/, 'there is no military class');
-  // 🔴 RENAMED, AND THE OLD NAME WAS THE BUG. `Warplanes` put the Cessna 172 and the Dash 8
-  // under a war label — the note above the table says so at length.
-  assert.match(source, /military: 'Heritage & war planes'/,
-    "the class is no longer called 'Heritage & war planes'");
+  // 🔴 RENAMED TWICE, AND BOTH NAMES WERE THE BUG. `Warplanes` put the Cessna 172 and the Dash 8
+  // under a war label — the note above the table says so at length — and `Heritage & war planes` was
+  // then one of the three widest chips on the filter row. George, 22 Sep 2026: *"make heritage & war
+  // planes just heritage and anything tlse and & just use one word"*.
+  assert.match(source, /military: 'Heritage',/, "the class is no longer called 'Heritage'");
+
+  // And EVERY kind is one word, which is the instruction rather than a preference: an ampersand and a
+  // second noun is what made three chips wide enough to wrap the row.
+  const labels = source.slice(source.indexOf('const CLASS_LABEL'), source.indexOf('export function classLabel'));
+  const named = [...labels.matchAll(/^\s+(\w+): '([^']+)',/gm)].map((one) => one[2]);
+  assert.ok(named.length >= 7, `only ${named.length} kind labels were found`);
+  for (const label of named) {
+    assert.match(label, /^[A-Za-z]+$/, `the kind label "${label}" is not one word`);
+  }
   assert.match(source, /LANC: \['Avro Lancaster', 'military'\]/, 'the Lancaster is not a warplane type');
   assert.match(source, /tar1090-db/, 'the codes must cite the database they were read from');
   assert.match(source, /C07DD7;C-GVRA;LANC/, 'the Lancaster entry must carry the line it was verified from');
@@ -1144,6 +1154,15 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
     'the filter labels are not in a fixed column');
   assert.match(panelCss, /\.filters\s*\{[\s\S]{0,140}border-radius/,
     'the filters are not drawn as one panel');
+
+  // 🔴 AND THE LAST-SEEN ROW CARRIES EIGHT WINDOWS, NOT TEN. George, 22 Sep 2026: *"for last seen remove
+  // no data and remove 12 hours"* — twelve hours straddled a night and answered a question neither
+  // neighbour did, and `no data` was a question about the RECORD sitting on a row about time.
+  const choices = app.slice(app.indexOf('const SEEN_CHOICES'), app.indexOf('const SEEN_DEFAULT'));
+  assert.ok(choices.length > 100, 'the last-seen choices could not be isolated, so this check is vacuous');
+  assert.equal(/'halfDay'/.test(choices), false, 'the 12-hour window is back on the row');
+  assert.equal(/'noData'/.test(choices), false, 'the no-data choice is back on the row');
+  assert.equal((choices.match(/\{ key: '/g) ?? []).length, 8, 'the last-seen row does not carry eight windows');
 
   // 🔴 AND THE STOPS DOUBLE, WHICH IS WHAT MAKES IT LOGARITHMIC. George, 22 Sep 2026: *"make the option
   // logrythmic"* and *"thse 4 filters are getting cluttery"* — so the ladder is six stops of twice the

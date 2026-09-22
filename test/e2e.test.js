@@ -1706,7 +1706,8 @@ test('every last-seen choice leaves the filters and a list on screen', async () 
   await page.waitForTimeout(900);
 
   const labels = await page.$$eval('#seenFilter button', (items) => items.map((i) => i.textContent.trim()));
-  assert.ok(labels.length >= 10, `only ${labels.length} last-seen choices are offered`);
+  // 🔴 EIGHT, WAS TEN. George, 22 Sep 2026: *"for last seen remove no data and remove 12 hours"*.
+  assert.ok(labels.length >= 8, `only ${labels.length} last-seen choices are offered`);
 
   for (const label of labels) {
     await page.$$eval(
@@ -1728,9 +1729,15 @@ test('every last-seen choice leaves the filters and a list on screen', async () 
   await context.close();
 });
 
-test('the never-caught choice names the aircraft that have never been seen here', async () => {
-  // The whole point of the choice: a type the page can name and the record has never caught has
-  // no row anywhere else, so this is the only place a Lancaster can be picked before one flies.
+/* ------------------------------------------------ the map, where the form was --- */
+
+test('no "no data" choice is offered any more', async () => {
+  // 🔴 THE TEST FOR THE NEVER-CAUGHT LIST IS GONE, AND THIS REPLACES IT — IT DOES NOT STAND IN FOR
+  // IT. George, 22 Sep 2026: *"for last seen remove no data and remove 12 hours"*. That choice was the
+  // only way to see a type the record has never caught (the Lancaster, the Mitchell, the Dakota), so
+  // removing it removes the feature the old test measured; a test asserting a chip that is
+  // deliberately absent would be a test of nothing. What is worth holding is that the chip has not
+  // come back and that the row it lived on still works, which is what this checks.
   const { context, page } = await openPage([[[]]]);
   await page.route('**/api/geo/search**', placeStub);
   await page.goto(BASE, { waitUntil: 'load' });
@@ -1740,27 +1747,20 @@ test('the never-caught choice names the aircraft that have never been seen here'
   await chooseDistance(page);
   await page.waitForTimeout(900);
 
+  const labels = await page.$$eval('#seenFilter button', (items) => items.map((i) => i.textContent.trim()));
+  assert.equal(labels.some((label) => /no data/i.test(label)), false, `"no data" is back on the row: ${labels.join(', ')}`);
+  assert.equal(labels.some((label) => /12 hours/i.test(label)), false, `"last 12 hours" is back on the row: ${labels.join(', ')}`);
+  // And the row still narrows the list when a window is pressed, which is the point of the removal
+  // being a change of OPTIONS rather than a broken control.
   await page.$$eval('#seenFilter button', (items) => {
-    const chip = items.find((item) => /no data/i.test(item.textContent));
+    const chip = items.find((item) => item.textContent.trim() === 'this year');
     if (chip) chip.click();
   });
-  await page.waitForTimeout(700);
-
-  const state = await whatIsOnScreen(page);
-  assertOnScreen(state, 'under the never-caught choice');
-
-  const text = await page.$eval('#typeList', (el) => el.textContent);
-  for (const name of ['Lancaster', 'Mitchell', 'Dakota']) {
-    assert.match(text, new RegExp(name, 'i'), `the never-caught list does not name the ${name}`);
-  }
-  // And it says why they are there, rather than looking like a page with no data.
-  assert.match(state.noteText, /never caught|not available|no date/i,
-    `the never-caught choice does not explain itself: ${state.noteText}`);
+  await page.waitForTimeout(600);
+  assertOnScreen(await whatIsOnScreen(page), 'under the "this year" choice', { allowEmpty: true });
 
   await context.close();
 });
-
-/* ------------------------------------------------ the map, where the form was --- */
 
 /**
  * George, 21 Sep 2026: *"### Or one aircraft by name i dont want this, just show a map"*.

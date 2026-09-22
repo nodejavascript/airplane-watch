@@ -32,13 +32,28 @@ export interface TypeInfo {
   klass: AircraftClass;
 }
 
+/**
+ * 🔴 EVERY KIND IS ONE WORD, AND THAT IS GEORGE'S INSTRUCTION RATHER THAN A TIDY-UP.
+ *
+ * George, 22 Sep 2026, looking at the filter panel: *"make heritage & war planes just heritage and
+ * anything tlse and & just use one word"*. Three labels carried an ampersand and a second noun —
+ * `Heritage & war planes`, `Private & business`, `Light & training` — and they were the three widest
+ * chips in the row, which is what pushed the Kind row onto two lines and left `Interesting` stranded
+ * on the second one. Each is one word now, and the word is the one that does the work.
+ *
+ * ⚠️ WHAT IS LOST, SAID PLAINLY: `Heritage` no longer says out loud that the class holds war planes,
+ * `Business` no longer says "private", and `Light` no longer says "training". The step's own paragraph
+ * still explains the Heritage class in full — *"deliberately short: many military aircraft never
+ * transmit at all"* — which is where that sentence belongs, rather than repeated in a chip too wide to
+ * fit its own row.
+ */
 const CLASS_LABEL: Record<AircraftClass, string> = {
   airliner: 'Airliner',
   regional: 'Regional',
-  business: 'Private & business',
-  light: 'Light & training',
+  business: 'Business',
+  light: 'Light',
   helicopter: 'Helicopter',
-  military: 'Heritage & war planes',
+  military: 'Heritage',
   interesting: 'Interesting',
   other: 'Other',
 };

@@ -214,7 +214,7 @@ interface SeenChoice {
 }
 
 /**
- * 🔴 THE NINE CHOICES, SHORT, UNDER ONE LABEL. George, 20 Sep 2026: *"i want a label instead
+ * 🔴 THE EIGHT CHOICES, SHORT, UNDER ONE LABEL. George, 20 Sep 2026: *"i want a label instead
  * of saying last seen mnay times, and i want 5 minutes, last hour, last 12 hours"*.
  *
  * Every chip used to carry the phrase itself — "Last seen today", "Last seen this week" —
@@ -232,21 +232,25 @@ interface SeenChoice {
  *
  * The order runs narrow to wide, after "All flights" — which is the absence of a window and
  * belongs first, where the default sits.
+ *
+ * 🔴 AND TWO WERE TAKEN OUT. George, 22 Sep 2026: *"for last seen remove no data and remove 12
+ * hours"*. `last 12 hours` sat between `last hour` and `today` and was the window nobody picked —
+ * twelve hours straddles a night, so it answers a question neither of its neighbours does.
+ * `no data` was not part of the time scale at all: it answered *"which types has the record never
+ * caught"*, which is a filter about the RECORD rather than about time, and it was the tenth chip on
+ * a row that was already wrapping. Its machinery stays in `SeenMode` and in the list renderer so the
+ * choice can come back if it is wanted, but nothing offers it, so that branch is unreachable by
+ * design rather than by accident.
  */
 const SEEN_CHOICES: SeenChoice[] = [
   { key: 'all', label: 'All flights', mode: 'all', since: null },
   { key: 'fiveMin', label: '5 minutes', phrase: 'the last 5 minutes', mode: 'rolling', since: (now) => rolling(now, 5 * 60_000) },
   { key: 'hour', label: 'last hour', phrase: 'the last hour', mode: 'rolling', since: (now) => rolling(now, 60 * 60_000) },
-  { key: 'halfDay', label: 'last 12 hours', phrase: 'the last 12 hours', mode: 'rolling', since: (now) => rolling(now, 12 * 60 * 60_000) },
   { key: 'today', label: 'today', mode: 'calendar', since: (now) => startOfDay(now) },
   { key: 'week', label: 'this week', mode: 'calendar', since: (now) => startOfWeek(now) },
   { key: 'month', label: 'this month', mode: 'calendar', since: (now) => startOfMonth(now) },
   { key: 'quarter', label: 'this quarter', mode: 'calendar', since: (now) => startOfQuarter(now) },
   { key: 'year', label: 'this year', mode: 'calendar', since: (now) => startOfYear(now) },
-  // 🔴 LAST, BECAUSE IT IS NOT PART OF THE SCALE. The other nine run narrow to wide; this one
-  // is a different question — which types the record is SILENT about — and putting it at the
-  // end keeps the time scale unbroken while still making the option reachable.
-  { key: 'noData', label: 'no data', mode: 'noData', since: null },
 ];
 
 /**
