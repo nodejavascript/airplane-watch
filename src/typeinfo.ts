@@ -407,7 +407,13 @@ const TABLE: Record<string, [string, AircraftClass]> = {
   B505: ['Bell 505 JetRanger X', 'helicopter'],
 
   /* military */
-  ST75: ['Stearman Kaydet', 'military'],
+  // 🔴 THE ONE ENTRY IN THIS CLASS THAT HAD NO EVIDENCE BESIDE IT, FOUND BY THE STATIC SUITE (22 Sep
+  // 2026): every other military entry carries the count of database records behind it, and this one
+  // carried nothing. Its count is **0** — the Stearman appears in the survey because a registration was
+  // recorded at Vancouver (`C-GSDK`, CYVR, 20 Sep 2026), not because one was heard. Written down rather
+  // than left blank, because a class whose rule is *"every entry shows what it was read from"* cannot
+  // have an exception sitting in it invisibly.
+  ST75: ['Stearman Kaydet', 'military'], //   0 — C-GSDK at CYVR, seen 20 Sep 2026
 
   /* other */
   AS21: ['AS21', 'other'],  // NOT in the database — see the note at the end of this block

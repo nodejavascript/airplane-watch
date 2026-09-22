@@ -506,6 +506,23 @@ test('the type codes the feed actually sends are the shape the table expects', (
 
 const readSrc = (relative) => stripJs(readFileSync(join(ROOT, relative), 'utf8'));
 
+/**
+ * A source file WITH its comments still in it.
+ *
+ * 🔴 WHY BOTH READERS EXIST, AND WHY THE SECOND ONE IS NOT LAZINESS. `readSrc` strips comments on
+ * purpose: *"a comment that names a rule is not that rule"* is the whole point, because a check that
+ * accepts a comment where code was required is a check that passes on an intention. But some rules are
+ * ABOUT the record itself — *"the codes must cite the database they were read from"*, *"the file must
+ * record why the user agent is required"* — and those are satisfiable ONLY in a comment, since
+ * TypeScript has nowhere else to put a reason.
+ *
+ * **So both readers are needed, and using the wrong one produces a check that can never pass.** Three
+ * assertions in this file were doing exactly that on 22 September 2026 (the type table's citation, the
+ * user-agent reason in two files, and a refresh control that required a comment in comment-stripped
+ * HTML). Each one reported a failure about a page that was already correct.
+ */
+const readRaw = (relative) => readFileSync(join(ROOT, relative), 'utf8');
+
 test('every airport in the list was placed by the feed, and none of them by hand', () => {
   assert.ok(existsSync(join(SITE, 'airports.json')), 'site/airports.json is missing — run tools/verify-airports.mjs');
   const doc = JSON.parse(read(SITE, 'airports.json'));
@@ -551,37 +568,76 @@ test('the type list says out loud that its tail numbers are a sample', () => {
   }
 });
 
-test('the page has two views and the header still has no nav', () => {
+test('the page has ONE flow, the status line sits outside it, and the header still has no nav', () => {
   const html = read(SITE, 'index.html');
 
-  assert.match(html, /id="selectView"/, 'the choosing flow has no container to hide');
-  assert.match(html, /id="liveView"[^>]*hidden/, 'the live view must start hidden');
-  assert.match(html, /id="liveChart"/, 'the chart has nowhere to draw');
-  assert.match(html, /id="liveBody"/, 'the chart has no table under it');
-  assert.match(html, /id="nearbyList"/, 'there is nowhere to list nearby airports');
-  assert.match(html, /id="locateBtn"/, 'there is no control to ask for a position');
+  // 🔴 THIS TEST USED TO CHECK FOR TWO VIEWS, AND IT WAS RIGHT AT THE TIME. The page carried a
+  // *choosing* view and a *live* view with three switchers between them, and the rules below were
+  // written to keep them honest: the live view started hidden, and the status line sat OUTSIDE both of
+  // them or a feed error would be invisible to a reader on the other one. The live view was deleted
+  // when the map took over the board's job, so the checks are inverted: the switchers must be GONE
+  // rather than present, and the two rules that still apply are kept.
+  //
+  // ⚠️ A CHECK THAT ASKS FOR A DELETED ELEMENT IS NOT A FAILING CHECK, IT IS A STALE ONE — and the
+  // distinction matters, because "the page stopped drawing the old thing" is usually the point.
+  assert.equal(/id="liveView"|id="liveChart"|id="liveBody"|data-view=/.test(html), false,
+    'a switcher, a chart or a second view is back — the map is the only board now');
 
-  const switches = html.match(/class="ghost view-switch" data-view="(select|live)"/g) ?? [];
-  assert.equal(switches.length, 3, 'expected two switches at the top and one back-link inside the live view');
-  assert.equal((html.match(/data-view="live"/g) ?? []).length, 1);
-  assert.equal((html.match(/data-view="select"/g) ?? []).length, 2);
+  // The status line still exists, and it still sits outside the gated flow: a feed error has to be
+  // readable by a reader who has answered nothing yet.
+  const status = html.indexOf('id="status"');
+  assert.ok(status > -1, 'there is no status line at all');
+  assert.ok(status < html.indexOf('id="step-1"'),
+    'the status line sits inside the gated flow, so a feed error is invisible until step 1 is answered');
 
-  // The status line had to move OUT of a card that was gated, or a feed error
-  // would be invisible to a reader who is on the other view.
-  const statusIndex = html.indexOf('id="status"');
-  assert.ok(statusIndex > -1);
-  assert.ok(statusIndex < html.indexOf('id="selectView"'), 'the status line must sit outside both views');
+  // 🔴 AND IT IS NOT INSIDE A WRAPPER THAT WAS LEFT OPEN. Both of the following were TRUE of the
+  // shipped page until 22 Sep 2026: `<div id="selectView">` was written TWICE — one duplicate id and
+  // one element no parser could ever close — so the consent bar, the footer and every dialog were
+  // nested inside a container nothing had referred to for weeks. A browser repairs that silently,
+  // which is exactly why no one saw it.
+  const bare = stripHtml(html);
+  const opens = (bare.match(/<div\b[^>]*>/g) ?? []).length;
+  const closes = (bare.match(/<\/div>/g) ?? []).length;
+  assert.equal(opens, closes,
+    `${opens} <div> elements are opened and ${closes} closed, so ${opens - closes} is left open and the browser is repairing the page`);
+  const ids = [...bare.matchAll(/\sid="([^"]+)"/g)].map((one) => one[1]);
+  const twice = [...new Set(ids.filter((one, at) => ids.indexOf(one) !== at))];
+  assert.deepEqual(twice, [], `these ids appear more than once: ${twice.join(', ')}`);
+  assert.equal((html.match(/id="selectView"/g) ?? []).length, 1, 'the container is on the page more than once');
+
+  // The header is a brand bar and nothing else.
+  assert.equal(/<nav[\s>]/.test(html), false, 'the header has grown a nav');
 });
 
-test('the live view draws matches from the last reading, never everything', () => {
+test('the map draws what the reader asked for, from the last reading, never everything', () => {
   const source = readSrc('src/app.ts');
 
-  assert.match(source, /matchedAirborne\(\)/, 'there is no method that picks the aircraft to chart');
-  assert.match(source, /this\.engine\.matchOf\(reading\)/, 'the chart must be filtered by the reader\'s own rules');
-  assert.match(source, /if \(!match\) continue;/, 'an aircraft that matches nothing would still be drawn');
-  assert.match(source, /this\.lastReadings = readings;/, 'the live view must read from the same poll as the board');
-  assert.match(source, /alt_baro === 'ground'\) continue;/, 'an aircraft on the ground is not in the air');
-  assert.match(source, /row\.km <= 400/, 'there must be a distance filter, with its reason written down');
+  // 🔴 THIS CHECK USED TO BE ABOUT THE LIVE VIEW'S TABLE AND CHART, WHICH ARE GONE. The rules did not go
+  // with them — the map inherited every one — so it is re-pointed rather than retired. Each assertion
+  // below is one of the old ones, named at its new home:
+  //
+  //   the aircraft are filtered by the reader's own rules   →  engine.matchOf, in `isWatchedNow`
+  //   an aircraft that matches nothing is not drawn          →  `matchOf(...) !== null`
+  //   the board reads the same poll as the list              →  `this.lastReadings = readings`
+  //   an aircraft on the ground is not in the air            →  `state.phase === 'airborne'`
+  assert.match(source, /this\.engine\.matchOf\(\{/, 'the reader\'s own rules no longer decide what is drawn');
+  assert.match(source, /\) !== null/, 'an aircraft that matches nothing would still be drawn');
+  assert.match(source, /this\.lastReadings = readings;/, 'the board and the list no longer read the same poll');
+  assert.match(source, /state\.phase === 'airborne'/, 'an aircraft on the ground can still count as in the air');
+
+  // 🔴 AND THE ONE RULE THAT WAS ADDED AFTER THIS CHECK WAS WRITTEN, which is the reason it matters:
+  // *"in the air messages should be vertically aligned … i click last 5 minutes. this should filter to the
+  // airport i selected"* — George, 22 Sep 2026. Nothing may be counted, listed or drawn from a reading
+  // that is outside the reader's own circle, however loud the feed is about it.
+  assert.match(source, /if \(!this\.insideMyCircle\(reading\.lat, reading\.lon\)\) continue;/,
+    'a reading outside the circle is counted, so a row can say "in the air" with nothing on the map');
+  // And it is the SAME question the fence asks, asked in one place — two copies of it would drift.
+  const fence = between(source, 'private insideFence', 'private insideMyCircle', 'the fence');
+  assert.match(fence, /this\.insideMyCircle\(state\.lat, state\.lon\)/,
+    'the fence answers the circle question itself instead of delegating, so the two can disagree');
+
+  // A row the reader switched off is not drawn, and the switch is the reader's rather than a filter's.
+  assert.match(source, /rowVisible\(one\)/, 'a row switched off is still drawn on the map');
 });
 
 test('nothing on this page is listed by hand', () => {
@@ -596,9 +652,13 @@ test('nothing on this page is listed by hand', () => {
 
 test('the new controls have styles, so they do not arrive unstyled', () => {
   const css = read(SITE, 'styles.css');
-  for (const selector of ['.viewbar', '.nearby', '.near-chip', '.typerow-actions', '.tail-panel', '.tail-grid', '.tail-box', '.radar', '.radar-dot', '.sr-only']) {
+  // ⚠️ `.viewbar` IS DELIBERATELY ABSENT. It styled the switcher bar between the two views, and the
+  // switcher was deleted with the live view. A selector list is a description of what the page draws,
+  // so an entry for something it no longer draws is a rule that keeps a deleted control looking alive.
+  for (const selector of ['.nearby', '.near-chip', '.typerow-actions', '.tail-panel', '.tail-grid', '.tail-box', '.radar', '.radar-dot', '.sr-only']) {
     assert.ok(css.includes(selector), `${selector} has no style`);
   }
+  assert.ok(!css.includes('.viewbar'), 'the stylesheet still styles the deleted view bar');
 });
 
 /* ============================================ 20 Sep 2026, second pass ======= */
@@ -644,13 +704,29 @@ test('the warplanes class holds the historic codes, read from the feed own datab
     assert.match(label, /^[A-Za-z]+$/, `the kind label "${label}" is not one word`);
   }
   assert.match(source, /LANC: \['Avro Lancaster', 'military'\]/, 'the Lancaster is not a warplane type');
-  assert.match(source, /tar1090-db/, 'the codes must cite the database they were read from');
-  assert.match(source, /C07DD7;C-GVRA;LANC/, 'the Lancaster entry must carry the line it was verified from');
-  assert.match(source, /NOT "every warplane"/, 'the class must say out loud that it is not every warplane');
+  // 🔴 READ WITH COMMENTS ON: a citation is what a COMMENT is for, and `source` here is comment-stripped.
+  // `tar1090-db` appears three times in the file and none of them survived stripping, so this assertion
+  // could never pass — it was reporting a missing citation that was there the whole time.
+  const raw = readRaw('src/typeinfo.ts');
+  assert.match(raw, /tar1090-db/, 'the codes must cite the database they were read from');
+  assert.match(raw, /C07DD7;C-GVRA;LANC/, 'the Lancaster entry must carry the line it was verified from');
+  assert.match(raw, /NOT "every warplane"/, 'the class must say out loud that it is not every warplane');
 
-  // The short list must actually be short and honest, not padded with guesses.
-  const military = source.match(/', 'military'\]/g) ?? [];
-  assert.ok(military.length >= 12 && military.length <= 30, `expected a short, deliberate list, found ${military.length}`);
+  // 🔴 THE SHORT LIST MUST BE SHORT, HONEST AND **EVIDENCED**. The count below was 12–30 and the list
+  // reached 35 — not by padding but by growing a second deliberate group (the serving military types:
+  // C-130, C-17, Chinook, Poseidon, Osprey and the rest), so the bound was stale rather than the list
+  // being wrong. **The bound is not the interesting part.** The property that actually stops padding is
+  // that every entry shows what it was read from, so that is what is asserted now: a type added on a
+  // hunch would have to invent a database count to get past this.
+  const rawMil = readRaw('src/typeinfo.ts').split('\n').filter((one) => one.includes("', 'military']"));
+  assert.ok(rawMil.length >= 30 && rawMil.length <= 45,
+    `expected the historic and serving groups together, found ${rawMil.length}`);
+  const uncited = rawMil.filter((one) => !/\/\/\s*(—\s*)?\d+/.test(one));
+  assert.deepEqual(uncited, [],
+    `these military entries carry no count from the database, so nothing says where they came from:\n${uncited.join('\n')}`);
+  // Both groups are present, because they answer different questions and were added for different reasons.
+  assert.ok(/LANC: \['Avro Lancaster'/.test(readRaw('src/typeinfo.ts')), 'the historic group is gone');
+  assert.ok(/C130: \['Lockheed C-130 Hercules'/.test(readRaw('src/typeinfo.ts')), 'the serving group is gone');
 });
 
 test('the military harvest refuses ground stations but keeps real aircraft', () => {
@@ -663,9 +739,11 @@ test('the military harvest refuses ground stations but keeps real aircraft', () 
 
 test('every outbound request names itself, because the feed refuses Node default', () => {
   for (const file of ['tools/serve.mjs', 'worker/index.js', 'tools/survey-military.mjs']) {
-    const source = readSrc(file);
-    assert.match(source, /user-agent/i, `${file} sends no user agent — measured: the feed answers 403`);
-    assert.match(source, /403/, `${file} does not record why the user agent is required`);
+    assert.match(readSrc(file), /user-agent/i, `${file} sends no user agent — measured: the feed answers 403`);
+    // 🔴 AND THE REASON IS READ WITH THE COMMENTS LEFT IN. `readSrc` strips them, and the sentence that
+    // records WHY the header is required is a comment in serve.mjs and in the worker — so the stripped
+    // source can never contain the number, and this assertion reported a missing reason that was present.
+    assert.match(readRaw(file), /403/, `${file} does not record why the user agent is required`);
   }
 });
 

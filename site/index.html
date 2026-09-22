@@ -171,10 +171,14 @@
         </ul>
       </section>
 
-      <div id="selectView">
-
       <p class="small muted" id="status" data-kind="working">Starting…</p>
 
+      <!-- 🔴 ONE WRAPPER, NOT TWO. This `<div id=\"selectView\">` was written TWICE — a duplicate id AND an
+           unclosed element — and it was the only div a real parser found still open at the end of the file.
+           So the consent bar, the footer and every dialog were nested inside a container no stylesheet and
+           no script has referred to since the two-view architecture was deleted. Both lines are dead; the
+           one that remains is the one that has a closing tag. A browser repairs that silently, which is
+           why it survived: nothing was visibly wrong. -->
       <div id="selectView">
 
       <section class="card step-gated" id="step-1" data-step="1">
