@@ -1930,12 +1930,16 @@ main > #status {
  * gets its own mark in the same gold the page uses for marks, and the sentence
  * behind it (including that it is the TYPE's year and not the airframe's) is on its
  * tooltip rather than in the row. */
+/* 🔴 NEUTRAL, NOT GOLD. George, 22 Sep 2026: *"the yellow labels are not good, make them neutral"*.
+ * A year is INFORMATION — which type this is, not what the reader has done with it — so it has no
+ * business spending the same colour as the star, which is the one mark on this page that gold is for.
+ * The tooltip still carries the whole sentence about whose year it is. */
 .year-tag {
   display: inline-block;
   padding: 1px 6px;
-  border: 1px solid rgba(240, 190, 90, 0.4);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  color: #f0be5a;
+  color: var(--muted);
   font-family: var(--mono, ui-monospace, monospace);
   font-size: 11.5px;
   line-height: 1.5;
@@ -2083,10 +2087,28 @@ main > #status {
   cursor: default;
 }
 
-.watch-list .watch-tails .tail-chip[data-watched='true'] {
-  border-color: #f0be5a;
-  background: rgba(240, 190, 90, 0.16);
-  color: #f0be5a;
+/* ---------------------------------------------------------------------------
+ * 🔴 NEUTRAL, UNLESS IT IS FLYING.
+ *
+ * George, 22 Sep 2026: *"the yellow labels are not good, make them neutral, and make green hue only if
+ * the tail is in the air"*. The gold had stopped saying anything: on a whole-type rule EVERY chip was
+ * gold, because a whole-type rule watches every tail under it — a row of identical lights that told
+ * the reader nothing, and that made the two chips which did matter, the flying ones, the hardest things
+ * on the row to pick out.
+ *
+ * So there is no gold here at all now. A chip is a LABEL: neutral by default, dimmed when it is not
+ * one of the aeroplanes being watched, and green — the same green as "in the air" elsewhere on this
+ * page — when the feed is reporting that tail airborne at this moment.
+ * ------------------------------------------------------------------------ */
+.watch-list .watch-tails .tail-chip.tail-air {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.16);
+  color: #7ee787;
+}
+
+/* Not on the list. Still neutral — no colour is spent on it, only weight. */
+.watch-list .watch-tails .tail-chip.tail-off {
+  opacity: 0.5;
 }
 
 /* The way out is a small ✕ at the end of the row, after the status — it keeps its own label

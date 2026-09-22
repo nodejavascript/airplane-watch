@@ -1145,6 +1145,36 @@ test('the distance control sits ABOVE the map it draws, refreshed line first and
   assert.match(css, /\.refreshed-line\s*\{[\s\S]{0,120}text-align:\s*right/, 'the refreshed line is not right-aligned');
 });
 
+test('a watched tail is a NEUTRAL label, and green only when it is in the air', () => {
+  // 🔴 George, 22 Sep 2026: *"the yellow labels are not good, make them neutral, and make green hue only
+  // if the tail is in the air"* — and he pasted the row back: *"Dash 8-400 (Q400) DH8D 1998 2 in the air
+  // ✕ C-GJZG C-GLQK"*. The gold had stopped saying anything: on a whole-type rule EVERY chip was gold,
+  // because a whole-type rule watches every tail under it, so the two chips that mattered — the flying
+  // ones — were the hardest things on the row to pick out.
+  //
+  // So this checks BOTH halves: no gold is spent in this list, and the green is spent on one fact only.
+  const css = read(SITE, 'styles.css');
+  assert.equal(
+    /\.watch-list \.watch-tails[\s\S]{0,400}#f0be5a/.test(css),
+    false,
+    'a watched tail is still gold'
+  );
+  assert.match(css, /\.watch-list \.watch-tails \.tail-chip\.tail-air[\s\S]{0,200}#7ee787/,
+    'a tail that is in the air is not green');
+  assert.match(css, /\.watch-list \.watch-tails \.tail-chip\.tail-off[\s\S]{0,80}opacity/,
+    'a tail that is not watched is not dimmed');
+  // The year is information rather than a mark, so it is neutral too — *"make them neutral"*.
+  assert.equal(/\.year-tag\s*\{[\s\S]{0,240}#f0be5a/.test(css), false, 'the year tag is still gold');
+
+  const app = readSrc('src/app.ts');
+  assert.match(app, /one\.phase === 'airborne'/, 'nothing works out which of these tails are in the air');
+  assert.match(app, /tail-air/, 'the chip is never given the in-the-air class');
+  // It is read from the same snapshot the status column beside it is drawn from, or the chip and the
+  // words could describe different moments.
+  assert.match(app, /const live = this\.engine \? this\.engine\.snapshot\(\) : \[\]/,
+    'the chips are not read from the same snapshot as the row status');
+});
+
 test('an empty type list NAMES THE WINDOW when the window is the reason', () => {
   // 🔴 THE SENTENCE THAT COST GEORGE A MORNING. Any empty list under the default kind filter used
   // to be answered with *"Nothing has been seen yet — the page has only just started looking. Give

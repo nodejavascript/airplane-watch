@@ -3739,6 +3739,25 @@ class Page {
         // which is the record plus anything picked by hand that the record no longer lists.
         const chosen = new Set(rule.tails.map((tail) => normaliseKey(tail)));
         const tails = this.tailListOf(rule.type);
+        // 🔴 THE GREEN MEANS "IN THE AIR", AND IT MEANS ONLY THAT.
+        //
+        // George, 22 Sep 2026: *"the yellow labels are not good, make them neutral, and make green hue
+        // only if the tail is in the air"*. So a chip here is a LABEL and not a light: it is neutral in
+        // every state, and the one colour it ever spends is the one thing a reader watching a feed
+        // actually wants — whether that aeroplane is up there now.
+        //
+        // 🔴 THE YELLOW HAD STOPPED SAYING ANYTHING. Every chip on a whole-type rule was gold, because a
+        // whole-type rule watches every tail under it — a row of identical lights that distinguished
+        // nothing and made the two chips that DID matter, the flying ones, the ones hardest to pick out.
+        //
+        // `live` is the same snapshot the status column beside it is drawn from, so the chip and the
+        // words cannot describe different moments.
+        const airborne = new Set(
+          live
+            .filter((one) => one.phase === 'airborne')
+            .map((one) => normaliseKey(one.registration))
+            .filter((key) => key !== '')
+        );
         const tailsHtml =
           tails.length === 0
             ? '<div class="watch-tails"><span class="small muted">' +
@@ -3750,16 +3769,20 @@ class Page {
             : '<div class="watch-tails">' +
               tails
                 .map((tail) => {
-                  const on = !narrowed || chosen.has(normaliseKey(tail));
+                  const key = normaliseKey(tail);
+                  const watched = !narrowed || chosen.has(key);
+                  const flying = airborne.has(key);
+                  const what = flying
+                    ? watched
+                      ? 'In the air now, and watched'
+                      : 'In the air now, but not on your list'
+                    : watched
+                      ? 'Not in the air at this moment'
+                      : 'Not in the air, and not watched — tick it in step 3 to watch only this aeroplane';
                   return (
-                    `<span class="tail-chip" data-watched="${on}" ` +
-                    `title="${escapeHtml(
-                      on
-                        ? narrowed
-                          ? 'Watching this aeroplane'
-                          : 'The whole type is watched, so this one is too'
-                        : 'Not watched — tick it in step 3 to watch only this aeroplane'
-                    )}">${escapeHtml(tail)}</span>`
+                    `<span class="tail-chip${flying ? ' tail-air' : ''}${watched ? '' : ' tail-off'}" ` +
+                    `data-air="${flying}" data-watched="${watched}" title="${escapeHtml(what)}">` +
+                    `${escapeHtml(tail)}</span>`
                   );
                 })
                 .join('') +
