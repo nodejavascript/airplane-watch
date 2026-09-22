@@ -1091,39 +1091,57 @@ test('the type section opens on a PLACE — the distance no longer gates it', ()
   assert.match(app, /this\.radiusChosen = true/, 'the saved distance no longer counts as chosen');
 });
 
-test('the distance control sits ABOVE the map it draws, with the refreshed line under it', () => {
-  // 🔴 George, 22 Sep 2026: *"i want this above the map"*, and then *"and last refreshed
-  // fromnow()"*. Both halves are a POSITION, so the check is an order: the heading and the slider,
-  // then the note, then the refreshed line, then the map. A control that drifted back down the
-  // page would still be on it, and a reader would still be told the circle is somewhere it is not.
+test('the distance control sits ABOVE the map it draws, refreshed line first and right-aligned', () => {
+  // 🔴 George, 22 Sep 2026: *"i want this above the map"*, then *"top above map right aligned"*, then
+  // *"remove Everything on this page is measured from here: …"*. All three are POSITION, so the check is
+  // an order: the refreshed line, the heading, the slider, the centre paragraph, then the map. A control
+  // that drifted back down the page would still be on the page, and a reader would still be told the
+  // circle is somewhere it is not.
   const code = htmlCode;
+  const refreshed = code.indexOf('id="refreshedAgo"');
   const head = code.indexOf('id="radiusHead"');
   const buttons = code.indexOf('id="radiusButtons"');
-  const note = code.indexOf('id="radiusNote"');
-  const refreshed = code.indexOf('id="refreshedAgo"');
+  const fence = code.indexOf('id="fenceFrom"');
   const map = code.indexOf('id="watchMap"');
 
   for (const [what, at] of [
+    ['the refreshed line', refreshed],
     ['the distance heading', head],
     ['the distance slider', buttons],
-    ['the distance note', note],
-    ['the refreshed line', refreshed],
+    ['the centre paragraph', fence],
     ['the map', map],
   ]) {
     assert.ok(at > -1, `${what} is not on the page at all`);
   }
-  assert.ok(head < buttons && buttons < note && note < refreshed && refreshed < map,
-    'the distance control and the refreshed line are not above the map, in that order');
+  assert.ok(refreshed < head && head < buttons && buttons < fence && fence < map,
+    'the refreshed line, the distance control and the map are not in that order');
+
+  // 🔴 AND THE NOTE HE REMOVED IS NOT BACK. It explained the control to a reader looking at the control.
+  assert.equal(code.includes('id="radiusNote"'), false, 'the distance note is on the page again');
+
+  // It opens on "now", not on a placeholder that reads like a fault — *"start off my saying now"*.
+  assert.match(code, /id="refreshedAgo">now</, 'the refreshed line does not open on "now"');
 
   // And it is in the WATCHING card, not back in step 1.
   const step4 = code.slice(code.indexOf('id="step-4"'), code.indexOf('id="live"'));
   assert.ok(step4.includes('id="radiusButtons"'), 'the distance slider is not in the map\'s own card');
+  assert.ok(step4.includes('id="refreshedAgo"'), 'the refreshed line is not in the map\'s own card');
 
-  // The line is filled by the same ticker that ages every row, or it would freeze at whatever it
-  // said when the poll landed.
+  // The line is filled by the same ticker that ages every row, or it would freeze at whatever it said
+  // when the poll landed.
   const app = readSrc('src/app.ts');
   assert.match(app, /#refreshedAgo/, 'nothing keeps the refreshed line honest');
   assert.match(app, /fromNow\(this\.lastPollAt\)/, 'the refreshed line is not counted from the last poll');
+
+  // 🔴 THE VALUE RIDES ON THE DOT — *"**20 km** stick this to the dot on the line"* — so the slider's own
+  // box has to exist to position it against, and the thumb width has to be known to place it.
+  assert.ok(code.includes('id="radiusButtons"'), 'the slider host is gone');
+  assert.match(app, /radius-track/, 'nothing positions the value against the track');
+  assert.match(app, /placeReadout/, 'the value is not placed on the dot');
+  const css = read(SITE, 'styles.css');
+  assert.match(css, /\.radius-value\s*\{[\s\S]{0,200}position:\s*absolute/, 'the value is not positioned');
+  assert.match(css, /\.radius-value\s*\{[\s\S]{0,300}translateX\(-50%\)/, 'the value is not centred on the dot');
+  assert.match(css, /\.refreshed-line\s*\{[\s\S]{0,120}text-align:\s*right/, 'the refreshed line is not right-aligned');
 });
 
 test('an empty type list NAMES THE WINDOW when the window is the reason', () => {

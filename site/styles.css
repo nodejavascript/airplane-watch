@@ -673,6 +673,18 @@ main {
 }
 
 /* ---------------------------------------------------------------------------
+ * 🔴 THE REFRESHED LINE: TOP OF THE BLOCK, RIGHT-ALIGNED.
+ *
+ * George, 22 Sep 2026: *"top above map right aligned"*. It is the page's own clock rather than one of
+ * the controls, so it sits against the right edge where it reads as a timestamp and does not push the
+ * heading off the line the eye starts on.
+ * ------------------------------------------------------------------------ */
+.refreshed-line {
+  margin: 0 0 2px;
+  text-align: right;
+}
+
+/* ---------------------------------------------------------------------------
  * THE PLACE AN AIRPORT CODE STANDS FOR, UNDER THE CODE.
  *
  * George, 22 Sep 2026: *"for departure and destinate can you put the city, state besides them"*.
@@ -1683,9 +1695,24 @@ main > #status {
   margin: 4px 0 2px;
 }
 
-.radius-slider {
+/* ---------------------------------------------------------------------------
+ * 🔴 THE BOX THE READOUT IS POSITIONED AGAINST.
+ *
+ * The value is absolutely positioned inside this, so its `left` is a percentage of THE TRACK rather
+ * than of the card — which is what lets a percentage mean "a percentage of the dot's travel". The top
+ * padding is the room the value sits in, immediately above the dot it belongs to. See `placeReadout`
+ * in src/app.ts for the arithmetic, and `RADIUS_THUMB_PX` for the correction it needs.
+ * ------------------------------------------------------------------------ */
+.radius-track {
+  position: relative;
   flex: 1 1 auto;
   min-width: 120px;
+  padding-top: 21px;
+}
+
+.radius-slider {
+  display: block;
+  width: 100%;
   height: 22px;
   appearance: none;
   -webkit-appearance: none;
@@ -1728,9 +1755,24 @@ main > #status {
   outline-offset: 4px;
 }
 
+/* ---------------------------------------------------------------------------
+ * 🔴 THE VALUE RIDES ON THE DOT.
+ *
+ * George, 22 Sep 2026: *"**20 km** stick this to the dot on the line"*. The number belongs to the dot
+ * — the dot is the thing the reader moved — so it travels with it instead of standing still while the
+ * dot leaves it behind. `left` is written on every change by `placeReadout`, and `translateX(-50%)`
+ * centres it on the dot rather than hanging it off one side.
+ * ------------------------------------------------------------------------ */
 .radius-value {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
   color: var(--theme);
   font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  /* It is a label, not a control: a click meant for the dot must reach the dot. */
+  pointer-events: none;
 }
 
 /* 🔴 THE TYPE GROUP HEADING IN THE "WHAT THE FEED CAN SEE" TABLE. George, 20 Sep 2026:

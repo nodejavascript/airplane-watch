@@ -302,27 +302,41 @@
           the start (20 km, or whatever the reader last chose), step 3 arrives as soon as a place is
           known, and the slider here re-draws the circle and re-asks the feed at the distance chosen.
         -->
+        <!--
+          🔴 THE LINE IS THE TOP OF THIS BLOCK, RIGHT-ALIGNED, AND IT OPENS WITH "now".
+
+          George, 22 Sep 2026: *"Last refreshed not yet. start off my saying now. top above map right
+          aligned."* So it no longer opens on a placeholder that reads like a fault — a page that has
+          just loaded has not been refused anything, and "not yet" told the reader something was
+          missing when nothing was. The moment the first poll lands, the same line counts from it.
+        -->
+        <p class="small muted refreshed-line" id="radiusRefreshed">Last refreshed <b id="refreshedAgo">now</b>.</p>
+
         <h3 class="subhead" id="radiusHead">How far out from you?</h3>
         <div id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
 
         <!--
-          🔴 WHAT THE FENCE IS MEASURED FROM, SAID OUT LOUD.
+          🔴 WHAT THE FENCE IS MEASURED FROM, AND ONLY WHEN IT IS NOT THE READER.
 
-          George, 21 Sep 2026: *"i wanrt from my location"*. The page already
-          measures from the reader once a place is known — but with no place it
-          falls back to an AIRPORT, and the only sign is the heading asking a
-          slightly different question. A reader who has picked Hamilton and never
-          said where they are gets a 20 km circle drawn round CYHM and a list of
-          what is near the AIRPORT, which is not the question this site exists to
-          answer. So the distance control now states its own centre, and when that
-          centre is not the reader it offers the one click that makes it so.
+          George, 21 Sep 2026: *"i wanrt from my location"*. The page measures from the reader once a
+          place is known — but with no place it falls back to an AIRPORT, and a reader who has picked
+          Hamilton and never said where they are gets a 20 km circle drawn round CYHM with nothing on
+          the page saying so. That is what this paragraph is for, and why it is filled by
+          `renderFenceFrom` in one case only.
+
+          🔴 AND THE OTHER CASE IS NOW SILENT. George, 22 Sep 2026, pasting it back: *"remove The
+          circle is centred on **your location** — Hamilton. Everything on this page is measured from
+          there."* He is right that it was noise: the heading directly above it already reads *"How far
+          out from you?"*, so the paragraph restated the heading and then explained the heading. It is
+          left EMPTY when the centre is the reader, and the one it still fills is the airport case —
+          which is a fact the heading does not carry, and the only place the offer to move the centre
+          onto the reader can live.
+
+          🔴 AND THE NOTE THAT USED TO SIT HERE IS GONE. George, 22 Sep 2026: *"remove Everything on
+          this page is measured from here: … moving the slider re-draws the circle and re-asks the
+          feed at the distance you chose."* It explained the control to a reader who is looking at the
+          control, which is the same mistake as the paragraph above it.
         -->
-        <p class="small muted" id="radiusNote">Everything on this page is measured from here: the
-          aircraft listed, and the circle drawn on the map below. A distance is in use from the start,
-          so the page fills in without waiting for you — and moving the slider re-draws the circle and
-          re-asks the feed at the distance you chose.</p>
-        <p class="small muted" id="radiusRefreshed">Last refreshed <b id="refreshedAgo">not yet</b>.</p>
-
         <p class="small muted" id="fenceFrom"></p>
         <button type="button" class="ghost" id="fenceFromLocate" data-ga="fence-from-locate" hidden>Measure from my location</button>
         <div id="watchMap"></div>

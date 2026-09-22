@@ -105,6 +105,16 @@ const POLL_MAX_MS = 180_000;
 const RADIUS_LADDER = [
     5, 6, 8, 10, 12, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200,
 ];
+/**
+ * 🔴 THE WIDTH OF THE SLIDER'S THUMB, AND IT MUST MATCH THE STYLESHEET.
+ *
+ * The readout sits ON the dot, and a range input's dot does not travel the full width of its track —
+ * it travels `width − thumb`, centred half a thumb in from each end. So placing the label needs the
+ * thumb's width in pixels as well as a percentage, and this is where that number lives. It is 18px in
+ * `site/styles.css` (`.radius-slider::-webkit-slider-thumb` and the `-moz-` equivalent). If the dot is
+ * ever resized, this moves with it or the label drifts at the ends of the line.
+ */
+const RADIUS_THUMB_PX = 18;
 const ERAS = [
     // 🔴 SHORT TOO, UNDER ITS OWN LABEL. The row is labelled "First flown", so a chip reading
     // "first flown before 1970" beside it would be the phrase the label just removed. George
@@ -811,6 +821,23 @@ class Page {
         const readout = document.createElement('b');
         readout.id = 'radiusValue';
         readout.className = 'radius-value';
+        /**
+         * 🔴 THE VALUE SITS ON THE DOT, NOT OFF TO ONE SIDE. George, 22 Sep 2026: *"**20 km** stick this to
+         * the dot on the line"*. The number belongs to the dot — the dot is what the reader moved — so it
+         * travels with it instead of standing still while the dot leaves it behind.
+         *
+         * The arithmetic, because a range input's geometry is not obvious: the thumb's centre at fraction
+         * `f` is at `f × (width − thumb) + thumb/2`, which is `f × width + (0.5 − f) × thumb`. So the
+         * position is a percentage plus a pixel correction — the percentage keeps it right when the card is
+         * resized, and the correction keeps it right at BOTH ends, where a bare percentage would hang the
+         * label half a thumb off the track and the last stop would read off the edge of the card.
+         */
+        const placeReadout = (index) => {
+            const steps = RADIUS_LADDER.length - 1;
+            const fraction = steps > 0 ? index / steps : 0;
+            readout.style.left =
+                `calc(${(fraction * 100).toFixed(3)}% + ${((0.5 - fraction) * RADIUS_THUMB_PX).toFixed(2)}px)`;
+        };
         const show = (index) => {
             // 🔴 A VALUE OFF THE LADDER MUST NOT BLANK THE MAP. `RADIUS_LADDER[index]` is `undefined`
             // for an index past the end of the list, and an undefined radius propagates as NaN through
@@ -822,6 +849,7 @@ class Page {
             const km = RADIUS_LADDER[index] ?? this.radiusKm;
             readout.textContent = `${km} km`;
             slider.setAttribute('aria-valuetext', `${km} kilometres`);
+            placeReadout(index);
         };
         show(nearest);
         slider.addEventListener('input', () => {
@@ -849,8 +877,19 @@ class Page {
             this.rearm();
             track('distance_chosen', { km, nm: kmToNm(km), first });
         });
-        row.append(slider);
-        host.append(row, readout);
+        // 🔴 THE TRACK IS A BOX THE READOUT CAN BE POSITIONED AGAINST. The value is absolutely positioned
+        // inside it, so it is placed in the slider's own coordinates rather than the card's — which is what
+        // lets a percentage of the track mean a percentage of the dot's travel.
+        //
+        // ⚠️ AND IT IS NOT CALLED `track`. `track()` is this file's analytics helper, and a local of that
+        // name shadows it inside this method — which is not a style point: the compiler catches it here,
+        // but the failure it describes (*"this expression is not callable"*) is the shape of the bug that
+        // would otherwise ship silently on a page with no analytics in it at all.
+        const trackBox = document.createElement('div');
+        trackBox.className = 'radius-track';
+        row.append(trackBox);
+        trackBox.append(slider, readout);
+        host.append(row);
     }
     buildTypeFilter() {
         const host = byId('typeFilter');
@@ -1538,8 +1577,11 @@ class Page {
             // row ages are: "12s ago" is wrong a second after it is written, and a stale age on a live
             // feed is the most reassuring thing a stalled page can say.
             const refreshed = document.querySelector('#refreshedAgo');
+            // 🔴 IT OPENS ON "now", NOT "not yet". George, 22 Sep 2026: *"start off my saying now"*. A page
+            // that has just loaded has not been refused anything, and a placeholder cannot be the thing that
+            // tells a reader something is missing when nothing is.
             if (refreshed)
-                refreshed.textContent = this.lastPollAt === 0 ? 'not yet' : fromNow(this.lastPollAt);
+                refreshed.textContent = this.lastPollAt === 0 ? 'now' : fromNow(this.lastPollAt);
         };
         paint();
         if (this.ageTicker !== undefined)
@@ -3434,13 +3476,19 @@ class Page {
             return;
         }
         if (this.centre) {
-            const { lead, tail } = this.nearbyPlaceLine();
-            const where = [lead, tail].filter(Boolean).join(' · ');
+            // 🔴 AND WHEN THE CENTRE IS THE READER, THIS PARAGRAPH SAYS NOTHING AT ALL. George, 22 Sep 2026,
+            // pasting the sentence back: *"remove The circle is centred on **your location** — Hamilton.
+            // Everything on this page is measured from there."* He is right that it was noise — the heading
+            // directly above it already reads "How far out from you?", so the paragraph restated the heading
+            // and then explained the heading.
+            //
+            // 🔴 THE OTHER BRANCH BELOW STAYS, AND IT IS NOT THE SAME CASE. A circle drawn round an AIRPORT
+            // rather than round the reader is a fact the heading does not carry, it is the reason the list
+            // beneath it shows aircraft near an airport instead of near the reader, and it is where the one
+            // click that fixes it lives. Removing the noise must not remove the warning.
             if (host) {
-                host.innerHTML =
-                    `The circle is centred on <b>your location</b>` +
-                        (where ? ` — ${escapeHtml(where)}` : '') +
-                        `. Everything on this page is measured from there.`;
+                host.innerHTML = '';
+                host.hidden = true;
             }
             if (button)
                 button.hidden = true;
