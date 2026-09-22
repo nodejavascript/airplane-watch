@@ -1107,7 +1107,7 @@ test('the type section opens on a PLACE — the distance no longer gates it', ()
   assert.match(app, /this\.radiusChosen = true/, 'the saved distance no longer counts as chosen');
 });
 
-test('the distance is asked WITH the aircraft, and the refreshed line is the first thing above the map', () => {
+test('the distance is asked WITH the aircraft, and the refreshed line is the first thing above the map', async () => {
   // 🔴 George, 22 Sep 2026: *"i forgot the slider is actually a filter for pic an aircraf. lets remove
   // the slider and ask the distance about the pick an aircraf under kind"*.
   //
