@@ -3367,12 +3367,16 @@ class Page {
     document.addEventListener('click', (event) => {
       const target = event.target as HTMLElement | null;
       if (!target) return;
-      // A press inside a control is that control's business — the tail chips narrow a type, and the two
-      // x buttons stop watching. Nothing here may swallow those.
-      if (target.closest('button, a, input, .tail-chip')) return;
+      // A press inside a control is that control's business — the tail chips narrow a type, the two
+      // x buttons stop watching, and the show-on-map switch filters the map. Nothing here may swallow
+      // those, and a press on the switch must not also be read as a press on the row it sits in, which
+      // on a named tail would put the map on that aircraft and then clear the very filter just set.
+      if (target.closest('button, a, input, .tail-chip, .map-switch')) return;
 
       // ⚠️ THE TABLE'S OWN BRANCH IS GONE WITH THE TABLE. A press on `tr.aircraft-row` used to pick
       // the flight; rows no longer exist, so the map's mark and a named tail are the two controls left.
+      // The aeroplane on the map, and its name — both carry the airframe's hex. `closest` covers the icon
+      // inside the mark as well as the mark itself.
       const onMap = target.closest<HTMLElement>('.locmap-plane-mark, .locmap-plane-label');
       if (onMap) {
         this.pickFlight(onMap.dataset.hex ?? '');
@@ -3393,12 +3397,26 @@ class Page {
       this.pickFlight(row.dataset.hex ?? '');
     });
 
+    // 🔴 AND THE SHOW-ON-MAP SWITCHES, WHICH ARE REBUILT WITH THE ROWS ON EVERY POLL AND SO CANNOT BE
+    // BOUND BY ROW. Delegated like the rest of this handler for exactly that reason. It listens for
+    // `change` rather than `click`: a checkbox is changeable from the keyboard, and a press on its label
+    // is the browser's to deliver.
+    document.addEventListener('change', (event) => {
+      const box = (event.target as HTMLElement | null)?.closest<HTMLInputElement>('input.map-show');
+      if (!box) return;
+      this.toggleMapShow(box.dataset.mapKey ?? '', box.checked);
+    });
+
     // 🔴 AND THE WAY BACK, WHICH IS NOT HIDDEN BEHIND A SECOND PRESS. *"i need a way to return to all
     // flights"* — pressing the same row again does that, but a reader who has scrolled to the map has no row
     // in view and no way to know it. The button appears only while a flight is picked (`renderMap` shows and
     // hides it), so it is never a control that does nothing.
     const all = byId('flightAll');
-    if (all) all.addEventListener('click', () => this.clearFlightPick());
+    if (all) all.addEventListener('click', () => {
+      // Both owners of the frame are released here: the button is the way back from either.
+      if (this.mapShow.size > 0) this.clearMapShow();
+      else this.clearFlightPick();
+    });
   }
 
   /** Back to every flight: one press on the map card's own control. */
@@ -3406,6 +3424,15 @@ class Page {
     if (this.selectedHex === null) return;
     this.selectedHex = null;
     track('flight_unselected', { via: 'show_all' });
+    this.renderAircraft();
+    this.renderWatchlist();
+  }
+
+  /** Back to everything you watch: the same control, when the frame is held by row switches instead. */
+  private clearMapShow(): void {
+    if (this.mapShow.size === 0) return;
+    this.mapShow.clear();
+    track('map_show_row', { key: '', on: false });
     this.renderAircraft();
     this.renderWatchlist();
   }
@@ -3421,6 +3448,9 @@ class Page {
     if (key === '') return;
     const wasSelected = this.selectedHex === key;
     this.selectedHex = wasSelected ? null : key;
+    // 🔴 ONE MAP, ONE OWNER OF THE ZOOM. A picked aircraft wins the frame outright, so a row filter
+    // that was holding it is released rather than left switched on and ignored — see `mapShow`.
+    if (this.selectedHex !== null) this.mapShow.clear();
     track(wasSelected ? 'flight_unselected' : 'flight_selected', {});
     this.renderAircraft();
     this.renderWatchlist();
@@ -3904,6 +3934,77 @@ class Page {
    * a remove here it could never be undone at all, which is a dead end rather than a
    * tidier page.
    */
+  /**
+   * 🔴 "SHOW ON MAP" — the rows the map is being held to, by row key (`type:CODE` / `tail:REG`).
+   *
+   * George, 22 Sep 2026: *"can we add a swtich called show on map, on change the map is reloaded and
+   * rezoomed"*. With nothing switched on the map draws everything you watch, which is the default it
+   * has always had; with a row switched on it draws that row's aircraft and nothing else, inside the
+   * same fence, and fits the frame to them — so the map answers *"where is this one?"* without the
+   * reader losing the rest of their list.
+   *
+   * 🔴 IT IS A FILTER AND NOT A PICK, AND THAT IS THE DIFFERENCE FROM PRESSING A FLIGHT. A pick is one
+   * aeroplane, by hex, and its own green border says so; these switches are whole rows, they can be
+   * combined, and the aircraft are still drawn by the same rules (watching, inside the fence, seen in
+   * the air) — so a row that is switched on and has nothing flying shows an empty map and says why,
+   * rather than drawing the aeroplane it remembers from an hour ago.
+   *
+   * ⚠️ THERE IS ONE MAP, SO THERE IS ONE OWNER OF THE ZOOM: switching a row on clears a picked flight,
+   * and picking a flight clears these. Two owners of one frame is how a map ends up describing neither.
+   * ⚠️ IT IS NOT KEPT IN STORAGE — it is a view, not a choice, and a reload starts with the whole list
+   * drawn. Say the word and it can outlive the tab like the airports do.
+   */
+  private mapShow = new Set<string>();
+
+  /** The key one row's switch is filed under. One builder, so the row and the map cannot disagree. */
+  private static showKey(kind: 'type' | 'tail', value: string): string {
+    return `${kind}:${normaliseKey(value)}`;
+  }
+
+  /** Is this aircraft asked for by a row that is switched on? */
+  private rowShown(one: TrackState): boolean {
+    if (one.type && this.mapShow.has(Page.showKey('type', one.type))) return true;
+    const reg = (one.registration ?? '').trim();
+    return reg !== '' && this.mapShow.has(Page.showKey('tail', reg));
+  }
+
+  /**
+   * The switch itself.
+   *
+   * 🔴 A ROW WITH NOTHING TO DRAW HAS A DISABLED SWITCH AND SAYS WHY. `can` is whether anything of
+   * this row is in the air inside the fence at this moment — the same test the status beside it uses.
+   * A switch that is offered and then zooms the map to nothing is worse than no switch: the reader
+   * cannot tell an empty sky from a broken page.
+   */
+  private mapSwitch(kind: 'type' | 'tail', value: string, can: boolean): string {
+    const key = Page.showKey(kind, value);
+    const on = this.mapShow.has(key);
+    const why = can
+      ? on
+        ? 'This row is on the map. Switch it off to see everything you watch again.'
+        : 'Draw only this row on the map, and fit the frame to it.'
+      : 'Nothing of this row is in the air inside your circle at this moment, so there is nothing to '
+        + 'show. The switch comes alive when the feed hears it here.';
+    return (
+      `<label class="map-switch${can ? '' : ' map-switch-off'}" title="${escapeHtml(why)}">` +
+      `<input type="checkbox" class="map-show" data-map-key="${escapeHtml(key)}" ` +
+      `data-ga="map-show"${on ? ' checked' : ''}${can ? '' : ' disabled'} />` +
+      '<span>show on map</span></label>'
+    );
+  }
+
+  /** The press: one filter changed, so the rows and the map are both redrawn in the same frame. */
+  private toggleMapShow(key: string, on: boolean): void {
+    if (key === '') return;
+    if (on) this.mapShow.add(key);
+    else this.mapShow.delete(key);
+    // One frame, one owner — see the note on `mapShow`.
+    if (on) this.selectedHex = null;
+    track('map_show_row', { key, on });
+    this.renderWatchlist();
+    this.renderMap();
+  }
+
   private renderWatchlist(): void {
     const host = byId('watchList');
     if (!host) return;
@@ -4021,6 +4122,9 @@ class Page {
           // still one hover away.
           `<span class="watch-state" data-state="${state.kind}" ` +
           `title="${escapeHtml(state.why)}">${escapeHtml(state.text)}</span>` +
+          // 🔴 THE SWITCH, BESIDE THE ANSWER IT FILTERS. George, 22 Sep 2026: *"can we add a swtich
+          // called show on map, on change the map is reloaded and rezoomed"*.
+          this.mapSwitch('type', rule.type, airborne.length > 0) +
           `<button type="button" class="linkish type-remove" data-type="${escapeHtml(rule.type)}" ` +
           `data-ga="type-unwatch" title="Stop watching" ` +
           `aria-label="Stop watching ${escapeHtml(info.name)}">${MARK_CROSS}</button>` +
@@ -4059,6 +4163,8 @@ class Page {
           `<span class="mono">${escapeHtml(item)}</span> — <b>this aircraft</b></span>` +
           `<span class="watch-state" data-state="${state.kind}" ` +
           `title="${escapeHtml(state.why)}">${escapeHtml(state.text)}</span>` +
+          // The same switch on a named tail — one aeroplane, which is the finest thing a row can mean.
+          this.mapSwitch('tail', item, hex !== '') +
           `<button type="button" class="linkish watch-remove" data-key="${escapeHtml(item)}" ` +
           `data-ga="unwatch" title="Stop watching" aria-label="Stop watching ${escapeHtml(item)}">${MARK_CROSS}</button></li>`
         );
@@ -4361,6 +4467,20 @@ class Page {
           .join(' · ')
       : '';
 
+    // 🔴 AND SOMETIMES THE MAP IS HELD TO THE ROWS SWITCHED ON — the same idea as a picked flight, one
+    // step coarser: a whole row instead of one airframe, and several rows at once. George, 22 Sep 2026:
+    // *"can we add a swtich called show on map, on change the map is reloaded and rezoomed"*.
+    //
+    // 🔴 THE FILTER IS APPLIED TO THE SAME LIST THE MAP ALWAYS DREW — watching, inside the fence, seen in
+    // the air — so a switched-on row cannot pull in an aircraft the page would not otherwise show, and a
+    // row with nothing flying shows an empty map and says why. The aircraft are found here, before the
+    // frame is computed, because the frame has to be built from THEM rather than from the fence.
+    const watching = this.seenInTheAirInsideFence(snapshot).air;
+    const rowFilter = this.mapShow.size > 0 && !pickedFlown;
+    const focused = rowFilter ? watching.filter((one) => this.rowShown(one)) : watching;
+    // Named for the caption the way the rows name themselves: the code or tail that was switched on.
+    const shownNames = [...this.mapShow].map((key) => key.replace(/^(type|tail):/, ''));
+
     const needed: { lat: number; lon: number }[] = [
       ...(at ? [at] : []),
       ...this.airports.map((one) => ({ lat: one.lat, lon: one.lon })),
@@ -4423,7 +4543,7 @@ class Page {
     // 🔴 AROUND THE AIM, NOT NECESSARILY AROUND THE READER. With no place known the fence is
     // aimed at the middle of the airports being watched (see `point()`), and the ring has to
     // be whole around THAT — the caption underneath already said which one it was.
-    if (anchor && !pickedFlown) {
+    if (anchor && !pickedFlown && !rowFilter) {
       const dLat = this.radiusKm / 111.32;
       const dLon = this.radiusKm / (111.32 * Math.max(0.2, Math.cos((anchor.lat * Math.PI) / 180)));
       minLat = Math.min(minLat, anchor.lat - dLat);
@@ -4457,6 +4577,34 @@ class Page {
         maxLat = Math.max(maxLat, point.lat);
         minLon = Math.min(minLon, point.lon);
         maxLon = Math.max(maxLon, point.lon);
+      }
+    }
+    // 🔴 AND A ROW FILTER SETS THE FRAME THE SAME WAY, FOR THE SAME REASON. The fence is far too big to be
+    // the frame around one type's aircraft, so the box is built from their positions and the paths behind
+    // them and the fence fold above is skipped — which is what stops the ring being drawn as a green wall
+    // across a close-up.
+    //
+    // 🔴 NOTHING TO SHOW LEAVES THE BOX WHERE IT WAS. A switched-on row with nothing in the air is a
+    // truthful empty map over the airports you picked, and the caption says that in words rather than
+    // leaving the reader to wonder whether the page broke.
+    if (rowFilter) {
+      const points: { lat: number; lon: number }[] = [];
+      for (const one of focused) {
+        if (typeof one.lat !== 'number' || typeof one.lon !== 'number') continue;
+        points.push({ lat: one.lat, lon: one.lon });
+        for (const point of one.trail ?? []) points.push({ lat: point.lat, lon: point.lon });
+      }
+      if (points.length > 0) {
+        minLat = 90;
+        maxLat = -90;
+        minLon = 180;
+        maxLon = -180;
+        for (const point of points) {
+          minLat = Math.min(minLat, point.lat);
+          maxLat = Math.max(maxLat, point.lat);
+          minLon = Math.min(minLon, point.lon);
+          maxLon = Math.max(maxLon, point.lon);
+        }
       }
     }
     const midLat = (minLat + maxLat) / 2;
@@ -4526,7 +4674,7 @@ class Page {
     // A picked flight is the whole of the request, so it takes the frame with nothing else folded in —
     // the box above already holds the aircraft and its path, and "as zoomed in as it can be without
     // losing what is on the map" is exactly `fittest` on that box.
-    const zoom = pickedFlown
+    const zoom = pickedFlown || rowFilter
       ? zoomForEverything
       : at && anchor
         ? Math.max(zoomForEverything, zoomForFence - 1)
@@ -4628,8 +4776,10 @@ class Page {
     // chose, seen in the air. It used to draw *everything they watch*, which is why a 25 km fence could show
     // a two-shape map with a caption apologising for fifty-eight aircraft nobody could see. Two lists that
     // can disagree are two lists that eventually will; this is one.
-    const watching = this.seenInTheAirInsideFence(snapshot).air;
-    const placed = watching.filter(
+    //
+    // 🔴 AND IT IS `focused` RATHER THAN THE WHOLE LIST, which is the only difference a row switch makes:
+    // the same list, filtered to the rows that are switched on. See where it is built.
+    const placed = focused.filter(
       (one): one is (typeof one & { lat: number; lon: number }) =>
         typeof one.lat === 'number' && typeof one.lon === 'number'
     );
@@ -4775,7 +4925,7 @@ class Page {
       // hundreds of kilometres away, so the only thing it could draw is a green wall across the view —
       // and it would make the page look as though the fence had become tiny. The note below says which
       // frame is in use, so the ring's absence is stated rather than left to be puzzled over.
-      (anchorPx && !pickedFlown
+      (anchorPx && !pickedFlown && !rowFilter
         ? `<circle class="locmap-fence" cx="${anchorPx.x.toFixed(1)}" cy="${anchorPx.y.toFixed(1)}" r="${fencePx.toFixed(1)}" />`
         : '') +
       marks +
@@ -4810,17 +4960,25 @@ class Page {
       '<a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, free and with no API key. ' +
       (pickedFlown
         ? `It is zoomed to <b>${escapeHtml(pickedLabel)}</b>, with the path this page has heard behind it, instead of the ${this.radiusKm} km circle — press that aircraft on the map to go back to every flight, or press <b>Show all flights</b> under the map. `
-        : anchor
-          ? `It is fitted so the ${this.radiusKm} km gap you chose is inside the frame, together with the airports you picked — a ring you can only see part of is no use as a distance. `
-          : 'It is fitted to the airports you picked. ') +
+        : rowFilter
+          ? `It is fitted to the ${shownNames.length === 1 ? 'row' : 'rows'} you switched on — <b>${escapeHtml(shownNames.join(', '))}</b> — instead of the ${this.radiusKm} km circle, which is far too wide to be the frame around them. `
+          : anchor
+            ? `It is fitted so the ${this.radiusKm} km gap you chose is inside the frame, together with the airports you picked — a ring you can only see part of is no use as a distance. `
+            : 'It is fitted to the airports you picked. ') +
       (drawn === 0
         ? 'Nothing you are watching is inside the fence at this moment, so the map is drawn with ' +
           'no aircraft on it — it stays where it is, and one appears the moment the feed sees it. '
         : pickedFlown
           ? 'Only that aircraft is drawn at this zoom — the map goes back to the whole fence when you ' +
             'press <b>Show all flights</b> under it. '
-          : 'Every aircraft seen in the air inside the fence, named in full and drawn where the ' +
-            'feed last reported it. ') +
+          : rowFilter
+            ? `${focused.length === 0
+                ? 'Nothing of the rows you switched on is in the air inside your fence at this moment, so the map has no aircraft on it. '
+                : 'Only the aircraft of the rows you switched on are drawn' +
+                  `${focused.length === 1 ? ' — one aircraft. ' : ` — ${focused.length} of them. `}`}` +
+              'Press <b>Show all flights</b> under it to switch the rows off and see everything you watch. '
+            : 'Every aircraft seen in the air inside the fence, named in full and drawn where the ' +
+              'feed last reported it. ') +
       (traced > 0
         ? 'The line behind an aircraft is the path it has flown in the last few minutes, drawn ' +
           'from what this page has heard — the feed reports only where a plane is now. ' +
@@ -4856,10 +5014,14 @@ class Page {
     // OUTSIDE `#watchMap`, because everything inside that element is rewritten by the line above.
     const all = byId('flightAll');
     if (all) {
-      all.hidden = this.selectedHex === null;
+      // 🔴 IT IS THE WAY BACK FROM EITHER FRAME — one picked aircraft, or the rows switched on. Both are
+      // the same control because both are the same request: stop zooming and show me everything again.
+      all.hidden = this.selectedHex === null && this.mapShow.size === 0;
       all.title = pickedFlown
         ? `Go back from ${pickedLabel} to every flight you are watching`
-        : 'Back to every flight you are watching';
+        : rowFilter
+          ? 'Switch the rows off, and go back to every flight you are watching'
+          : 'Back to every flight you are watching';
     }
   }
 
