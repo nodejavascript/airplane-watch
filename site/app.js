@@ -20,7 +20,7 @@
  * which is served in development by `tools/serve.mjs` and in production by a
  * Cloudflare Worker. Both do the same small job.
  */
-import { DEFAULT_AIRPORT, parseAirport, } from './airports.js';
+import { parseAirport, } from './airports.js';
 import { thumbSvg } from './thumbs.js';
 import { DEFAULTS, DetectionEngine, distanceNm, kmToNm, nmToKm, normaliseKey, } from './detect.js';
 import { CLASS_ORDER, classLabel, describeType, isCivilClass, knownTypeCodes, knownTypeCount, makerOf, } from './typeinfo.js';
@@ -586,17 +586,23 @@ function storedKeys(includeConsent) {
     }
     return found;
 }
+/** Drop one key, for the places that clear a single setting rather than all of them.
+ *
+ * A browser in private mode refuses to remove as well as to store, and that is not an error worth
+ * reporting: the setting simply lasts as long as the visit, which is the honest outcome. */
+function dropStore(key) {
+    try {
+        localStorage.removeItem(key);
+    }
+    catch {
+        /* private mode refuses to remove as well as to store */
+    }
+}
 /** Drop every key this page owns — the place, the distance, the airports, the types, the
  * alerts, the tails, and all four filters — so the page comes back as a first visit. */
 function forgetStored(includeConsent) {
-    for (const key of storedKeys(includeConsent)) {
-        try {
-            localStorage.removeItem(key);
-        }
-        catch {
-            /* private mode refuses to remove as well as to store */
-        }
-    }
+    for (const key of storedKeys(includeConsent))
+        dropStore(key);
 }
 /**
  * The starts of the calendar windows the "last seen" filter measures against.
@@ -1038,11 +1044,25 @@ class Page {
         // 🔴 A COMMA-SEPARATED LIST, BECAUSE SEVERAL CAN BE PICKED NOW. A value written
         // before this change is a single identifier, which splits to a list of one — so
         // a session saved by the older page comes back rather than being discarded.
-        const saved = readStore(AIRPORT_KEY, DEFAULT_AIRPORT)
+        //
+        // 🔴 AND THE PAGE DOES NOT GIVE ITSELF ONE. George, 22 Sep 2026, after pressing delete my
+        // data: *"i delete everything it shgould also remove ### The airports you are watching"*.
+        // Every load used to seed `DEFAULT_AIRPORT` when the store was empty, so the page watched
+        // Hamilton before the reader had said anything — and a wipe therefore came back with that
+        // heading over a chosen Hamilton chip. **A wipe cleared the store and the page refilled the
+        // same fact from a constant, which is not a deletion.** Nothing is watched now until the
+        // reader chooses it: with none chosen the page asks where they are and offers the airports
+        // around that place, and the type list is not filtered while nothing is chosen (the filter
+        // only narrows when there IS a choice), so step 3 still holds every type.
+        //
+        // ⚠️ `DEFAULT_AIRPORT` IS NO LONGER IMPORTED BY THIS FILE, and that is the point rather than
+        // an oversight: the constant is a fact about the airport list, not a decision the page is
+        // entitled to make on the reader's behalf.
+        const saved = readStore(AIRPORT_KEY, '')
             .split(',')
             .map((code) => code.trim().toUpperCase())
             .filter((code) => /^[A-Z0-9]{3,4}$/.test(code));
-        void this.loadChosenAirports(saved.length > 0 ? saved : [DEFAULT_AIRPORT]);
+        void this.loadChosenAirports(saved);
         void this.loadSurvey();
         void this.loadYears();
         void this.loadMilitary();
@@ -1444,17 +1464,23 @@ class Page {
      * the page disagreeing with itself.
      */
     afterAirportChange() {
-        // 🔴 A DEFAULT THE PAGE GAVE ITSELF IS NOT THE READER'S SETTING, SO IT IS NOT STORED. George,
-        // 22 Sep 2026, after pressing delete my data: *"and when i deleted, i retained the airport im
-        // watching"*. Every load wrote the picked set, and on a first visit that set is the single airport
-        // this page hands a new reader — so the page undid its own wipe: the store came back holding
-        // `aircraft_airport` before the reader had chosen anything, and "delete my data" could never leave
-        // an empty store. Now the store holds a CHOICE and nothing else: while the set is still exactly
-        // the default, nothing is written, and the first visit is genuinely empty.
         const picked = this.chosenIcaos();
-        const isTheDefault = picked.length === 1 && picked[0] === DEFAULT_AIRPORT;
-        if (!isTheDefault)
+        // 🔴 THE STORE HOLDS THE READER'S AIRPORTS AND NOTHING ELSE. George, 22 Sep 2026, after pressing
+        // delete my data: *"and when i deleted, i retained the airport im watching"* — and then *"i
+        // delete everything it shgould also remove ### The airports you are watching"*.
+        //
+        // Two things were wrong here and both are the same mistake: the page was keeping a fact nobody
+        // chose. It wrote the picked set on every load, and on a first visit that set was the single
+        // airport this page handed a new reader — so a wipe came back holding `aircraft_airport`. And
+        // an empty set wrote an EMPTY STRING rather than removing the key, so unpicking the last
+        // airport left a trace behind and the store could never be empty.
+        //
+        // So: something chosen is stored; nothing chosen REMOVES the key. The store is now exactly the
+        // reader's choices, which is the only thing a delete can honestly be asked to clear.
+        if (picked.length > 0)
             writeStore(AIRPORT_KEY, picked.join(','));
+        else
+            dropStore(AIRPORT_KEY);
         // 🔴 THERE IS NO SUMMARY LINE ANY MORE. George, 20 Sep 2026: *"you can remove this
         // 5 airports watched: CYHM — Hamilton · CYSN — St Catharines ..."*. The chips are
         // gold when they are picked and the map draws them; a sentence repeating the list
@@ -5082,11 +5108,13 @@ class Page {
                 host.hidden = false;
                 if (head) {
                     head.hidden = false;
-                    // 🔴 "YOU PICKED IT" IS A CLAIM ABOUT THE READER, AND SOMETIMES IT IS FALSE. A
-                    // brand-new visitor is given one airport (`DEFAULT_AIRPORT`) so the page has
-                    // something to draw — and calling that "the airport you picked" is a small lie
-                    // told on the very first screen. What IS true either way is that it is being
-                    // watched, so that is what the heading says.
+                    // 🔴 "YOU PICKED IT" IS A CLAIM ABOUT THE READER, AND SOMETIMES IT IS FALSE. George,
+                    // 20 Sep 2026, about this heading — and the reason it is a whole sentence rather than one
+                    // word is that the page used to hand every new reader an airport they had not chosen.
+                    // **It no longer does**: this branch is reached only when the reader has a place or an
+                    // airport of their own — see the seeding note in the constructor — so "you are watching"
+                    // is now true of something they did. It still does not say "you picked" on a page that
+                    // cannot know whether they tapped a chip or gave a location that implied it.
                     head.textContent = picked.length === 1 ? 'The airport you are watching' : 'The airports you are watching';
                 }
                 host.innerHTML = picked.map((airport) => this.nearChip(airport, null)).join('');

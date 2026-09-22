@@ -157,12 +157,23 @@ Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
   **different methods** (`bindForgetMine` only opens the box; `wipeMyData` is the only thing that deletes), so the
   question can be read and seen to do nothing else. **And if a browser cannot open a modal, the control is taken
   away rather than asked in a browser box** — a delete with no way to ask is worse than no delete.
-- 🔴 **AND A DELETED PAGE LEAVES NOTHING BEHIND — NOT EVEN THE AIRPORT IT GAVE ITSELF.** George, 22 Sep 2026,
-  after pressing delete: ***"and when i deleted, i retained the airport im watching"***. Measured: the store came
-  back from a wipe holding `aircraft_airport`, because every load wrote the picked set and a first visit's set is
-  the one airport this page hands a new reader — **the page was undoing its own wipe.** Now the store holds a
-  **choice** and nothing else: while the set is still exactly the default, nothing is written. Measured after:
-  a fresh visit stores **zero keys**, and a delete leaves **zero keys**.
+- 🔴 **AND NOTHING IS WATCHED UNTIL THE READER CHOOSES IT — SO A DELETE LEAVES NOTHING WATCHED.** George,
+  22 Sep 2026: ***"and when i deleted, i retained the airport im watching"*** — then ***"i delete everything
+  it shgould also remove ### The airports you are watching"***. Both are the same defect, and **it was not the
+  store: a wipe cleared the store and the page refilled the fact from a constant.** Every load seeded
+  `DEFAULT_AIRPORT` when the store was empty, so the page watched Hamilton before the reader had said anything,
+  and a wiped page came back with that heading over a chosen Hamilton chip. *Prior wording, preserved and now
+  dead:* *"while the set is still exactly the default, nothing is written"* — that stopped the page **storing**
+  the default but went on **watching** it. **Now `app.ts` does not mention `DEFAULT_AIRPORT` at all**, the read
+  has no fallback, and the store holds the reader's airports and nothing else: something chosen is stored,
+  nothing chosen **removes the key** (an empty string left a trace, so a wipe was never empty and unpicking the
+  last airport left a mark). Measured: a **fresh visit** stores zero keys, hides the heading and the whole
+  airport block, offers no chosen airport, and still lists **184 types**; giving a place shows **"Airports around
+  Stoney Creek"** with 14 chips and **none chosen**; picking one stores it and narrows the list to 147; and after
+  **delete everything** the page has **no watched airport and no heading at all**.
+  ⚠️ **THE ONE VISIBLE CONSEQUENCE, SAID RATHER THAN DISCOVERED:** a brand-new visitor now gives their place (or
+  picks an airport) before the type list appears, instead of the page quietly starting on Hamilton. That is what
+  "nothing watched" has to mean, and the fence has no centre until one of the two exists.
 - 🔴 **AND THE READER CANNOT FOLD THE CARDS — THE GATE ALONE DECIDES.** George, 22 Sep 2026: ***"for all cards i
   dont want the user to collapse and uncollpase, just hide the cards if they havent completed the prequisite
   steps."*** The hiding was already the page's own rule (`updateSteps` reveals a step only once the one before it

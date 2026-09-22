@@ -2473,17 +2473,33 @@ test('100 · "delete my data" is the last item on the location row, asks first, 
   assert.match(boxText, /goes back to the defaults/, 'the box does not say the page returns to its defaults');
   assert.match(boxText, /keeps no copy of any of it/, 'the box does not say the deletion cannot be undone');
 
-  // 🔴 AND THE AIRPORT THE PAGE GAVE ITSELF DOES NOT SURVIVE A WIPE. George, 22 Sep 2026, after pressing
-  // delete my data: *"and when i deleted, i retained the airport im watching"*. Measured on the live
-  // page: the store came back from a wipe holding `aircraft_airport`, because every load wrote the
-  // picked set and a first visit's set is the single airport this page hands a new reader — so the page
-  // undid its own wipe. The store holds a CHOICE now, and nothing else.
+  // 🔴 NOTHING IS WATCHED UNTIL THE READER CHOOSES IT, SO A WIPE LEAVES NOTHING WATCHED. George,
+  // 22 Sep 2026: *"and when i deleted, i retained the airport im watching"* — then *"i delete
+  // everything it shgould also remove ### The airports you are watching"*. BOTH are the same defect,
+  // and it was not the store: **a wipe cleared the store and the page refilled the fact from a
+  // constant.** Every load seeded `DEFAULT_AIRPORT` when the store was empty, so the page watched
+  // Hamilton before the reader had said anything, and a wiped page came back with that heading over a
+  // chosen Hamilton chip. So there are three claims here, and the third is the one that keeps the
+  // other two true.
+  const seeding = app.slice(app.indexOf('void this.loadChosenAirports(saved)'), app.indexOf('void this.loadSurvey()'));
+  assert.ok(seeding.length > 0, 'the seeding call is gone, so this check is vacuous');
+  assert.match(app, /void this\.loadChosenAirports\(saved\);/, 'the default airport is seeded again');
+  assert.match(app, /const saved = readStore\(AIRPORT_KEY, ''\)/,
+    'the airport read still falls back to a default, so an empty store still yields an airport');
+  assert.equal(/DEFAULT_AIRPORT/.test(app), false,
+    'this file mentions DEFAULT_AIRPORT again — the constant is a fact about the airport list, not a decision the page may make for the reader');
+  assert.equal(/loadChosenAirports\(saved\.length > 0 \? saved : \[/.test(app), false,
+    'the empty case is filled with a default again');
+
+  // And the store holds the reader's airports and nothing else: something chosen is stored, nothing
+  // chosen REMOVES the key — an empty string left a key behind, so a wipe was never empty and
+  // unpicking the last airport left a trace of the choice.
   const afterAirport = app.slice(app.indexOf('private afterAirportChange('), app.indexOf('private stop('));
   assert.ok(afterAirport.length > 200, 'the airport-change path is gone, so this check is vacuous');
-  assert.match(afterAirport, /const isTheDefault = picked\.length === 1 && picked\[0\] === DEFAULT_AIRPORT;/,
-    'the default airport is not recognised, so the page stores it and undoes its own wipe');
-  assert.match(afterAirport, /if \(!isTheDefault\) writeStore\(AIRPORT_KEY, picked\.join\(','\)\);/,
-    'the airport is written unconditionally, so a first visit — and a wipe — ends with a key in the store');
+  assert.match(afterAirport, /if \(picked\.length > 0\) writeStore\(AIRPORT_KEY, picked\.join\(','\)\);/,
+    'the airports are not stored from what the reader chose');
+  assert.match(afterAirport, /else dropStore\(AIRPORT_KEY\);/,
+    'an empty set writes an empty string instead of removing the key, so the store keeps a trace');
 
   // 🔴 AND THE WIPE FINDS ITS KEYS RATHER THAN REMEMBERING THEM.
   const wipe = app.slice(app.indexOf('function storedKeys('), app.indexOf('function forgetStored('));
