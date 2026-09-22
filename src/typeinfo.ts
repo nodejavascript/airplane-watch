@@ -212,6 +212,9 @@ const TABLE: Record<string, [string, AircraftClass]> = {
 
   /* ------------------------------------------------------ private & business --- */
   E55P: ['Embraer Phenom 300', 'business'],
+  // 🔴 ALSO MEASURED AND UNNAMED — the same gap as C207. The Phenom 100 is the 300's smaller sibling
+  // and shares its code family, so it sits beside it rather than in a section of its own.
+  E50P: ['Embraer Phenom 100', 'business'],
   C68A: ['Cessna Citation Latitude', 'business'],
   C680: ['Cessna Citation Sovereign', 'business'],
   C550: ['Cessna Citation II', 'business'],
@@ -260,6 +263,11 @@ const TABLE: Record<string, [string, AircraftClass]> = {
   C182: ['Cessna 182 Skylane', 'light'],
   C185: ['Cessna 185 Skywagon', 'light'],
   C206: ['Cessna 206 Stationair', 'light'],
+  // 🔴 MEASURED BUT UNNAMED UNTIL 22 Sep 2026, and the static suite is what found it: the survey had
+  // seen a C207 fly near one of the seven airports and the page had no name for it, so the row would
+  // have read *"C207"* and nothing else. A code the table does not know is shown as itself on purpose —
+  // see `describeType` — but a code it HAS seen a hundred times is a gap, not a policy.
+  C207: ['Cessna 207 Skywagon', 'light'],
   C208: ['Cessna 208 Caravan', 'light'],
   C210: ['Cessna 210 Centurion', 'light'],
   P28A: ['Piper PA-28 Cherokee', 'light'],
@@ -335,6 +343,9 @@ const TABLE: Record<string, [string, AircraftClass]> = {
   CRJ1: ['Bombardier CRJ-100', 'regional'],
   E45X: ['Embraer ERJ-145XR', 'regional'],
   SW4: ['Swearingen Metro', 'regional'],
+  // 🔴 AND THE THIRD OF THE THREE: a BAe Jetstream 32, a small regional turboprop that flies into
+  // Hamilton. Unnamed until the suite ran — see the note on C207.
+  J328: ['BAe Jetstream 32', 'regional'],
   DHC3: ['de Havilland Canada DHC-3 Otter', 'regional'],
 
   /* business */

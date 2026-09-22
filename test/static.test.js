@@ -44,6 +44,40 @@ function stripHtml(source) {
   return source.replace(/<!--[\s\S]*?-->/g, '');
 }
 
+/**
+ * The text between two anchors — and LOUD when it cannot be found.
+ *
+ * 🔴 WHY THIS EXISTS. On 22 September 2026 the static suite was run for the first time in weeks and
+ * ~106 checks reported NOTHING, because one malformed callback refused the whole file. When the file
+ * could load again, the failures that followed were mostly the SAME defect in a quieter form: a slice
+ * written `src.slice(src.indexOf(A), src.indexOf(B))` where A or B had been renamed, or where B sat
+ * BEFORE A. `indexOf` answers -1 for a missing anchor, so the slice either ran from the last character
+ * or came back empty — and a check that matches nothing asserts nothing while appearing to pass.
+ *
+ * **A MISSING ANCHOR IS A DEFECT IN THE CHECK, NOT A FACT ABOUT THE PAGE.** So this throws with the
+ * anchor's name: an instrument that cannot find what it is measuring must say so, never report a
+ * vacuous pass. One real instance: *"the start-over reset could not be isolated"* — the slice read the
+ * page's HTML looking for two TypeScript method names, and had been empty since it was written.
+ */
+function between(source, from, to, what = 'this slice') {
+  const a = source.indexOf(from);
+  if (a < 0) throw new Error(`${what}: the start anchor ${JSON.stringify(from)} is not in the source`);
+  // 🔴 THE END ANCHOR IS LOOKED FOR *AFTER* THE START, AND THAT IS NOT A DETAIL.
+  // Searching the whole source finds the FIRST occurrence, which is frequently some earlier element:
+  // `between(html, 'id="radiusRefreshed"', '</p>')` reported *"`</p>` comes BEFORE …"* because an
+  // unrelated paragraph closed 400 lines up the page. A slice means "from here to the next thing", so
+  // the second anchor is searched from the start's own end. That was a false failure in this helper —
+  // and a false failure is worse than no check, because it teaches the reader to ignore the instrument.
+  const b = source.indexOf(to, a + from.length);
+  if (b < 0) {
+    const elsewhere = source.indexOf(to);
+    throw new Error(elsewhere < 0
+      ? `${what}: the end anchor ${JSON.stringify(to)} is not in the source`
+      : `${what}: the end anchor ${JSON.stringify(to)} appears only BEFORE ${JSON.stringify(from)}`);
+  }
+  return source.slice(a, b);
+}
+
 /** Strip /* *\/ from CSS, for the same reason — a comment that names a rule is not that rule. */
 function stripCss(source) {
   return source.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -1259,13 +1293,47 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   // distance, because the published policy says these settings are held there and *not* in a cookie.
   // Each key is asserted to be WRITTEN on a press and READ on load, and to be cleared by "start over":
   // a setting that survives the reset is a setting the reader cannot get rid of.
-  const over = code.slice(code.indexOf('private bindStartOver'), code.indexOf('private bindLocate'));
+  // 🔴 `app`, NOT `code`. This sliced the PAGE'S HTML for two TYPESCRIPT METHOD NAMES, so neither anchor
+  // could ever be found: `indexOf` returned -1, the slice ran from the file's last character, and the
+  // length guard fired. That guard is doing its job — it is the only reason a nine-month-old emptiness
+  // was ever visible, because a slice that matches nothing asserts nothing and looks exactly like a pass.
+  const over = between(app, 'private bindStartOver', 'private bindForgetMine', 'the start-over reset');
   assert.ok(over.length > 200, 'the start-over reset could not be isolated, so this check is vacuous');
+
+  // 🔴 AND WHAT IS ASSERTED HERE CHANGED, BECAUSE THE PAGE IS BETTER THAN THIS CHECK ASSUMED.
+  // It used to require the four key NAMES to appear inside the start-over handler — and when the slice was
+  // finally bound to the right source, that failed. The page is not wrong: the handler calls
+  // `forgetStored(false)`, which clears **by prefix** — `storedKeys()` walks `localStorage` and takes every
+  // key beginning `aircraft_`, and `dropStore` removes each. That is STRONGER than naming four keys,
+  // because a setting added next month is cleared without anyone remembering to add it to a list. So the
+  // check now proves the property that makes the sweep complete, rather than a spelling of it.
   for (const key of ['KIND_KEY', 'MAKER_KEY', 'ERA_KEY', 'SEEN_KEY']) {
     assert.match(app, new RegExp(`writeStore\\(${key}`), `${key} is never written`);
     assert.match(app, new RegExp(`readStore\\(${key}`), `${key} is never read back`);
-    assert.match(over, new RegExp(key), `start over leaves ${key} behind`);
   }
+  assert.match(over, /forgetStored\(false\)/,
+    'start over does not clear the page\'s own settings');
+  assert.match(between(app, 'private bindForgetMine', 'private bindLocate', 'the delete-mine control'),
+    /forgetStored\(true\)/,
+    'the control that deletes what is stored does not withdraw the stored consent, so a reader cannot take it back');
+
+  // 🔴 THE PROPERTY THAT MAKES THE SWEEP COMPLETE, AND THE ONE THAT WOULD BREAK IT SILENTLY: **every**
+  // key the page writes must carry the prefix the sweep walks. A setting stored under any other name
+  // survives "start over" for ever, and nothing on the page would say so.
+  const prefix = /const STORE_PREFIX = '([^']+)'/.exec(app)?.[1];
+  assert.ok(prefix, 'the store prefix is gone, so nothing can be cleared by it');
+  const keyConstants = [...app.matchAll(/^const ([A-Z_]*_KEY) = '([^']*)';/gm)];
+  assert.ok(keyConstants.length >= 10,
+    `only ${keyConstants.length} storage keys were found, so this is not reading the list`);
+  for (const [, name, value] of keyConstants) {
+    assert.ok(value.startsWith(prefix),
+      `${name} is stored as "${value}", which does not begin "${prefix}", so start over leaves it behind for ever`);
+  }
+  // And it names no key at all — the day it starts naming them is the day a new setting can be forgotten.
+  const sweeper = between(app, 'function forgetStored', 'function startOfDay', 'the sweep');
+  assert.ok(sweeper.length > 60, 'the sweep could not be isolated');
+  assert.match(sweeper, /storedKeys\(includeConsent\)/, 'the sweep no longer walks the store');
+  assert.doesNotMatch(sweeper, /_KEY\b/, 'the sweep names individual keys, so a new setting can be left behind');
 
   // And it is NOT asked in the map's card any more — it is the same one control, not a second copy.
   //
@@ -1291,7 +1359,12 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
 
   // 🔴 AND THE CHIPS ARE THE LADDER, WITH THE ONE IN USE PRESSED. A chip row that does not say which
   // answer is live reads as an unanswered question, which is the fault the pressed state exists for.
-  assert.match(app, /for \(const km of RADIUS_LADDER\)/, 'the chips are not the ladder');
+  //
+  // ⚠️ IT ITERATES `RADIUS_CHOICES`, NOT `RADIUS_LADDER`, AND THAT IS THE BETTER SHAPE: `RADIUS_CHOICES`
+  // is `[RADIUS_ALL, ...RADIUS_LADDER]`, so the row carries *All* as its first chip as well as the seven
+  // stops. Asserting the old name pinned the row to the seven and would have failed on the day All was
+  // added — which is exactly what happened.
+  assert.match(app, /for \(const km of RADIUS_CHOICES\)/, 'the chips are not the ladder plus All');
   assert.match(app, /String\(km === this\.currentRadius\(\)\)/, 'the chip in use is not the pressed one');
 
   // 🔴 AND THE REFRESHED LINE IS STILL THE FIRST THING ABOVE THE MAP — it belongs to the map, not to the
@@ -1320,11 +1393,16 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   // inside that line — the same quiet `.linkish` shape the other two text controls use — and it asks
   // through the COALESCING path with the clock re-armed, so a press cannot spend a second request on
   // the same moment the scheduled look already covers.
-  assert.match(
-    code,
-    /id="refreshedAgo">now<\/b>\.\s*<!--[\s\S]*?<button type="button" class="linkish refresh-now" id="refreshNow"/,
-    'there is no refresh control on the refreshed line'
-  );
+  //
+  // ⚠️ THIS USED TO REQUIRE A COMMENT BETWEEN THE CLOCK AND THE BUTTON — `now</b>.\s*<!--[\s\S]*?<button`.
+  // `code` IS COMMENT-STRIPPED (`stripHtml`), so `<!--` could never be found and this assertion could
+  // never pass: a check that demanded a reason in a string where reasons are deliberately removed. The
+  // rule is about WHERE the control is, so it is now read from the element it must sit inside.
+  const clockLine = between(code, 'id="radiusRefreshed"', '</p>', 'the refreshed line');
+  assert.match(clockLine, /<button type="button" class="linkish refresh-now" id="refreshNow"/,
+    'there is no refresh control on the refreshed line');
+  assert.match(clockLine, /id="refreshedAgo"/,
+    'the refresh control is not in the line that carries the clock it is about');
   assert.equal((code.match(/id="refreshNow"/g) ?? []).length, 1, 'the refresh control is on the page twice');
   assert.match(app, /private refreshNow\(\): void/, 'nothing answers the refresh control');
   assert.match(
