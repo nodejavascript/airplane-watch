@@ -89,21 +89,44 @@ Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
 
 ## The table, the trail and the card that went (22 Sep 2026)
 
-- **The route leads the row, and the airport column is gone.** The table used to name a type in
+- **The route leads the row, in two columns, and the phase column is gone.** The table used to name a type in
   a full-width `<tr>`, which read as a row that did not fit its own columns — *"the line in the middle is
   confusing"* — and said only "1 aircraft" when a type had one example; the rows are still sorted by type.
   The nearest airport had a column of its own, and it went on 22 Sep 2026 — *"remove airport column, and
   move the DESTINATION column to be the first column"* — because it answered a question the same row
-  already answers twice, with the bearing and the position. The route now leads, in the direction a reader
-  reads it: **`from KDTW → to CYYZ`**, each leg carrying its own city, because a four-letter code is
-  precise and useless to anyone who has not memorised four thousand of them. Every code in the table is
-  still printed with the place it means beside it.
+  already answers twice, with the bearing and the position. **Then the route itself became two columns**
+  (22 Sep 2026, later: *"spil destination in to columns called depature and desination"*), so each leg
+  carries what a reader wants from it: the departure has the airport it left and the time this page has for
+  it leaving the ground, the destination has the airport it is bound for and about how long it has left to
+  run. Each leg carries its own city, because a four-letter code is precise and useless to anyone who has
+  not memorised four thousand of them. Every code in the table is still printed with the place it means
+  beside it.
+- **The phase is a tag now, not a column.** It said `airborne` on nearly every row — measured on the live
+  table — so the column was there to repeat one word. What is ever news is the row that is **not** airborne:
+  an aircraft on the ground inside the fence, or one transmitting a position with no altitude at all. Those
+  two are drawn as a tag beside the callsign, and the word that said nothing is not rendered.
 - **Destination is looked up, not heard, and the card says so.** Measured 22 Sep 2026: the feed's own callsign
   endpoint returns hex, registration, type, altitude and track — and no origin, destination or route. ADS-B
   carries who the aircraft is, never where it is booked to. So `Destination` comes from a free callsign lookup
   (`api.adsbdb.com`, no key) through the same proxy, normalised to this site's own field names. A dash means no
   route is on file; "asking…" means the answer has not arrived. A diversion or a reused callsign can make it
   wrong, which is why the column is labelled as a different kind of claim from the readings beside it.
+- 🔴 **There is no takeoff time in the feed, so the departure cell says which time it has.** Measured: a live
+  Hamilton response carries position, altitude, ground speed, track, squawk, an age and the quality flags —
+  **no origin, no destination and no time of any kind**. The page therefore offers only what it watched:
+  **`took off 14:05`**, and only where the engine confirmed a ground-to-air transition, or **`first seen
+  14:22`** for the weaker fact that this reading is the first it has of that aircraft. Both are in the
+  reader's own time zone and the tooltip says which is which. **A time the whole page shares is not news
+  about an aircraft**, so the weaker one is withheld when it is no later than the moment the page opened —
+  otherwise sixty rows carry sixty identical times. A row with no time says so in its own tooltip.
+- 🔴 **The run to the destination is an estimate, and it says so where the number is.** *"destinate use
+  fromnow()"* — the cell reads **`in about 1h 40m`**, with the word *about* in the cell. It is arithmetic on
+  three measured numbers and nothing else: where the aircraft is, where the airport is (the feed answers
+  `/api/0/airport/{icao}` for any airport by code — verified: `KDEN` → 39.861698, -104.672997), and the
+  speed the aircraft reports over the ground. It assumes a straight line at an unchanged speed, and stays
+  silent below 60 knots, under a minute, and over twelve hours. The airport lookups are **queued two at a
+  time**, because asking for sixty at once made the feed answer 429 — and a refusal is retried rather than
+  remembered as an unknown airport, so one busy second cannot take the estimate off every row for a session.
 - **The flight path is coloured by what the aircraft did.** It was one `<polyline>` in one colour, so a climb
   and a descent were drawn identically and the trail answered the one question a flight path exists to answer
   with a line that said nothing. It is one line per segment now, classed from the altitude recorded on each
