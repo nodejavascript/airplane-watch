@@ -423,7 +423,7 @@ test('the reader is offered KILOMETRES, and never the word "nm" in a label', () 
 test('the type section exists and says the list is measured, not remembered', () => {
   // ⚠️ TOLERANT OF THE REST OF THE TAG, because the section carries its step class and its
   // hidden state as well — a pattern demanding `class="card"` exactly failed a correct page.
-  assert.match(htmlCode, /<section[^>]*class="[^"]*\bcard\b[^"]*"[^>]*id="step-3"/);
+  assert.match(htmlCode, /<section[^>]*class="[^"]*\bcard\b[^"]*"[^>]*id="step-2"/);
   assert.match(htmlCode, /id="typeList"/);
   assert.match(htmlCode, /id="typeFilter"/);
   // The sentence changed with the section: it now says the list is what was MEASURED, in those words.
@@ -432,7 +432,7 @@ test('the type section exists and says the list is measured, not remembered', ()
 
 test('what you are watching is its own section, and tail numbers are optional', () => {
   const app = readSrc('src/app.ts');
-  assert.match(htmlCode, /<section[^>]*class="[^"]*\bcard\b[^"]*"[^>]*id="step-4"/);
+  assert.match(htmlCode, /<section[^>]*class="[^"]*\bcard\b[^"]*"[^>]*id="step-3"/);
   assert.match(htmlCode, /<ul class="watch-list" id="watchList"><\/ul>/);
   // 🔴 THE RULE IS THAT A TYPE CAN BE WATCHED WHOLE OR NARROWED TO TAIL NUMBERS, and it is still true —
   // but the box it used to be asked in is gone. *Prior assertion, preserved and now dead:* the page was
@@ -873,7 +873,7 @@ test('the word is FAVOURITE, and the row offers the right thing in each state', 
 });
 
 test('later steps are held back, and arrive with the glide', () => {
-  const html = read('index.html');
+  const html = read(SITE, 'index.html');
   for (const n of [2, 3, 4, 5]) {
     assert.match(html, new RegExp(`id="step-${n}"[^>]*hidden`), `step ${n} is visible before step 1 is answered`);
     assert.match(html, new RegExp(`data-step="${n}"`), `step ${n} carries no number for the gate to read`);
@@ -946,13 +946,13 @@ test('a type is favourited with a star, and the shape carries the state', () => 
 });
 
 test('a step that waits on a place is SHOWN with the reason, not hidden', () => {
-  const html = read('index.html');
+  const html = read(SITE, 'index.html');
   for (const n of [2, 3, 5]) {
     assert.match(html, new RegExp(`id="step-${n}"[^>]*data-waiting="true"`), `step ${n} does not start as waiting`);
     assert.equal(new RegExp(`id="step-${n}"[^>]*hidden`).test(html), false, `step ${n} is hidden instead of waiting`);
     assert.match(html, new RegExp(`id="step-${n}"[\\s\\S]{0,600}class="step-why"`), `step ${n} has no note saying what to do`);
   }
-  assert.match(html, /id="step-4"[^>]*hidden/, 'the watchlist is shown before anything is picked');
+  assert.match(html, /id="step-3"[^>]*hidden/, 'the watchlist is shown before anything is picked');
 
   const css = read(SITE, 'styles.css');
   assert.match(css, /\.step-why\b/, 'the note has no style');
@@ -1003,7 +1003,7 @@ test('the error handler cannot throw — the crash that read as "Failed to fetch
 });
 
 test('the page says what it means and keeps the type list short', () => {
-  const html = read('index.html');
+  const html = read(SITE, 'index.html');
   const source = readSrc('src/app.ts');
   const css = read(SITE, 'styles.css');
 
@@ -1043,7 +1043,7 @@ test('the page says what it means and keeps the type list short', () => {
 });
 
 test('the later steps do not exist until the first is answered', () => {
-  const html = read('index.html');
+  const html = read(SITE, 'index.html');
   for (const n of [2, 3, 4, 5]) {
     assert.match(html, new RegExp(`id="step-${n}"[^>]*hidden`), `step ${n} is on the page before step 1 is answered`);
   }
@@ -1203,21 +1203,21 @@ test('an aircraft whose type code has no source is reported as UNKNOWN, not as n
 
 test('the three filter rows live INSIDE the gated type section, so whatever opens it shows them', () => {
   // 🔴 THIS IS WHY THE FILTERS "WENT MISSING" AND IT IS NOT A BUG TO FIX BY MOVING THEM. They are
-  // inside `#step-3` on purpose — the section opens on a place, and a reader who has not said where
+  // inside `#step-2` on purpose — the section opens on a place, and a reader who has not said where
   // they are has nothing for a type filter to act on. What matters is that the
   // chips and the list share ONE container: if a chip ever leaves it, the filters and the rows
   // can be shown and hidden independently, which is the state that looks like "my filters are
   // gone" while the rows are still there.
   const html = read(SITE, 'index.html');
-  const section = htmlCode.slice(htmlCode.indexOf('id="step-3"'));
+  const section = htmlCode.slice(htmlCode.indexOf('id="step-2"'));
   const end = section.indexOf('</section>');
   const inner = section.slice(0, end === -1 ? section.length : end);
 
   for (const id of ['typeFilter', 'radiusButtons', 'yearFilter', 'seenFilter', 'filterNote', 'typeList']) {
-    assert.ok(inner.includes(`id="${id}"`), `${id} is not inside the step-3 section`);
+    assert.ok(inner.includes(`id="${id}"`), `${id} is not inside the step-2 section`);
   }
-  assert.ok(html.includes('class="card step-gated" id="step-3"'), 'step 3 is no longer a gated section');
-  assert.ok(section.length > 0, 'the step-3 section was not found at all');
+  assert.ok(html.includes('class="card step-gated" id="step-2"'), 'step 3 is no longer a gated section');
+  assert.ok(section.length > 0, 'the step-2 section was not found at all');
 });
 
 test('the type section opens on a PLACE — the distance no longer gates it', () => {
@@ -1254,7 +1254,7 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   // the bottom, and three checks above it read it — which is a temporal dead zone, so the whole test threw
   // "Cannot access 'app' before initialization" and reported nothing about the page.
   const app = readSrc('src/app.ts');
-  const step3 = code.slice(code.indexOf('id="step-3"'), code.indexOf('id="step-4"'));
+  const step3 = code.slice(code.indexOf('id="step-2"'), code.indexOf('id="step-3"'));
   const kind = step3.indexOf('id="typeFilter"');
   const chips = step3.indexOf('id="radiusButtons"');
   const year = step3.indexOf('id="yearFilter"');
@@ -1421,7 +1421,7 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   // every card on the page instead of the one it names. A slice that cannot tell "not found" from
   // "found at the end" is a check that disagrees with itself, so the marker is the next card that is
   // still there.
-  const step4 = code.slice(code.indexOf('id="step-4"'), code.indexOf('id="how"'));
+  const step4 = code.slice(code.indexOf('id="step-3"'), code.indexOf('id="how"'));
   assert.equal(step4.includes('id="radiusButtons"'), false, 'the distance is still asked in the map\'s card');
   assert.equal((code.match(/id="radiusButtons"/g) ?? []).length, 1, 'the distance control is on the page twice');
 
@@ -1659,7 +1659,7 @@ test('there is ONE map, in the watching section, with the circle drawn on it', (
 
   // In the watching section, below the list it plots, with the sentence about the circle and the
   // button that moves it directly above the map that draws it.
-  const step4At = html.indexOf('id="step-4"');
+  const step4At = html.indexOf('id="step-3"');
   const listAt = html.indexOf('id="watchList"');
   const sentenceAt = html.indexOf('id="fenceFrom"');
   const buttonAt = html.indexOf('id="fenceFromLocate"');
@@ -1691,7 +1691,7 @@ test('the one map draws the circle AND the aircraft, with no second map to keep 
   const html = read(SITE, 'index.html');
   assert.match(html, /<div id="watchMap"><\/div>/, 'the map has no place on the page');
   assert.equal((html.match(/id="watchMap"/g) ?? []).length, 1, 'the map exists more than once');
-  assert.ok(html.indexOf('id="watchMap"') > html.indexOf('id="step-4"'),
+  assert.ok(html.indexOf('id="watchMap"') > html.indexOf('id="step-3"'),
     'the map was not put in the watching section');
   assert.ok(html.indexOf('id="watchMap"') > html.indexOf('id="watchList"'),
     'the map was put above the list it plots');
@@ -1961,7 +1961,7 @@ test('90 · the rows on the list are the ones being watched, and each says how t
   // to contain the map was a check that disagreed with the code it was checking.
   assert.match(htmlCode, /id="watchMap"/, 'the page has no host for the map of positions');
   assert.match(appJs, /byId\('watchMap'\)/, 'nothing draws into the map of positions');
-  const section = htmlCode.slice(htmlCode.indexOf('id="step-4"'), htmlCode.indexOf('id="how"'));
+  const section = htmlCode.slice(htmlCode.indexOf('id="step-3"'), htmlCode.indexOf('id="how"'));
   assert.ok(section.length > 200, 'the watching section could not be isolated, so this is vacuous');
   assert.ok(section.indexOf('watchList') > -1, 'the watching list is not in the watching section');
   assert.ok(section.indexOf('watchMap') > -1,

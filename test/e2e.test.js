@@ -1273,14 +1273,14 @@ test('the later steps are hidden until the first one is answered, then glide in'
   const before = await page.$$eval('.step-gated', (items) => items.map((item) => item.hidden));
   assert.equal(before.some((hidden) => hidden === false), false, 'a later step is showing before step 1 is answered');
 
-  await page.waitForFunction(() => document.querySelector('#step-3')?.hidden === false, null, { timeout: 20000 });
+  await page.waitForFunction(() => document.querySelector('#step-2')?.hidden === false, null, { timeout: 20000 });
   assert.equal(await page.$eval('#step-2', (element) => element.hidden), false, 'step 2 did not arrive with step 3');
-  assert.equal(await page.$eval('#step-4', (element) => element.hidden), true, 'the watchlist showed before anything was picked');
+  assert.equal(await page.$eval('#step-3', (element) => element.hidden), true, 'the watchlist showed before anything was picked');
 
   // A step that arrives is animated; the animation is removed again so a
   // re-render every ten seconds does not make the page twitch.
   await page.waitForTimeout(1200);
-  assert.equal(await page.$eval('#step-3', (element) => element.classList.contains('step-arrive')), false,
+  assert.equal(await page.$eval('#step-2', (element) => element.classList.contains('step-arrive')), false,
     'the glide class is left on the step');
 
   await context.close();
@@ -1394,17 +1394,17 @@ test('the aircraft step is on the page from the start, with a note instead of a 
   await page.$eval('#consentDecline', (element) => element.click());
   await page.waitForTimeout(900);
 
-  for (const id of ['#step-2', '#step-3', '#step-5']) {
+  for (const id of ['#step-2', '#step-2', '#step-5']) {
     assert.equal(await page.$eval(id, (element) => element.hidden), false, `${id} is hidden rather than waiting`);
     const why = await page.$eval(`${id} .step-why`, (element) => ({ hidden: element.hidden, text: element.textContent }));
     assert.equal(why.hidden, false, `${id} shows no note about what to do first`);
     assert.ok(why.text.length > 20, `${id}'s note says nothing`);
   }
-  assert.match(await page.$eval('#step-3 .step-why', (element) => element.textContent), /airport/i);
+  assert.match(await page.$eval('#step-2 .step-why', (element) => element.textContent), /airport/i);
 
   // And the controls inside a waiting step cannot be used.
-  const disabled = await page.$$eval('#step-3 button', (items) => items.filter((i) => i.disabled).length);
-  const total = await page.$$eval('#step-3 button', (items) => items.length);
+  const disabled = await page.$$eval('#step-2 button', (items) => items.filter((i) => i.disabled).length);
+  const total = await page.$$eval('#step-2 button', (items) => items.length);
   assert.ok(disabled > 0, 'nothing in the waiting step is disabled');
   assert.equal(disabled, total, `${total - disabled} control(s) in a waiting step are still usable`);
 
@@ -1691,7 +1691,7 @@ async function whatIsOnScreen(page) {
       return el.hidden ? 'hidden' : el.getClientRects().length > 0 ? 'VISIBLE' : 'not-rendered';
     };
     return {
-      step3: vis('step-3'),
+      step3: vis('step-2'),
       kind: vis('typeFilter'),
       year: vis('yearFilter'),
       seen: vis('seenFilter'),
@@ -1865,7 +1865,7 @@ test('the one map is in the watching section, is drawn, and carries the circle',
     'the removed map is still in the document');
 
   const where = await page.$eval('#watchMap', (element) => element.closest('section')?.id ?? 'nowhere');
-  assert.equal(where, 'step-4', `the map is not in the watching section — it is in ${where}`);
+  assert.equal(where, 'step-3', `the map is not in the watching section — it is in ${where}`);
 
   // Drawn, not merely present: this map paints its own tiles.
   const painted = await page.$eval('#watchMap', (element) =>
@@ -1888,7 +1888,7 @@ test('the one map is in the watching section, is drawn, and carries the circle',
   });
   await page.waitForFunction(
     () => {
-      const section = document.getElementById('step-4');
+      const section = document.getElementById('step-3');
       return !!section && !section.hidden && section.getClientRects().length > 0;
     },
     null,
@@ -1937,7 +1937,7 @@ test('the watching section plots the aircraft on the list', async () => {
   assert.equal(await page.$$eval('#watchMap', (nodes) => nodes.length), 1,
     'there is not exactly one map of positions');
   const where = await page.$eval('#watchMap', (element) => element.closest('section')?.id ?? 'nowhere');
-  assert.equal(where, 'step-4', `the position map is not in the watching section — it is in ${where}`);
+  assert.equal(where, 'step-3', `the position map is not in the watching section — it is in ${where}`);
 
   // Drawn: tiles fetched, and the aircraft plotted at its position.
   assert.ok(await page.$eval('#watchMap', (element) => element.querySelectorAll('.locmap-tile').length) > 0,

@@ -3,7 +3,7 @@
  *
  * George, 21 Sep 2026: *"all my filters are gone. fix that. and i dont see any airplain type."*
  *
- * The filters and the type list both live inside `#step-3`, and `updateSteps()` opens it on
+ * The filters and the type list both live inside `#step-2`, and `updateSteps()` opens it on
  * `answered1 = place && this.radiusChosen`. Both halves of that are restored from the reader's own
  * storage on load — so the thing to test is a page that has a SAVED location and a SAVED distance,
  * which is what every tab he opens now has, and which no fresh-context probe of mine ever had.
@@ -27,7 +27,7 @@ const look = async (label) => {
       return el.hidden ? 'hidden' : el.getClientRects().length > 0 ? 'VISIBLE' : 'not-rendered';
     };
     return {
-      step3: vis('step-3'),
+      step3: vis('step-2'),
       typeFilter: vis('typeFilter'),
       yearFilter: vis('yearFilter'),
       seenFilter: vis('seenFilter'),

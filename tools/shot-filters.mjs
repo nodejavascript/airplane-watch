@@ -12,7 +12,7 @@ await p.waitForTimeout(1800);
 await p.$eval('#consentDecline', (el) => el.click()).catch(() => {});
 await p.click('#radiusButtons button[data-km="25"]');
 await p.waitForSelector('#typeList .typerow', { timeout: 30_000, state: 'attached' });
-await p.$eval('#step-3', (el) => { el.hidden = false; });
+await p.$eval('#step-2', (el) => { el.hidden = false; });
 await p.waitForTimeout(400);
 // Element screenshots scroll the element into view themselves, which a page clip does not.
 //
