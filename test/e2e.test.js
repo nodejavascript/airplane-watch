@@ -1867,3 +1867,85 @@ test('the map STAYS UP when there is nothing in the air, and says why', async ()
   await context.close();
 });
 
+
+/**
+ * 🔴 GEORGE, 22 SEP 2026: *"they were all not seen yet, but when i deleted one, the rest were all
+ * last seen. seems like a buy race codition"*.
+ *
+ * It reads like a race because the truth appeared the moment he touched something, and it is not
+ * one. The rows are drawn by `start()` the instant a kept selection is restored, and the record
+ * they are judged against — `types.json` — is a network hop away. So every row was given the
+ * sentence reserved for "the record has been read and holds nothing" while the record had not been
+ * read at all. Nothing could correct it afterwards: the status tick skipped its whole pass because
+ * the live set had not changed, and neither loader redrew these rows. Deleting a row ran the first
+ * full rebuild since the record landed — which is why the fix looked like it came from the delete.
+ *
+ * 🔴 AND THE PAGE IS DELIBERATELY LEFT ALONE IN THIS TEST. The defect was that the truth only
+ * arrived on an action; so no row is deleted, nothing is clicked, and the page has to correct
+ * itself. Deleting a row — the thing George did — would pass whether or not the bug is fixed.
+ */
+test('43 · a status is not frozen as "not seen yet" while the record is still in flight', async () => {
+  const { context, page } = await openPage();
+
+  // Hold the record back. This is not a contrivance: it is one network hop on every load, and on a
+  // slow connection it is seconds — long enough to render, and to be read.
+  await page.route('**/types.json', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue();
+  });
+
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  // What a previous visit leaves behind, which is how George had a list on screen at all.
+  await page.evaluate(() => {
+    localStorage.setItem('aircraft_types', JSON.stringify([
+      { type: 'B38M', tails: [] },
+      { type: 'A20N', tails: [] },
+      { type: 'E75L', tails: [] },
+    ]));
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  // ⚠️ ATTACHED, NOT VISIBLE. These rows live in the watching section, which is hidden until the
+  // reader has walked the steps — and the defect is in the markup, which exists either way. Waiting
+  // for visibility here waits for something this test never does, and times out against a page
+  // that is working.
+  await page.waitForSelector('#watchList li.watch-type', { state: 'attached', timeout: 15_000 });
+
+  const read = () =>
+    page.$$eval('#watchList li.watch-type .watch-state', (nodes) => nodes.map((n) => n.textContent));
+
+  // While the record is in flight the page may not claim anything about a type. "not seen yet" is
+  // a claim about the aeroplane; "checking…" is the truth about the page.
+  const waiting = await read();
+  assert.equal(
+    waiting.includes('not seen yet'),
+    false,
+    `a row claims the type has not been seen before the record has been read: ${waiting.join(', ')}`
+  );
+  assert.ok(
+    waiting.some((text) => /checking/i.test(text)),
+    `no row says it is still checking, so the wait is invisible: ${waiting.join(', ')}`
+  );
+
+  // 🔴 NOTHING IS TOUCHED FROM HERE. The page has to correct itself.
+  await page.waitForFunction(
+    () => {
+      const rows = [...document.querySelectorAll('#watchList li.watch-type .watch-state')];
+      return rows.length > 0 && rows.every((row) => !/checking/i.test(row.textContent));
+    },
+    null,
+    { timeout: 20_000 }
+  );
+
+  const settled = await read();
+  assert.equal(
+    settled.includes('not seen yet'),
+    false,
+    `a row is still saying the type was never seen, after the record landed: ${settled.join(', ')}`
+  );
+  assert.ok(
+    settled.some((text) => /ago|in the air|not seen in \d/.test(text)),
+    `no row answers with a time once the record has landed: ${settled.join(', ')}`
+  );
+
+  await context.close();
+});

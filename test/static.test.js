@@ -1344,3 +1344,130 @@ test('the map mark is an aeroplane, then the type, then the tail', () => {
   assert.match(css, /\.locmap-plane-icon\s*\{/, 'the aeroplane mark has no styling');
   assert.match(css, /\.locmap-plane-label\s*\{/, 'the mark label has no styling');
 });
+
+/* --------------------------------- part 15 · a status is not frozen wrong --- */
+
+/**
+ * One method's body, sliced out of THE SHIPPED BUNDLE by the names either side of it.
+ *
+ * 🔴 SLICED FROM `site/app.js`, NOT FROM `src/app.ts`, AND THE DIFFERENCE IS NOT ACADEMIC. On
+ * 21 Sep 2026 a restructure was present in the source and absent from the bundle — the build was
+ * stale, or the edit was reverted after it — and only reading the shipped file proved it. The
+ * browser opens one of these two files, so that is the one every guard below judges.
+ *
+ * ⚠️ AND `private` IS NOT IN THERE. TypeScript erases access modifiers when it emits, so a
+ * pattern written from the source (`private async loadSurvey(`) matches nothing and reports a
+ * false failure against a correct build. Every boundary below was read out of the bundle rather
+ * than assumed.
+ *
+ * 🔴 BOTH NAMES CARRY THEIR OPENING BRACE, because `this.renderWatchlist();` is also a match for
+ * `renderWatchlist()` and a call site comes FIRST in the file. Slicing from a call site reads
+ * somebody else's code and reports a pass — a false pass, which is worse than a false failure,
+ * because nothing tells the reader to look. The brace pins it to the definition, and the bound
+ * below makes a wrong marker fail loudly instead of quietly widening the slice.
+ */
+function method(name, nextName) {
+  const start = appJs.indexOf(name);
+  const end = appJs.indexOf(nextName, start + 1);
+  assert.ok(start > -1, `${name} is not in the shipped bundle`);
+  assert.ok(end > start, `${nextName} could not be found, so the check for ${name} is vacuous`);
+  assert.ok(end - start < 8000,
+    `the slice for ${name} is ${end - start} characters, so the end marker is not the next method ` +
+      'and this check would be reading code that is not the method it names');
+  return appJs.slice(start, end);
+}
+
+/**
+ * 🔴 GEORGE, 22 SEP 2026: *"they were all not seen yet, but when i deleted one, the rest were all
+ * last seen. seems like a buy race codition"* — and it reads like a race because the truth appeared
+ * the moment he touched something. It is not a race. It is a status computed before its source had
+ * been read, and then FROZEN by a guard that did not know the source was an input.
+ *
+ * The rows are drawn in `start()` the instant a kept selection is restored, and the record they are
+ * judged against — `types.json` — is still in flight. So every row took the branch that means "the
+ * record has been read and holds nothing" while the record had not been read at all. Then nothing
+ * could correct it: `tickWatchStates` skipped its whole pass because the live set had not changed,
+ * and neither loader redrew the watching rows. Deleting a row ran the first full rebuild since the
+ * record landed, which is why the fix appeared to come from the delete.
+ *
+ * These four checks are the shape of that failure. Each one fails against the code that shipped it.
+ */
+test('87 · a status is never claimed before the record it is judged against has been read', () => {
+  const body = method('watchStateOf(', 'watchStateOfTail(');
+
+  // The record's arrival is tracked separately from the record itself: "not read yet" and "read and
+  // empty" are different facts and must not share a sentence.
+  assert.match(appJs, /surveyRead = false/, 'nothing records whether the record has been read');
+  assert.match(body, /if \(!this\.surveyRead\)/, 'a status is stated before the record has been read');
+  assert.match(body, /'checking…'/, 'a row says nothing about the wait while the record is in flight');
+  assert.match(body, /'no record'/, 'a refused record is not named as refused');
+  // And the false claim itself is gone: it may only be reached when the record is in hand.
+  const claimed = body.indexOf("text: 'not seen yet'");
+  const guarded = body.indexOf('if (!this.surveyRead)');
+  assert.ok(guarded > -1 && claimed > guarded,
+    'the "not seen yet" sentence is reachable without the record having been read');
+});
+
+test('88 · the status guard is keyed on every input the status is written from', () => {
+  // 🔴 A GUARD KEYED ON PART OF ITS INPUTS DOES NOT PREVENT WORK — IT MAKES A WRONG ANSWER
+  // PERMANENT. The key covered the live feed only, so the record arriving could not change it.
+  assert.equal(/lastLiveKey/.test(appJs), false, 'the guard still ignores the record it judges against');
+  const key = appJs.slice(appJs.indexOf('const statusKey ='));
+  assert.match(key.slice(0, 400), /this\.surveyRead/, 'the guard key ignores whether the record has been read');
+  assert.match(key.slice(0, 400), /this\.yearsDoc/, 'the guard key ignores the years list the year tag comes from');
+  // The emitted `if` is broken across two lines by the compiler, so the pattern tolerates the
+  // break: a check that demanded one line would fail against a correct build, and a false
+  // failure is the expensive kind.
+  assert.match(appJs, /if \(statusKey === this\.lastStatusKey\)\s*return;/,
+    'the guard does not compare the full key');
+});
+
+test('89 · both documents redraw the watching rows when they land', () => {
+  // The refresh has to be able to lift the guard, or the pass it depends on is still skipped.
+  const refresh = method('refreshWatchRows() {', 'yearOf(');
+  assert.match(refresh, /this\.lastStatusKey = '';/, 'the refresh cannot lift the guard');
+  assert.match(refresh, /this\.renderWatchlist\(\);/, 'the refresh does not redraw the rows');
+
+  const survey = method('async loadSurvey(', 'async loadYears(');
+  const years = method('async loadYears(', 'static countMatching(');
+  assert.match(survey, /this\.refreshWatchRows\(\);/,
+    'the survey loader does not redraw the watching rows, so a row keeps whatever the record did not yet know');
+  assert.match(years, /this\.refreshWatchRows\(\);/,
+    'the years loader does not redraw the watching rows, so the year tag is missing from a kept selection');
+
+  // The refused path counts too — the catch in `loadSurvey` returns early, and a reader whose
+  // record failed to load is exactly the reader who must not be left on a stale claim.
+  assert.equal((survey.match(/this\.refreshWatchRows\(\);/g) ?? []).length, 2,
+    "only one of the survey loader's two exits redraws the rows");
+});
+
+test('90 · the rows on the list are the ones being watched, and each says how to stop', () => {
+  // George, 22 Sep 2026, on the same section: *"Everything you have picked, in one place, with the
+  // way to stop watching each one, and a map of where those aircraft are right now. The table below
+  // lists only what is on this list."*
+  const body = method('renderWatchlist() {', 'renderWatchButton() {');
+  assert.ok(body.length > 400, 'the watch list body could not be isolated, so this check is vacuous');
+  // The class is one of several in the attribute — `class="linkish type-remove"` — so the
+  // pattern matches the word inside the attribute rather than the start of it. Demanding
+  // `class="type-remove"` fails against correct markup, which is how this check first failed.
+  assert.match(body, /class="[^"]*\btype-remove\b/,
+    'a watched type has no way to stop watching it');
+  assert.match(body, /class="[^"]*\bwatch-remove\b/,
+    'a watched tail number has no way to stop watching it');
+  // The list is built from the rules actually kept — not from the table, which is every type.
+  assert.match(body, /this\.typeRules/, 'the list is not built from what is being watched');
+  assert.match(body, /this\.watchlist/, 'named aircraft on the list are not built from the list');
+  assert.match(body, /watch-state/, 'a row does not say what the aircraft is doing');
+
+  // 🔴 THE MAP IS NOT BUILT BY THIS METHOD, SO THIS IS NOT WHERE TO LOOK FOR IT. It is written
+  // into a host element the page already carries, inside the same section as the list — the check
+  // is that the host exists in the page, and that something draws into it. Asking `renderWatchlist`
+  // to contain the map was a check that disagreed with the code it was checking.
+  assert.match(htmlCode, /id="watchMap"/, 'the page has no host for the map of positions');
+  assert.match(appJs, /byId\('watchMap'\)/, 'nothing draws into the map of positions');
+  const section = htmlCode.slice(htmlCode.indexOf('id="step-4"'), htmlCode.indexOf('id="live"'));
+  assert.ok(section.length > 200, 'the watching section could not be isolated, so this is vacuous');
+  assert.ok(section.indexOf('watchList') > -1, 'the watching list is not in the watching section');
+  assert.ok(section.indexOf('watchMap') > -1,
+    'the map of positions is not in the watching section, so the two are not in one place');
+});

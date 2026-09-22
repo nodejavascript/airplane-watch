@@ -851,6 +851,14 @@ class Page {
   private lastError = '';
   private polls = 0;
   private survey: TypesDocument | null = null;
+  /**
+   * 🔴 WHETHER THE RECORD HAS BEEN READ — which is NOT the same fact as an empty record, and
+   * the two must never share a sentence. `false` means the file is still in flight (or the
+   * attempt has not finished); `true` with `survey === null` means it was read and refused.
+   * Without this the page said *"not seen yet"* about every type while the record was still
+   * arriving, which reads as a fact about an aeroplane and is really a fact about the network.
+   */
+  private surveyRead = false;
 
   /**
    * Type codes the feed itself marks as military, harvested by
@@ -1822,8 +1830,12 @@ class Page {
     try {
       const response = await fetch('/types.json', { headers: { accept: 'application/json' } });
       this.survey = (await readJson(response)) as TypesDocument;
+      this.surveyRead = true;
     } catch (error) {
       this.survey = null;
+      // A refusal is an answer, and it has to be recorded as one — otherwise the rows would
+      // say they are still waiting for a record that is never going to arrive.
+      this.surveyRead = true;
       if (note) {
         note.textContent =
           'The measured type list could not be read, so this shows only the types seen in this session. ' +
@@ -1831,6 +1843,8 @@ class Page {
       }
       this.renderFilterNote();
       this.renderTypeList();
+      // 🔴 THE ROWS WERE DRAWN BEFORE THIS FILE EXISTED, SO THEY ARE DRAWN AGAIN NOW.
+      this.refreshWatchRows();
       return;
     }
     if (note && this.survey) {
@@ -1844,6 +1858,8 @@ class Page {
     }
     this.renderFilterNote();
     this.renderTypeList();
+    // 🔴 THE ROWS WERE DRAWN BEFORE THIS FILE EXISTED, SO THEY ARE DRAWN AGAIN NOW.
+    this.refreshWatchRows();
   }
 
   /**
@@ -1864,6 +1880,8 @@ class Page {
     this.buildYearFilter();
     this.renderFilterNote();
     this.renderTypeList();
+    // The year tag on a watching row comes from this file, so the rows are drawn again with it.
+    this.refreshWatchRows();
   }
 
   /**
@@ -1955,6 +1973,31 @@ class Page {
     // Nothing of this type in the record at all. The sentence still says WHEN — how long the
     // record has been kept — because that is the honest width of the claim, and a span of time
     // needs no explaining while the old wording did.
+    //
+    // 🔴 BUT ONLY ONCE THE RECORD HAS BEEN READ. This is the state George caught on 22 Sep 2026:
+    // every row reading *"not seen yet"*, then all of them turning into times the moment he
+    // deleted one. The record was still in flight when the rows were drawn, and the answer given
+    // in its absence was phrased as if the record had been read and found empty. It had not been
+    // read at all. A page that says what it does not know is worse than one that waits.
+    if (!this.surveyRead) {
+      return {
+        kind: 'never',
+        text: 'checking…',
+        why:
+          'The record of what has flown here is still being read, so this page will not say yet ' +
+          'whether this type has been seen. The answer appears as soon as the record arrives.',
+      };
+    }
+    if (!this.survey) {
+      return {
+        kind: 'never',
+        text: 'no record',
+        why:
+          'The record of what has flown here could not be read, so this page has nothing to ' +
+          'measure this type against — which is not the same as the type never having flown here.',
+      };
+    }
+
     const days = Math.round(this.historySpanDays());
     if (days >= 1) {
       return {
@@ -2009,15 +2052,23 @@ class Page {
    * Only the text is touched, exactly as `tickReadingAges` does for the table: rebuilding the
    * whole list on every poll would cost the reader their scroll position and any text they had
    * selected, and with every type starred there are well over a hundred rows. It is also skipped
-   * outright when the live set has not changed — see `lastLiveKey`.
+   * outright when nothing the text depends on has changed — see `lastStatusKey`.
    */
   /**
-   * The live aircraft set the status column was last written from, so an unchanged set costs
-   * nothing. A poll arrives every few seconds and the live set usually differs only by where the
-   * aircraft have moved — which cannot change any status text — so without this guard every poll
-   * walked a hundred-odd rows to write back exactly what was already there.
+   * EVERY INPUT THE STATUS TEXT IS WRITTEN FROM, so an unchanged set costs nothing. A poll
+   * arrives every few seconds and the live set usually differs only by where the aircraft have
+   * moved — which cannot change any status text — so without this guard every poll walked a
+   * hundred-odd rows to write back exactly what was already there.
+   *
+   * 🔴 IT MUST COVER THE RECORD AS WELL AS THE FEED, AND THAT IS THE WHOLE BUG OF 22 SEP 2026.
+   * The key used to be the live set alone, so a status written before the record arrived could
+   * never be corrected: the live set had not changed, the pass was skipped, and the wrong answer
+   * stood for as long as the reader left the page alone. George saw every row reading *"not seen
+   * yet"* and turn into times the instant he deleted one — because deleting is a full rebuild,
+   * and that was the first rebuild to run after the record landed. A guard keyed on part of its
+   * inputs does not prevent work; it makes a wrong answer permanent.
    */
-  private lastLiveKey = '';
+  private lastStatusKey = '';
 
   private tickWatchStates(): void {
     const host = byId('watchList');
@@ -2025,14 +2076,18 @@ class Page {
     const live = this.engine ? this.engine.snapshot() : [];
 
     // What the status text can actually depend on: which aircraft are here, of which type, under
-    // which tail. A position moving does not change a status, and neither does a new reading of
-    // the same aircraft.
+    // which tail; whether the record has been read, and which reading of it; and whether the
+    // years list is in, because that is what the row's year tag is drawn from. A position moving
+    // does not change a status, and neither does a new reading of the same aircraft.
     const liveKey = live
       .map((one) => `${one.hex ?? ''}:${one.type ?? ''}:${one.registration ?? ''}`)
       .sort()
       .join(',');
-    if (liveKey === this.lastLiveKey) return;
-    this.lastLiveKey = liveKey;
+    const statusKey =
+      `${liveKey}|${this.surveyRead ? (this.survey?.generated ?? 'read') : 'unread'}` +
+      `|${this.yearsDoc ? 'years' : 'no-years'}`;
+    if (statusKey === this.lastStatusKey) return;
+    this.lastStatusKey = statusKey;
 
     for (const row of host.querySelectorAll<HTMLLIElement>('li.watch-type')) {
       const state = row.querySelector<HTMLElement>('.watch-state');
@@ -2052,6 +2107,25 @@ class Page {
       // row used to have.
       if (state.title !== next.why) state.title = next.why;
     }
+  }
+
+  /**
+   * 🔴 THE ROWS ARE BUILT FROM TWO FILES, SO BOTH MUST BE ABLE TO REDRAW THEM.
+   *
+   * The status is read from the record and the year tag from the years list, and both arrive
+   * after the first paint — `start()` restores a kept selection and draws the rows before either
+   * request has finished. Neither loader used to redraw this section: they refreshed the type
+   * list and the filter note and left the watching rows as they were drawn, so a row carried
+   * whatever the record did not yet know, and the status tick could not repair it either (see
+   * `lastStatusKey`). One full rebuild per document is the honest repair, and it is cheap: it
+   * runs at most twice per page load, and `renderWatchlist` is skipped by the tick guard the
+   * rest of the time.
+   */
+  private refreshWatchRows(): void {
+    // Clearing the key first is what lets the next status pass run rather than be skipped as
+    // "nothing changed" — the record arriving IS a change, and the key now says so.
+    this.lastStatusKey = '';
+    this.renderWatchlist();
   }
 
   private yearOf(code: string): YearEntry | null {
