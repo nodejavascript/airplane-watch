@@ -310,13 +310,16 @@ main {
  * sat as far from each other as two different labels did — and once the maker row began wrapping to
  * a second line, five labels read as one undifferentiated block.
  *
- * So the space between ROWS is 10px, and the space inside a row stays 5px (`.filter-row .chips`).
+ * So the space between ROWS is 16px, and the space inside a row stays 5px (`.filter-row .chips`).
  * That difference is the whole point: a wrapped line still reads as part of the row above it, rather
  * than as a new row that has lost its label.
+ *
+ * ⚠ IT WAS 10px FOR TEN MINUTES AND GEORGE ASKED FOR MORE — *"even more space"*, 22 Sep 2026 — so the
+ * number that is here now is his eye's, not a measurement. It is one value, in one rule.
  */
 .filters {
   display: grid;
-  row-gap: 10px;
+  row-gap: 16px;
   margin: 0 0 12px;
   padding: 10px 12px;
   border: 1px solid var(--line);
