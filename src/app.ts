@@ -1963,7 +1963,13 @@ class Page {
     // nothing else. `matchOf` decides, and it is the engine's rule rather than a second
     // copy written here.
     const all = this.engine.snapshot();
-    const rows = all.filter((state) => this.isWatchedNow(state)).slice(0, 60);
+    // 🔴 ONE FILTER, READ BY THE TABLE AND THE MAP BOTH. See `seenInTheAirInsideFence`: what the reader
+    // watches, inside the fence they chose, seen in the air. The table used to be filtered by what they
+    // watch and nothing else, which is why a 25 km fence left a list of aircraft hundreds of kilometres
+    // away all saying *in the air* — George, 22 Sep 2026: *"they all say in the air, but they are no
+    // visible in my map"*.
+    const seen = this.seenInTheAirInsideFence(all);
+    const rows = seen.air.slice(0, 60);
 
     // 🔴 A PICKED FLIGHT THAT IS NO LONGER ON THE LIST IS NOT PICKED ANY MORE. Without this the map would
     // stay zoomed to an aircraft that has left the fence for as long as the tab is open, with nothing on
@@ -1979,12 +1985,34 @@ class Page {
       // The empty state has to say WHICH empty it is. "Nothing in the fence" over a card
       // that is deliberately filtered would be a lie: there may be forty aircraft out
       // there and none of them the reader's.
+      //
+      // 🔴 AND NOW THERE ARE THREE EMPTIES RATHER THAN TWO, because the list has three limits: what the
+      // reader watches, the fence they chose, and whether the aircraft is in the air. Naming the wrong one
+      // is the fault this paragraph exists to prevent, so each is counted and named in its own sentence.
+      const limits: string[] = [];
+      if (seen.outside > 0) {
+        limits.push(
+          `${seen.outside} ${seen.outside === 1 ? 'is' : 'are'} outside your ${this.radiusKm} km fence`
+        );
+      }
+      if (seen.onGround > 0) {
+        limits.push(
+          `${seen.onGround} ${seen.onGround === 1 ? 'is' : 'are'} on the ground, not in the air`
+        );
+      }
       body.innerHTML =
         all.length === 0
           ? '<tr><td colspan="6" class="muted">Nothing in the fence at this moment. Aircraft appear and disappear as they pass.</td></tr>'
-          : '<tr><td colspan="6" class="muted">Nothing in the fence matches what you picked. ' +
-            `The feed can see ${all.length} aircraft right now, and none of them is on your list — ` +
-            'star a type in step 3, or name a tail number, and they will appear here.</td></tr>';
+          : seen.watched === 0
+            ? '<tr><td colspan="6" class="muted">Nothing in the fence matches what you picked. ' +
+              `The feed can see ${all.length} aircraft right now, and none of them is on your list — ` +
+              'star a type in step 3, or name a tail number, and they will appear here.</td></tr>'
+            : '<tr><td colspan="6" class="muted">' +
+              `Nothing you are watching has been seen in the air inside your ${this.radiusKm} km fence. ` +
+              (limits.length > 0
+                ? `Of the aircraft on your list, ${limits.join(', and ')}. `
+                : '') +
+              'Aircraft on the ground appear here the moment they take off, with the time they did.</td></tr>';
       // 🔴 THE MAP IS DRAWN ON THIS PATH TOO, AND IT DID NOT USE TO BE.
       //
       // This returned before the map was drawn, so a poll that found nothing on the list left the
@@ -2584,6 +2612,65 @@ class Page {
         t: state.type || undefined,
       }) !== null
     );
+  }
+
+  /**
+   * 🔴 WHAT THE TABLE AND THE MAP ARE ALLOWED TO SHOW — AND THEY SHOW THE SAME THING.
+   *
+   * George, 22 Sep 2026: *"i want it to filter by tail that has been seen in the air from my location,
+   * and other filters"* — after finding the list full of aircraft that said *in the air* while the map,
+   * drawn on his 25 km fence, showed none of them. Both halves were telling the truth about different
+   * questions: the map was on the fence, and the list was filtered by **what he watches and nothing else**,
+   * so it kept every aircraft the tracker still remembered from the wider fence he had just left — up to
+   * forty-five minutes of them, hundreds of kilometres away.
+   *
+   * So there is now ONE rule, applied in ONE place, and both the table and the map read its answer:
+   *
+   *   1. **what the reader watches** — the starred types and named tails, which is where the maker, kind,
+   *      era and military filters already live (`matchOf`), so those keep working untouched;
+   *   2. **inside the fence** — measured from the same centre everything else uses (`point()`, which is
+   *      the reader's own place when it is known) at the distance they chose;
+   *   3. **seen in the air** — an aircraft on the ground is not "seen in the air", and it is not put on a
+   *      map that is describing what is flying. It is still tracked, so the moment it takes off it appears
+   *      with its takeoff time on it, which is the one thing the ground rows were ever for.
+   *
+   * The excluded counts are returned rather than dropped, because an empty list has to be able to say
+   * WHICH empty it is: *"nothing seen in the air inside 25 km"* and *"nothing matched what you picked"* are
+   * different answers and the reader is owed the right one.
+   */
+  private seenInTheAirInsideFence(all: TrackState[]): {
+    air: TrackState[];
+    onGround: number;
+    outside: number;
+    watched: number;
+  } {
+    const centre = this.point();
+    const radiusNm = kmToNm(this.radiusKm);
+    const air: TrackState[] = [];
+    let onGround = 0;
+    let outside = 0;
+    let watched = 0;
+    for (const state of all) {
+      if (!this.isWatchedNow(state)) continue;
+      watched += 1;
+      const hasPosition = typeof state.lat === 'number' && typeof state.lon === 'number';
+      // No centre and no position are not a reason to hide an aircraft: the fence answer is unknown, so
+      // the aircraft is left in and the air rule decides. A page that hides on missing data reports an
+      // absence it cannot know about.
+      if (centre !== null && hasPosition) {
+        const away = distanceNm(centre.lat, centre.lon, state.lat as number, state.lon as number);
+        if (away > radiusNm) {
+          outside += 1;
+          continue;
+        }
+      }
+      if (state.phase !== 'airborne') {
+        onGround += 1;
+        continue;
+      }
+      air.push(state);
+    }
+    return { air, onGround, outside, watched };
   }
 
   /* -------------------------------------------------- the measured types --- */
@@ -5144,7 +5231,11 @@ class Page {
     // 🔴 AND THE CIRCLE IS WHAT MAKES THE TWO SETS OF SHAPES ONE PICTURE. The aircraft are filtered
     // to the fence by the engine, so without the ring a reader cannot tell whether an empty map
     // means nothing is flying or nothing is flying *here*. The ring is that answer.
-    const watching = snapshot.filter((one) => this.isWatchedNow(one));
+    // 🔴 THE MAP DRAWS THE SAME AIRCRAFT THE TABLE LISTS — the reader's own filters, inside the fence they
+    // chose, seen in the air. It used to draw *everything they watch*, which is why a 25 km fence could show
+    // a two-shape map with a caption apologising for fifty-eight aircraft nobody could see. Two lists that
+    // can disagree are two lists that eventually will; this is one.
+    const watching = this.seenInTheAirInsideFence(snapshot).air;
     const placed = watching.filter(
       (one): one is (typeof one & { lat: number; lon: number }) =>
         typeof one.lat === 'number' && typeof one.lon === 'number'
@@ -5335,7 +5426,7 @@ class Page {
         : pickedFlown
           ? 'Only that aircraft is drawn at this zoom — everything else on your list is in the table ' +
             'above, and the map goes back to the whole fence when you press its row again. '
-          : 'Every aircraft on your list and inside the fence, named in full and drawn where the ' +
+          : 'Every aircraft seen in the air inside the fence, named in full and drawn where the ' +
             'feed last reported it. ') +
       (traced > 0
         ? 'The line behind an aircraft is the path it has flown in the last few minutes, drawn ' +

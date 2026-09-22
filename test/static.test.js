@@ -2332,3 +2332,58 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
   assert.match(page, /Press any row to put the map on that aircraft/,
     'the page never tells the reader that a row can be pressed');
 });
+
+test('99 · the list and the map show the same aircraft: what you watch, inside your fence, seen in the air', () => {
+  const app = readSrc('src/app.ts');
+  const page = read(SITE, 'index.html');
+
+  // 🔴 ONE RULE, IN ONE PLACE, READ BY BOTH HALVES OF THE PAGE. George, 22 Sep 2026: *"i want it to filter
+  // by tail that has been seen in the air from my location, and other filters"* — after reporting the fault
+  // this fixes: *"i filters my 25km, clicked some that were seen latt 5 min agoi, thaey all say in the air,
+  // but they are no visible in my map"*. Measured on the live page before the fix: the fence read "25 km",
+  // the table listed 60 aircraft whose positions were in Michigan and Ohio, and the map drew 2 of them and
+  // apologised for the other 58. The table was filtered by what the reader watches and by NOTHING else.
+  const helper = app.slice(
+    app.indexOf('private seenInTheAirInsideFence('),
+    app.indexOf('private async loadSurvey(')
+  );
+  assert.ok(helper.length > 600, 'the one filter both halves share is gone, so this check is vacuous');
+
+  // 1 · ARE THEY WATCHED — the starred types and named tails, which is where the maker, kind, era and
+  // military filters already live, so "and other filters" keeps working through `matchOf`.
+  assert.match(helper, /if \(!this\.isWatchedNow\(state\)\) continue;/, 'the watch filter is bypassed');
+  assert.match(helper, /watched \+= 1;/, 'the number of watched aircraft is not counted, so an empty list cannot say why');
+
+  // 2 · INSIDE THE FENCE — measured from the same centre everything else uses, at the distance chosen.
+  assert.match(helper, /const centre = this\.point\(\);/, 'the fence is measured from a different centre than the map uses');
+  assert.match(helper, /const radiusNm = kmToNm\(this\.radiusKm\);/, 'the fence radius is not the one the reader chose');
+  assert.match(helper, /distanceNm\(centre\.lat, centre\.lon, state\.lat as number, state\.lon as number\)/,
+    'the distance to the fence centre is never measured');
+  assert.match(helper, /if \(away > radiusNm\) \{\s*\n\s*outside \+= 1;/, 'aircraft beyond the fence are still listed');
+  assert.match(helper, /if \(state\.phase !== 'airborne'\) \{\s*\n\s*onGround \+= 1;/,
+    'an aircraft on the ground is listed as seen in the air');
+
+  // 3 · AND BOTH HALVES READ IT. Two lists that can disagree are two lists that eventually will: the map drew
+  // *everything watched* while the table drew the rows, which is exactly how a 25 km fence came to show two
+  // shapes and a caption about fifty-eight aircraft nobody could see.
+  assert.match(app, /const seen = this\.seenInTheAirInsideFence\(all\);\s*\n\s*const rows = seen\.air\.slice\(0, 60\);/,
+    'the table is not built from the shared filter');
+  assert.match(app, /const watching = this\.seenInTheAirInsideFence\(snapshot\)\.air;/,
+    'the map is not drawn from the shared filter, so it can disagree with the list above it');
+  assert.equal(/snapshot\.filter\(\(one\) => this\.isWatchedNow\(one\)\)/.test(app), false,
+    'the old watch-only list is still in the file, so one of the two still bypasses the fence');
+
+  // 🔴 AND AN EMPTY LIST NAMES WHICH EMPTY IT IS — three limits now, not two, and naming the wrong one was the
+  // fault the original paragraph was written to prevent.
+  const empty = app.slice(app.indexOf('const limits: string[] = [];'), app.indexOf('body.innerHTML ='));
+  assert.ok(empty.length > 200, 'the empty state lost its counts, so this check is vacuous');
+  assert.match(empty, /outside your \$\{this\.radiusKm\} km fence/, 'the empty state does not number the aircraft outside the fence');
+  assert.match(empty, /on the ground, not in the air/, 'the empty state does not number the aircraft on the ground');
+  assert.match(app, /seen\.watched === 0/, 'the empty state cannot tell "nothing matched" from "nothing in the air"');
+
+  // And the page says the rule where the list is, rather than leaving the reader to infer it.
+  assert.match(page, /The aircraft <b>inside your fence<\/b>, <b>seen in the air<\/b>, that <b>match what you picked<\/b>/,
+    'the card does not state the three rules its list is filtered by');
+  assert.match(page, /an aircraft on the ground is not listed until it takes off/,
+    'the page does not say what happened to the ground rows');
+});

@@ -126,6 +126,22 @@ Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
   usually does nothing is a control nobody trusts), and it clears the pick exactly as a second press does. It
   is placed **outside** `#watchMap`, whose contents are rewritten on every poll — the fault this file has
   already recorded once for the footer's consent door.
+- 🔴 **THE LIST AND THE MAP SHOW THE SAME AIRCRAFT: WHAT YOU WATCH, INSIDE YOUR FENCE, SEEN IN THE AIR.**
+  George, 22 Sep 2026: *"i want it to filter by tail that has been seen in the air from my location, and
+  other filters"* — after finding the fault: *"i filters my 25km, clicked some that were seen latt 5 min
+  agoi, thaey all say in the air, but they are no visible in my map"*. Measured before the change: the fence
+  read **25 km**, the table listed **60 aircraft whose positions were in Michigan and Ohio**, and the map drew
+  **2** of them and apologised for the other **58**. The table was filtered by what the reader watches and by
+  nothing else, so narrowing the fence left every aircraft the tracker still remembered from the wider one —
+  for up to its 45-minute memory. Now there is **one rule in one place** (`seenInTheAirInsideFence`) and both
+  halves read it: what you watch (where the maker, kind, era and military filters already live, so the other
+  filters keep working), **inside the fence**, measured from the same centre the map uses at the distance
+  chosen, and **seen in the air**. An aircraft on the ground is not listed or drawn — it is still tracked, so
+  the moment it takes off it appears with its takeoff time on it. Measured after: at **25 km, 4 rows and 4
+  marks on the map, all four within 25 km of the centre, none on the ground**.
+- 🔴 **AND AN EMPTY LIST NAMES WHICH EMPTY IT IS.** There are three limits now, not two, so the empty state
+  counts each separately — *"N are outside your 25 km fence"*, *"N are on the ground, not in the air"* — and
+  says so instead of the generic "nothing matches what you picked" that would be a different answer.
 - 🔴 **AND THE TABLE AND THE MAP FOLLOW A CHANGE TO WHAT YOU WATCH, AT ONCE.** *"when i make a change to
   what im watching the map should refresh"* — starring a type, ticking a tail or stopping watching one
   used to redraw the list and leave the table and map for the next poll, up to twenty seconds of a map
