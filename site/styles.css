@@ -658,11 +658,9 @@ main {
  * and this says whether it still means anything, so it is the quieter of the two and the
  * eye lands on the clock first. Tabular figures so the column does not twitch sideways every
  * second as the digits change. */
-.reading-ago {
-  color: var(--muted);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
+/* 🔴 THE PER-ROW AGE IS GONE WITH THE LAST-READING COLUMN. George, 22 Sep 2026: *"fdor last reading
+ * just remove that"*. `.reading-ago` had no other caller — the page's own age is `#refreshedAgo`, above
+ * the map — so the rule went with the column rather than being left here styling nothing. */
 
 /* Where the aircraft is. Set back like the age, because it is a fact to consult rather than
  * a column to read down — and the airport beside it is the answer most readers want. */
@@ -670,6 +668,15 @@ main {
   color: var(--muted);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+
+/* 🔴 THE COMPASS POINT: TWO OR THREE LETTERS, AND THAT IS THE POINT OF IT. George, 22 Sep 2026:
+ * *"can be add bearing like NW, S, N, etc"* — asked for in the same message that said the table was
+ * too wide, so it stays as narrow as the answer allows. Tabular figures so a column of them lines up,
+ * and letter-spaced because two capitals are hard to tell apart when they are touching. */
+.aircraft td.bearing {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -702,10 +709,18 @@ main {
   white-space: nowrap;
 }
 
-/* The type's NAME beside its code, on the row that used to rely on a header line to carry it. */
+/* The type's NAME on its own line, under its code, on the row that used to rely on a header line to
+ * carry it.
+ *
+ * 🔴 AND IT IS A NEW LINE BECAUSE THE TABLE WAS TOO WIDE. George, 22 Sep 2026: *"this is too wide. use
+ * type, make a new line for airplane type"*. Side by side, `B38M` and `Boeing 737 MAX 8` made one cell
+ * 23 characters across and set the width of the whole column; stacked, the widest line is 16 and the
+ * column is as narrow as its longest NAME rather than its longest name PLUS its code. */
 .cell-type {
-  margin-left: 6px;
+  display: block;
+  margin-left: 0;
   font-size: 12.5px;
+  line-height: 1.35;
   color: var(--muted);
   white-space: nowrap;
 }

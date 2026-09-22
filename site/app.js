@@ -187,14 +187,39 @@ function stripBrackets(value) {
         .trim();
 }
 /**
- * 🔴 THE BEARING AND COMPASS HELPERS ARE GONE, WITH THE CHART THAT NEEDED THEM.
+ * How far round the compass one point is from another, in degrees from north.
  *
- * `bearingDeg` and `compassPoint` (and the `COMPASS` table under it) turned an aircraft's position
- * into "8 km to the south-west" for the top-down radar drawing. George removed that card on
- * 22 Sep 2026, so their only caller went with it — and the compiler says so rather than leaving
- * them here to rot. The MAP still answers "where is it": it draws the aircraft at its reported
- * position, which is a better answer than a bearing in words.
+ * 🔴 IT WAS DELETED WITH THE CHART AND IT HAS COME BACK FOR THE TABLE. `bearingDeg` and the compass
+ * tables used to serve the top-down radar drawing, and when George removed that card on 22 Sep 2026
+ * their only caller went with it. His next instruction gave them a new one: *"can be add bearing like
+ * NW, S, N, etc"* — so they are restored here rather than reinstated as the special case they would
+ * have been if the table had grown its own copy of the arithmetic.
  */
+function bearingDeg(lat1, lon1, lat2, lon2) {
+    const toRad = Math.PI / 180;
+    const p1 = lat1 * toRad;
+    const p2 = lat2 * toRad;
+    const dl = (lon2 - lon1) * toRad;
+    const y = Math.sin(dl) * Math.cos(p2);
+    const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+    return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+/** 🔴 THE COMPASS, TWICE: WORDS FOR A TOOLTIP AND LETTERS FOR A CELL. *"204°" is a number and
+ * "south-south-west" is a place — but `SSW` is a place that fits in a column two characters wide,
+ * which is what a table that was too wide needs. Both come from the SAME index, so they cannot
+ * disagree about which of the sixteen it is. */
+const COMPASS = ['north', 'north-north-east', 'north-east', 'east-north-east', 'east', 'east-south-east', 'south-east', 'south-south-east', 'south', 'south-south-west', 'south-west', 'west-south-west', 'west', 'west-north-west', 'north-west', 'north-north-west'];
+const COMPASS_SHORT = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+/** Which of the sixteen, as an index — the one place the rounding happens. */
+function compassIndex(degrees) {
+    return Math.round(degrees / 22.5) % 16;
+}
+function compassPoint(degrees) {
+    return COMPASS[compassIndex(degrees)];
+}
+function compassPointShort(degrees) {
+    return COMPASS_SHORT[compassIndex(degrees)];
+}
 /**
  * Web Mercator, the arithmetic every slippy map is built on.
  *
@@ -1407,14 +1432,18 @@ class Page {
                     : '<span class="muted">not transmitted</span>'}</td>` +
                 `<td><b>${escapeHtml(label)}</b></td>` +
                 `<td>${phase}</td>` +
-                // 🔴 THE TIME IS PRINTED TWICE ON PURPOSE, IN THE TWO FORMS THAT ANSWER DIFFERENT
-                // QUESTIONS. George, 20 Sep 2026: *"last reading should include fromnow()"*. A
-                // clock time says WHEN it was; "12s ago" says WHETHER IT STILL MEANS ANYTHING, and
-                // that is the question a reader watching a live feed is actually asking. A cell
-                // that said only "15:04:22" made them do the subtraction themselves, against their
-                // own clock, with no idea whether the page had stalled.
-                `<td class="mono">${formatClock(state.observedAt)}` +
-                `<span class="reading-ago" data-at="${state.observedAt}"> · ${fromNow(state.observedAt)}</span></td>` +
+                // 🔴 THE LAST-READING COLUMN IS GONE. George, 22 Sep 2026: *"fdor last reading just remove
+                // that"* — in the same message that said the table was too wide. It held a clock time AND a
+                // relative age, and it was one of the two widest cells on the row; the page's own freshness
+                // now reads above the map (`#radiusRefreshed`), which is where a reader goes to ask whether
+                // the page is still live.
+                //
+                // ⚠️ WHAT WENT WITH IT, SAID OUT LOUD RATHER THAN DISCOVERED LATER: the per-ROW age. One
+                // aircraft's reading can be much older than the page's last poll — a transponder that has gone
+                // quiet keeps its row for up to forty-five minutes — and nothing on the row says so any more.
+                // If that turns out to matter more than the width did, the age belongs back as a `· 8s`
+                // inside the Phase cell, which costs no column at all.
+                `<td class="mono bearing">${this.bearingCell(state)}</td>` +
                 // 🔴 THE POSITION, WHERE THE WATCH LINK USED TO BE. George, 20 Sep 2026:
                 // *"remove the watch link, can you put long/lat"*. Watching is done by picking —
                 // a type in step 3 or a tail number in step 5 — so a control on every row was a
@@ -1469,6 +1498,29 @@ class Page {
             return '';
         const city = this.cityOf(icao);
         return city === '' ? '' : `<span class="cell-city">${escapeHtml(city)}</span>`;
+    }
+    /**
+     * 🔴 WHICH WAY IT IS FROM YOU, IN TWO LETTERS RATHER THAN TWO NUMBERS.
+     *
+     * George, 22 Sep 2026: *"can be add bearing like NW, S, N, etc"*. The chart that used to answer
+     * this went with the second table, and it is the one thing that view gave the page that the table
+     * did not: `43.3733, -79.3760` is a POSITION, and "north-west, 12 km away" is an ANSWER. It is also
+     * the narrowest way to say it, which is why it earns a column on a table that was too wide.
+     *
+     * 🔴 IT IS FROM THE CENTRE OF THE FENCE, WHICH IS NOT ALWAYS YOU. With a place known the fence is
+     * drawn round the reader and this is the direction from them; with only airports picked it is the
+     * direction from the airports, and the paragraph above the map says which. The title spells the
+     * whole thing out and carries the distance, so neither fact has to fit in the cell.
+     */
+    bearingCell(state) {
+        const at = this.point();
+        if (!at || typeof state.lat !== 'number' || typeof state.lon !== 'number') {
+            return '<span class="muted">—</span>';
+        }
+        const degrees = bearingDeg(at.lat, at.lon, state.lat, state.lon);
+        const km = nmToKm(distanceNm(at.lat, at.lon, state.lat, state.lon));
+        const title = `${compassPoint(degrees)} of the fence's centre, about ${km} km away`;
+        return `<span title="${escapeHtml(title)}">${compassPointShort(degrees)}</span>`;
     }
     /**
      * The route for a callsign, asking for it the first time it is seen.
@@ -1546,8 +1598,15 @@ class Page {
                 '><span class="muted">—</span></td>');
         }
         const { origin, destination, airline } = route;
-        const place = [destination.city, destination.country].filter((part) => part !== '').join(', ');
-        const from = [origin.city, origin.country].filter((part) => part !== '').join(', ');
+        // 🔴 THE BRACKETS GO, AND THE COLUMN NARROWS WITH THEM. `San José (Alajuela)` is the airport's own
+        // way of naming the city and it is twice as long as the city is: `stripBrackets` is the same
+        // helper the place line uses, and the full name stays in the title for anyone who wants it.
+        const place = [stripBrackets(destination.city), destination.country]
+            .filter((part) => part !== '')
+            .join(', ');
+        const from = [stripBrackets(origin.city), origin.country]
+            .filter((part) => part !== '')
+            .join(', ');
         const whole = `On file for this callsign: ${origin.icao} ${origin.city}` +
             ` → ${destination.icao} ${destination.city}${airline ? ` · ${airline}` : ''}.` +
             ' A route is looked up, not transmitted by the aircraft, so a diversion or a reused callsign can make it wrong.';
@@ -1566,16 +1625,16 @@ class Page {
      */
     tickReadingAges() {
         const paint = () => {
-            for (const spread of Array.from(document.querySelectorAll('.reading-ago'))) {
-                const at = Number(spread.dataset.at);
-                if (Number.isFinite(at))
-                    spread.textContent = ` · ${fromNow(at)}`;
-            }
-            // 🔴 AND THE ONE AGE THAT IS ABOUT THE WHOLE PAGE. George, 22 Sep 2026: *"and last refreshed
+            // 🔴 THE LOOP OVER `.reading-ago` IS GONE WITH THE LAST-READING COLUMN THAT CARRIED THEM.
+            // George removed that column on 22 Sep 2026 — *"fdor last reading just remove that"* — so the
+            // spans it used to age no longer exist, and a query for them on every tick would be a search
+            // for something the page cannot produce. What is left is the one age that is still on the page.
+            //
+            // 🔴 AND IT IS THE ONE AGE THAT IS ABOUT THE WHOLE PAGE. George, 22 Sep 2026: *"and last refreshed
             // fromnow()"* — the time every other reading on the page is aged against, sitting with the
-            // distance control above the map. It is painted by this same ticker, for the same reason the
-            // row ages are: "12s ago" is wrong a second after it is written, and a stale age on a live
-            // feed is the most reassuring thing a stalled page can say.
+            // distance control above the map. It is painted by this same ticker, for the same reason a row
+            // age would be: "12s ago" is wrong a second after it is written, and a stale age on a live feed
+            // is the most reassuring thing a stalled page can say.
             const refreshed = document.querySelector('#refreshedAgo');
             // 🔴 IT OPENS ON "now", NOT "not yet". George, 22 Sep 2026: *"start off my saying now"*. A page
             // that has just loaded has not been refused anything, and a placeholder cannot be the thing that
