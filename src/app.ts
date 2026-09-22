@@ -883,23 +883,6 @@ class Page {
   private centre: { lat: number; lon: number } | null = null;
 
   /**
-   * 🔴 THE FRAME THE MAIN MAP CHOSE, KEPT SO THE SECOND MAP CAN STAND IN IT.
-   *
-   * George, 21 Sep 2026: *"in the section ... i want to see the aircraft positions with a new
-   * map"*. Two maps zoomed differently are two maps that disagree about where a place is, so
-   * the fit is computed once — by the map that already computes it — and the map of aircraft
-   * positions draws inside the result. Recomputing it would be a second copy of the same
-   * arithmetic, which is the drift that has cost this page more than once today.
-   */
-  private lastFrame: {
-    VIEW_W: number;
-    VIEW_H: number;
-    tiles: string;
-    spotOf: (lat: number, lon: number) => { x: number; y: number };
-    zoom: number;
-  } | null = null;
-
-  /**
    * The exact markup the position map drew last time, so an identical picture is not rebuilt.
    *
    * It is drawn on every poll and whenever the list changes, and re-injecting a whole tile
@@ -1637,6 +1620,15 @@ class Page {
           : '<tr><td colspan="5" class="muted">Nothing in the fence matches what you picked. ' +
             `The feed can see ${all.length} aircraft right now, and none of them is on your list — ` +
             'star a type in step 3, or name a tail number, and they will appear here.</td></tr>';
+      // 🔴 THE MAP IS DRAWN ON THIS PATH TOO, AND IT DID NOT USE TO BE.
+      //
+      // This returned before the map was drawn, so a poll that found nothing on the list left the
+      // map showing whatever was on it a moment ago — an aircraft that had already left. That was
+      // survivable while a second map in another step carried the same shapes and was refreshed by
+      // other paths; it is not survivable now that this is the only map on the page. Found while
+      // merging the two, and fixed in the same change.
+      this.renderMap();
+      this.tickWatchStates();
       return;
     }
 
@@ -1728,15 +1720,17 @@ class Page {
     // age spans are touched.
     this.tickReadingAges();
 
-    // 🔴 THE MAP OF POSITIONS IS DRAWN WHERE THE POSITIONS ARRIVE, AND LAST.
+    // 🔴 THE MAP IS DRAWN WHERE THE POSITIONS ARRIVE, AND LAST.
     //
-    // It belongs to the watching list, but it plots aircraft the FEED reports — so drawing it
-    // only when the list changes leaves it stale the moment an aircraft appears. A diagnostic
-    // proved exactly that: the table listed ACA123 while the map still read *"Nothing on your
-    // list is inside the fence at this moment"*. Drawing it at the END means the table is never
-    // delayed by the map, and the two always describe the same poll. Calling it is cheap:
-    // `lastPlot` skips the write whenever the picture has not changed.
-    this.renderWatchMap();
+    // It plots aircraft the FEED reports, so drawing it only when the list changes leaves it stale
+    // the moment an aircraft appears. Drawing it at the END means the table is never delayed by the
+    // map, and the two always describe the same poll. Calling it is cheap: `lastPlot` skips the
+    // write whenever the picture has not changed.
+    //
+    // ⚠️ AND IT IS THE ONE MAP — the circle, where you are, the airport codes and the aircraft you
+    // are watching, all in one picture. The empty-list path above draws it too, which the old
+    // second map did not do from here.
+    this.renderMap();
     // And the row's own status is brought up to date in the same pass, so the row and the map
     // cannot describe different moments — see `tickWatchStates`.
     this.tickWatchStates();
@@ -2872,6 +2866,13 @@ class Page {
       this.setStatus('Pick an airport above, or say where you are, and this fills in.', 'working');
       return;
     }
+    // 🔴 THE HISTORY CROSSES THE RE-AIM, OR MOVING THE DISTANCE WIPES EVERY FLIGHT PATH.
+    //
+    // This builds a NEW engine, and a new engine has no memory — so a reader who nudged the distance
+    // lost the trail behind every aircraft on the map. Measured by watching it happen: the map's
+    // paths vanished on the first `change` event. The tracks are handed over; the departure cooldown
+    // is not, deliberately — see `adoptTracks`.
+    const before = this.engine;
     this.engine = new DetectionEngine(
       {
         lat: at.lat,
@@ -2883,6 +2884,7 @@ class Page {
       },
       this.watchlist
     );
+    this.engine.adoptTracks(before);
     this.engine.setTypeRules(this.typeRules);
     this.stop();
     this.schedulePoll();
@@ -3744,7 +3746,17 @@ class Page {
   }
 
   private renderMap(): void {
-    const host = byId('locMap');
+    // 🔴 ONE MAP, AND IT IS THE ONE IN THE WATCHING SECTION. George, 22 Sep 2026: *"i think the
+    // circle in the first map can be added to the second map, then the first map can be
+    // removed"*. This method was the first map and drew into `#locMap` in step 3; the circle it
+    // drew has moved here, and `#locMap` no longer exists anywhere on the page.
+    //
+    // ⚠️ AND THAT IS WHY IT NO LONGER STANDS IN SOMEBODY ELSE'S FRAME. The second map used to be
+    // handed `lastFrame` — the zoom, the tile grid and the projection worked out here — precisely
+    // so two maps of one fence could not disagree about where a place is. With one map there is
+    // nothing to disagree with, so the frame is computed here and used here, and `lastFrame` is
+    // gone.
+    const host = byId('watchMap');
     if (!host) return;
     // The sentence belongs to the circle it describes, so it is written here, by the code
     // that draws it. Its absence was measurable: the element was on the page and empty.
@@ -3918,8 +3930,6 @@ class Page {
       x: lonToTile(lon, zoom) * TILE - left,
       y: latToTile(lat, zoom) * TILE - top,
     });
-    // Kept for the map of the aircraft being watched, which draws inside this same frame.
-    this.lastFrame = { VIEW_W, VIEW_H, tiles, spotOf, zoom };
     // 🔴 THE RING IS DRAWN AROUND THE AIM, AND "YOU" IS ONLY DRAWN WHEN IT IS YOU.
     //
     // `you` is the reader; `anchorPx` is where the fence is pointed. With a place known they
@@ -3931,6 +3941,9 @@ class Page {
     const fencePx = (this.radiusKm * 1000) / scale;
 
     let marks = '';
+    // The flight paths, kept apart from everything else so they are laid down FIRST — a path drawn
+    // over an aeroplane, or over the circle it is flying inside, is a path drawn over the answer.
+    let paths = '';
     // The nearest airports, small and grey, with a line back to the reader. A picked
     // one is skipped here and drawn in its own pass below, so it can never be drawn
     // twice or have something laid over it.
@@ -3968,12 +3981,76 @@ class Page {
         `y="${(spot.y + 3.5).toFixed(1)}">${escapeHtml(one.icao)}</text>`;
     }
 
+    // 🔴 THE AIRCRAFT YOU ARE WATCHING, DRAWN ON THE SAME MAP AS THE CIRCLE.
+    //
+    // George, 22 Sep 2026: *"i think the circle in the first map can be added to the second map,
+    // then the first map can be removed"*. So this is the second map's content — the aircraft the
+    // reader picked, at the positions the feed reported, each turned onto its track with the path
+    // it has flown behind it — and it is drawn here, in the frame computed above, because there is
+    // no longer a second map to hand that frame to.
+    //
+    // 🔴 AND THE CIRCLE IS WHAT MAKES THE TWO SETS OF SHAPES ONE PICTURE. The aircraft are filtered
+    // to the fence by the engine, so without the ring a reader cannot tell whether an empty map
+    // means nothing is flying or nothing is flying *here*. The ring is that answer.
+    const watching = (this.engine ? this.engine.snapshot() : []).filter((one) => this.isWatchedNow(one));
+    const placed = watching.filter(
+      (one): one is (typeof one & { lat: number; lon: number }) =>
+        typeof one.lat === 'number' && typeof one.lon === 'number'
+    );
+
+    // Drawn AFTER the airports and after the reader's own mark, so nothing is laid over a plane.
+    let planes = '';
+    let drawn = 0;
+    let traced = 0;
+    for (const one of placed.slice(0, 60)) {
+      const spot = spotOf(one.lat, one.lon);
+      // Off the view is off the view, and saying so below is better than clipping it silently.
+      if (spot.x < 0 || spot.x > VIEW_W || spot.y < 0 || spot.y > VIEW_H) continue;
+      drawn += 1;
+
+      // The flight path, from what this page has heard across polls — the feed reports only where
+      // an aircraft is now. Two points are needed to be a path: one point is a position, and
+      // joining a single point would draw a line that says something the page does not know.
+      const trail = one.trail ?? [];
+      if (trail.length >= 2) {
+        traced += 1;
+        const points = trail
+          .map((point) => spotOf(point.lat, point.lon))
+          .map((at) => `${at.x.toFixed(1)} ${at.y.toFixed(1)}`)
+          .join(' ');
+        paths += `<polyline class="locmap-trail" points="${points}" />`;
+      }
+
+      // 🔴 THE AEROPLANE, THEN ITS WHOLE NAME, THEN THE TAIL — and its nose on its trajectory.
+      // George, 21 Sep 2026: *"i want the map identifying planes by their full airplane name
+      // **Cirrus SR22T** like this"*; 22 Sep: *"the airplane should point towards its
+      // trajectory"*. The shape's nose is at the top of its box, which is north, and a true track
+      // is degrees clockwise from north, so a plain `rotate()` about the same origin as the
+      // translate puts the nose on the track. No heading from the feed means no rotation: the icon
+      // keeps pointing up, and the page does not assert the aircraft is heading north.
+      const info = describeType(one.type);
+      const name = info.code ? (info.known ? info.name : info.code) : 'type not transmitted';
+      const tail = (one.registration || '').toUpperCase().trim();
+      const what = [name, tail || null]
+        .filter((part): part is string => part !== null && part !== '')
+        .join(' · ');
+      const heading =
+        typeof one.trackDeg === 'number' ? ` rotate(${one.trackDeg.toFixed(1)})` : '';
+      planes +=
+        `<g class="locmap-plane-mark" transform="translate(${spot.x.toFixed(1)} ${spot.y.toFixed(1)})${heading}">` +
+        `<path class="locmap-plane-icon" transform="scale(0.72) translate(-12 -12)" d="${PLANE_PATH}" />` +
+        '</g>' +
+        `<text class="locmap-plane-label" x="${(spot.x + 11).toFixed(1)}" ` +
+        `y="${(spot.y + 4).toFixed(1)}">${escapeHtml(what)}</text>`;
+    }
+    const unplaced = watching.length - drawn;
+
     const described =
       this.airports.length === 1
         ? `the airport you picked (${this.airports[0].icao})`
         : `${this.airports.length} airports you picked (${this.chosenIcaos().join(', ')})`;
 
-    host.innerHTML =
+    const html =
       `<div class="locmap" style="width:${VIEW_W}px;height:${VIEW_H}px">` +
       tiles +
       `<svg class="locmap-over" viewBox="0 0 ${VIEW_W} ${VIEW_H}" role="img" ` +
@@ -3981,7 +4058,13 @@ class Page {
       (anchorPx
         ? `, a ${this.radiusKm} kilometre circle around ${you ? 'your position' : 'the airports you are watching'}`
         : '') +
-      `, and the nearest other airports marked with their codes">` +
+      `, the nearest other airports marked with their codes` +
+      (drawn === 0
+        ? ', and no aircraft on your list inside it at the moment'
+        : `, and ${drawn} aircraft you are watching, each pointing along its track with its flight path behind it`) +
+      `">` +
+      // Paths first, so nothing is ever drawn across one.
+      paths +
       (anchorPx
         ? `<circle class="locmap-fence" cx="${anchorPx.x.toFixed(1)}" cy="${anchorPx.y.toFixed(1)}" r="${fencePx.toFixed(1)}" />`
         : '') +
@@ -3995,163 +4078,37 @@ class Page {
             `<text class="locmap-you-label" x="${anchorPx.x.toFixed(1)}" ` +
             `y="${(anchorPx.y + 18).toFixed(1)}" text-anchor="middle">watched</text>`
           : '') +
+      planes +
       '</svg></div>' +
+      // 🔴 ONE NOTE, BECAUSE THERE IS ONE MAP. Two notes describing two maps is two places for the
+      // same fact to drift, and the sentence that used to sit here — *"in the same frame as the map
+      // above"* — described a map that no longer exists.
       '<p class="small muted locmap-note">The map is ' +
       '<a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, free and with no API key. ' +
       (anchor
-        ? `It is fitted so the ${this.radiusKm} km gap you chose is inside the frame, together with the airports you picked — a ring you can only see part of is no use as a distance.`
-        : 'It is fitted to the airports you picked.') +
-      ' The tiles are fetched by this site\'s own server rather than by your ' +
-      'browser, so the map service never sees you — the same way the flight feed is handled.' +
-      '</p>';
-
-    // The second map stands in the frame just computed, so it is drawn here rather than
-    // being asked to work the frame out again.
-    this.renderWatchMap();
-  }
-
-  /**
-   * 🔴 WHERE THE AIRCRAFT YOU ARE WATCHING ACTUALLY ARE.
-   *
-   * George, 21 Sep 2026: *"in the section [Everything you have picked, in one place …] i want
-   * to see the aircraft positions with a new map"*.
-   *
-   * The list says what is being watched and the table says what the feed can see; neither says
-   * WHERE. This plots them, in the frame the map above already chose — so the two maps cannot
-   * disagree, and an aircraft off the edge of one is off the edge of the other.
-   *
-   * It says plainly when it is empty, and why: a list with aircraft that have not reported a
-   * position yet would otherwise look like a map that had failed to draw.
-   */
-  private renderWatchMap(): void {
-    const host = byId('watchMap');
-    if (!host) return;
-
-    const frame = this.lastFrame;
-    if (!frame) {
-      // No frame means no map was drawn this pass — there is no centre and no airport yet, so
-      // there is nothing honest to plot either. A later pass fills it in.
-      host.innerHTML = '';
-      return;
-    }
-
-    const watching = (this.engine ? this.engine.snapshot() : []).filter((one) => this.isWatchedNow(one));
-    const placed = watching.filter(
-      (one): one is (typeof one & { lat: number; lon: number }) =>
-        typeof one.lat === 'number' && typeof one.lon === 'number'
-    );
-
-    const { VIEW_W, VIEW_H, tiles, spotOf } = frame;
-
-    // 🔴 THE MAP IS DRAWN WHETHER OR NOT ANYTHING IS ON IT. George, 21 Sep 2026: *"can you leave
-    // the map up even if there are no planes in the air"*. It used to be replaced by a paragraph
-    // the moment nothing was inside the fence, so the one thing the reader had asked for
-    // disappeared exactly when they went looking for it. A map with nothing on it is still a map,
-    // and it still shows where they are; the sentence explaining the emptiness belongs under it.
-    //
-    // Where "here" is, drawn before the aircraft so no aeroplane is ever covered by it.
-    const here = this.centre ?? this.point();
-    let marks = '';
-    // The flight paths, kept apart from the marks so they are laid down FIRST — a path drawn over
-    // an aeroplane would hide the thing the reader came to look at.
-    let paths = '';
-    if (here) {
-      const spot = spotOf(here.lat, here.lon);
-      marks +=
-        `<circle class="locmap-you" cx="${spot.x.toFixed(1)}" cy="${spot.y.toFixed(1)}" r="5" />` +
-        `<text class="locmap-you-label" x="${spot.x.toFixed(1)}" ` +
-        `y="${(spot.y + 18).toFixed(1)}" text-anchor="middle">${this.centre ? 'you' : 'watched'}</text>`;
-    }
-    let drawn = 0;
-    let traced = 0;
-    for (const one of placed.slice(0, 60)) {
-      const spot = spotOf(one.lat, one.lon);
-      // Off the view is off the view, and saying so below is better than clipping it silently.
-      if (spot.x < 0 || spot.x > VIEW_W || spot.y < 0 || spot.y > VIEW_H) continue;
-      drawn += 1;
-
-      // 🔴 THE FLIGHT PATH TRAILS THE AIRCRAFT, AND IT IS KEPT SEPARATE FROM THE MARKS SO IT IS
-      // DRAWN UNDER THEM. George, 22 Sep 2026: *"in the lower map are you able to trace its
-      // flight?"*. The feed reports only where an aircraft is now, so this is what the page has
-      // heard over the last few minutes — and it takes two points to be a path. One point is a
-      // position, and drawing a path of one point would say something the page does not know.
-      const trail = one.trail ?? [];
-      if (trail.length >= 2) {
-        traced += 1;
-        const points = trail
-          .map((point) => spotOf(point.lat, point.lon))
-          .map((at) => `${at.x.toFixed(1)} ${at.y.toFixed(1)}`)
-          .join(' ');
-        paths += `<polyline class="locmap-trail" points="${points}" />`;
-      }
-
-      // 🔴 THE AEROPLANE, THEN WHAT IT IS, THEN WHICH ONE IT IS — AND WHAT IT IS IS ITS WHOLE
-      // NAME, NOT ITS FOUR-LETTER CODE. George, 21 Sep 2026: *"i want the map identifying planes
-      // by their full airplane name **Cirrus SR22T** like this"*. The type list has always named
-      // aircraft in full (*"Boeing 737 MAX 8"*); the map was the last place still speaking in
-      // codes. A code this site cannot name is shown as itself rather than dressed up, and a
-      // value the feed did not transmit is named as missing rather than invented.
-      const info = describeType(one.type);
-      const name = info.code ? (info.known ? info.name : info.code) : 'type not transmitted';
-      const tail = (one.registration || '').toUpperCase().trim();
-      const what = [name, tail || null]
-        .filter((part): part is string => part !== null && part !== '')
-        .join(' · ');
-      // 🔴 AND IT POINTS WHERE IT IS GOING. George, 22 Sep 2026: *"the icon is always an airplane
-      // pointing up, but the airplane should point towards its trajectory"*. The shape's nose is at
-      // the top of its box — which is north — and a true track is degrees clockwise from north, so
-      // a plain `rotate()` on the same origin as the translate puts the nose on the trajectory. No
-      // heading from the feed means no rotation: the icon keeps pointing up, and the page does not
-      // pretend the aircraft is heading north.
-      const heading =
-        typeof one.trackDeg === 'number' ? ` rotate(${one.trackDeg.toFixed(1)})` : '';
-      marks +=
-        `<g class="locmap-plane-mark" transform="translate(${spot.x.toFixed(1)} ${spot.y.toFixed(1)})${heading}">` +
-        `<path class="locmap-plane-icon" transform="scale(0.72) translate(-12 -12)" d="${PLANE_PATH}" />` +
-        '</g>' +
-        `<text class="locmap-plane-label" x="${(spot.x + 11).toFixed(1)}" ` +
-        `y="${(spot.y + 4).toFixed(1)}">${escapeHtml(what)}</text>`;
-    }
-
-    const unplaced = watching.length - drawn;
-    const html =
-      `<div class="locmap" style="width:${VIEW_W}px;height:${VIEW_H}px">` +
-      tiles +
-      `<svg class="locmap-over" viewBox="0 0 ${VIEW_W} ${VIEW_H}" role="img" ` +
-      `aria-label="${escapeHtml(
-        drawn === 0
-          ? 'A map of the area you are watching, with no aircraft on it at the moment'
-          : `${drawn} aircraft you are watching, plotted where the feed last reported them, ` +
-            'each pointing along its track with its recent flight path behind it'
-      )}">` +
-      paths +
-      marks +
-      '</svg></div>' +
-      '<p class="small muted locmap-note">' +
+        ? `It is fitted so the ${this.radiusKm} km gap you chose is inside the frame, together with the airports you picked — a ring you can only see part of is no use as a distance. `
+        : 'It is fitted to the airports you picked. ') +
       (drawn === 0
         ? 'Nothing you are watching is inside the fence at this moment, so the map is drawn with ' +
           'no aircraft on it — it stays where it is, and one appears the moment the feed sees it. '
         : 'Every aircraft on your list and inside the fence, named in full and drawn where the ' +
           'feed last reported it. ') +
-      // Said only when a path is actually on the map — a legend for a line that is not there is
-      // worse than no legend, because it sends the reader looking for something absent.
       (traced > 0
         ? 'The line behind an aircraft is the path it has flown in the last few minutes, drawn ' +
           'from what this page has heard — the feed reports only where a plane is now. '
         : '') +
-      'In the same frame as the map above, so the two agree about where things are. ' +
       (unplaced > 0
         ? `${unplaced} ${unplaced === 1 ? 'is' : 'are'} on the list without a reported position ` +
-          'yet, so they are listed and not plotted.'
+          'yet, so they are listed and not plotted. '
         : '') +
+      'The tiles are fetched by this site\'s own server rather than by your ' +
+      'browser, so the map service never sees you — the same way the flight feed is handled.' +
       '</p>';
 
-    // 🔴 NOTHING CHANGED, SO NOTHING IS WRITTEN — WHICH IS ALSO HOW AN EMPTY MAP STOPS COSTING
-    // ANYTHING. George, 21 Sep 2026: *"can you stop updating when there are no plans in the
-    // air?"*. With no aircraft the markup above is identical on every poll, so this comparison
-    // holds and the map is left exactly as it is: no tiles re-fetched, no marks rebuilt, no
-    // flicker. It begins changing again by itself the moment an aircraft appears, because then
-    // the markup differs.
+    // 🔴 NOTHING CHANGED, SO NOTHING IS WRITTEN — which is also how an empty map stops costing
+    // anything. George, 21 Sep 2026: *"can you stop updating when there are no plans in the air?"*.
+    // With no aircraft the markup above is identical on every poll, so this comparison makes that
+    // free. The guard moved here with the map: it used to sit in the second map's own method.
     if (html !== this.lastPlot) {
       this.lastPlot = html;
       host.innerHTML = html;
@@ -4166,7 +4123,7 @@ class Page {
    * filled in. A ResizeObserver sees all of them.
    */
   private bindMapResize(): void {
-    const host = byId('locMap');
+    const host = byId('watchMap');
     if (!host || typeof ResizeObserver === 'undefined') return;
     let last = host.clientWidth;
     new ResizeObserver(() => {
@@ -4463,7 +4420,12 @@ class Page {
   private renderDistance(): void {
     const hasCentre = this.centre !== null;
     const shown = hasCentre || this.airports.length > 0;
-    for (const id of ['radiusHead', 'radiusButtons', 'locMap']) {
+    // ⚠️ THE MAP IS NOT IN THIS LIST ANY MORE. It used to be hidden and shown with the distance
+    // controls, because it lived in step 1 beside them and then in step 3 at the end of the type
+    // list. It now lives in step 4, whose own gating decides whether it can be seen at all, so a
+    // `hidden` flag set here would fight it — and would leave the map invisible for good the first
+    // time a reader reached step 4 with no place picked yet.
+    for (const id of ['radiusHead', 'radiusButtons']) {
       const element = byId(id);
       if (element) element.hidden = !shown;
     }

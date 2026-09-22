@@ -517,6 +517,30 @@ export class DetectionEngine {
   }
 
   /**
+   * 🔴 TAKE OVER WHAT THE PREVIOUS ENGINE REMEMBERED, SO A FLIGHT PATH SURVIVES A RE-AIM.
+   *
+   * George, 22 Sep 2026. Moving the distance slider calls `rearm()`, which builds a NEW engine — and
+   * a new engine has no history, so every flight path on the map was thrown away by a reader who
+   * nudged the distance. That was invisible while the only thing a track held was a phase and a
+   * position; it became visible the moment a trail was drawn.
+   *
+   * What crosses is what was REMEMBERED — the tracks in flight, with their last position and the
+   * path behind them — and not what was JUDGED. The departure cooldown is deliberately left behind:
+   * a re-aim is a new question about a new area, and a fresh cooldown there can only ever produce a
+   * notification the reader would rather have than miss.
+   *
+   * The tracks are shallow-copied. That is enough and it is worth saying why: `appendTrail` builds a
+   * NEW array for every point it adds, so the two engines can share one path without either being
+   * able to alter it under the other.
+   */
+  adoptTracks(previous: DetectionEngine | null): void {
+    if (!previous) return;
+    for (const track of previous.snapshot()) {
+      this.tracks.set(track.hex, { ...track });
+    }
+  }
+
+  /**
    * Take one poll and return the departures it proves.
    *
    * `now` is a parameter rather than `Date.now()` because the cooldown is the

@@ -260,22 +260,17 @@
         <p class="small muted" id="typeNote">Loading what the feed has been showing…</p>
 
         <!--
-          🔴 THE MAP, WHERE A FORM USED TO BE. George, 21 Sep 2026: *"### Or one aircraft by name
-          i dont want this, just show a map"*.
+          🔴 THE MAP THAT WAS HERE IS GONE — THERE IS ONE MAP ON THIS PAGE NOW.
 
-          The by-name form is gone — heading, box, button, the note under it and the answer line
-          that went with it — and the map now sits at the end of this step, under the type list,
-          which is where the reader is standing when they have picked what they care about.
+          George, 22 Sep 2026: *"i think the circle in the first map can be added to the second map,
+          then the first map can be removed"*.
 
-          It was in step 1 with the distance buttons. It is the SAME map, moved rather than
-          copied: two maps on one page would drift apart, and there is one fence to draw. The
-          sentence above it and the button beside it belong to the map — they say what its circle
-          is centred on and offer the one click that moves that centre onto the reader — so they
-          travelled with it. Nothing was changed in how any of it works.
+          So the circle travelled to the map in the next step, which draws it itself now, and this
+          one — its sentence, its button and its tiles — was removed rather than left behind. Two
+          maps of the same fence were two things to keep in step, and the second map could only
+          stand in the first map's frame, which is why removing this one is also what lets the
+          survivor work the frame out on its own. Nothing else about picking a type changed.
         -->
-        <p class="small muted" id="fenceFrom"></p>
-        <button type="button" class="ghost" id="fenceFromLocate" data-ga="fence-from-locate" hidden>Measure from my location</button>
-        <div id="locMap"></div>
       </section>
 
       <!--
@@ -296,18 +291,25 @@
         <ul class="watch-list" id="watchList"></ul>
 
         <!--
-          🔴 WHERE THE AIRCRAFT ON THE LIST ACTUALLY ARE. George, 21 Sep 2026: *"in the section
-          [Everything you have picked, in one place…] i want to see the aircraft positions with a
-          new map"*.
+          🔴 THE ONE MAP, AND THE CIRCLE IS DRAWN ON IT.
 
-          The list says what you are watching and the table says what the feed can see; neither
-          says WHERE. This map draws them at the positions the feed reported.
+          George, 22 Sep 2026: *"i think the circle in the first map can be added to the second
+          map, then the first map can be removed"*.
 
-          It is drawn inside the SAME frame as the map in step 3 — the frame is computed once,
-          by the map that already computes it, and this one stands in it. Two maps zoomed
-          differently are two maps that disagree about where a place is, and recomputing the fit
-          here would be a second copy of the same arithmetic.
+          There were two maps of the same fence: one under the type list, and this one, which
+          could only be drawn INSIDE the other's frame — it borrowed the zoom and the tile grid so
+          the two could not disagree about where a place is. That is why they are one now. The
+          surviving map works its own frame out, draws the circle itself, and carries everything
+          the two used to show between them: the distance circle, where you are (or which airports
+          the fence is aimed at), the airport codes, and the aircraft you are watching at the
+          positions the feed reported, each turned onto its track with its flight path behind it.
+
+          The sentence that says what the circle is centred on, and the one click that moves that
+          centre onto the reader, belong to the circle — so they sit directly above the map that
+          draws it, exactly as they did before.
         -->
+        <p class="small muted" id="fenceFrom"></p>
+        <button type="button" class="ghost" id="fenceFromLocate" data-ga="fence-from-locate" hidden>Measure from my location</button>
         <div id="watchMap"></div>
       </section>
 

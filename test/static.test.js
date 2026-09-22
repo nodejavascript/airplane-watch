@@ -1167,72 +1167,88 @@ test('the by-name form is GONE, and its code went with it', () => {
   assert.match(app, /private removeWatch\(/, 'a named aircraft already on the list can no longer be cleared');
 });
 
-test('the map is in the aircraft step, drawn, and there is exactly ONE of it', () => {
-  // 🔴 The map was MOVED rather than copied — George asked for it where the form was. Two
-  // maps on one page would drift apart, and there is one fence to draw. This guard exists
-  // because the first attempt at the move left a second copy behind, which is the kind of
-  // mistake a reader sees as two maps disagreeing.
+test('there is ONE map, in the watching section, with the circle drawn on it', () => {
+  // 🔴 George, 22 Sep 2026: *"i think the circle in the first map can be added to the second map,
+  // then the first map can be removed"*.
+  //
+  // This guard is the inverse of the one it replaces. That one asserted the map was in the aircraft
+  // step and that its sentence and its button had travelled there with it out of the distance step.
+  // The travelling is still worth holding — the sentence belongs to the circle it describes — but
+  // the step is now the watching section, because that is where the one surviving map lives.
   const html = read(SITE, 'index.html');
 
-  assert.equal((html.match(/id="locMap"/g) ?? []).length, 1,
-    'the page has more than one map element, so two of them can disagree');
+  // 🔴 THE FIRST MAP IS GONE, ELEMENT AND ALL. An id left behind is worse than a missing one: the
+  // code would have an element to draw into that nothing on the page can see.
+  assert.equal((html.match(/id="locMap"/g) ?? []).length, 0,
+    'the removed map is still on the page, so its drawing has somewhere invisible to go');
+  assert.equal((html.match(/id="watchMap"/g) ?? []).length, 1,
+    'the page does not have exactly one map, so two of them can disagree');
   assert.equal((html.match(/id="fenceFrom"/g) ?? []).length, 1, 'the fence sentence exists more than once');
   assert.equal((html.match(/id="fenceFromLocate"/g) ?? []).length, 1, 'the locate button exists more than once');
 
-  // Under the aircraft list, inside step 3 — not left behind in the distance step.
-  const typeListAt = html.indexOf('id="typeList"');
-  const mapAt = html.indexOf('id="locMap"');
+  // In the watching section, below the list it plots, with the sentence about the circle and the
+  // button that moves it directly above the map that draws it.
   const step4At = html.indexOf('id="step-4"');
-  assert.ok(typeListAt > -1 && mapAt > typeListAt, 'the map was not moved under the aircraft list');
-  assert.ok(mapAt < step4At, 'the map landed past the end of the step it belongs to');
-  // The sentence and the button belong to the map and travel with it; left behind, the
-  // distance step would describe a circle that is no longer drawn there.
-  assert.ok(html.indexOf('id="fenceFrom"') > typeListAt,
-    'the fence sentence stayed in the distance step without the map it describes');
-  assert.ok(html.indexOf('id="fenceFromLocate"') > typeListAt,
-    'the locate button stayed in the distance step without the map it moves');
+  const listAt = html.indexOf('id="watchList"');
+  const sentenceAt = html.indexOf('id="fenceFrom"');
+  const buttonAt = html.indexOf('id="fenceFromLocate"');
+  const mapAt = html.indexOf('id="watchMap"');
+  assert.ok(mapAt > step4At, 'the map is not in the watching section');
+  assert.ok(mapAt > listAt, 'the map was put above the list it plots');
+  assert.ok(sentenceAt > listAt && sentenceAt < mapAt,
+    'the sentence describing the circle is not directly above the map that draws it');
+  assert.ok(buttonAt > listAt && buttonAt < mapAt,
+    'the button that moves the circle is not with the sentence it belongs to');
+  // And nothing of it is left behind among the type rows it used to sit under.
+  assert.ok(mapAt > html.indexOf('id="typeList"'),
+    'a map is still drawn among the type rows it used to sit under');
 
-  // And the code still draws it, with no canvas left unclaimed.
-  assert.match(readSrc('src/app.ts'), /private renderMap\(\): void/, 'renderMap has gone');
+  // The code still draws it, and now draws the circle itself.
+  assert.match(appJs, /renderMap\(\) \{/, 'renderMap has gone');
+  assert.match(appJs, /locmap-fence/, 'the circle is no longer drawn on the one map');
 });
 
-test('the watching section has its own map, drawn in the OTHER map\'s frame', () => {
-  // 🔴 George, 21 Sep 2026: *"in the section [Everything you have picked …] i want to see the
-  // aircraft positions with a new map"*. Two maps zoomed differently would disagree about
-  // where a place is, so the frame is computed once by the map that already computes it.
+test('the one map draws the circle AND the aircraft, with no second map to keep in step', () => {
+  // 🔴 George, 22 Sep 2026: *"i think the circle in the first map can be added to the second map,
+  // then the first map can be removed"*.
+  //
+  // The guard this replaces required the second map NOT to work out its own zoom, and to be handed
+  // the first map's frame instead, so the two could not disagree about where a place is. That was
+  // the right rule while there were two maps — and it is exactly the thing that had to go. With one
+  // map the sharing is not a virtue but the coupling itself, so this asserts the merge instead: ONE
+  // renderer, which works out its own frame and draws both the circle and the aircraft.
   const html = read(SITE, 'index.html');
-  const app = readSrc('src/app.ts');
-
-  assert.match(html, /<div id="watchMap"><\/div>/, 'the map of positions has no place on the page');
-  assert.equal((html.match(/id="watchMap"/g) ?? []).length, 1, 'the map of positions exists more than once');
+  assert.match(html, /<div id="watchMap"><\/div>/, 'the map has no place on the page');
+  assert.equal((html.match(/id="watchMap"/g) ?? []).length, 1, 'the map exists more than once');
   assert.ok(html.indexOf('id="watchMap"') > html.indexOf('id="step-4"'),
-    'the map of positions was not put in the watching section');
+    'the map was not put in the watching section');
   assert.ok(html.indexOf('id="watchMap"') > html.indexOf('id="watchList"'),
-    'the map of positions was put above the list it plots');
+    'the map was put above the list it plots');
 
-  assert.match(app, /private renderWatchMap\(\): void/, 'renderWatchMap has gone');
-  assert.match(app, /this\.renderWatchMap\(\);/, 'the map of positions is never drawn');
-  assert.match(app, /this\.lastFrame = \{/, 'the frame is never kept for the second map to stand in');
+  // The second map is gone — the method, the call to it, and the frame it used to be handed. The
+  // comments in the source may still discuss the old frame as history; the SHIPPED code must not
+  // mention it at all, which is why this is asked of the stripped bundle.
+  assert.equal(/renderWatchMap/.test(appJs), false, 'the second map is still in the shipped code');
+  assert.equal(/lastFrame/.test(appJs), false,
+    'the shared frame is still in the shipped code, so the map may still be standing in it');
 
-  // 🔴 IT MUST NOT WORK OUT ITS OWN ZOOM. A second `fittest()` is a second copy of the same
-  // arithmetic, and two copies drift — which is the fault that has cost this page more than
-  // once. This asserts the sharing rather than trusting it.
-  const start = app.indexOf('private renderWatchMap');
-  // The next method declaration is the end of this one. Slicing to a NAMED method that happens
-  // to be declared earlier in the class yields an empty string, and a guard that checks an
-  // empty body passes for the wrong reason — which it did, on this very assertion, once.
-  const next = app.indexOf('\n  private ', start + 1);
-  const body = next > start ? app.slice(start, next) : '';
-  assert.ok(body.length > 200, 'the renderWatchMap body could not be isolated, so this check is vacuous');
-  assert.equal(/fittest\(/.test(body), false, 'the second map computes its own zoom, so the two maps can disagree');
-  assert.equal(/156543/.test(body), false, 'the second map computes its own scale, so the two maps can disagree');
+  const body = method('renderMap() {', 'bindMapResize() {');
+  assert.ok(body.length > 500, 'the map body could not be isolated, so this check is vacuous');
 
-  // 🔴 AND THE MAP STAYS UP WHEN THERE IS NOTHING ON IT. George, 21 Sep 2026: *"can you leave
-  // the map up even if there are no planes in the air"*. So the empty case must not return early
-  // with a paragraph where the map should be: the map is drawn either way and the sentence
-  // explaining the emptiness goes underneath it.
+  // It draws the circle, and it draws the aircraft — that is what adding the circle to the second
+  // map means.
+  assert.match(body, /locmap-fence/, 'the circle is not drawn on the one map');
+  assert.match(body, /locmap-plane-mark/, 'the aircraft are not drawn on the one map');
+  // And it works its own frame out, because there is nothing left to share it with.
+  assert.match(body, /fittest\(/, 'the one map does not compute its own zoom');
+
+  // 🔴 AND THE MAP STAYS UP WHEN THERE IS NOTHING ON IT. George, 21 Sep 2026: *"can you leave the
+  // map up even if there are no planes in the air"*. The empty case must not return early with a
+  // paragraph where the map should be: the map is drawn either way, the circle is still on it, and
+  // the sentence explaining the emptiness goes underneath.
   assert.match(body, /Nothing you are watching is inside the fence/i,
-    'the empty position map says nothing about why it is empty');
+    'the empty map says nothing about why it is empty');
+  assert.match(body, /it stays where it is/i, 'the empty map does not say that it will stay');
   assert.equal(/if \(watching\.length === 0\) \{\s*const empty/.test(body), false,
     'the map is replaced by a paragraph when nothing is in the air, instead of being left up');
   // 🔴 AND NOTHING IS WRITTEN WHEN NOTHING HAS CHANGED. George, 21 Sep 2026: *"can you stop
@@ -1321,10 +1337,10 @@ test('the map mark is an aeroplane, then the type, then the tail', () => {
   // type, then the tail"*.
   const app = readSrc('src/app.ts');
   const css = read(SITE, 'styles.css');
-  const start = app.indexOf('private renderWatchMap');
+  const start = app.indexOf('private renderMap');
   const end = app.indexOf('\n  private ', start + 1);
   const body = app.slice(start, end);
-  assert.ok(body.length > 200, 'the renderWatchMap body could not be isolated, so this check is vacuous');
+  assert.ok(body.length > 200, 'the renderMap body could not be isolated, so this check is vacuous');
 
   assert.match(app, /const PLANE_PATH =/, 'the aeroplane shape has gone');
   assert.match(body, /PLANE_PATH/, 'the mark is not drawn from the aeroplane shape');
@@ -1366,7 +1382,7 @@ test('the map mark is an aeroplane, then the type, then the tail', () => {
  * because nothing tells the reader to look.
  *
  * 🔴 AND THE SLICE MUST HOLD EXACTLY ONE METHOD. A byte limit was tried first and it was a guess
- * that had to be re-guessed: `renderWatchMap` is 8,358 characters of emitted code and the limit was
+ * that had to be re-guessed: `renderMap` is 8,358 characters of emitted code and the limit was
  * 8,000, so a CORRECT boundary was rejected. Counting method definitions is exact instead — if the
  * end marker is not the very next method, the ones it skipped appear inside the slice and the count
  * is not zero. The pattern demands a definition (indented four spaces, ending `) {`), so a call
@@ -1495,7 +1511,7 @@ test('90 · the rows on the list are the ones being watched, and each says how t
  * that points NORTH when the feed said nothing, and a "flight path" joined from a single point.
  */
 test('91 · the aeroplane points along its track, and points nowhere in particular when there is none', () => {
-  const body = method('renderWatchMap() {', 'bindMapResize() {');
+  const body = method('renderMap() {', 'bindMapResize() {');
   assert.ok(body.length > 500, 'the map body could not be isolated, so this check is vacuous');
 
   // 🔴 ROTATION IS DRIVEN BY THE FEED'S OWN TRACK, not by a hard-coded direction and not by the
@@ -1515,7 +1531,7 @@ test('91 · the aeroplane points along its track, and points nowhere in particul
 });
 
 test('92 · a flight path is drawn, under the aircraft, only where there is a path', () => {
-  const body = method('renderWatchMap() {', 'bindMapResize() {');
+  const body = method('renderMap() {', 'bindMapResize() {');
 
   // A path takes TWO points. One point is a position, and joining one point would draw a line that
   // says something the page does not know.
@@ -1538,4 +1554,51 @@ test('92 · a flight path is drawn, under the aircraft, only where there is a pa
   assert.match(css, /\.locmap-trail\s*\{/, 'the path has no styling');
   assert.match(css, /\.locmap-trail\s*\{[^}]*stroke-linejoin:\s*round/,
     'the path has no round joins, so a turn grows a spike at the corner');
+});
+
+/* ------------------- part 17 · the memory the page must not throw away --- */
+
+/**
+ * 🔴 GEORGE, 22 SEP 2026, found while merging the maps: *"i think the circle in the first map can be
+ * added to the second map, then the first map can be removed"*.
+ *
+ * Moving the distance slider calls `rearm()`, and `rearm()` builds a NEW `DetectionEngine`. A new
+ * engine has no history — so a reader who nudged the distance lost the trail behind every aircraft
+ * on the map. It was invisible for as long as a track held only a phase and a position, and it became
+ * visible the moment a flight path was drawn. The fix is a handover, and this holds it in place.
+ */
+test('93 · a re-aim hands the remembered tracks over instead of starting from nothing', () => {
+  assert.match(appJs, /adoptTracks\(/, 'the engine has no way to carry what it remembers across a re-aim');
+  assert.match(stripJs(read(SITE, 'detect.js')), /adoptTracks\(previous/,
+    'the shipped engine does not implement the handover');
+
+  const body = method('rearm() {', 'updateSteps() {');
+  assert.ok(body.length > 200, 'the rearm body could not be isolated, so this check is vacuous');
+  // The engine being replaced has to be kept BEFORE it is replaced, or there is nothing to hand over.
+  const kept = body.indexOf('const before = this.engine');
+  const replaced = body.indexOf('this.engine = new DetectionEngine(');
+  assert.ok(kept > -1, 'the re-aim does not keep the engine it is replacing');
+  assert.ok(replaced > kept, 'the engine is replaced before it is kept, so the handover has nothing to pass');
+  assert.match(body, /this\.engine\.adoptTracks\(before\)/,
+    'the re-aim builds a new engine and never hands it the tracks, so every flight path is lost');
+
+  // 🔴 AND THE HANDOVER IS READ FROM THE SHIPPED ENGINE, NOT FROM THE SOURCE. TypeScript erases the
+  // type annotations when it emits, so `adoptTracks(previous: DetectionEngine | null): void` is
+  // `adoptTracks(previous)` in the file the browser runs — a pattern taken from the source matches
+  // nothing there and reports a failure against code that is correct. Sliced from `adoptTracks` to
+  // the method after it, so the window is the handover and not whatever happens to follow.
+  const engine = stripJs(read(SITE, 'detect.js'));
+  const from = engine.indexOf('adoptTracks(previous) {');
+  const to = engine.indexOf('ingest(', from + 1);
+  assert.ok(from > -1 && to > from, 'the handover could not be isolated, so this check is vacuous');
+  const handover = engine.slice(from, to);
+  assert.match(handover, /this\.tracks\.set\(track\.hex/,
+    'the handover does not copy the tracks it is supposed to carry');
+
+  // 🔴 AND THE COOLDOWN IS NOT CARRIED. A re-aim is a new question about a new area, and a fresh
+  // cooldown there can only produce a notification the reader would rather have than miss. Asked of
+  // the handover alone — the old form of this check searched a fixed distance past the method name
+  // and could reach into the next method entirely.
+  assert.equal(/firedAt/.test(handover), false,
+    'the handover carries the departure cooldown as well, which would silence a real departure');
 });

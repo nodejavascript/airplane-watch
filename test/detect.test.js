@@ -155,11 +155,83 @@ test('one long climb fires once, not once per poll', () => {
     const later = engine.ingest([{ ...climb, alt_baro: 2500 + step * 900 }], 1_000_000 + step * 10_000);
     assert.equal(later.length, 0, `poll ${step} fired again`);
   }
+});
 
-  // Past the cooldown it may fire once more — an aircraft that lands and leaves
-  // again inside one session is a second departure, not a duplicate.
-  const after = engine.ingest([{ ...climb, alt_baro: 12_000 }], 1_000_000 + 21 * 60_000);
-  assert.equal(after.length, 1);
+/**
+ * 🔴 REPAIRED 22 SEP 2026, AND IT WAS THE TEST THAT WAS WRONG RATHER THAN THE RULE.
+ *
+ * The assertion that used to end the test above read: *"Past the cooldown it may fire once more — an
+ * aircraft that lands and leaves again inside one session is a second departure, not a duplicate"* —
+ * and then advanced twenty-one minutes and expected a departure from an aircraft it had never put
+ * back on the ground. The rule, correctly, answered "already airborne". An aircraft that never lands
+ * has not departed twice, so the test had been red since the day it was written and the sentence in
+ * its own comment described the case it was not setting up.
+ *
+ * The cooldown only ever suppresses an INFERRED departure — a confirmed ground-to-air transition
+ * cannot repeat within one departure — so the case worth testing is an aircraft whose phase is
+ * UNKNOWN: a position with no altitude, then a climb. That is real transponder behaviour, and it is
+ * the only way the cooldown can be reached twice by the same aircraft.
+ */
+test('past the cooldown the same climb may fire again, and not before', () => {
+  const engine = new DetectionEngine(options);
+  const noAltitude = { hex: 'abc123', lat: 43.18, lon: -79.93 };
+  const climbing = { ...noAltitude, alt_baro: 2500, baro_rate: 2000 };
+
+  engine.ingest([noAltitude], 1_000_000);
+  const first = engine.ingest([climbing], 1_000_010);
+  assert.equal(first.length, 1, 'the first inferred climb did not fire at all');
+  assert.equal(first[0].verdict, 'inferred');
+
+  // The same situation again, inside the cooldown: silent.
+  engine.ingest([noAltitude], 1_000_020);
+  assert.equal(engine.ingest([climbing], 1_000_030).length, 0, 'it fired again inside the cooldown');
+
+  // Past the cooldown it may fire once more. The cooldown limits repetition; it is not a silence.
+  const after = 1_000_030 + options.cooldownMs + 1;
+  engine.ingest([noAltitude], after);
+  assert.equal(engine.ingest([climbing], after + 10).length, 1, 'the cooldown never expires');
+});
+
+test('an aircraft that lands and leaves again IS a second departure', () => {
+  // The other half of what the old test was reaching for, and the half that needs the ground — which
+  // is the part the old test never provided.
+  const engine = new DetectionEngine(options);
+  const ground = { hex: 'abc123', alt_baro: 'ground', gs: 0, lat: 43.18, lon: -79.93 };
+  const climbing = { hex: 'abc123', alt_baro: 2500, baro_rate: 2000, lat: 43.18, lon: -79.93 };
+
+  engine.ingest([ground], 1_000_000);
+  const first = engine.ingest([climbing], 1_000_010);
+  assert.equal(first.length, 1);
+  assert.equal(first[0].verdict, 'confirmed');
+
+  // Down and up again — inside the cooldown, because a confirmed departure is not suppressed by it.
+  // One departure cannot repeat, but two departures can happen.
+  engine.ingest([ground], 1_000_020);
+  const second = engine.ingest([climbing], 1_000_030);
+  assert.equal(second.length, 1, 'a second real departure inside the cooldown was suppressed');
+  assert.equal(second[0].verdict, 'confirmed');
+});
+
+test('a re-aim keeps the flight paths, and does not keep the cooldown', () => {
+  // 🔴 George, 22 Sep 2026, found while merging the maps: moving the distance builds a NEW engine, so
+  // every trail on the map was thrown away by nudging the slider.
+  const first = new DetectionEngine(options);
+  first.ingest([{ hex: 'abc123', lat: 43.18, lon: -79.93, track: 90 }], 1_000_000);
+  first.ingest([{ hex: 'abc123', lat: 43.19, lon: -79.94 }], 1_000_010);
+
+  const second = new DetectionEngine({ ...options, radiusNm: 25 });
+  second.adoptTracks(first);
+
+  const carried = second.stateOf('abc123');
+  assert.ok(carried, 'the aircraft was not carried across the re-aim');
+  assert.deepEqual(carried.trail?.map((point) => point.lat), [43.18, 43.19],
+    'the flight path did not survive the re-aim');
+  assert.equal(carried.trackDeg, 90, 'the heading did not survive the re-aim');
+
+  // And a null previous engine — the first arm of the page's life — is not an error.
+  const cold = new DetectionEngine(options);
+  cold.adoptTracks(null);
+  assert.equal(cold.snapshot().length, 0);
 });
 
 test('a CONFIRMED departure is not suppressed by a recent inference', () => {

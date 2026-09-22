@@ -1311,17 +1311,55 @@ test('the map draws the reader, the circle and the airport codes', async () => {
   await answerStep1(page);
   await page.waitForSelector('#typeList .typerow');
 
-  assert.equal(await page.$$eval('#locMap svg', (items) => items.length), 0, 'a map is drawn before the reader says where they are');
+  // 🔴 THE MAP IS CENTRED ON SOMETHING FROM THE START, AND IT SAYS WHAT.
+  //
+  // A brand-new visitor is given one airport (`DEFAULT_AIRPORT`) so the page has an anchor to
+  // measure from, so a map IS drawn before the reader says where they are — the assertion that used
+  // to stand here, that there is no map at all, was false from the day it was written, and it is one
+  // of the reasons this test was failing. What matters is not whether a map exists but WHAT IT IS
+  // CENTRED ON, and the page keeps those two apart on purpose: the reader is `locmap-you`, and an
+  // anchor that is not the reader is `locmap-anchor`, because a dot labelled "you" on a map that
+  // does not know where you are is the page inventing a fact.
+  await page.waitForSelector('#watchMap svg', { state: 'attached', timeout: 10_000 });
+  assert.equal(await page.$$eval('#watchMap .locmap-you', (items) => items.length), 0,
+    'the map claims to know where the reader is before they have said');
+  assert.equal(await page.$$eval('#watchMap .locmap-anchor', (items) => items.length), 1,
+    'the map is not centred on the airport it is measuring from');
 
   await pickPlace(page);
-  await page.waitForSelector('#locMap svg', { timeout: 10000 });
+  // ⚠️ ATTACHED, NOT VISIBLE. This map is in the watching section, which is hidden until the reader
+  // walks the steps — and this test never does. Waiting for visibility here waits for something
+  // that never happens, and would time out against a page that is working.
+  await page.waitForFunction(() => !!document.querySelector('#watchMap .locmap-you'), null,
+    { timeout: 10_000 });
 
-  assert.ok(await page.$$eval('#locMap .locmap-you', (items) => items.length) >= 1, 'the reader is not on the map');
-  assert.ok(await page.$$eval('#locMap .locmap-ring', (items) => items.length) >= 2, 'the distance rings are missing');
-  const labels = await page.$$eval('#locMap .locmap-label', (items) => items.map((i) => i.textContent));
+  assert.equal(await page.$$eval('#watchMap .locmap-you', (items) => items.length), 1,
+    'the reader is not on the map once they have said where they are');
+  assert.equal(await page.$$eval('#watchMap .locmap-anchor', (items) => items.length), 0,
+    'the map is still centred on an airport after the reader said where they are');
+
+  // 🔴 ONE CIRCLE, NOT A LADDER OF RINGS. The map used to draw two or more distance rings; it now
+  // draws the single circle for the distance the reader chose, and the guard for the rings was
+  // asking for something that had already been removed — which is why it had been failing. The
+  // circle is what the whole merge was for, so it is checked properly now.
+  assert.equal(await page.$$eval('#watchMap .locmap-fence', (items) => items.length), 1,
+    'the distance circle is not on the map, or is on it more than once');
+
+  const labels = await page.$$eval('#watchMap .locmap-label', (items) => items.map((i) => i.textContent));
   assert.ok(labels.includes('CYHM'), `the airport codes are not on the map: ${labels.join(' ')}`);
-  assert.equal(await page.$$eval('#locMap [src], #locMap iframe', (items) => items.length), 0,
-    'the map loads something from somewhere instead of drawing it');
+
+  // 🔴 DRAWN, NOT EMBEDDED — and the honest test of that is where the images come FROM, not whether
+  // there are any. This page paints its own tiles and fetches them through its own server, so the
+  // old assertion that the map contains no `[src]` at all could only ever pass while the map was
+  // empty; it was failing for that reason. What must never happen is a tile or a frame loaded from
+  // somebody else's host, which is what "embedded" would mean.
+  const sources = await page.$$eval('#watchMap [src]', (nodes) =>
+    nodes.map((node) => node.getAttribute('src') || '')
+  );
+  const foreign = sources.filter((src) => /^https?:|^\/\//i.test(src));
+  assert.equal(foreign.length, 0, `the map loads from another host: ${foreign.join(', ')}`);
+  assert.equal(await page.$$eval('#watchMap iframe', (items) => items.length), 0,
+    'the map is an embed rather than a drawing');
 
   await context.close();
 });
@@ -1709,34 +1747,54 @@ test('the never-caught choice names the aircraft that have never been seen here'
  * that lists the aircraft AND that there is still exactly one of it — the first attempt
  * at the move left a second copy behind, and two maps on one page drift apart.
  */
-test('the map sits under the aircraft list, is drawn, and there is only one of it', async () => {
+test('the one map is in the watching section, is drawn, and carries the circle', async () => {
   const { context, page } = await openPage([]);
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
   await answerStep1(page);
   await page.waitForTimeout(1500);
 
-  assert.equal(await page.$$eval('#locMap', (nodes) => nodes.length), 1,
+  // 🔴 ONE MAP, AND THE OLD ONE IS GONE FROM THE DOCUMENT. George, 22 Sep 2026: *"i think the
+  // circle in the first map can be added to the second map, then the first map can be removed"*.
+  assert.equal(await page.$$eval('#watchMap', (nodes) => nodes.length), 1,
     'there is not exactly one map on the page');
+  assert.equal(await page.$$eval('#locMap', (nodes) => nodes.length), 0,
+    'the removed map is still in the document');
 
-  const where = await page.$eval('#locMap', (element) => element.closest('section')?.id ?? 'nowhere');
-  assert.equal(where, 'step-3', `the map is not in the step that lists the aircraft — it is in ${where}`);
+  const where = await page.$eval('#watchMap', (element) => element.closest('section')?.id ?? 'nowhere');
+  assert.equal(where, 'step-4', `the map is not in the watching section — it is in ${where}`);
 
   // Drawn, not merely present: this map paints its own tiles.
-  const painted = await page.$eval('#locMap', (element) =>
+  const painted = await page.$eval('#watchMap', (element) =>
     element.querySelectorAll('.locmap-tile, canvas').length
   );
   assert.ok(painted > 0, 'the map is present but drawing nothing');
 
-  // And ON SCREEN, because being seen is the entire reason it was moved.
-  assert.ok(
-    await page.$eval('#locMap', (element) => element.getClientRects().length > 0),
-    'the map is not laid out on the page'
-  );
+  // 🔴 AND THE CIRCLE IT INHERITED IS DRAWN ON IT. That is the whole of what moved.
+  assert.equal(await page.$$eval('#watchMap .locmap-fence', (nodes) => nodes.length), 1,
+    'the distance circle did not travel to the one map');
 
   // The sentence that says what the circle is centred on came with it.
   const fence = await page.$eval('#fenceFrom', (element) => element.textContent.replace(/\s+/g, ' ').trim());
   assert.ok(fence.length > 0, 'the map is on the page but nothing says what its circle is centred on');
+
+  // And ON SCREEN once the reader is standing in that section, because being seen is the entire
+  // reason a map is on a page. The section arrives when a type is picked.
+  await page.$$eval('#typeList .typerow', (items) => {
+    items.find((item) => /Boeing 737 MAX 8/.test(item.textContent))?.querySelector('.type-toggle').click();
+  });
+  await page.waitForFunction(
+    () => {
+      const section = document.getElementById('step-4');
+      return !!section && !section.hidden && section.getClientRects().length > 0;
+    },
+    null,
+    { timeout: 15_000 }
+  );
+  assert.ok(
+    await page.$eval('#watchMap', (element) => element.getClientRects().length > 0),
+    'the map is not laid out on the page once the watching section is open'
+  );
 
   await context.close();
 });
@@ -1801,15 +1859,22 @@ test('the watching section plots the aircraft on the list', async () => {
     `the label still leads with the four-letter code: ${labels.join(', ')}`
   );
 
-  // 🔴 THE TWO MAPS SHARE ONE FRAME. That is the whole reason the frame is kept rather than
-  // recomputed: two maps zoomed differently disagree about where a place is.
-  const frameOf = (id) =>
-    page.$eval(id, (element) => {
-      const box = element.querySelector('.locmap');
-      return box ? `${box.style.width}|${box.style.height}` : null;
-    });
-  assert.equal(await frameOf('#watchMap'), await frameOf('#locMap'),
-    'the map of positions is drawn in a different frame from the map above it');
+  // 🔴 THERE IS NO SECOND MAP TO SHARE A FRAME WITH ANY MORE.
+  //
+  // This asserted that the map of positions was drawn in the SAME frame as the map above it, which
+  // was the whole reason the frame was computed once and handed over. George removed the second map
+  // on 22 Sep 2026, so the sharing has nothing left to protect. The intent survives — two maps that
+  // disagree about where a place is are two wrong maps — and it is now held by there being only one
+  // map: no other drawing exists to disagree with, and no stale element survives to be drawn into.
+  assert.equal(await page.$$eval('#locMap', (nodes) => nodes.length), 0,
+    'the removed map is still in the document, so a second drawing could still disagree');
+  assert.equal(await page.$$eval('.locmap', (boxes) => boxes.length), 1,
+    'the page has more than one map drawing, so they can disagree about where a place is');
+  const frame = await page.$eval('#watchMap', (element) => {
+    const box = element.querySelector('.locmap');
+    return box ? `${box.style.width}|${box.style.height}` : '';
+  });
+  assert.match(frame, /^\d+px\|\d+px$/, `the one map has no frame of its own: ${frame}`);
 
   // And it says where the dots came from rather than leaving the reader to infer it.
   assert.match(await page.$eval('#watchMap', (element) => element.textContent), /where the feed last reported/i,
@@ -1851,7 +1916,9 @@ test('the map STAYS UP when there is nothing in the air, and says why', async ()
     box: document.querySelectorAll('#watchMap .locmap').length,
     tiles: document.querySelectorAll('#watchMap .locmap-tile').length,
     planes: document.querySelectorAll('#watchMap .locmap-plane-icon').length,
-    here: document.querySelectorAll('#watchMap .locmap-you').length,
+    // 🔴 THE READER WHEN THEIR PLACE IS KNOWN, THE AIRPORT WHEN IT IS NOT — either way exactly one
+    // mark, because an empty map with no mark on it means nothing at all.
+    here: document.querySelectorAll('#watchMap .locmap-you, #watchMap .locmap-anchor').length,
     text: (document.getElementById('watchMap')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
   }));
 
@@ -2038,6 +2105,70 @@ test('44 · the aeroplane points along its track, with its flight path drawn beh
   );
   assert.match(note, /path it has flown/i,
     `the map draws a line without saying what it is: ${note}`);
+
+  await context.close();
+});
+
+/**
+ * 🔴 GEORGE, 22 SEP 2026, found while merging the maps: moving the distance threw away every flight
+ * path. `rearm()` builds a NEW engine, and a new engine has no history — invisible while a track
+ * held only a phase and a position, and plain to see the moment a trail was drawn on the map.
+ *
+ * ⚠️ THE TWO OTHER MAP TESTS AVOID THE DISTANCE SLIDER *BECAUSE* OF THIS BUG — one of them says so
+ * in a comment, having discovered it the hard way. Now that the handover exists, this test moves the
+ * slider deliberately, which is the one thing those two must not do.
+ */
+test('45 · moving the distance does not throw away the flight paths', async () => {
+  const { context, page } = await openPage([
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 5000, lat: 43.19, lon: -79.93, track: 90 }],
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 5600, lat: 43.22, lon: -79.98, track: 300 }],
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 6200, lat: 43.25, lon: -80.03, track: 310 }],
+  ]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  // A hidden page stops polling entirely (`bindVisibility`), and a hidden page and a lost trail look
+  // identical from outside: both are a thirty-second silence.
+  await page.bringToFront();
+  assert.equal(await page.evaluate(() => document.visibilityState), 'visible',
+    'the page is hidden, so it has stopped polling and no second reading can arrive');
+  await answerStep1(page);
+  await page.waitForSelector('#typeList .typerow');
+  await page.$$eval('#typeList .typerow', (items) => {
+    items.find((item) => /Boeing 737 MAX 8/.test(item.textContent)).querySelector('.type-toggle').click();
+  });
+
+  const trailPoints = () =>
+    page.$eval('#watchMap .locmap-trail', (element) =>
+      (element.getAttribute('points') || '').trim().split(/\s+/).length / 2
+    );
+
+  // A real path first: two readings, far enough apart to be joined.
+  await page.waitForFunction(
+    () => {
+      const trail = document.querySelector('#watchMap .locmap-trail');
+      return !!trail && (trail.getAttribute('points') || '').trim().split(/\s+/).length >= 4;
+    },
+    null,
+    { timeout: 30_000 }
+  );
+  assert.ok((await trailPoints()) >= 2, 'no path was drawn before the distance was moved');
+
+  // 🔴 NOW MOVE THE DISTANCE. Without the handover this is where the paths vanish.
+  await chooseDistance(page, 8);
+
+  // 🔴 THREE POINTS CANNOT BE REACHED BY ACCIDENT. A fresh engine would hold exactly one point, and
+  // one point is not a path — nothing would be drawn at all. So this can only pass if the two points
+  // from the old engine crossed over and the next reading joined them.
+  await page.waitForFunction(
+    () => {
+      const trail = document.querySelector('#watchMap .locmap-trail');
+      return !!trail && (trail.getAttribute('points') || '').trim().split(/\s+/).length >= 6;
+    },
+    null,
+    { timeout: 30_000 }
+  );
+  assert.ok((await trailPoints()) >= 3, 'the path did not survive moving the distance');
 
   await context.close();
 });
