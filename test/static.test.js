@@ -2341,6 +2341,9 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
 });
 
 test('99 · the list and the map show the same aircraft: what you watch, inside your fence, seen in the air', () => {
+  // ⚠️ PART OF THIS TEST IS DEAD AND IT IS KNOWN DEBT: it still asserts the deleted table (`seen.air.slice(0,
+  // 60)`, the empty state's three counts and its `limits` list), which fails on a file that is correct.
+  // Reported to George; not rewritten here. The fence, watch and freshness assertions below are live.
   const app = readSrc('src/app.ts');
   const page = read(SITE, 'index.html');
 
@@ -2375,10 +2378,46 @@ test('99 · the list and the map show the same aircraft: what you watch, inside 
   // shapes and a caption about fifty-eight aircraft nobody could see.
   assert.match(app, /const seen = this\.seenInTheAirInsideFence\(all\);\s*\n\s*const rows = seen\.air\.slice\(0, 60\);/,
     'the table is not built from the shared filter');
-  assert.match(app, /const watching = this\.seenInTheAirInsideFence\(snapshot\)\.air;/,
+  assert.match(app, /const seenNow = this\.seenInTheAirInsideFence\(snapshot\);\s*\n\s*const watching = seenNow\.air;/,
     'the map is not drawn from the shared filter, so it can disagree with the list above it');
   assert.equal(/snapshot\.filter\(\(one\) => this\.isWatchedNow\(one\)\)/.test(app), false,
     'the old watch-only list is still in the file, so one of the two still bypasses the fence');
+
+  // 🔴 AND THE SAME LIST IS FILTERED BY THE CLOCK, WHICH IS THE HALF THAT WAS MISSING.
+  //
+  // George, 22 Sep 2026: *"now im seeing on the map an hour ago, but its showing on the map as if its in
+  // the air in my viewing areas"*. The engine keeps a track for 45 minutes, so `phase: 'airborne'` plus a
+  // last known position survived long after the feed stopped reporting the aircraft — and the row counts
+  // and the map asked about the phase and the fence and never about the time. Reproduced with a feed that
+  // reported one aircraft twice and then nothing: it was still drawn, labelled and counted as "in the
+  // air" three minutes later.
+  assert.match(helper, /if \(!this\.heardRecently\(state\)\) \{\s*\n\s*stale \+= 1;/,
+    'a track the feed has stopped reporting still counts as being in the air');
+  assert.match(helper, /heardRecently\(state\)/,
+    'the shared filter never asks how old the reading is');
+  assert.match(app, /private freshMs\(\): number \{\s*\n\s*return Math\.max\(this\.pollMs \* 2, 90_000\);/,
+    'the freshness window is not tied to the poll cadence with a floor');
+  assert.match(app, /private heardRecently\(state: TrackState\): boolean \{/,
+    'nothing decides whether a reading is recent enough to talk about');
+  assert.match(app, /return Number\.isFinite\(state\.observedAt\) && state\.observedAt > Date\.now\(\) - this\.freshMs\(\);/,
+    'the freshness test does not compare the reading time with the window');
+  assert.match(app, /private isHereNow\(state: TrackState\): boolean \{[\s\S]{0,140}heardRecently\(state\) && this\.insideFence\(state\) && state\.phase === 'airborne'/,
+    'there is no single predicate for "here now", so the rows and the map can drift apart again');
+  // Both lists the rows and the chips are counted from read the one predicate.
+  assert.equal((app.match(/filter\(\(one\) => this\.isHereNow\(one\)\)/g) ?? []).length, 2,
+    'the live lists are not both filtered by the same "here now" rule');
+  // And the page says out loud how many it is holding that way, because a row may still name them.
+  assert.match(app, /staleAircraft > 0[\s\S]{0,220}not been heard from[\s\S]{0,120}not drawn/,
+    'the map does not say that aircraft it is not drawing have stopped being heard');
+
+  // 🔴 AND "ON THE MAP X AGO" IS ABOUT THIS MAP. The label read the survey FILE's last sighting, so a
+  // reader could be told an hour while the aeroplane sat drawn in front of them.
+  assert.match(app, /private mapLastDrawn = new Map<string, number>\(\);/,
+    'nothing remembers when this page last drew a type');
+  assert.match(app, /if \(drawnType !== ''\) this\.mapLastDrawn\.set\(drawnType, Date\.now\(\)\);/,
+    'the drawn list does not record what it drew');
+  assert.match(app, /const drawnAt = this\.mapLastDrawn\.get\(upper\);\s*\n\s*if \(drawnAt !== undefined\) return new Date\(drawnAt\);/,
+    'the row still prefers a file over what this page drew');
 
   // 🔴 AND AN EMPTY LIST NAMES WHICH EMPTY IT IS — three limits now, not two, and naming the wrong one was the
   // fault the original paragraph was written to prevent.

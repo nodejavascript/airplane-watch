@@ -2037,15 +2037,30 @@ class Page {
     air: TrackState[];
     onGround: number;
     outside: number;
+    stale: number;
     watched: number;
   } {
     const air: TrackState[] = [];
     let onGround = 0;
     let outside = 0;
+    let stale = 0;
     let watched = 0;
     for (const state of all) {
       if (!this.isWatchedNow(state)) continue;
       watched += 1;
+      // 🔴 A TRACK THE FEED HAS STOPPED REPORTING IS NOT A STATEMENT ABOUT NOW, AND IT WAS BEING
+      // DRAWN AS ONE. George, 22 Sep 2026: *"now im seeing on the map an hour ago, but its showing on
+      // the map as if its in the air in my viewing areas"*. The engine keeps a track for forty-five
+      // minutes (`TRACK_TTL_MS`) and deleted when it is older than that, so between one minute and
+      // three quarters of an hour an aeroplane nobody is hearing any more still carried
+      // `phase: 'airborne'` and the last place it was seen — and this method asked about the phase and
+      // the fence and never about the clock. Measured: an aircraft reported twice and then never
+      // again was still drawn, still labelled, and still counted as *"in the air"* three minutes
+      // later. This is the test that closes it.
+      if (!this.heardRecently(state)) {
+        stale += 1;
+        continue;
+      }
       if (!this.insideFence(state)) {
         outside += 1;
         continue;
@@ -2056,7 +2071,41 @@ class Page {
       }
       air.push(state);
     }
-    return { air, onGround, outside, watched };
+    return { air, onGround, outside, stale, watched };
+  }
+
+  /**
+   * 🔴 HOW OLD A READING MAY BE AND STILL BE TREATED AS "NOW".
+   *
+   * Two polls at the cadence in use, and never less than a minute and a half. It has to be a window
+   * rather than a single poll because the page asks less often whenever the feed refuses it
+   * (`pollMs` doubles on a 429), and an aeroplane that vanishes during a slow spell reads as a page
+   * that has broken. Two missed polls is the most the page can explain to itself — and at the ten
+   * second poll that is a fifth of the time the engine keeps a track for, which is the whole point:
+   * the engine remembers for forty-five minutes so a trail can be drawn, and this decides what may be
+   * claimed about right now.
+   */
+  private freshMs(): number {
+    return Math.max(this.pollMs * 2, 90_000);
+  }
+
+  /** Has this page heard from this aeroplane recently enough to talk about it in the present tense? */
+  private heardRecently(state: TrackState): boolean {
+    // ⚠️ A MISSING TIMESTAMP IS NOT FRESHNESS. `observedAt` is written on every sighting, so it is
+    // absent only on something this page never really saw — and the honest answer there is that the
+    // reading cannot support a claim about now.
+    return Number.isFinite(state.observedAt) && state.observedAt > Date.now() - this.freshMs();
+  }
+
+  /**
+   * 🔴 IS THIS AIRCRAFT HERE NOW — heard lately, inside the circle, and airborne.
+   *
+   * One predicate, because "here now" was being answered in three places with two different rules and
+   * the missing term in all of them was TIME. The rows, the green chips, the map's own list and its
+   * counts all read this.
+   */
+  private isHereNow(state: TrackState): boolean {
+    return this.heardRecently(state) && this.insideFence(state) && state.phase === 'airborne';
   }
 
   /**
@@ -2357,11 +2406,12 @@ class Page {
   private tickWatchStates(): void {
     const host = byId('watchList');
     if (!host) return;
-    // 🔴 THE SAME LIST THE ROWS WILL BE DRAWN FROM — filtered by the fence, so an aircraft crossing out
-    // of the circle is a change this tick can see. Counting the raw snapshot here would mean the key
-    // never moved when a flight left the fence, and the row would keep saying "in the air" until some
-    // unrelated aircraft happened to arrive.
-    const live = (this.engine ? this.engine.snapshot() : []).filter((one) => this.insideFence(one));
+    // 🔴 THE SAME LIST THE ROWS WILL BE DRAWN FROM — filtered by the fence AND BY THE CLOCK, so an
+    // aircraft crossing out of the circle, and one the feed has simply stopped reporting, are both
+    // changes this tick can see. Counting the raw snapshot here would mean the key never moved when a
+    // flight left the fence, and the row would keep saying "in the air" until some unrelated aircraft
+    // happened to arrive.
+    const live = (this.engine ? this.engine.snapshot() : []).filter((one) => this.isHereNow(one));
 
     // What the status text can actually depend on: which aircraft are here, of which type, under
     // which tail; whether the record has been read, and which reading of it; and whether the
@@ -2371,8 +2421,18 @@ class Page {
       .map((one) => `${one.hex ?? ''}:${one.type ?? ''}:${one.registration ?? ''}`)
       .sort()
       .join(',');
+    // 🔴 AND THE AGE ON A ROW HAS TO BE ABLE TO MOVE, OR IT IS A NUMBER THAT ONLY EVER GETS OLDER.
+    // A row reading *"on the map just now"* is drawn from when this page last drew that type, and the
+    // guard below skips the redraw while the aircraft set is unchanged — so the phrase would sit there
+    // saying "just now" ten minutes later. The whole minute, per type this page has drawn, is folded
+    // into the key: cheap (only drawn types), bounded, and it makes the sentence age in front of the
+    // reader instead of freezing.
+    const drawnAgeKey = [...this.mapLastDrawn]
+      .map(([code, at]) => `${code}@${Math.floor((Date.now() - at) / 60_000)}`)
+      .sort()
+      .join(',');
     const statusKey =
-      `${liveKey}|${this.surveyRead ? (this.survey?.generated ?? 'read') : 'unread'}` +
+      `${liveKey}|${drawnAgeKey}|${this.surveyRead ? (this.survey?.generated ?? 'read') : 'unread'}` +
       `|${this.yearsDoc ? 'years' : 'no-years'}`;
     if (statusKey === this.lastStatusKey) return;
     this.lastStatusKey = statusKey;
@@ -2428,6 +2488,9 @@ class Page {
    */
   private lastSeenOf(code: string): Date | null {
     const upper = code.toUpperCase();
+    // 🔴 WHAT THIS PAGE DREW WINS OVER WHAT A FILE SAYS. See `mapLastDrawn`.
+    const drawnAt = this.mapLastDrawn.get(upper);
+    if (drawnAt !== undefined) return new Date(drawnAt);
     if (this.liveTypes.has(upper)) return new Date();
     const row = this.survey?.types.find((one) => one.code === upper);
     if (!row?.lastSeen) return null;
@@ -4002,6 +4065,17 @@ class Page {
    */
   private mapRowNames = new Map<string, string>();
 
+  /**
+   * 🔴 WHEN THIS PAGE LAST ACTUALLY DREW ONE, BY TYPE.
+   *
+   * The row that says *"on the map 1 hour ago"* was reading the SURVEY FILE's last sighting, not
+   * anything this page had seen — so a reader could be told an hour while an aeroplane sat drawn on the
+   * map in front of them. George, 22 Sep 2026: *"now im seeing on the map an hour ago, but its showing
+   * on the map as if its in the air in my viewing areas"*. A row that says "on the map" has to be
+   * talking about this map: this is written from the list the map drew, and it is read first.
+   */
+  private mapLastDrawn = new Map<string, number>();
+
   /** The key one row's switch is filed under. One builder, so the row and the map cannot disagree. */
   private static showKey(kind: 'type' | 'tail', value: string): string {
     return `${kind}:${normaliseKey(value)}`;
@@ -4081,7 +4155,11 @@ class Page {
     // list is what the status beside each row is counted from and what turns a tail chip green: an
     // aircraft that has flown out of the fence is not on the map, so it may not be named as being in
     // the air either — see `insideFence`.
-    const live = (this.engine ? this.engine.snapshot() : []).filter((one) => this.insideFence(one));
+    //
+    // 🔴 AND HEARD LATELY, WHICH IS THE OTHER HALF OF THE SAME CLAIM. Filtering by the fence alone let a
+    // track the feed had stopped reporting keep a row reading *"in the air"* and a tail chip green for
+    // as long as the engine remembered it — forty-five minutes. See `isHereNow`.
+    const live = (this.engine ? this.engine.snapshot() : []).filter((one) => this.isHereNow(one));
 
     const typeItems = this.typeRules
       .map((rule) => {
@@ -4527,7 +4605,9 @@ class Page {
     // the air — so a switched-off row cannot remove anything but its own aircraft, and nothing here can
     // pull in an aircraft the page would not otherwise show. The aircraft are found here, before the
     // frame is computed, because the frame has to be built from THEM rather than from the fence.
-    const watching = this.seenInTheAirInsideFence(snapshot).air;
+    const seenNow = this.seenInTheAirInsideFence(snapshot);
+    const watching = seenNow.air;
+    const staleAircraft = seenNow.stale;
     const rowFilter = this.mapHide.size > 0 && !pickedFlown;
     const focused = rowFilter ? watching.filter((one) => this.rowVisible(one)) : watching;
     // Named for the caption the way the rows name themselves: the row's own wording where the page drew
@@ -4886,6 +4966,9 @@ class Page {
         continue;
       }
       drawn += 1;
+      // 🔴 AND THIS IS THE MOMENT THE PAGE CAN HONESTLY SAY A TYPE WAS ON THE MAP — see `mapLastDrawn`.
+      const drawnType = String(one.type ?? '').trim().toUpperCase();
+      if (drawnType !== '') this.mapLastDrawn.set(drawnType, Date.now());
 
       // The flight path, from what this page has heard across polls — the feed reports only where
       // an aircraft is now. Two points are needed to be a path: one point is a position, and
@@ -5065,6 +5148,14 @@ class Page {
       (offView > 0
         ? `${offView} more ${offView === 1 ? 'is' : 'are'} on your list outside this frame, so they are ` +
           'listed and not drawn. '
+        : '') +
+      // 🔴 AND ONE THE FEED HAS STOPPED REPORTING IS NOT DRAWN AT ALL — which the reader has to be told,
+      // because the row above may still name the aeroplane. See `heardRecently`.
+      (staleAircraft > 0
+        ? `${staleAircraft} ${staleAircraft === 1 ? 'aircraft has' : 'aircraft have'} not been heard from ` +
+          'for a couple of minutes, so ' +
+          `${staleAircraft === 1 ? 'it is' : 'they are'} listed and not drawn — the feed reports where an ` +
+          'aircraft is now, and it is not reporting these. '
         : '') +
       (unplaced > 0
         ? `${unplaced} ${unplaced === 1 ? 'is' : 'are'} on the list without a reported position ` +
