@@ -41,8 +41,10 @@ await page.fill('#postalInput', '[redacted]');
 await page.press('#postalInput', 'Enter');
 await page.waitForTimeout(3500);
 // 🔴 THE DISTANCE IS A CHIP NOW, NOT A SLIDER — one press, one answer, instead of writing a value
-// into a range input and firing two synthetic events at it.
-await page.click('#radiusButtons button[data-km="20"]');
+// into a range input and firing two synthetic events at it. 
+// ⚠ AND IT PRESSES A STOP THAT EXISTS: the row opens on `All` and the numbered stops are
+// 25 · 50 · 75 · 100 · 150 · 200 · 400, so 25 is the tight fence this checker wants.
+await page.click('#radiusButtons button[data-km="25"]');
 await page.waitForSelector('#typeList .typerow', { timeout: 30_000 });
 
 out.seenChips = await page.$$eval('#seenFilter button', (nodes) => nodes.map((n) => n.textContent.trim()));
@@ -128,7 +130,7 @@ out.filterNote = await text('#filterNote');
 await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(1800);
 await page.$eval('#consentDecline', (el) => el.click()).catch(() => {});
-await page.click('#radiusButtons button[data-km="20"]');
+await page.click('#radiusButtons button[data-km="25"]');
 await page.waitForSelector('#typeList .typerow', { timeout: 30_000, state: 'attached' });
 // 🔴 THE STAR COUNT BEFORE THE BELL, BECAUSE THE SECTION ABOVE STARRED EVERYTHING AND
 // localStorage SURVIVES THE RELOAD. Measured the first time: 59 stars pressed after a bell

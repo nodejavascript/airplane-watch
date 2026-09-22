@@ -62,7 +62,10 @@ npm run deploy     # build → test → rsync → wrangler → live check
 Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
 
 - **No more nautical miles, and the distance is asked where the aircraft are picked.** *"nobody understand nm"* — the
-  reader presses one **logarithmic** stop (each a round number, each about a quarter larger than the last).
+  reader presses one stop, and the row **opens on `All`** (the feed's own widest fence, 250 nautical miles = 463 km)
+  with George's numbered stops beside it: **25 · 50 · 75 · 100 · 150 · 200 · 400 km**, never more than double the one
+  before. *Prior wording, now dead: "each about a quarter larger than the last" — that described the seventeen-stop
+  scale, and then six doubling stops, both of which he has since replaced.*
   **It was a slider for one day.** George, 22 Sep 2026: *"i want this above the map"* — then, the same day:
   *"i forgot the slider is actually a filter for pic an aircraf. lets remove the slider and ask the distance
   about the pick an aircraf under kind"*. He is describing what the control actually does: the distance decides

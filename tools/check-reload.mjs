@@ -64,7 +64,7 @@ await page.waitForSelector('#placeResults .place-result');
 await page.$eval('#placeResults .place-result', (e) => e.click());
 await page.waitForTimeout(1200);
 
-await page.click('#radiusButtons button[data-km="20"]');
+await page.click('#radiusButtons button[data-km="25"]');
 await page.waitForTimeout(1200);
 await look('after answering step 1');
 

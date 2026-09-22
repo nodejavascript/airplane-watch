@@ -51,6 +51,24 @@ const RADIUS_KEY = 'aircraft_radius';
 /** The community the reader picked inside this place — see renderAreaPicker. */
 const AREA_KEY = 'aircraft_place_area';
 /**
+ * 🔴 THE FILTER CHOICES ARE REMEMBERED TOO — SAME STORE, SAME REASON.
+ *
+ * George, 22 Sep 2026: *"save the users setting in cookie"*. What he is asking for is that a reader
+ * does not choose the same filters again on every visit. The watchlist, the place, the airports and the
+ * distance are already kept exactly that way, and these four are the rest of what the reader chooses.
+ *
+ * 🔴 IT IS THE BROWSER'S OWN STORE AND NOT A COOKIE, AND THE REASON IS WRITTEN ABOVE THE PLACE KEY
+ * ALREADY: a cookie is sent to the server with every request, so a cookie holding what you are watching
+ * would hand it over ten times a minute, and the published policy tells the reader these settings live
+ * in local storage *"not in a cookie"*. A settings cookie would make that sentence false to no purpose,
+ * because nothing on the server reads it. His earlier version of this request — *"and maybe save in
+ * cooking, my location, how far, my favorites"*, 20 Sep 2026 — was answered the same way.
+ */
+const KIND_KEY = 'aircraft_kind';
+const MAKER_KEY = 'aircraft_maker';
+const ERA_KEY = 'aircraft_era';
+const SEEN_KEY = 'aircraft_seen';
+/**
  * 🔴 THE PAGE ASKS A VOLUNTEER FEED, SO IT ASKS AS LITTLE AS IT CAN.
  *
  * George was shown this on 20 Sep 2026:
@@ -98,28 +116,48 @@ const MAKER_OTHER = '*other';
  * 🔴 KILOMETRES, NOT NAUTICAL MILES. George, 20 Sep 2026: *"nobody understand
  * nm"*. The feed takes nautical miles and says so in its own endpoint summary
  * (*"Aircrafts surrounding a point (lat, lon) up to 250nm"*), so the conversion
- * happens in `kmToNm` and the reader never meets the unit. Each distance says
- * what it means in plain words as well as in kilometres, because "20 km" is a
- * number and "the airport and the city around it" is an answer.
+ * happens in `kmToNm` and the reader never meets the unit.
  */
 /**
- * 🔴 THE DISTANCE IS A SHORT LOGARITHMIC LADDER: EVERY STOP IS TWICE THE ONE BEFORE IT.
+ * 🔴 THE DISTANCE STOPS ARE GEORGE'S OWN NUMBERS, AND THE RULE THEY KEEP IS THE RATIO.
  *
  * George, 20 Sep 2026: *"How far out from you? maybe this should be a slider? logrythmic?"* — then,
  * 22 Sep 2026: *"i forgot the slider is actually a filter for pic an aircraf. lets remove the slider and
  * ask the distance about the pick an aircraf under kind"*, and in the same message *"make the option
- * logrythmic"* and *"thse 4 filters are getting cluttery"*.
+ * logrythmic"* and *"thse 4 filters are getting cluttery"*. **He named the stops himself at the end of
+ * that same day:** *"distance can be logrythmic starting at 25, 50, 75, 100, 150, 200, 400"* — which
+ * replaced the six doubling stops (5 · 10 · 20 · 40 · 80 · 160) this file had carried until then.
  *
- * 🔴 SO THE STOPS WERE CUT FROM SEVENTEEN TO SIX, AND THE PROGRESSION IS THE REASON. Equal RATIOS are
- * what a logarithmic scale means: 5 → 10 → 20 → 40 → 80 → 160 km puts the detail where the reader can
- * use it (the difference between 5 and 10 km is the difference between seeing an aircraft on the apron
- * and not) and spends no width on stops nobody can tell apart (the difference between 100 and 125 km is
- * nothing at all). Seventeen chips that doubled the row into three lines was the clutter he named.
+ * 🔴 AND IT IS NOT A DOUBLING LADDER, SO NEITHER THE CODE NOR THE TEST MAY PRETEND IT IS. What makes a
+ * scale readable is the RATIO between neighbours: **never more than double**, because a stop further
+ * than twice the one before leaves a middle the reader cannot choose — and never so close that two chips
+ * answer the same question. His steps run ×2, ×1.5, ×1.33, ×1.5, ×1.33, ×2: every one inside that rule,
+ * with the widest steps at the two ends, which is where a scale can afford them.
  *
- * 5 km to 160 km still covers what the page is good at: below 5 the round loses the airport's own apron,
- * and past 160 the fence on a 30-minute poll is wider than any aircraft can be watched across.
+ * The range covers what this page is good at: 25 km is the airport and the neighbourhood around it, and
+ * 400 km is as wide as a numbered fence can be before a poll every half minute stops meaning anything.
  */
-const RADIUS_LADDER = [5, 10, 20, 40, 80, 160];
+const RADIUS_LADDER = [25, 50, 75, 100, 150, 200, 400];
+/**
+ * 🔴 `All` IS THE WIDEST FENCE THE FEED WILL SERVE, AND IT IS THE ONE A READER STARTS ON.
+ *
+ * George, 22 Sep 2026: *"at the begining of distance, default select all"*. So the row opens with `All`,
+ * the chip a reader who has chosen nothing is standing on, and it is what the page asks the feed for
+ * until somebody says otherwise.
+ *
+ * 🔴 463 km IS 250 NAUTICAL MILES, WHICH IS THE FEED'S OWN CEILING AND NOT A NUMBER OF MINE. Its endpoint
+ * summary says it out loud — *"Aircrafts surrounding a point (lat, lon) up to 250nm"* — and `kmToNm(463)`
+ * is exactly 250 at the conversion the rest of the page uses. A larger number would be one this page
+ * printed and the feed quietly ignored, which is the sort of polite lie the rest of this file refuses.
+ *
+ * ⚠️ AND THE COST IS STATED RATHER THAN HIDDEN. A fence this wide asks a VOLUNTEER feed for a quarter of
+ * a continent every twenty seconds and returns hundreds of aircraft, where 25 km returns a handful. The
+ * cadence backs off on a refusal (see `POLL_START_MS`), so it degrades rather than breaks — but this is
+ * the heaviest thing a reader can ask for, and it is why the numbered stops sit beside it.
+ */
+const RADIUS_ALL = 463;
+/** Every distance the row offers, in the order it offers them: `All` first, then the numbered stops. */
+const RADIUS_CHOICES = [RADIUS_ALL, ...RADIUS_LADDER];
 const ERAS = [
     // 🔴 SHORT TOO, UNDER ITS OWN LABEL. The row is labelled "First flown", so a chip reading
     // "first flown before 1970" beside it would be the phrase the label just removed. George
@@ -644,7 +682,15 @@ class Page {
     restoring = false;
     /** A pending immediate poll, so three re-aims in one moment are one request. */
     pollSoon = null;
-    radiusKm = 20;
+    /**
+     * The fence in use. A fresh visit starts on `All` — `RADIUS_ALL`, the widest the feed serves.
+     *
+     * George, 22 Sep 2026: *"at the begining of distance, default select all"*. A reader who has chosen
+     * nothing is asking for everything the feed has, and narrows it by pressing a numbered stop; a value
+     * kept from an earlier visit is restored over this, and `currentRadius()` snaps whatever is stored to
+     * the nearest chip so a distance from an older ladder still lands on one.
+     */
+    radiusKm = RADIUS_ALL;
     lastPollAt = 0;
     lastError = '';
     polls = 0;
@@ -795,6 +841,27 @@ class Page {
             // A corrupt store is not worth failing over; the reader simply starts again.
             this.restored = null;
         }
+        // 🔴 THE FILTER CHOICES COME BACK BEFORE THE ROWS ARE BUILT FROM THEM, for the same reason the
+        // distance does: each chip row reads its own pressed state off the value it is about to be given,
+        // so restoring afterwards would leave the wrong chip lit and the list filtered by something the
+        // reader cannot see is on.
+        //
+        // ⚠️ EVERY VALUE IS CHECKED AGAINST THE CHOICES THAT EXIST. A setting saved before an option was
+        // renamed or removed would otherwise be a filter matching nothing, which reads as a broken page —
+        // the same fault the distance snapping and the maker row's fallback both exist to prevent.
+        const keptKind = readStore(KIND_KEY, 'all');
+        if (keptKind === 'all' || CLASS_ORDER.includes(keptKind)) {
+            this.typeFilter = keptKind;
+        }
+        const keptMaker = readStore(MAKER_KEY, 'all');
+        if (keptMaker !== '')
+            this.makerFilter = keptMaker;
+        const keptEra = readStore(ERA_KEY, 'all');
+        if (ERAS.some((era) => era.key === keptEra))
+            this.eraFilter = keptEra;
+        const keptSeen = readStore(SEEN_KEY, '');
+        if (SEEN_CHOICES.some((choice) => choice.key === keptSeen))
+            this.seenFilter = keptSeen;
         this.buildRadiusButtons();
         this.buildTypeFilter();
         this.buildSeenFilter();
@@ -891,11 +958,18 @@ class Page {
         if (!host)
             return;
         host.innerHTML = '';
-        for (const km of RADIUS_LADDER) {
+        for (const km of RADIUS_CHOICES) {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'chip chip-small';
-            button.textContent = `${km} km`;
+            // 🔴 THE WIDEST STOP SAYS `All`, NOT `463 km`. George, 22 Sep 2026: *"at the begining of distance,
+            // default select all"* — `All` is the word for "every aircraft the feed can see", and its tooltip
+            // carries the number and the unit it came from, so the reader can still find out what it is.
+            button.textContent = km === RADIUS_ALL ? 'All' : `${km} km`;
+            button.title =
+                km === RADIUS_ALL
+                    ? `Everything the feed can see — its own widest fence, 250 nautical miles (${RADIUS_ALL} km)`
+                    : `${km} kilometres`;
             button.dataset.km = String(km);
             button.setAttribute('data-ga', 'distance');
             button.setAttribute('aria-pressed', String(km === this.currentRadius()));
@@ -909,15 +983,16 @@ class Page {
         }
     }
     /**
-     * The distance actually in use, snapped to a stop on the ladder.
+     * The distance actually in use, snapped to a chip.
      *
-     * 🔴 IT IS SNAPPED BECAUSE A KEPT VALUE CAN BE OFF THE LADDER. A distance stored by an earlier
-     * version, or a ladder that later loses a stop, leaves `radiusKm` holding a number no chip prints —
-     * and then no chip is pressed, which reads as "nothing is chosen" while the page is measuring
-     * perfectly well. Snapping to the nearest stop means the pressed chip is always the distance in use.
+     * 🔴 IT IS SNAPPED BECAUSE A KEPT VALUE CAN BE OFF THE ROW. A distance stored by an earlier version,
+     * or a scale that later loses a stop, leaves `radiusKm` holding a number no chip prints — and then no
+     * chip is pressed, which reads as "nothing is chosen" while the page is measuring perfectly well.
+     * Snapping to the nearest chip means the pressed chip is always the distance in use, and it is why the
+     * ladder could be replaced wholesale without an old stored value landing nowhere.
      */
     currentRadius() {
-        return RADIUS_LADDER.reduce((best, km) => (Math.abs(km - this.radiusKm) < Math.abs(best - this.radiusKm) ? km : best), RADIUS_LADDER[0] ?? this.radiusKm);
+        return RADIUS_CHOICES.reduce((best, km) => (Math.abs(km - this.radiusKm) < Math.abs(best - this.radiusKm) ? km : best), RADIUS_CHOICES[0] ?? this.radiusKm);
     }
     /**
      * One press of a distance chip: kept, applied, and the feed asked once at the new fence.
@@ -970,6 +1045,8 @@ class Page {
             button.setAttribute('aria-pressed', String(option.key === this.typeFilter));
             button.addEventListener('click', () => {
                 this.typeFilter = option.key;
+                // Kept, so a reload does not ask the reader to choose it again.
+                writeStore(KIND_KEY, option.key);
                 for (const other of host.querySelectorAll('button')) {
                     other.setAttribute('aria-pressed', String(other === button));
                 }
@@ -1036,6 +1113,7 @@ class Page {
             button.setAttribute('aria-pressed', String(option.key === this.makerFilter));
             button.addEventListener('click', () => {
                 this.makerFilter = option.key;
+                writeStore(MAKER_KEY, option.key);
                 for (const other of host.querySelectorAll('button')) {
                     other.setAttribute('aria-pressed', String(other === button));
                 }
@@ -2323,6 +2401,8 @@ class Page {
             button.setAttribute('aria-pressed', String(choice.key === this.seenFilter));
             button.addEventListener('click', () => {
                 this.seenFilter = choice.key;
+                // Kept with the other filter choices — see the note on `SEEN_KEY`.
+                writeStore(SEEN_KEY, choice.key);
                 for (const other of host.querySelectorAll('button')) {
                     other.setAttribute('aria-pressed', String(other === button));
                 }
@@ -2479,6 +2559,7 @@ class Page {
             button.setAttribute('aria-pressed', String(era.key === this.eraFilter));
             button.addEventListener('click', () => {
                 this.eraFilter = era.key;
+                writeStore(ERA_KEY, era.key);
                 for (const other of host.querySelectorAll('button')) {
                     other.setAttribute('aria-pressed', String(other === button));
                 }
@@ -2955,7 +3036,7 @@ class Page {
         if (!button)
             return;
         button.addEventListener('click', () => {
-            for (const key of [WATCH_KEY, TYPES_KEY, AIRPORT_KEY, CENTRE_KEY, RADIUS_KEY]) {
+            for (const key of [WATCH_KEY, TYPES_KEY, AIRPORT_KEY, CENTRE_KEY, RADIUS_KEY, KIND_KEY, MAKER_KEY, ERA_KEY, SEEN_KEY]) {
                 try {
                     localStorage.removeItem(key);
                 }

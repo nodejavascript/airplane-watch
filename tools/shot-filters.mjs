@@ -10,7 +10,7 @@ const p = await b.newPage({ viewport: { width: 1180, height: 900 }, deviceScaleF
 await p.goto(`http://127.0.0.1:4340/?v=${Date.now()}`, { waitUntil: 'domcontentloaded' });
 await p.waitForTimeout(1800);
 await p.$eval('#consentDecline', (el) => el.click()).catch(() => {});
-await p.click('#radiusButtons button[data-km="20"]');
+await p.click('#radiusButtons button[data-km="25"]');
 await p.waitForSelector('#typeList .typerow', { timeout: 30_000, state: 'attached' });
 await p.$eval('#step-3', (el) => { el.hidden = false; });
 await p.waitForTimeout(400);

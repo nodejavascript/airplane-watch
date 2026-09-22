@@ -690,7 +690,7 @@ test('the reader is shown kilometres, and the feed is still asked in nautical mi
   // buttons that carried words like "Just the airport" beside each distance; George asked
   // for a slider on 20 Sep 2026 (*"maybe this should be a slider? logrythmic?"*) and the
   // words went with the buttons. What the reader is told now is the number.
-  await chooseDistance(page, 20);
+  await chooseDistance(page, 25);
   const shown = await shownDistance(page);
   assert.match(shown, /^\d+ km$/, `the distance readout is not a distance in km: ${shown}`);
   const stated = Number(shown.replace(/[^\d]/g, ''));
@@ -2138,7 +2138,7 @@ test('45 · moving the distance does not throw away the flight paths', async () 
   assert.ok((await trailPoints()) >= 2, 'no path was drawn before the distance was moved');
 
   // 🔴 NOW MOVE THE DISTANCE. Without the handover this is where the paths vanish.
-  await chooseDistance(page, 32);
+  await chooseDistance(page, 50);
 
   // 🔴 THREE POINTS CANNOT BE REACHED BY ACCIDENT. A fresh engine would hold exactly one point, and
   // one point is not a path — nothing would be drawn at all. So this can only pass if the two points

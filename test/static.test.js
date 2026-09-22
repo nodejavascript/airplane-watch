@@ -1177,15 +1177,55 @@ test('the distance is asked WITH the aircraft, and the refreshed line is the fir
   assert.equal(/'noData'/.test(choices), false, 'the no-data choice is back on the row');
   assert.equal((choices.match(/\{ key: '/g) ?? []).length, 8, 'the last-seen row does not carry eight windows');
 
-  // 🔴 AND THE STOPS DOUBLE, WHICH IS WHAT MAKES IT LOGARITHMIC. George, 22 Sep 2026: *"make the option
-  // logrythmic"* and *"thse 4 filters are getting cluttery"* — so the ladder is six stops of twice the
-  // one before it, not seventeen of a quarter more.
+  // 🔴 THE STOPS ARE HIS NUMBERS, AND THE RULE THEY KEEP IS THE RATIO RATHER THAN DOUBLING.
+  //
+  // George, 22 Sep 2026: *"distance can be logrythmic starting at 25, 50, 75, 100, 150, 200, 400"* —
+  // which replaced the six doubling stops (5 · 10 · 20 · 40 · 80 · 160) this page had carried since the
+  // morning. The scale is not a doubling one any more, and the check no longer pretends it is: what makes
+  // a ladder readable is that **no stop is more than twice the one before it**, because a stop further
+  // than double leaves a middle the reader cannot choose, and a stop barely above its neighbour is two
+  // chips answering one question. So the two ends, the order and every RATIO are asserted — and never a
+  // list typed out twice, which is how a test starts disagreeing with the code it is checking.
   const ladder = /const RADIUS_LADDER = \[([^\]]+)\]/.exec(readSrc('src/app.ts'));
-  assert.ok(ladder, 'the distance ladder is gone');
+  assert.ok(ladder, 'the distance stops are gone');
   const stops = ladder[1].split(',').map((one) => Number(one.trim()));
-  assert.ok(stops.length >= 5 && stops.length <= 8, `the ladder is ${stops.length} stops long`);
-  for (let i = 1; i < stops.length; i += 1) {
-    assert.equal(stops[i], stops[i - 1] * 2, `${stops[i]} is not twice ${stops[i - 1]}`);
+  assert.deepEqual([stops[0], stops[stops.length - 1]], [25, 400],
+    `the stops do not run from 25 to 400 km: ${stops.join(' · ')}`);
+  assert.equal(stops.length, 7, `there are ${stops.length} stops, not the seven he named`);
+  for (let i = 0; i < stops.length; i += 1) {
+    assert.ok(Number.isInteger(stops[i]) && stops[i] > 0, `${stops[i]} is not a whole number of kilometres`);
+    if (i === 0) continue;
+    assert.ok(stops[i] > stops[i - 1], `${stops[i]} does not come after ${stops[i - 1]}`);
+    assert.ok(stops[i] <= stops[i - 1] * 2,
+      `${stops[i]} is more than twice ${stops[i - 1]}, so the middle of the range cannot be chosen`);
+  }
+
+  // 🔴 AND THE ROW OPENS ON `All`, WHICH IS THE FEED'S OWN CEILING RATHER THAN A NUMBER OF OURS.
+  // George, 22 Sep 2026: *"at the begining of distance, default select all"*. 463 km is exactly 250
+  // nautical miles — the widest fence the feed's own summary says it serves — so the check converts it
+  // with the SAME function the page uses and requires the feed's limit back. A number he happens to like
+  // would pass a check that only read the constant; this one fails unless 250 nm is what arrives.
+  const { kmToNm } = await import('../site/detect.js');
+  const everywhere = Number(/const RADIUS_ALL = (\d+)/.exec(app)?.[1] ?? NaN);
+  assert.ok(Number.isFinite(everywhere), 'the widest stop is gone, so nothing opens on `All`');
+  assert.equal(kmToNm(everywhere), 250,
+    `the widest stop is ${everywhere} km, which the feed is asked for as ${kmToNm(everywhere)} nm rather than its own 250`);
+  assert.match(app, /const RADIUS_CHOICES = \[RADIUS_ALL, \.\.\.RADIUS_LADDER\]/,
+    'the distance row is not `All` followed by the numbered stops, in that order');
+  assert.match(app, /km === RADIUS_ALL \? 'All' :/, 'the widest stop does not print `All`');
+  assert.match(app, /private radiusKm = RADIUS_ALL/, 'a fresh visit does not open on `All`');
+
+  // 🔴 AND WHAT THE READER CHOSE IS REMEMBERED. George, 22 Sep 2026: *"save the users setting in cookie"*
+  // — and every one of these is kept in the browser's own store, in the same place as the place and the
+  // distance, because the published policy says these settings are held there and *not* in a cookie.
+  // Each key is asserted to be WRITTEN on a press and READ on load, and to be cleared by "start over":
+  // a setting that survives the reset is a setting the reader cannot get rid of.
+  const over = code.slice(code.indexOf('private bindStartOver'), code.indexOf('private bindLocate'));
+  assert.ok(over.length > 200, 'the start-over reset could not be isolated, so this check is vacuous');
+  for (const key of ['KIND_KEY', 'MAKER_KEY', 'ERA_KEY', 'SEEN_KEY']) {
+    assert.match(app, new RegExp(`writeStore\\(${key}`), `${key} is never written`);
+    assert.match(app, new RegExp(`readStore\\(${key}`), `${key} is never read back`);
+    assert.match(over, new RegExp(key), `start over leaves ${key} behind`);
   }
 
   // And it is NOT asked in the map's card any more — it is the same one control, not a second copy.

@@ -32,7 +32,7 @@ await page.$eval('#consentDecline', (el) => el.click()).catch(() => {});
 
 // A postal lookup is not needed and is not available here — step 1 only has to be answered,
 // so the distance chip alone is pressed.
-await page.click('#radiusButtons button[data-km="20"]');
+await page.click('#radiusButtons button[data-km="25"]');
 // 🔴 `attached`, NOT `visible`. On the static server there is no airport lookup, so step 3
 // never unlocks and the section stays hidden — but its type list is still rendered (measured:
 // "locator resolved to 120 elements" while every visibility wait timed out). The filter is a
