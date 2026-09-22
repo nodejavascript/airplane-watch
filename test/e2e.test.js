@@ -1456,136 +1456,53 @@ test('a type whose search match was weak gets a drawing instead of a wrong pictu
   await context.close();
 });
 
-/* ======================= the historic aircraft schedule =====================
+/* ============== there is no schedule on the page, only readings =============
  *
- * George, 20 Sep 2026: *"thats the whole point actually, to watch these old aircraft fly past
- * your home location"*. These tests are about that sentence.
+ * George, 22 Sep 2026, pasting the museum panel back whole: *"remove this section, if these plans
+ * show up then they show up"*.
+ *
+ * Two tests stood here, and both are deliberately gone with the panel: one proved it named the museum
+ * and measured CYHM from the reader, the other that it followed the reader to a new place. They were
+ * the right tests for the feature and they are the wrong tests now — a schedule is a promise about the
+ * FUTURE, on a card that only reports the past, and the reader was left holding both halves at once.
+ *
+ * What replaces them checks the removal, including the half that is easy to miss: a panel gone from the
+ * page but still fetched is a removed feature that still costs the reader a round trip.
  */
 
-/**
- * The historic document, stubbed with FIXED dates.
- *
- * 🔴 THE DATES ARE SCRIPTED, NOT READ FROM `site/historic.json`. That file is real and its
- * dates are real, which means it goes stale — a test that read it would pass this week and
- * fail the week after the flights it names, and a test that fails for being old teaches
- * nobody anything. The live file is checked by driving the page (`tools/check-historic.mjs`);
- * what is checked here is the behaviour.
- */
-const HISTORIC_STUB = {
-  generated: '2026-09-20T00:00:00.000Z',
-  source: 'the operator\'s own published flight schedule',
-  method: 'stubbed for this test',
-  caution: 'scheduled flights, not a promise the feed will report them',
-  sites: [
-    {
-      icao: 'CYHM',
-      name: 'Canadian Warplane Heritage Museum',
-      url: 'https://www.warplane.com/aircraft/flights.aspx',
-      note: '',
-      source: 'warplane.com',
-      readAt: '2026-09-20',
-      nextAt: '2026-09-26T13:30:00.000Z',
-      upcoming: 2,
-      daysPublished: 1,
-      aircraft: [
-        { name: 'Lancaster', label: 'Lancaster Member Ride', theirId: 12, typeCode: 'LANC', codeSource: 'hexdb hex C07DD7', reported: false },
-        { name: 'Tiger Moth', label: 'Tiger Moth Member Ride', theirId: 5, typeCode: null, codeSource: null, reported: null },
-      ],
-      flights: [
-        { aircraft: 5, beginsAt: '2026-09-26T13:30:00.000Z', seats: '(1 Seat Available)', url: 'https://www.warplane.com/a' },
-        { aircraft: 12, beginsAt: '2026-09-26T15:00:00.000Z', seats: '(Sold Out)', url: 'https://www.warplane.com/b' },
-      ],
-    },
-  ],
-};
-
-test('a reader beside the museum is told which days old aircraft fly, and the Lancaster is named', async () => {
+test('the schedule is gone from the page, and the page no longer asks for it', async () => {
   const { context, page } = await openPage([[[]]]);
+  const asked = [];
+  page.on('request', (one) => {
+    if (/historic\.json/.test(one.url())) asked.push(one.url());
+  });
   await page.route('**/api/geo/search**', placeStub);
   await page.route('**/historic.json', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(HISTORIC_STUB) })
+    route.fulfill({ status: 404, contentType: 'application/json', body: '{}' })
   );
 
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
-
-  // 🔴 NO `waitForSelector('#typeList .typerow')` HERE, AND THE REASON IS WORTH RECORDING.
-  // Step 3 is GATED: the rows are in the DOM but not visible until steps 1 and 2 are
-  // answered, so waiting on them to be visible hangs for thirty seconds and reports nothing.
-  // This test is about the panel, and picking a place IS the step-one answer.
-
-  // 🔴 WITH NO LOCATION THERE IS NO PANEL. A schedule for an airport the page does not know
-  // the reader is near is not something this card is entitled to print.
-  assert.equal(await page.$eval('#historicPanel', (el) => el.hidden), true,
-    'the panel showed a schedule before the page knew where the reader is');
-
   await pickPlace(page, 'Stoney Creek Ontario');
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(600);
 
-  assert.equal(await page.$eval('#historicPanel', (el) => el.hidden), false,
-    'the panel never appeared for a reader beside the museum airport');
+  // 🔴 NO ELEMENT TO DRAW INTO, CHECKED AS AN ABSENCE. A panel that is merely `hidden` is the
+  // half-removal this repository has already shipped once, and a class left behind keeps the feature
+  // looking alive to the next reader of the stylesheet.
+  assert.equal(await page.$$eval('#historicPanel', (nodes) => nodes.length), 0,
+    'the schedule panel is still in the page');
+  assert.equal(await page.$$eval('.historic, .historic-head, .historic-days', (nodes) => nodes.length), 0,
+    'the schedule panel was hidden rather than removed');
 
-  const text = await page.$eval('#historicPanel', (el) => el.innerText.replace(/\s+/g, ' '));
-  assert.match(text, /Canadian Warplane Heritage Museum/, 'the panel does not name the operator');
-  assert.match(text, /CYHM/, 'the panel does not name the airport it belongs to');
-  assert.match(text, /km from you/, 'the panel does not measure the airport from the reader');
-  assert.match(text, /Lancaster/, 'the panel does not name the Lancaster');
-  assert.match(text, /Tiger Moth/, 'the panel does not name the other aircraft');
+  // 🔴 AND NOTHING IS FETCHED FOR IT. Measured as REQUESTS rather than as the absence of an error: a
+  // 404 nobody looks at still leaves the reader waiting on a round trip, and a deleted panel that still
+  // asks for its data is exactly the fault this repository keeps meeting.
+  assert.deepEqual(asked, [], `the page still asks for the schedule file: ${asked.join(', ')}`);
 
-  // The day is printed in the museum's own clock, so it must not be a raw ISO string.
-  assert.equal(/\d{4}-\d{2}-\d{2}T/.test(text), false, `the panel printed a raw timestamp: ${text}`);
-
-  // 🔴 AND IT SAYS THE UNCOMFORTABLE HALF. The feed has never reported LANC, and a page that
-  // showed the schedule without that would be promising the reader something it cannot back.
-  assert.match(text, /never reported Lancaster/i, 'the panel does not admit the feed has never seen it');
-
-  // The other aircraft has no sourced code, so the page must say NOTHING about whether it was
-  // reported — silence, not a guess in either direction.
-  assert.equal(/never reported Tiger Moth/i.test(text), false,
-    'the panel claims an unreported status for an aircraft whose code was never sourced');
-
-  await context.close();
-});
-
-test('the historic panel follows the reader — it goes when the museum is no longer near them', async () => {
-  const { context, page } = await openPage([[[]]]);
-  // The same stub, but the second search lands the reader somewhere else entirely.
-  await page.route('**/api/geo/search**', (route) => {
-    const asked = new URL(route.request().url()).searchParams.get('q') ?? '';
-    const far = /vancouver/i.test(asked);
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        ok: true,
-        places: [
-          far
-            ? { label: 'Vancouver, British Columbia, Canada', name: 'Vancouver', area: '', region: 'British Columbia', lat: 49.2827, lon: -123.1207 }
-            : { label: 'Stoney Creek, Hamilton, Ontario, Canada', name: 'Hamilton', area: 'Stoney Creek', region: 'Ontario', lat: 43.2318, lon: -79.7696 },
-        ],
-      }),
-    });
-  });
-  await page.route('**/historic.json', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(HISTORIC_STUB) })
-  );
-
-  await page.goto(BASE, { waitUntil: 'load' });
-  await page.$eval('#consentDecline', (element) => element.click());
-
-  await pickPlace(page, 'Stoney Creek Ontario');
-  await page.waitForTimeout(300);
-  assert.equal(await page.$eval('#historicPanel', (el) => el.hidden), false, 'the panel did not appear near the museum');
-
-  // 🔴 THE SEARCH FORM IS PUT AWAY ONCE A PLACE IS KNOWN, so the way back is "change location".
-  // A probe that types into the box again is testing a page that is not on screen.
-  await page.$eval('#changePlace', (element) => element.click());
-  await page.waitForSelector('#placeSearchInput', { state: 'visible' });
-  await pickPlace(page, 'Vancouver British Columbia');
-  await page.waitForTimeout(300);
-
-  assert.equal(await page.$eval('#historicPanel', (el) => el.hidden), true,
-    'the panel stayed after the reader moved to the other side of the country');
+  // And no plan is advertised anywhere on the page — not the museum, and not the days it intends to fly.
+  const body = await page.$eval('body', (el) => el.innerText.replace(/\s+/g, ' '));
+  assert.equal(/Warplane Heritage|Next days they fly/i.test(body), false,
+    'the page still advertises a museum or the days it intends to fly');
 
   await context.close();
 });

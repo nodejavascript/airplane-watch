@@ -138,19 +138,30 @@ an oversight.
 Aircraft positions from **[adsb.lol](https://adsb.lol/)**, a community network,
 published under the **Open Database License**. Aircraft that have asked not to be
 published, and aircraft with no ADS-B at all, will never appear here. Nothing is
-stored on a server: the watchlist, the chosen airport and the departures board
-live in the reader's own browser.
+stored on a server: the watchlist, the place you gave, the airport you picked, the distance and the
+filters live in the reader's own browser.
 
-### The old aircraft, and the days they fly — this is the point of the page
+### The old aircraft — collected, and no longer promised
 
-George, 20 Sep 2026: **"thats the whole point actually, to watch these old aircraft fly past your
-home location"**. Everything else here answers *what is in the air*. This answers the question a
-reader actually has about a rare aeroplane, which is **when to look up** — because a Lancaster flies a
-handful of times a year, and a handful of times a year is not something anybody notices by chance.
+🔴 **THE PAGE DOES NOT SHOW A SCHEDULE, AND THAT IS DELIBERATE.** George, 22 Sep 2026, pasting the
+museum panel back whole: ***"remove this section, if these plans show up then they show up"***.
 
-**It is DATA, in the database, served by the API.** Asked of an earlier draft that had it as a note
-here: *"shoudnt these be in the api?"* — and the honest answer was yes. Three tables and a view in
-`db/schema.sql`, composed once in `tools/historic-document.mjs` and served at `/historic.json`.
+It used to print a museum, the eight aircraft it keeps and the days it intends to fly them — from the
+airport the reader already had on screen — and then, in the same panel, admit that the feed had never
+once reported one of those eight. A **schedule is a promise about the future on a card that only
+reports the past**, and the reader was left holding both halves at once. What the page says now is what
+was measured: if one of those aeroplanes goes up and transmits, it appears in the table like any other.
+
+**The collector below is untouched and still runs.** It gathers data; it is not the section, and
+nothing on the page depends on it either way. It is kept because the readings it holds — what the
+museum flies, and which of those types the feed has actually seen — are worth having the day anyone
+asks the question again.
+
+#### The data, and how it is gathered
+
+Three tables and a view in `db/schema.sql`, composed once in `tools/historic-document.mjs` and written
+to `site/historic.json`. **Nothing on the page requests it any more** — a test asserts the page makes
+no request for it — so it is data at rest, not a feature.
 
 ```bash
 node tools/load-historic.mjs            # read the operator's next 28 days
@@ -164,8 +175,9 @@ are versioned in `~/preferences/aircraft/` because a systemd unit is not part of
 
 The museum is at **CYHM** — the airport this page already watches, 15 km from Hamilton — and the
 museum names it itself: *"We are located at 9280 Airport Road in Mount Hope, Ontario right at the
-Hamilton International Airport."* So the panel reads *"flies from CYHM, 15 km from you"*, and the
-distance is the same measurement as every other airport on the card.
+Hamilton International Airport."* When the panel existed it read *"flies from CYHM, 15 km from you"*,
+and the distance was the same measurement as every other airport on the card. That sentence left with the
+panel; the measurement it used is still the card's own.
 
 Two things are worth knowing before touching the loader:
 
@@ -190,5 +202,5 @@ has** — which `site/historic.json` reports as `reported: false`, read from the
 
 `reported` has **three** states in the data, and the third is the honest one: `true` (the feed has
 reported this type), `false` (it never has), and **`null` — nobody has sourced this aircraft's type
-code, so the question has not been asked.** The page prints the never-reported note only for a
+code, so the question has not been asked.** The old panel printed the never-reported note only for a
 definite `false`. Only the Lancaster is sourced today.

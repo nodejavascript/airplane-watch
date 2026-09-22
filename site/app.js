@@ -161,6 +161,24 @@ const SEEN_CHOICES = [
  */
 const SEEN_DEFAULT = 'all';
 /**
+ * 🔴 THERE IS NO SCHEDULE PANEL, AND SO THERE IS NO TYPE FOR ONE. George, 22 Sep 2026, pasting the
+ * whole section back: *"remove this section, if these plans show up then they show up"*.
+ *
+ * He is right, and it is the same reasoning that took the departures board off the page: a SCHEDULE is a
+ * promise about the future, and this page only ever knows the past. The panel listed a museum, the eight
+ * aircraft it keeps, and the days it intends to fly them — and then, in the same breath, admitted that one
+ * of the eight had never once been reported by the feed. A reader had to hold both halves at once and work
+ * out which one applied to them.
+ *
+ * What survives is what was measured: a type the feed has actually seen. If the Lancaster goes up and
+ * transmits, it arrives in the table like any other aeroplane — which is the whole of the promise, and the
+ * only one this page can keep.
+ *
+ * `HistoricDocument`, `HistoricSite` and `HistoricAircraft` were deleted with it. The collector that fills
+ * the database (`tools/load-historic.mjs`, on `aircraft-historic.timer`) is deliberately untouched: it
+ * gathers data, it is not the section, and nothing on the page depends on it either way.
+ */
+/**
  * One place name, with the list of communities in brackets cut off.
  *
  * `"Hamilton (Confederation Park / … / North Stoney Creek)"` becomes `"Hamilton"`, and a
@@ -323,6 +341,20 @@ const STAR_PATH = 'M12 2.7l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.6l-5.8 3.05L7.3 
  * mark rather than for where it first appeared, and it is always written first.
  */
 const MARK_STAR = `<svg class="mark-star" viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}"/></svg>`;
+/**
+ * The way out of a rule, drawn rather than typed.
+ *
+ * George, 22 Sep 2026: *"use an icon instead for the ✕"*. The glyph `✕` is a character in whatever font
+ * happens to be installed, so it arrives at that font's weight, its width and its baseline — it sat heavier
+ * than every other mark on the page and changed shape from one machine to the next, which is a lot of
+ * variance for the control that removes something.
+ *
+ * A stroked cross in the same 24-unit box as the star and the aeroplane is the same mark everywhere. It is
+ * drawn with `currentColor`, so it still takes the colour its row gives it, and the button keeps its own
+ * `aria-label`, so a screen reader loses nothing to the glyph going away.
+ */
+const CROSS_PATH = 'M6 6 L18 18 M18 6 L6 18';
+const MARK_CROSS = `<svg class="mark-cross" viewBox="0 0 24 24" aria-hidden="true"><path d="${CROSS_PATH}"/></svg>`;
 /**
  * A top-down aeroplane, drawn on the map mark instead of a dot.
  *
@@ -667,11 +699,8 @@ class Page {
      */
     airportsNote = '';
     nearby = [];
-    /**
-     * The days historic aircraft fly, from the site's own database. Null until read, and null
-     * for good if the file cannot be read — the panel is an extra, so its absence is quiet.
-     */
-    historic = null;
+    // 🔴 THERE IS NO `historic` FIELD, BECAUSE THERE IS NO PANEL TO FILL. See the note where the
+    // interfaces used to be.
     /** The raw readings from the last poll — the table and the map are drawn from these. */
     lastReadings = [];
     /**
@@ -758,7 +787,9 @@ class Page {
         void this.loadMilitary();
         void this.loadPhotos();
         void this.loadAirports();
-        void this.loadHistoric();
+        // 🔴 `loadHistoric()` IS NOT CALLED ANY MORE, because the schedule panel is gone — see the note
+        // where its interfaces used to be. Deleting the panel and leaving the fetch would be the
+        // half-removed feature this file has already met once: a reader paying for a file nothing draws.
         this.updateSteps();
         const notice = byId('notifyNote');
         if (notice && !('Notification' in window)) {
@@ -1793,7 +1824,7 @@ class Page {
      * He is right that the row was wasting the most valuable column in it. A reader watches a type
      * because they want to know when it flies, and the row said nothing about that — every row read
      * the same whether the thing was overhead at that second or had not been seen for a month. The
-     * way out is still there, as a small ✕ with its own label, so nobody is left holding a rule
+     * way out is still there, as a small cross icon with its own label, so nobody is left holding a rule
      * they cannot clear; what changed is that the row now answers the question it exists for.
      *
      * 🔴 EVERY ANSWER IS A TIME. "on the map 4 minutes ago" when the record holds a sighting, and
@@ -3359,7 +3390,7 @@ class Page {
                 `title="${escapeHtml(state.why)}">${escapeHtml(state.text)}</span>` +
                 `<button type="button" class="linkish type-remove" data-type="${escapeHtml(rule.type)}" ` +
                 `data-ga="type-unwatch" title="Stop watching" ` +
-                `aria-label="Stop watching ${escapeHtml(info.name)}">✕</button>` +
+                `aria-label="Stop watching ${escapeHtml(info.name)}">${MARK_CROSS}</button>` +
                 tailsHtml +
                 '</li>');
         })
@@ -3372,7 +3403,7 @@ class Page {
                 `<span class="watch-state" data-state="${state.kind}" ` +
                 `title="${escapeHtml(state.why)}">${escapeHtml(state.text)}</span>` +
                 `<button type="button" class="linkish watch-remove" data-key="${escapeHtml(item)}" ` +
-                `data-ga="unwatch" title="Stop watching" aria-label="Stop watching ${escapeHtml(item)}">✕</button></li>`);
+                `data-ga="unwatch" title="Stop watching" aria-label="Stop watching ${escapeHtml(item)}">${MARK_CROSS}</button></li>`);
         })
             .join('');
         host.innerHTML = typeItems + namedItems;
@@ -4026,125 +4057,19 @@ class Page {
         }).observe(host);
     }
     /**
-     * Read `historic.json` — the days the museum at Hamilton flies its aircraft.
+     * 🔴 THE SCHEDULE PANEL WAS HERE, AND ALL THREE OF ITS METHODS ARE GONE WITH IT —
+     * `loadHistoric`, `renderHistoric` and `historicDays`. George, 22 Sep 2026: *"remove this section,
+     * if these plans show up then they show up"*.
      *
-     * 🔴 THIS IS THE THING THE READER ACTUALLY CAME FOR, AND IT IS STILL ONLY A SCHEDULE.
-     * George, 20 Sep 2026: *"thats the whole point actually, to watch these old aircraft fly
-     * past your home location"*. A Lancaster flies a handful of times a year from a named
-     * airfield, and a handful of times a year is not something anybody notices by chance — so
-     * the schedule is the useful half, and the feed is the lucky half.
+     * What it drew was a museum, its eight aircraft, and the days it intends to fly them, followed by an
+     * admission that the feed had never once reported one of them. A schedule promises the future on a page
+     * that reports the past, and the reader was left to reconcile the two. The page now says only what it
+     * measured: if one of those aeroplanes goes up and transmits, it appears in the table like anything else.
      *
-     * It is composed by the site's own database and served at `/historic.json`, the same shape
-     * whether that came from the database or from the file the deploy carries. If it cannot be
-     * read the panel is simply absent: this is an extra, and a broken extra must not take the
-     * page with it.
+     * The three methods are DELETED rather than left uncalled, for the reason this file has recorded twice:
+     * code that reads as though it works, reaching for an element that no longer exists, is worse than code
+     * that is gone.
      */
-    async loadHistoric() {
-        try {
-            const response = await fetch('/historic.json', { headers: { accept: 'application/json' } });
-            this.historic = (await readJson(response));
-        }
-        catch {
-            this.historic = null;
-        }
-        this.renderHistoric();
-    }
-    /**
-     * Show the historic site nearest the reader — but only when it is one of THEIR airports.
-     *
-     * 🔴 THE SITE IS SHOWN AGAINST AN AIRPORT THE READER ALREADY HAS, WHICH IS WHAT MAKES IT
-     * BELIEVABLE. The museum is at CYHM; CYHM is in the same list, measured by the same
-     * distance, as every other airport on this card. So the sentence is not "somewhere there is
-     * a museum" — it is "the airport 15 km from you flies a Lancaster", which is a fact about a
-     * place already on screen.
-     *
-     * Nothing here is offered when the reader has no location: a schedule for an airport
-     * hundreds of kilometres away is not news, and this card has already been criticised once
-     * for claiming a place it did not know (see the note in `renderNearby`).
-     */
-    renderHistoric() {
-        const host = byId('historicPanel');
-        if (!host)
-            return;
-        const sites = this.historic?.sites ?? [];
-        // The nearest airport the reader has, out of the airports that have a historic site.
-        const within = this.nearby.find(({ airport }) => sites.some((site) => site.icao === airport.icao));
-        if (this.centre === null || within === undefined) {
-            host.hidden = true;
-            host.innerHTML = '';
-            return;
-        }
-        const site = sites.find((one) => one.icao === within.airport.icao);
-        if (!site) {
-            host.hidden = true;
-            return;
-        }
-        const names = site.aircraft.map((one) => one.name);
-        // 🔴 THE AIRCRAFT WHOSE TYPE THE FEED HAS NEVER REPORTED ARE NAMED, NOT HIDDEN. This is
-        // the honest answer to "why have I never seen it" and it comes straight from the
-        // database: `reported === false` means the survey has looked 129 types deep and never
-        // once recorded this code. `null` means nobody has sourced the code, so the page says
-        // nothing rather than guessing which of the two it is.
-        const neverSeen = site.aircraft.filter((one) => one.reported === false).map((one) => one.name);
-        const days = this.historicDays(site);
-        const dayLines = days
-            .map((day) => {
-            const flown = [...new Set(day.aircraft)].join(', ');
-            const open = day.seats.some((seats) => seats !== null && !/sold out/i.test(seats));
-            return (`<li><b>${escapeHtml(day.label)}</b> — ${escapeHtml(flown)}` +
-                (open ? '' : ' <span class="historic-gone">(no seats left)</span>') +
-                `</li>`);
-        })
-            .join('');
-        host.hidden = false;
-        host.innerHTML =
-            `<p class="historic-head">` +
-                `<a href="${escapeHtml(site.url)}" target="_blank" rel="noopener">${escapeHtml(site.name)}</a> ` +
-                `flies from <span class="mono">${escapeHtml(site.icao)}</span>, ` +
-                `${Math.round(within.km)} km from you.` +
-                `</p>` +
-                `<p class="small muted">Aircraft: ${escapeHtml(names.join(', '))}.</p>` +
-                (dayLines === ''
-                    ? `<p class="small muted">Nothing is scheduled in the days published so far.</p>`
-                    : `<p class="small"><b>Next days they fly:</b></p><ul class="historic-days">${dayLines}</ul>`) +
-                (neverSeen.length === 0
-                    ? ''
-                    : `<p class="small muted">The feed has never reported ${escapeHtml(neverSeen.join(' or '))} — ` +
-                        `it flies a handful of times a year, and this page can only list what the feed saw. ` +
-                        `A flight that transmits will appear in the table like any other.</p>`);
-        track('historic_shown', { icao: site.icao, upcoming: site.upcoming });
-    }
-    /**
-     * The next few days the site flies, each with the aircraft on it.
-     *
-     * 🔴 THE MUSEUM'S OWN CLOCK, SAID OUT LOUD. The times are the museum's local times, and a
-     * reader in another zone would otherwise read a number that means nothing to them. The zone
-     * is named in the output rather than assumed, and the day is grouped in that same zone — a
-     * flight at 09:30 in Mount Hope is not on the same date as 09:30 in Auckland.
-     */
-    historicDays(site) {
-        const zone = 'America/Toronto';
-        const dayKey = (at) => new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
-        const dayLabel = (at) => new Intl.DateTimeFormat('en-CA', {
-            timeZone: zone, weekday: 'short', month: 'short', day: 'numeric',
-        }).format(at);
-        const byAircraft = new Map(site.aircraft.map((one) => [one.theirId, one.name]));
-        const grouped = new Map();
-        for (const flight of site.flights) {
-            const at = new Date(flight.beginsAt);
-            const key = dayKey(at);
-            if (!grouped.has(key))
-                grouped.set(key, { label: dayLabel(at), aircraft: [], seats: [] });
-            const group = grouped.get(key);
-            if (group) {
-                const name = byAircraft.get(flight.aircraft);
-                if (name)
-                    group.aircraft.push(name);
-                group.seats.push(flight.seats);
-            }
-        }
-        return [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(0, 4).map(([, group]) => group);
-    }
     renderNearby() {
         const host = byId('nearbyList');
         const head = byId('nearbyHead');
@@ -4235,10 +4160,6 @@ class Page {
             .join('');
         this.wireNearChips(host);
         this.renderDistance();
-        // 🔴 THE HISTORIC PANEL IS RENDERED LAST, BECAUSE IT DEPENDS ON `this.nearby` — and it
-        // is rendered HERE rather than only at load, so a reader who moves their location gets
-        // the panel for the airport that is now near them rather than the one that was.
-        this.renderHistoric();
     }
     /**
      * One airport, as a chip — drawn in ONE place, so both lists cannot drift apart.
