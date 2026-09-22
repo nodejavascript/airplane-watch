@@ -556,6 +556,25 @@ class Page {
      * airport, because the question is what is in the air around THEM.
      */
     centre = null;
+    /**
+     * 🔴 THE FRAME THE MAIN MAP CHOSE, KEPT SO THE SECOND MAP CAN STAND IN IT.
+     *
+     * George, 21 Sep 2026: *"in the section ... i want to see the aircraft positions with a new
+     * map"*. Two maps zoomed differently are two maps that disagree about where a place is, so
+     * the fit is computed once — by the map that already computes it — and the map of aircraft
+     * positions draws inside the result. Recomputing it would be a second copy of the same
+     * arithmetic, which is the drift that has cost this page more than once today.
+     */
+    lastFrame = null;
+    /**
+     * The exact markup the position map drew last time, so an identical picture is not rebuilt.
+     *
+     * It is drawn on every poll and whenever the list changes, and re-injecting a whole tile
+     * layer plus its marks to produce the same pixels is work that buys nothing — the kind of
+     * cost that shows up as a page which is merely slow everywhere, and is then blamed on
+     * whatever was added last.
+     */
+    lastPlot = '';
     /** What the reader's place is called, for saying it back to them. */
     placeLabel = '';
     /**
@@ -1310,6 +1329,15 @@ class Page {
         // scroll position and their text selection to change a few characters, so only the
         // age spans are touched.
         this.tickReadingAges();
+        // 🔴 THE MAP OF POSITIONS IS DRAWN WHERE THE POSITIONS ARRIVE, AND LAST.
+        //
+        // It belongs to the watching list, but it plots aircraft the FEED reports — so drawing it
+        // only when the list changes leaves it stale the moment an aircraft appears. A diagnostic
+        // proved exactly that: the table listed ACA123 while the map still read *"Nothing on your
+        // list is inside the fence at this moment"*. Drawing it at the END means the table is never
+        // delayed by the map, and the two always describe the same poll. Calling it is cheap:
+        // `lastPlot` skips the write whenever the picture has not changed.
+        this.renderWatchMap();
     }
     /**
      * Keep every "· 12s ago" honest, once a second, without touching the rest of the table.
@@ -3108,6 +3136,8 @@ class Page {
             x: lonToTile(lon, zoom) * TILE - left,
             y: latToTile(lat, zoom) * TILE - top,
         });
+        // Kept for the map of the aircraft being watched, which draws inside this same frame.
+        this.lastFrame = { VIEW_W, VIEW_H, tiles, spotOf, zoom };
         // 🔴 THE RING IS DRAWN AROUND THE AIM, AND "YOU" IS ONLY DRAWN WHEN IT IS YOU.
         //
         // `you` is the reader; `anchorPx` is where the fence is pointed. With a place known they
@@ -3189,6 +3219,82 @@ class Page {
                 ' The tiles are fetched by this site\'s own server rather than by your ' +
                 'browser, so the map service never sees you — the same way the flight feed is handled.' +
                 '</p>';
+        // The second map stands in the frame just computed, so it is drawn here rather than
+        // being asked to work the frame out again.
+        this.renderWatchMap();
+    }
+    /**
+     * 🔴 WHERE THE AIRCRAFT YOU ARE WATCHING ACTUALLY ARE.
+     *
+     * George, 21 Sep 2026: *"in the section [Everything you have picked, in one place …] i want
+     * to see the aircraft positions with a new map"*.
+     *
+     * The list says what is being watched and the table says what the feed can see; neither says
+     * WHERE. This plots them, in the frame the map above already chose — so the two maps cannot
+     * disagree, and an aircraft off the edge of one is off the edge of the other.
+     *
+     * It says plainly when it is empty, and why: a list with aircraft that have not reported a
+     * position yet would otherwise look like a map that had failed to draw.
+     */
+    renderWatchMap() {
+        const host = byId('watchMap');
+        if (!host)
+            return;
+        const frame = this.lastFrame;
+        if (!frame) {
+            // No frame means no map was drawn this pass — there is no centre and no airport yet, so
+            // there is nothing honest to plot either. A later pass fills it in.
+            host.innerHTML = '';
+            return;
+        }
+        const watching = (this.engine ? this.engine.snapshot() : []).filter((one) => this.isWatchedNow(one));
+        const placed = watching.filter((one) => typeof one.lat === 'number' && typeof one.lon === 'number');
+        if (watching.length === 0) {
+            const empty = '<p class="small muted">Nothing on your list is inside the fence at this moment, so there ' +
+                'is nothing to place on a map yet. Aircraft appear here as they arrive.</p>';
+            if (empty !== this.lastPlot) {
+                this.lastPlot = empty;
+                host.innerHTML = empty;
+            }
+            return;
+        }
+        const { VIEW_W, VIEW_H, tiles, spotOf } = frame;
+        let marks = '';
+        let drawn = 0;
+        for (const one of placed.slice(0, 60)) {
+            const spot = spotOf(one.lat, one.lon);
+            // Off the view is off the view, and saying so below is better than clipping it silently.
+            if (spot.x < 0 || spot.x > VIEW_W || spot.y < 0 || spot.y > VIEW_H)
+                continue;
+            drawn += 1;
+            const label = one.callsign || one.registration || '';
+            marks +=
+                `<circle class="locmap-plane" cx="${spot.x.toFixed(1)}" cy="${spot.y.toFixed(1)}" r="4.5" />` +
+                    (label
+                        ? `<text class="locmap-plane-label" x="${(spot.x + 7).toFixed(1)}" ` +
+                            `y="${(spot.y + 3.5).toFixed(1)}">${escapeHtml(label)}</text>`
+                        : '');
+        }
+        const unplaced = watching.length - drawn;
+        const html = `<div class="locmap" style="width:${VIEW_W}px;height:${VIEW_H}px">` +
+            tiles +
+            `<svg class="locmap-over" viewBox="0 0 ${VIEW_W} ${VIEW_H}" role="img" ` +
+            `aria-label="${drawn} aircraft you are watching, plotted where the feed last reported them">` +
+            marks +
+            '</svg></div>' +
+            '<p class="small muted locmap-note">Every aircraft on your list and inside the fence, ' +
+            'drawn where the feed last reported it — in the same frame as the map above, so the two ' +
+            'agree about where those aircraft are. ' +
+            (unplaced > 0
+                ? `${unplaced} ${unplaced === 1 ? 'is' : 'are'} on the list without a reported position ` +
+                    'yet, so they are listed and not plotted.'
+                : '') +
+            '</p>';
+        // An unchanged picture is left alone — see `lastPlot`.
+        if (html !== this.lastPlot) {
+            this.lastPlot = html;
+            host.innerHTML = html;
+        }
     }
     /**
      * 🔴 THE MAP IS REDRAWN WHEN THE BOX CHANGES SIZE. The tiles are placed by pixel,

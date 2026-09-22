@@ -1955,6 +1955,29 @@ main > #status {
   margin-left: auto;
 }
 
+/*
+ * The aircraft the reader is watching, plotted on the map in step 4.
+ *
+ * A filled dot with a dark ring, so it reads as a thing that is there NOW rather than as
+ * another label — and it has to stay legible over map tiles of any colour, which is why it
+ * is stroked rather than left as a flat shape.
+ */
+.locmap-plane {
+  fill: #38bdf8;
+  stroke: rgba(2, 6, 23, 0.85);
+  stroke-width: 1.6;
+}
+
+.locmap-plane-label {
+  fill: #e2e8f0;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  paint-order: stroke;
+  stroke: rgba(2, 6, 23, 0.85);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
 /* ---------------------------------------------------------------------------
  * The historic aircraft panel — when to look up.
  *

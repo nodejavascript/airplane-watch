@@ -291,8 +291,24 @@
       <section class="card step-gated" id="step-4" data-step="4" hidden>
         <h2><span class="step">4</span> What you are watching</h2>
         <p class="sub">Everything you have picked, in one place, with the way to stop watching each
-          one. The table below lists only what is on this list.</p>
+          one, and a map of where those aircraft are right now. The table below lists only what is
+          on this list.</p>
         <ul class="watch-list" id="watchList"></ul>
+
+        <!--
+          🔴 WHERE THE AIRCRAFT ON THE LIST ACTUALLY ARE. George, 21 Sep 2026: *"in the section
+          [Everything you have picked, in one place…] i want to see the aircraft positions with a
+          new map"*.
+
+          The list says what you are watching and the table says what the feed can see; neither
+          says WHERE. This map draws them at the positions the feed reported.
+
+          It is drawn inside the SAME frame as the map in step 3 — the frame is computed once,
+          by the map that already computes it, and this one stands in it. Two maps zoomed
+          differently are two maps that disagree about where a place is, and recomputing the fit
+          here would be a second copy of the same arithmetic.
+        -->
+        <div id="watchMap"></div>
       </section>
 
       <section class="card" id="live">

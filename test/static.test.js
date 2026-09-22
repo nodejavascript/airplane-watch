@@ -1195,3 +1195,38 @@ test('the map is in the aircraft step, drawn, and there is exactly ONE of it', (
   // And the code still draws it, with no canvas left unclaimed.
   assert.match(readSrc('src/app.ts'), /private renderMap\(\): void/, 'renderMap has gone');
 });
+
+test('the watching section has its own map, drawn in the OTHER map\'s frame', () => {
+  // 🔴 George, 21 Sep 2026: *"in the section [Everything you have picked …] i want to see the
+  // aircraft positions with a new map"*. Two maps zoomed differently would disagree about
+  // where a place is, so the frame is computed once by the map that already computes it.
+  const html = read(SITE, 'index.html');
+  const app = readSrc('src/app.ts');
+
+  assert.match(html, /<div id="watchMap"><\/div>/, 'the map of positions has no place on the page');
+  assert.equal((html.match(/id="watchMap"/g) ?? []).length, 1, 'the map of positions exists more than once');
+  assert.ok(html.indexOf('id="watchMap"') > html.indexOf('id="step-4"'),
+    'the map of positions was not put in the watching section');
+  assert.ok(html.indexOf('id="watchMap"') > html.indexOf('id="watchList"'),
+    'the map of positions was put above the list it plots');
+
+  assert.match(app, /private renderWatchMap\(\): void/, 'renderWatchMap has gone');
+  assert.match(app, /this\.renderWatchMap\(\);/, 'the map of positions is never drawn');
+  assert.match(app, /this\.lastFrame = \{/, 'the frame is never kept for the second map to stand in');
+
+  // 🔴 IT MUST NOT WORK OUT ITS OWN ZOOM. A second `fittest()` is a second copy of the same
+  // arithmetic, and two copies drift — which is the fault that has cost this page more than
+  // once. This asserts the sharing rather than trusting it.
+  const start = app.indexOf('private renderWatchMap');
+  // The next method declaration is the end of this one. Slicing to a NAMED method that happens
+  // to be declared earlier in the class yields an empty string, and a guard that checks an
+  // empty body passes for the wrong reason — which it did, on this very assertion, once.
+  const next = app.indexOf('\n  private ', start + 1);
+  const body = next > start ? app.slice(start, next) : '';
+  assert.ok(body.length > 200, 'the renderWatchMap body could not be isolated, so this check is vacuous');
+  assert.equal(/fittest\(/.test(body), false, 'the second map computes its own zoom, so the two maps can disagree');
+  assert.equal(/156543/.test(body), false, 'the second map computes its own scale, so the two maps can disagree');
+
+  // And the empty state is stated rather than left blank.
+  assert.match(body, /Nothing on your list is inside the fence/i, 'the empty position map says nothing');
+});

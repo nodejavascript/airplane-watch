@@ -1703,3 +1703,83 @@ test('the map sits under the aircraft list, is drawn, and there is only one of i
 
   await context.close();
 });
+
+/* ------------------------------------- the positions of what you are watching --- */
+
+/**
+ * George, 21 Sep 2026: *"in the section [Everything you have picked, in one place …] i want to
+ * see the aircraft positions with a new map"*.
+ *
+ * The list says what is watched and the table says what the feed can see; neither says WHERE.
+ * This proves the map in that section actually plots them — with a scripted aircraft, because
+ * the real feed at four in the morning has nothing in the fence at all, and an empty map is
+ * exactly the state that looks like a broken one.
+ */
+test('the watching section plots the aircraft on the list', async () => {
+  const { context, page } = await openPage([
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 5000, lat: 43.19, lon: -79.93 }],
+  ]);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
+  await page.waitForSelector('#typeList .typerow');
+
+  await page.$$eval('#typeList .typerow', (items) => {
+    items.find((item) => /Boeing 737 MAX 8/.test(item.textContent)).querySelector('.type-toggle').click();
+  });
+
+  // 🔴 WAIT FOR THE PLOT — DO NOT SLEEP AND HOPE. The map waits for the poll that brings the
+  // position and for the watch list to name the type, so a fixed sleep is a race: this test
+  // PASSED run alone and FAILED inside the full suite, which is exactly the signature of a
+  // test that slept rather than waited. A condition with a timeout is honest about the wait.
+  await page.waitForSelector('#watchMap .locmap-plane', { timeout: 20_000 });
+
+  // It is in the watching section, not somewhere else.
+  assert.equal(await page.$$eval('#watchMap', (nodes) => nodes.length), 1,
+    'there is not exactly one map of positions');
+  const where = await page.$eval('#watchMap', (element) => element.closest('section')?.id ?? 'nowhere');
+  assert.equal(where, 'step-4', `the position map is not in the watching section — it is in ${where}`);
+
+  // Drawn: tiles fetched, and the aircraft plotted at its position.
+  assert.ok(await page.$eval('#watchMap', (element) => element.querySelectorAll('.locmap-tile').length) > 0,
+    'the position map has no map tiles under it');
+  const planes = await page.$$eval('#watchMap .locmap-plane', (nodes) => nodes.length);
+  assert.ok(planes > 0, 'the position map drew no aircraft, so the list has nothing plotted on it');
+
+  // Named, so a dot can be told apart from another dot.
+  const labels = await page.$$eval('#watchMap .locmap-plane-label', (nodes) => nodes.map((n) => n.textContent));
+  assert.ok(labels.some((text) => /ACA123/.test(text)), `the plotted aircraft is not named: ${labels.join(', ')}`);
+
+  // 🔴 THE TWO MAPS SHARE ONE FRAME. That is the whole reason the frame is kept rather than
+  // recomputed: two maps zoomed differently disagree about where a place is.
+  const frameOf = (id) =>
+    page.$eval(id, (element) => {
+      const box = element.querySelector('.locmap');
+      return box ? `${box.style.width}|${box.style.height}` : null;
+    });
+  assert.equal(await frameOf('#watchMap'), await frameOf('#locMap'),
+    'the map of positions is drawn in a different frame from the map above it');
+
+  // And it says where the dots came from rather than leaving the reader to infer it.
+  assert.match(await page.$eval('#watchMap', (element) => element.textContent), /where the feed last reported/i,
+    'the position map does not say what the dots mean');
+
+  await context.close();
+});
+
+test('the position map SAYS when it has nothing to plot', async () => {
+  // The honest empty state matters more than the happy one: a blank map is indistinguishable
+  // from a map that failed, and at a quiet hour that is the normal case.
+  const { context, page } = await openPage([]);
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
+  await page.waitForTimeout(1200);
+
+  const text = await page.$eval('#watchMap', (element) => element.textContent.replace(/\s+/g, ' ').trim());
+  assert.match(text, /nothing/i, `an empty position map says nothing at all: "${text}"`);
+  assert.match(text, /fence/i, 'the empty position map does not say what it is waiting for');
+
+  await context.close();
+});
