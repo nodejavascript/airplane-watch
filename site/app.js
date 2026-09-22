@@ -1509,6 +1509,9 @@ class Page {
                 const type = String(reading.t || '').trim().toUpperCase();
                 if (!type || type === '-' || type.length > 6)
                     continue;
+                // 🔴 WHAT IS IN FRONT OF THE READER, NOT WHAT IS IN THE RESPONSE. See `insideMyCircle`.
+                if (!this.insideMyCircle(reading.lat, reading.lon))
+                    continue;
                 seen.set(type, (seen.get(type) ?? 0) + 1);
             }
             // 🔴 A SWAP IS A CHANGE. One type leaving as another arrives leaves the SIZE the same, so a
@@ -1820,12 +1823,26 @@ class Page {
      * page that hides what it cannot measure reports an absence it has no way to know about.
      */
     insideFence(state) {
+        return this.insideMyCircle(state.lat, state.lon);
+    }
+    /**
+     * The same question for a raw reading, which is what the feed hands over before anything is tracked.
+     *
+     * 🔴 AND THE POLL'S OWN CENSUS HAS TO ASK IT. George, 22 Sep 2026: *"i click last 5 minutes. this shoud
+     * filter my the airport i selected. last 5 minutes from my airport, not all flights everywhere, because
+     * now it says in the air but i dont see on map"*. The census that answers *"seen just now"* and exempts
+     * a type from the airport filter was built from the WHOLE response — every aircraft the feed returned,
+     * hundreds of kilometres away included — so a type flying over Toronto was offered as "seen just now"
+     * here, and the row went on to promise an aircraft the map could not draw because it was outside the
+     * circle. One question, asked in one place.
+     */
+    insideMyCircle(lat, lon) {
         const centre = this.point();
         if (centre === null)
             return true;
-        if (typeof state.lat !== 'number' || typeof state.lon !== 'number')
+        if (typeof lat !== 'number' || typeof lon !== 'number')
             return true;
-        return distanceNm(centre.lat, centre.lon, state.lat, state.lon) <= kmToNm(this.radiusKm);
+        return distanceNm(centre.lat, centre.lon, lat, lon) <= kmToNm(this.radiusKm);
     }
     /* -------------------------------------------------- the measured types --- */
     /**
@@ -3672,7 +3689,7 @@ class Page {
      * 🔴 AND IT IS CHECKED UNLESS THE READER HAS SWITCHED IT OFF. The default is on, which is why the
      * set it reads is the exclusions and not the choices — see `mapHide`.
      */
-    mapSwitch(kind, value) {
+    mapSwitch(kind, value, stateKind) {
         const key = Page.showKey(kind, value);
         // The row's own wording, kept beside the key that matches the feed, for the caption to use.
         this.mapRowNames.set(key, value);
@@ -3681,10 +3698,19 @@ class Page {
             ? 'This row is on the map. Switch it off to take it off — the rest of your list stays as it is.'
             : 'This row is switched off, so the map is not drawing it. Switch it back on to bring it back — '
                 + 'or press Show all flights under the map to switch every row on again.';
-        return (`<label class="map-switch" title="${escapeHtml(why)}">` +
+        return (
+        // 🔴 NO WORDS BESIDE IT. George, 22 Sep 2026: *"remove the show on map redundant text"*. The row's
+        // own sentence already says what the switch is for, and the control is the same shape every reader
+        // has met before — so the label is carried by `aria-label` for anyone who cannot see the shape.
+        //
+        // 🔴 AND THE SWITCH WEARS THE COLOUR OF THE SENTENCE BESIDE IT — *"the swtich should conform with
+        // ther colors"*. `data-state` is the row's own state kind, which the stylesheet turns into the same
+        // green, amber or theme colour the status text uses: one row, one colour.
+        `<label class="map-switch" data-state="${escapeHtml(stateKind)}" title="${escapeHtml(why)}">` +
             `<input type="checkbox" role="switch" class="map-show" data-map-key="${escapeHtml(key)}" ` +
+            `aria-label="Show this row on the map" ` +
             `data-ga="map-show"${on ? ' checked' : ''} />` +
-            '<span>show on map</span></label>');
+            '</label>');
     }
     /**
      * The press: one switch changed, so the rows and the map are both redrawn in the same frame.
@@ -3817,7 +3843,7 @@ class Page {
                 `title="${escapeHtml(state.why)}">${escapeHtml(state.text)}</span>` +
                 // 🔴 THE SWITCH, BESIDE THE ANSWER IT FILTERS. George, 22 Sep 2026: *"can we add a swtich
                 // called show on map, on change the map is reloaded and rezoomed"*.
-                this.mapSwitch('type', rule.type) +
+                this.mapSwitch('type', rule.type, state.kind) +
                 `<button type="button" class="linkish type-remove" data-type="${escapeHtml(rule.type)}" ` +
                 `data-ga="type-unwatch" title="Stop watching" ` +
                 `aria-label="Stop watching ${escapeHtml(info.name)}">${MARK_CROSS}</button>` +
@@ -3842,7 +3868,7 @@ class Page {
                 `<span class="watch-state" data-state="${state.kind}" ` +
                 `title="${escapeHtml(state.why)}">${escapeHtml(state.text)}</span>` +
                 // The same switch on a named tail — one aeroplane, which is the finest thing a row can mean.
-                this.mapSwitch('tail', item) +
+                this.mapSwitch('tail', item, state.kind) +
                 `<button type="button" class="linkish watch-remove" data-key="${escapeHtml(item)}" ` +
                 `data-ga="unwatch" title="Stop watching" aria-label="Stop watching ${escapeHtml(item)}">${MARK_CROSS}</button></li>`);
         })
@@ -3851,6 +3877,15 @@ class Page {
         for (const button of host.querySelectorAll('.type-remove')) {
             button.addEventListener('click', () => {
                 const code = button.dataset.type ?? '';
+                // 🔴 STOPPING WATCHING IS NOT UNDOABLE, SO IT ASKS FIRST. George, 22 Sep 2026: *"add a html
+                // confirmation box if deleting a watched airplane type"*. The cross sits beside the switch and
+                // removes the row, its tails and its aircraft from the map in one click, with nothing on the page
+                // to put it back except finding the type again in step 3.
+                const info = describeType(code);
+                const yes = window.confirm(`Stop watching ${info.name} ${code}?\n\n` +
+                    'Its aircraft come off the map and the row goes from your list.');
+                if (!yes)
+                    return;
                 this.typeRules = this.typeRules.filter((rule) => normaliseKey(rule.type) !== normaliseKey(code));
                 this.saveTypeRules();
                 this.renderWatchlist();
@@ -3861,7 +3896,13 @@ class Page {
             });
         }
         for (const button of host.querySelectorAll('.watch-remove')) {
-            button.addEventListener('click', () => this.removeWatch(button.dataset.key ?? ''));
+            button.addEventListener('click', () => {
+                const key = button.dataset.key ?? '';
+                // The same question for one named aeroplane, which is the same one-way door.
+                const yes = window.confirm(`Stop watching ${key}?\n\nIt comes off the map and the row goes from your list.`);
+                if (yes)
+                    this.removeWatch(key);
+            });
         }
         this.updateSteps();
     }

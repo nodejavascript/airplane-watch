@@ -2293,9 +2293,9 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
   // link"*. The same switch a type row carries, always available — the old press existed only while the
   // aeroplane was reporting a position, which is a control with a hidden precondition.
   assert.equal(/li\.watch-type\[data-hex\]/.test(watchlist), false, 'the named tail row is a link again');
-  assert.match(watchlist, /this\.mapSwitch\('tail', item\)/, 'the named tail row has no show-on-map boolean');
-  assert.match(watchlist, /this\.mapSwitch\('type', rule\.type\)/, 'the type row has no show-on-map boolean');
-  assert.match(app, /private mapSwitch\(kind: 'type' \| 'tail', value: string\): string/,
+  assert.match(watchlist, /this\.mapSwitch\('tail', item, state\.kind\)/, 'the named tail row has no show-on-map boolean');
+  assert.match(watchlist, /this\.mapSwitch\('type', rule\.type, state\.kind\)/, 'the type row has no show-on-map boolean');
+  assert.match(app, /private mapSwitch\(kind: 'type' \| 'tail', value: string, stateKind: string\): string/,
     'a switch is asked for a fact it must not depend on');
   // The slice starts at the signature, so the note beside it — which names the `disabled` attribute it
   // explains the removal of — is outside it and cannot make this a false failure.
@@ -2617,4 +2617,95 @@ test('101 · the cards are hidden until their prerequisite is met, and cannot be
   assert.match(tailRule, /display: block/, '.cell-tail is not stacked, so the tail cannot sit under the type');
   assert.ok(cssCode.indexOf('.cell-tail {') > cssCode.indexOf('.cell-type {'),
     'the tail rule comes first in the stylesheet, so the order on the row is no longer stated by the styles');
+});
+
+test('102 · the switch has no words, wears the row\'s colour, lines up — and the cross asks first', () => {
+  // George, 22 Sep 2026, one message, four requests: *"remove the show on map redundant text, add a html
+  // confirmation box if deleting a watched airplane type. in the air messages should be vertically
+  // alinged with the switch and the swtich should conform with ther colors."*
+  const app = readSrc('src/app.ts');
+  const cssSource = read(SITE, 'styles.css');
+  const cssRules = stripCss(cssSource);
+
+  // 1 · NO WORDS BESIDE THE SWITCH — the row's own sentence already says what it is for. The name is
+  // still there for anyone who cannot see the shape, so this is a removal of a duplicate, not of the
+  // accessible name.
+  const switchBody = app.slice(app.indexOf('private mapSwitch('), app.indexOf('private toggleMapShow('));
+  assert.ok(switchBody.length > 300, 'the switch builder could not be isolated, so this check is vacuous');
+  assert.equal(/show on map<\/span>/.test(switchBody), false, 'the redundant "show on map" text is still rendered');
+  assert.match(switchBody, /aria-label="Show this row on the map"/,
+    'the switch lost its label AND its accessible name, so it is now an unlabelled control');
+
+  // 2 · THE SWITCH WEARS THE COLOUR OF THE SENTENCE BESIDE IT. `data-state` is the row's own state kind;
+  // the three rules are the same three colours `.watch-state` is drawn in, which is what makes them
+  // "the same colours" rather than a second palette.
+  assert.match(switchBody, /data-state="\$\{escapeHtml\(stateKind\)\}"/,
+    'the switch does not carry the row\'s state, so it cannot be coloured by it');
+  assert.match(cssRules, /\.map-switch\[data-state='air'\] input:checked \{[^}]*background: #7ee787/,
+    'an in-the-air row\'s switch is not the green the status text uses');
+  assert.match(cssRules, /\.map-switch\[data-state='never'\] input:checked \{[^}]*background: #f0be5a/,
+    'a row that has never been seen here does not use the amber the status text uses');
+  const airState = cssRules.match(/\.watch-list \.watch-state\[data-state='air'\] \{[^}]*color:\s*(#[0-9a-f]{6})/i);
+  const airSwitch = cssRules.match(/\.map-switch\[data-state='air'\] input:checked \{[^}]*background:\s*(#[0-9a-f]{6})/i);
+  assert.ok(airState && airSwitch && airState[1].toLowerCase() === airSwitch[1].toLowerCase(),
+    'the switch and the sentence it sits beside are drawn in two different greens');
+
+  // 3 · ONE CENTRE LINE. `baseline` lines text up with text; a switch has no text baseline, so the row
+  // read as three things at three heights.
+  const listRow = cssRules.slice(cssRules.indexOf('.watch-list > li {'), cssRules.indexOf('}', cssRules.indexOf('.watch-list > li {')));
+  assert.match(listRow, /align-items: center/,
+    'the row is still aligned on the baseline, so the status and the switch cannot share a centre line');
+
+  // 4 · THE CROSS ASKS FIRST, ON BOTH KINDS OF ROW. It is the only control on the page that throws
+  // something away, and nothing else on the page can put a removed type back.
+  const watchlist = app.slice(app.indexOf('private renderWatchlist('), app.indexOf('private renderWatchButton('));
+  const removeTypes = watchlist.slice(watchlist.indexOf("querySelectorAll<HTMLButtonElement>('.type-remove')"));
+  const removeTails = watchlist.slice(watchlist.indexOf("querySelectorAll<HTMLButtonElement>('.watch-remove')"));
+  assert.ok(removeTypes.length > 200 && removeTails.length > 100, 'a remove handler could not be isolated');
+  assert.match(removeTypes, /window\.confirm\(/,
+    'stopping watching a type does not ask, so one press throws the row away');
+  // And the question NAMES what is going — a confirm that does not say what it is about is a speed bump.
+  assert.match(removeTypes, /Stop watching \$\{info\.name\} \$\{code\}/,
+    'the confirmation does not name the type it is about to stop watching');
+  assert.match(removeTails, /window\.confirm\(/,
+    'stopping watching one named aircraft does not ask');
+  // A dismissed question must change nothing: the filter runs only after the answer.
+  assert.ok(removeTypes.indexOf('if (!yes) return;') < removeTypes.indexOf('this.typeRules = this.typeRules.filter'),
+    'the type is removed before the reader answers');
+});
+
+test('103 · "in the air" and "seen just now" mean INSIDE YOUR CIRCLE, not somewhere in the response', () => {
+  // 🔴 GEORGE'S COMPLAINT, VERBATIM, 22 Sep 2026: *"i click last 5 minutes. this shoud filter my the
+  // airport i selected. last 5 minutes from my airport, not all flights everywhere, because now it says
+  // in the air but i dont see on map"*. The census that answers "seen just now" — and that exempts a
+  // type from the airport filter — was built from EVERY aircraft in the feed's response, while the map
+  // drew only what was inside the chosen circle. Two sentences about one moment, counted from two
+  // different sets: that is what made the page promise something it could not show.
+  const app = readSrc('src/app.ts');
+
+  // One fence test now, asked of a raw reading as well as of a tracked one.
+  assert.match(app, /private insideMyCircle\(lat\?: number, lon\?: number\): boolean/,
+    'there is no fence test for a raw reading, so the poll cannot ask the question the map asks');
+  assert.match(app, /private insideFence\(state: \{ lat\?: number; lon\?: number \}\): boolean \{\s*\n\s*return this\.insideMyCircle\(state\.lat, state\.lon\);/,
+    'two fence tests exist, which is how the map and the list came to disagree');
+
+  // And the poll applies it to the census it builds.
+  // ⚠️ THE SLICE IS BOUNDED BY SOMETHING THAT COMES *AFTER* `poll`, and that is not a detail: the first
+  // version of this check closed the slice on `private feedTrouble(`, which is declared ABOVE the poll —
+  // so `slice(a, b)` with b < a returned an empty string, the census was never found, and the check
+  // reported a failure against a correct file. A false failure is the expensive kind. `private
+  // tickWatchStates(` is declared below it, so the slice contains the poll and nothing else.
+  const poll = app.slice(app.indexOf('private async poll('), app.indexOf('private tickWatchStates('));
+  assert.ok(poll.length > 2000, 'the poll could not be isolated, so this check is vacuous');
+  const census = poll.slice(poll.indexOf('const seen = new Map<string, number>();'));
+  assert.ok(census.length > 100, 'the live census could not be isolated, so this check is vacuous');
+  assert.match(census, /if \(!this\.insideMyCircle\(reading\.lat, reading\.lon\)\) continue;/,
+    'the live census still counts every aircraft the feed returned, so a type far outside the circle reads "seen just now"');
+
+  // The census is what `lastSeenOf` answers `now` from and what exempts a type from the airport filter,
+  // so both of the sentences George read are scoped by the one change above.
+  assert.match(app, /if \(this\.liveTypes\.has\(upper\)\) return new Date\(\);/,
+    'the "in the air / seen now" answer no longer reads the census this test just scoped');
+  assert.match(app, /const inTheAir = this\.liveTypes\.has\(row\.code\.toUpperCase\(\)\);/,
+    'the type list no longer reads the census this test just scoped');
 });

@@ -1962,17 +1962,19 @@ main > #status {
  * rezoomed"*. It sits between the status and the cross, because it is a question about the status
  * beside it — the status says what the row is doing, and this says "and put the map on it".
  *
- * 🔴 A ROW WITH NOTHING IN THE AIR HAS A DISABLED SWITCH, AND IT SAYS WHY ON HOVER. The switch is
- * dead rather than absent: a control that vanishes when a flight lands teaches the reader it was
- * never there, and the title explains the one thing they will want to know — that the sky is empty,
- * not the page broken.
+ * 🔴 THE SWITCH HAS NO WORDS BESIDE IT ANY MORE. George, 22 Sep 2026: *"remove the show on map
+ * redundant text"*. Its accessible name is on the input, so a screen reader still hears it, and the
+ * `title` on this label still explains it on hover.
+ *
+ * 🔴 AND THE ROW IS ALWAYS SWITCHABLE — THE OPPOSITE OF WHAT THIS BLOCK USED TO SAY. *Prior wording,
+ * preserved and now dead:* *"A ROW WITH NOTHING IN THE AIR HAS A DISABLED SWITCH … The switch is dead
+ * rather than absent"*. George retired that on 22 Sep 2026: *"even though the filight may or may not be
+ * in the air, i want this to be a boolean input, not a link"* — so nothing renders `disabled` and
+ * nothing here styles it. The switch answers with what the map has, whenever it is pressed.
  * ------------------------------------------------------------------------ */
 .map-switch {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1996,6 +1998,10 @@ main > #status {
  * The OFF track is NOT Ant Design's `rgba(0, 0, 0, 0.25)`: that value is chosen for a white page and
  * disappears against this card. The muted ink at 35% is the same idea — a dim, neutral pill — on the
  * surface this page actually has, and it turns the theme colour when it is on. */
+/* 🔴 THE SWITCH WEARS THE COLOUR OF THE SENTENCE BESIDE IT. George, 22 Sep 2026: *"the swtich should
+ * conform with ther colors"*. `data-state` is the row's own state kind and these are the same three
+ * colours `.watch-list .watch-state` is drawn in — one row, one colour, and the switch is never a
+ * control in a palette of its own. */
 .map-switch input {
   appearance: none;
   -webkit-appearance: none;
@@ -2006,7 +2012,7 @@ main > #status {
   margin: 0;
   border: 0;
   border-radius: 100px;
-  background: rgba(143, 169, 189, 0.35);
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -2028,6 +2034,16 @@ main > #status {
   background: var(--theme);
 }
 
+/* In the air — the loud green the status column uses. */
+.map-switch[data-state='air'] input:checked {
+  background: #7ee787;
+}
+
+/* Nothing of this row has ever been seen here — the amber the status column uses. */
+.map-switch[data-state='never'] input:checked {
+  background: #f0be5a;
+}
+
 .map-switch input:checked::after {
   left: calc(100% - 20px);
 }
@@ -2036,7 +2052,7 @@ main > #status {
  * focused switch is visible without a box appearing round the row. */
 .map-switch input:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme) 25%, transparent);
 }
 
 /* ⚠️ THERE IS NO DISABLED STATE, AND THAT IS THE POINT. A switch that cannot be turned on is a link with a
@@ -2090,7 +2106,11 @@ main > #status {
 
 .watch-list > li {
   display: flex;
-  align-items: baseline;
+  /* 🔴 ON ONE CENTRE LINE, NOT ON ONE BASELINE. George, 22 Sep 2026: *"in the air messages should be
+   * vertically alinged with the switch"*. `baseline` lines text up with text, and a switch has no text
+   * baseline — so the two controls beside the sentence sat at slightly different heights and the row read
+   * as three things rather than one. Everything in the row shares the middle now. */
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px;
   /* 🔴 THE LEFT AND RIGHT MARGINS INSIDE THE CELL. George, 21 Sep 2026: *"the spacing inside
