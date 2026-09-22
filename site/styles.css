@@ -1926,8 +1926,12 @@ main > #status {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 6px;
-  padding: 7px 0;
+  gap: 8px;
+  /* 🔴 THE LEFT AND RIGHT MARGINS INSIDE THE CELL. George, 21 Sep 2026: *"the spacing inside
+   * each cell is needs fixing the left and right margins"*. The rows had vertical padding only,
+   * so every line of text sat hard against the card's edge and read as one block rather than as
+   * rows. The inset is what makes each row a row. */
+  padding: 9px 12px;
   border-top: 1px solid var(--line);
   line-height: 1.5;
 }
@@ -1947,27 +1951,58 @@ main > #status {
   flex: 1 1 auto;
 }
 
-/* The way out of a watch sits at the end of its own row, so it cannot be pressed
- * by accident while reading the row. */
+/*
+ * WHAT THE WATCHED THING IS DOING, IN THE COLUMN THE WORDS "STOP WATCHING" USED TO HOLD.
+ *
+ * It is pushed to the right edge so every row's status lines up in one column, and it never
+ * wraps: a status that broke across two lines would make the rows different heights and undo
+ * the alignment it exists for.
+ */
+.watch-list .watch-state {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 13px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+/* In the air is the answer the reader came for, so it is the one that is allowed to be loud. */
+.watch-list .watch-state[data-state='air'] {
+  color: #7ee787;
+  font-weight: 600;
+}
+
+.watch-list .watch-state[data-state='never'] {
+  color: #f0be5a;
+}
+
+/* The way out is a small ✕ at the end of the row, after the status — it keeps its own label
+ * for a screen reader, so nothing is lost by it no longer spelling itself out. */
 .watch-list .type-remove,
 .watch-list .watch-remove {
   flex: 0 0 auto;
-  margin-left: auto;
+  margin-left: 0;
+  padding: 0 2px;
+  line-height: 1;
 }
 
 /*
  * The aircraft the reader is watching, plotted on the map in step 4.
  *
- * A filled dot with a dark ring, so it reads as a thing that is there NOW rather than as
- * another label — and it has to stay legible over map tiles of any colour, which is why it
- * is stroked rather than left as a flat shape.
+ * 🔴 A SHAPE OF AN AEROPLANE, NOT A DOT. George, 21 Sep 2026: *"in the map, i want to see the
+ * images of the plane and the aircraft type, then the tail"*. A dot says "something is here";
+ * the drawing says what kind of thing it is before the label is read. Stroked rather than flat
+ * so it stays legible over map tiles of any colour.
  */
-.locmap-plane {
+.locmap-plane-icon {
   fill: #38bdf8;
-  stroke: rgba(2, 6, 23, 0.85);
-  stroke-width: 1.6;
+  stroke: rgba(2, 6, 23, 0.9);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
 }
 
+/* "B38M · C-GXXX" — the type first, then the tail, both in the mono face the rest of the
+ * codes on this page use. Stroked so the text survives being drawn over a busy tile. */
 .locmap-plane-label {
   fill: #e2e8f0;
   font-size: 11px;

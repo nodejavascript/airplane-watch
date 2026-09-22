@@ -265,6 +265,16 @@ const STAR_PATH = 'M12 2.7l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.6l-5.8 3.05L7.3 
  * mark rather than for where it first appeared, and it is always written first.
  */
 const MARK_STAR = `<svg class="mark-star" viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}"/></svg>`;
+/**
+ * A top-down aeroplane, drawn on the map mark instead of a dot.
+ *
+ * George, 21 Sep 2026: *"in the map, i want to see the images of the plane and the aircraft type,
+ * then the tail"*. A dot says "something is here"; a shape of an aeroplane says what the reader is
+ * looking at without having to read the label to find out. Drawn in a 24-unit box so it can be
+ * scaled to any marker size, and shaped nose-up so no rotation arithmetic is needed.
+ */
+const PLANE_PATH = 'M12 2 L13.6 2.4 L14.4 9 L21 12.4 L21 14.2 L14.4 13.2 L14.2 18 L16.6 19.4 L16.6 20.6 ' +
+    'L12 19.6 L7.4 20.6 L7.4 19.4 L9.8 18 L9.6 13.2 L3 14.2 L3 12.4 L9.6 9 L10.4 2.4 Z';
 function starButton(code, wholeType, narrowed) {
     const label = wholeType ? 'Favourited — remove' : narrowed ? 'Favourite the whole type' : 'Favourite this type';
     return (`<button type="button" class="star type-toggle${narrowed ? ' star-part' : ''}" ` +
@@ -1338,6 +1348,9 @@ class Page {
         // delayed by the map, and the two always describe the same poll. Calling it is cheap:
         // `lastPlot` skips the write whenever the picture has not changed.
         this.renderWatchMap();
+        // And the row's own status is brought up to date in the same pass, so the row and the map
+        // cannot describe different moments — see `tickWatchStates`.
+        this.tickWatchStates();
     }
     /**
      * Keep every "· 12s ago" honest, once a second, without touching the rest of the table.
@@ -1469,6 +1482,105 @@ class Page {
         this.buildYearFilter();
         this.renderFilterNote();
         this.renderTypeList();
+    }
+    /**
+     * How many of these aircraft match — the caller passes the list, so it is read ONCE per draw.
+     *
+     * `snapshot()` sorts, and with every type starred there are well over a hundred rows, so
+     * asking the engine per row would sort the whole fleet a hundred times to draw one list.
+     */
+    static countMatching(live, by) {
+        return live.filter(by).length;
+    }
+    /**
+     * 🔴 WHAT A WATCHED TYPE IS DOING RIGHT NOW, IN PLACE OF THE WORDS "STOP WATCHING".
+     *
+     * George, 21 Sep 2026: *"i want to change stop watching into a status code, like 'in the air',
+     * and if not in there air i want a different explanation why its not on the map"*.
+     *
+     * He is right that the row was wasting the most valuable column in it. A reader watches a type
+     * because they want to know when it flies, and the row said nothing about that — every row read
+     * the same whether the thing was overhead at that second or had not been seen for a month. The
+     * way out is still there, as a small ✕ with its own label, so nobody is left holding a rule
+     * they cannot clear; what changed is that the row now answers the question it exists for.
+     *
+     * Nothing is guessed. "in the air" means the feed can see one inside the fence now. Otherwise
+     * the reason it is absent is the last time this type was seen here — which is a fact the survey
+     * recorded, or the sentence that says it has never been caught.
+     */
+    watchStateOf(code, live) {
+        const count = Page.countMatching(live, (one) => normaliseKey(one.type ?? '') === normaliseKey(code));
+        if (count > 0)
+            return { kind: 'air', text: count === 1 ? 'in the air' : `${count} in the air` };
+        const at = this.lastSeenOf(code);
+        if (at === null)
+            return { kind: 'never', text: 'not on the map — never caught here' };
+        return { kind: 'recent', text: `not on the map — ${this.sinceText(at)}` };
+    }
+    /** The same question for one named aircraft, which is watched by its tail number. */
+    watchStateOfTail(tail, live) {
+        const count = Page.countMatching(live, (one) => normaliseKey(one.registration ?? '') === normaliseKey(tail));
+        if (count > 0)
+            return { kind: 'air', text: 'in the air' };
+        // A tail number is matched against what the aircraft transmits, and an airframe that sends no
+        // registration can never be found this way — so the honest reason is that the feed is not
+        // seeing it, rather than a last-seen date the page does not hold for a tail.
+        return { kind: 'recent', text: 'not on the map — the feed is not seeing it now' };
+    }
+    /**
+     * 🔴 KEEP THE STATUS COLUMN HONEST, ONCE PER POLL, WITHOUT REBUILDING THE LIST.
+     *
+     * The status was written when the row was built — when a type was starred — and then never
+     * again, so it went stale the moment an aircraft arrived: measured on the page, a row read
+     * *"not on the map — seen 2 hours ago"* while the map beside it was plotting that very aircraft.
+     * A status that can be wrong is worse than no status, because the reader has no way to tell.
+     *
+     * Only the text is touched, exactly as `tickReadingAges` does for the table: rebuilding the
+     * whole list on every poll would cost the reader their scroll position and any text they had
+     * selected, and with every type starred there are well over a hundred rows. It is also skipped
+     * outright when the live set has not changed — see `lastLiveKey`.
+     */
+    /**
+     * The live aircraft set the status column was last written from, so an unchanged set costs
+     * nothing. A poll arrives every few seconds and the live set usually differs only by where the
+     * aircraft have moved — which cannot change any status text — so without this guard every poll
+     * walked a hundred-odd rows to write back exactly what was already there.
+     */
+    lastLiveKey = '';
+    tickWatchStates() {
+        const host = byId('watchList');
+        if (!host)
+            return;
+        const live = this.engine ? this.engine.snapshot() : [];
+        // What the status text can actually depend on: which aircraft are here, of which type, under
+        // which tail. A position moving does not change a status, and neither does a new reading of
+        // the same aircraft.
+        const liveKey = live
+            .map((one) => `${one.hex ?? ''}:${one.type ?? ''}:${one.registration ?? ''}`)
+            .sort()
+            .join(',');
+        if (liveKey === this.lastLiveKey)
+            return;
+        this.lastLiveKey = liveKey;
+        for (const row of host.querySelectorAll('li.watch-type')) {
+            const state = row.querySelector('.watch-state');
+            if (!state)
+                continue;
+            const asType = row.querySelector('.type-remove');
+            const asTail = row.querySelector('.watch-remove');
+            // A row is one or the other; reading the button is how the row says which it is.
+            const next = asType
+                ? this.watchStateOf(asType.dataset.type ?? '', live)
+                : asTail
+                    ? this.watchStateOfTail(asTail.dataset.key ?? '', live)
+                    : null;
+            if (!next)
+                continue;
+            if (state.textContent !== next.text)
+                state.textContent = next.text;
+            if (state.dataset.state !== next.kind)
+                state.dataset.state = next.kind;
+        }
     }
     yearOf(code) {
         return this.yearsDoc?.years?.[String(code).toUpperCase()] ?? null;
@@ -2722,11 +2834,14 @@ class Page {
             host.innerHTML = '<li class="muted">Nothing watched yet. Star a type above, and it appears here.</li>';
             return;
         }
+        // Read once, for every row — see `countMatching`.
+        const live = this.engine ? this.engine.snapshot() : [];
         const typeItems = this.typeRules
             .map((rule) => {
             const info = describeType(rule.type);
             const narrowed = rule.tails.length > 0;
             const entry = this.yearOf(rule.type);
+            const state = this.watchStateOf(rule.type, live);
             return (`<li class="watch-type">` +
                 `<span class="watch-what">${MARK_STAR}<b>${escapeHtml(info.name)}</b> ` +
                 `<span class="mono muted">${escapeHtml(rule.type)}</span>` +
@@ -2736,16 +2851,23 @@ class Page {
                     : 'every one of them'}</b>` +
                 (narrowed ? ` <span class="mono muted">${escapeHtml(rule.tails.join(', '))}</span>` : '') +
                 '</span>' +
+                // The status replaces the words "stop watching" — see `watchStateOf`.
+                `<span class="watch-state" data-state="${state.kind}">${escapeHtml(state.text)}</span>` +
                 `<button type="button" class="linkish type-remove" data-type="${escapeHtml(rule.type)}" ` +
-                `data-ga="type-unwatch">stop watching</button>` +
+                `data-ga="type-unwatch" title="Stop watching" ` +
+                `aria-label="Stop watching ${escapeHtml(info.name)}">✕</button>` +
                 '</li>');
         })
             .join('');
         const namedItems = this.watchlist
-            .map((item) => `<li class="watch-type"><span class="watch-what">${MARK_STAR}` +
-            `<span class="mono">${escapeHtml(item)}</span> — <b>this aircraft</b></span>` +
-            `<button type="button" class="linkish watch-remove" data-key="${escapeHtml(item)}" ` +
-            `data-ga="unwatch">remove</button></li>`)
+            .map((item) => {
+            const state = this.watchStateOfTail(item, live);
+            return (`<li class="watch-type"><span class="watch-what">${MARK_STAR}` +
+                `<span class="mono">${escapeHtml(item)}</span> — <b>this aircraft</b></span>` +
+                `<span class="watch-state" data-state="${state.kind}">${escapeHtml(state.text)}</span>` +
+                `<button type="button" class="linkish watch-remove" data-key="${escapeHtml(item)}" ` +
+                `data-ga="unwatch" title="Stop watching" aria-label="Stop watching ${escapeHtml(item)}">✕</button></li>`);
+        })
             .join('');
         host.innerHTML = typeItems + namedItems;
         for (const button of host.querySelectorAll('.type-remove')) {
@@ -3267,13 +3389,22 @@ class Page {
             if (spot.x < 0 || spot.x > VIEW_W || spot.y < 0 || spot.y > VIEW_H)
                 continue;
             drawn += 1;
-            const label = one.callsign || one.registration || '';
+            // 🔴 THE AEROPLANE, THEN WHAT IT IS, THEN WHICH ONE IT IS. George, 21 Sep 2026: *"in the
+            // map, i want to see the images of the plane and the aircraft type, then the tail"*.
+            // A shape of an aeroplane instead of a dot, the type next to it, and the tail after that —
+            // and a value the feed did not transmit is simply absent rather than filled in with a
+            // guess.
+            const type = (one.type || '').toUpperCase().trim();
+            const tail = (one.registration || '').toUpperCase().trim();
+            const what = [type || 'type not transmitted', tail || null]
+                .filter((part) => part !== null && part !== '')
+                .join(' · ');
             marks +=
-                `<circle class="locmap-plane" cx="${spot.x.toFixed(1)}" cy="${spot.y.toFixed(1)}" r="4.5" />` +
-                    (label
-                        ? `<text class="locmap-plane-label" x="${(spot.x + 7).toFixed(1)}" ` +
-                            `y="${(spot.y + 3.5).toFixed(1)}">${escapeHtml(label)}</text>`
-                        : '');
+                `<g class="locmap-plane-mark" transform="translate(${spot.x.toFixed(1)} ${spot.y.toFixed(1)})">` +
+                    `<path class="locmap-plane-icon" transform="scale(0.72) translate(-12 -12)" d="${PLANE_PATH}" />` +
+                    '</g>' +
+                    `<text class="locmap-plane-label" x="${(spot.x + 11).toFixed(1)}" ` +
+                    `y="${(spot.y + 4).toFixed(1)}">${escapeHtml(what)}</text>`;
         }
         const unplaced = watching.length - drawn;
         const html = `<div class="locmap" style="width:${VIEW_W}px;height:${VIEW_H}px">` +

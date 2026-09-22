@@ -1230,3 +1230,77 @@ test('the watching section has its own map, drawn in the OTHER map\'s frame', ()
   // And the empty state is stated rather than left blank.
   assert.match(body, /Nothing on your list is inside the fence/i, 'the empty position map says nothing');
 });
+
+test('a watched row reports what it is doing, and keeps its way out', () => {
+  // 🔴 George, 21 Sep 2026: *"i want to change stop watching into a status code, like 'in the
+  // air', and if not in there air i want a different explanation why its not on the map"*.
+  const html = read(SITE, 'index.html');
+  const app = readSrc('src/app.ts');
+  const css = read(SITE, 'styles.css');
+
+  // The status exists for both kinds of row, and the words it replaced are gone.
+  assert.match(app, /private watchStateOf\(/, 'watchStateOf has gone');
+  assert.match(app, /private watchStateOfTail\(/, 'watchStateOfTail has gone');
+  assert.equal(/>\s*stop watching</.test(app), false,
+    'a row still prints "stop watching" where the status belongs');
+  // The way out survives as a small labelled ✕ — an unlabelled glyph is unreachable to a screen
+  // reader, and removing it outright would leave a rule nobody could clear.
+  assert.match(app, /aria-label="Stop watching \$\{escapeHtml\(info\.name\)\}"/,
+    'the way out lost its name for a screen reader');
+  assert.match(app, /aria-label="Stop watching \$\{escapeHtml\(item\)\}"/,
+    'the named-aircraft way out lost its name for a screen reader');
+  // It is still WIRED, not just present.
+  assert.match(html, /id="watchList"/, 'the list is gone');
+  assert.match(app, /querySelectorAll<HTMLButtonElement>\('\.type-remove'\)/,
+    'the type way out is never bound');
+
+  // 🔴 THE STATUS MUST BE REFRESHED ON EVERY POLL, OR IT LIES. It was written only when the row
+  // was built, and a measured row read "not on the map — seen 2 hours ago" while the map beside it
+  // was plotting that very aircraft.
+  const start = app.indexOf('private renderAircraft');
+  const end = app.indexOf('\n  private ', start + 1);
+  const table = app.slice(start, end);
+  assert.ok(table.length > 200, 'the renderAircraft body could not be isolated, so this check is vacuous');
+  assert.match(table, /this\.tickWatchStates\(\);/, 'the status is never refreshed by a poll, so it goes stale');
+  assert.match(app, /private tickWatchStates\(\): void/, 'tickWatchStates has gone');
+  // And refreshing must not rebuild the list — that costs the reader their scroll and selection.
+  const tick = app.slice(app.indexOf('private tickWatchStates'), end > 0 ? app.indexOf('\n  private ', app.indexOf('private tickWatchStates') + 1) : undefined);
+  assert.equal(/innerHTML/.test(tick), false, 'the status refresh rebuilds the whole list to change a few words');
+
+  // The status is computed from facts, not written from hope.
+  const state = app.slice(app.indexOf('private watchStateOf('), app.indexOf('private watchStateOfTail'));
+  assert.match(state, /count > 0/, 'the status can say "in the air" without an aircraft in the air');
+  assert.match(state, /this\.lastSeenOf\(code\)/, 'the reason it is not on the map is never looked up');
+  assert.match(state, /this\.sinceText\(at\)/, 'the status does not say when it was last seen');
+
+  // The column is at the right of the row, does not wrap, and the cells have their margins back.
+  assert.match(css, /\.watch-list > li\s*\{[^}]*padding:\s*9px 12px/s,
+    'the rows have no left and right margins inside the cell');
+  assert.match(css, /\.watch-list \.watch-state\s*\{[^}]*margin-left:\s*auto/s,
+    'the status is not in the column at the right of the row');
+  assert.match(css, /\.watch-list \.watch-state\s*\{[^}]*white-space:\s*nowrap/s,
+    'a status can wrap onto a second line, which breaks the column it exists to form');
+});
+
+test('the map mark is an aeroplane, then the type, then the tail', () => {
+  // 🔴 George, 21 Sep 2026: *"in the map, i want to see the images of the plane and the aircraft
+  // type, then the tail"*.
+  const app = readSrc('src/app.ts');
+  const css = read(SITE, 'styles.css');
+  const start = app.indexOf('private renderWatchMap');
+  const end = app.indexOf('\n  private ', start + 1);
+  const body = app.slice(start, end);
+  assert.ok(body.length > 200, 'the renderWatchMap body could not be isolated, so this check is vacuous');
+
+  assert.match(app, /const PLANE_PATH =/, 'the aeroplane shape has gone');
+  assert.match(body, /PLANE_PATH/, 'the mark is not drawn from the aeroplane shape');
+  assert.equal(/locmap-plane\b(?!-)/.test(body), false, 'the mark is still a plain dot');
+  assert.ok(body.indexOf("type ||") < body.indexOf("tail ||"),
+    'the tail is placed before the type, and the order asked for is type then tail');
+  assert.match(body, /\.join\(' · '\)/, 'the type and the tail are not joined into one label');
+  // A value the feed did not transmit is absent or named as absent — never invented.
+  assert.match(body, /type not transmitted/, 'a missing type is not named as missing');
+
+  assert.match(css, /\.locmap-plane-icon\s*\{/, 'the aeroplane mark has no styling');
+  assert.match(css, /\.locmap-plane-label\s*\{/, 'the mark label has no styling');
+});

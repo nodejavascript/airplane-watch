@@ -533,7 +533,7 @@ test('the selection survives a reload', async () => {
   // One set, so every poll returns the same aircraft — the stub clamps at the last entry,
   // which is what makes the row still there to assert on after the reload.
   const polls = [
-    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B738', alt_baro: 5000, lat: 43.19, lon: -79.93 }],
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 5000, lat: 43.19, lon: -79.93 }],
   ];
   const { context, page } = await openPage(polls);
 
@@ -546,9 +546,33 @@ test('the selection survives a reload', async () => {
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
   await chooseDistance(page);
-  await starEveryType(page);
+
+  // 🔴 STAR THE AIRCRAFT'S OWN TYPE, RATHER THAN EVERY ROW THE LIST HAPPENS TO OFFER.
+  //
+  // This test used to star every type and then wait for the mocked aircraft to appear. The list
+  // is built from the measured survey, which its own timer refreshes every few hours, and when a
+  // refresh changed which types the list offers, the mocked type stopped being among them — so
+  // the test timed out for a reason that had nothing to do with a selection surviving a reload.
+  // Proved by running this suite at the PREVIOUS COMMIT against the same survey file: it failed
+  // there too, unchanged. Selecting the type the aircraft actually is makes the test about the
+  // thing it is named for, and makes a survey refresh unable to break it.
+  //
+  // ⚠️ AND WAIT FOR THE ROW ITSELF. The helper this replaced waited for the list before clicking;
+  // reading the rows straight away found an empty list and failed as though the type were absent.
+  await page.waitForSelector('#typeList .typerow', { timeout: 30_000, state: 'attached' });
+  await page.waitForFunction(
+    () => [...document.querySelectorAll('#typeList .typerow')].some((row) => /Boeing 737 MAX 8/.test(row.textContent)),
+    undefined,
+    { timeout: 30_000 }
+  );
+  await page.$$eval('#typeList .typerow', (items) => {
+    const row = items.find((item) => /Boeing 737 MAX 8/.test(item.textContent));
+    if (!row) throw new Error('the type list does not offer the mocked aircraft type, so this test cannot select one');
+    row.querySelector('.type-toggle').click();
+  });
   await page.waitForSelector('#aircraftBody tr.aircraft-row', { timeout: 45_000 });
   const before = await rows();
+  assert.ok(before > 0, 'nothing was listed before the reload, so the reload proves nothing');
   assert.ok(before > 0, 'nothing was listed before the reload, so the reload proves nothing');
 
   await page.reload({ waitUntil: 'load' });
@@ -762,10 +786,15 @@ test('a type can be watched whole, and then narrowed to tail numbers', async () 
     element.getClientRects().length > 0 && !element.closest('[hidden]') ? 'shown' : 'hidden'
   );
   assert.equal(listShown, 'shown', 'the list of what you are watching is not on the page');
+  // 🔴 THE WAY OUT IS STILL THERE, AND THE COLUMN THAT SAID "stop watching" NOW ANSWERS THE
+  // QUESTION THE ROW EXISTS FOR. George, 21 Sep 2026: *"i want to change stop watching into a
+  // status code, like 'in the air', and if not in there air i want a different explanation why
+  // its not on the map"*.
+  assert.match(watchlist, /✕/, 'a watched type has no way to be un-watched, which is a dead end');
   assert.match(
     watchlist,
-    /stop watching/,
-    'a watched type has no way to be un-watched, which is a dead end rather than a shorter list'
+    /in the air|not on the map/,
+    `a watched row says nothing about what it is doing: ${watchlist}`
   );
 
   // 🔴 THE LINE THAT USED TO BE HERE ASSERTED ON THE BOARD. The board is gone
@@ -1733,7 +1762,11 @@ test('the watching section plots the aircraft on the list', async () => {
   // position and for the watch list to name the type, so a fixed sleep is a race: this test
   // PASSED run alone and FAILED inside the full suite, which is exactly the signature of a
   // test that slept rather than waited. A condition with a timeout is honest about the wait.
-  await page.waitForSelector('#watchMap .locmap-plane', { timeout: 20_000 });
+  await page.waitForSelector('#watchMap .locmap-plane-icon', { timeout: 20_000 });
+  // TEMPORARY: capture the plotted map so it can be looked at.
+  await page.$eval('#watchMap', (element) => element.scrollIntoView({ block: 'center' })).catch(() => {});
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: '/tmp/watchmap-plot.png' });
 
   // It is in the watching section, not somewhere else.
   assert.equal(await page.$$eval('#watchMap', (nodes) => nodes.length), 1,
@@ -1744,12 +1777,18 @@ test('the watching section plots the aircraft on the list', async () => {
   // Drawn: tiles fetched, and the aircraft plotted at its position.
   assert.ok(await page.$eval('#watchMap', (element) => element.querySelectorAll('.locmap-tile').length) > 0,
     'the position map has no map tiles under it');
-  const planes = await page.$$eval('#watchMap .locmap-plane', (nodes) => nodes.length);
+  const planes = await page.$$eval('#watchMap .locmap-plane-icon', (nodes) => nodes.length);
   assert.ok(planes > 0, 'the position map drew no aircraft, so the list has nothing plotted on it');
 
-  // Named, so a dot can be told apart from another dot.
+  // 🔴 THE AEROPLANE, THEN WHAT IT IS, THEN WHICH ONE IT IS. George, 21 Sep 2026: *"in the map,
+  // i want to see the images of the plane and the aircraft type, then the tail"*.
   const labels = await page.$$eval('#watchMap .locmap-plane-label', (nodes) => nodes.map((n) => n.textContent));
-  assert.ok(labels.some((text) => /ACA123/.test(text)), `the plotted aircraft is not named: ${labels.join(', ')}`);
+  assert.ok(labels.some((text) => /B38M/.test(text)), `the plotted aircraft does not name its type: ${labels.join(', ')}`);
+  assert.ok(labels.some((text) => /C-GXXX/.test(text)), `the plotted aircraft does not name its tail: ${labels.join(', ')}`);
+  assert.ok(
+    labels.some((text) => /B38M\s*·\s*C-GXXX/.test(text)),
+    `the label does not read type-then-tail as asked: ${labels.join(', ')}`
+  );
 
   // 🔴 THE TWO MAPS SHARE ONE FRAME. That is the whole reason the frame is kept rather than
   // recomputed: two maps zoomed differently disagree about where a place is.
@@ -1764,6 +1803,14 @@ test('the watching section plots the aircraft on the list', async () => {
   // And it says where the dots came from rather than leaving the reader to infer it.
   assert.match(await page.$eval('#watchMap', (element) => element.textContent), /where the feed last reported/i,
     'the position map does not say what the dots mean');
+
+  // 🔴 AND THE ROW BESIDE IT SAYS THE SAME THING, IN WORDS. With this aircraft in the fence and
+  // its type starred, the watching row must report it as in the air.
+  assert.match(
+    await page.$eval('#watchList', (element) => element.textContent),
+    /in the air/,
+    'the watching row does not say that the aircraft it is plotting is in the air'
+  );
 
   await context.close();
 });
