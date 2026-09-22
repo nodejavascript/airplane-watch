@@ -37,11 +37,7 @@ if (await stoney.count()) {
 const afterArea = await page.textContent('#placeName');
 
 // Answer step 1 — the page deliberately asks the feed for nothing until it is answered.
-await page.$eval('#radiusSlider', (el) => {
-  el.value = '10';
-  el.dispatchEvent(new Event('input', { bubbles: true }));
-  el.dispatchEvent(new Event('change', { bubbles: true }));
-});
+await page.click('#radiusButtons button[data-km="50"]');
 await page.waitForTimeout(9000);
 
 const out = await page.evaluate(() => {
@@ -51,9 +47,9 @@ const out = await page.evaluate(() => {
   const rows = [...(body?.querySelectorAll('tr') ?? [])];
   const firstRow = rows.find((r) => !r.classList.contains('type-group'));
   const groupRows = rows.filter((r) => r.classList.contains('type-group'));
-  const radius = document.querySelector('#radiusSlider, input[type=range]');
+  const radius = document.querySelector('#radiusButtons button[aria-pressed="true"]');
   const style = radius ? getComputedStyle(radius) : null;
-  const rowStyle = document.querySelector('.radius-row') ? getComputedStyle(document.querySelector('.radius-row')) : null;
+  const rowStyle = document.querySelector('#radiusButtons') ? getComputedStyle(document.querySelector('#radiusButtons')) : null;
   return {
     location: text('#placeName'),
     nearbyHead: text('#nearbyHead'),
@@ -74,7 +70,7 @@ const out = await page.evaluate(() => {
     lookingSentence: (document.body.innerText.match(/Looking [^.]*\./g) ?? []).slice(0, 3),
     feetNote: !!document.querySelector('#fenceNote'),
     sliderWidth: radius ? Math.round(radius.getBoundingClientRect().width) : 0,
-    rowWidth: rowStyle ? Math.round(document.querySelector('.radius-row').getBoundingClientRect().width) : 0,
+    rowWidth: rowStyle ? Math.round(document.querySelector('#radiusButtons').getBoundingClientRect().width) : 0,
     sliderFlex: style ? style.flexGrow : null,
     // Any bracketed place list still on screen.
     bracketLeak: (document.body.innerText.match(/\(([^)]{20,})\)/) ?? [null])[0],

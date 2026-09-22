@@ -36,8 +36,8 @@ const look = async (label) => {
       typeRows: document.querySelectorAll('#typeList .typerow').length,
       filterChips: document.querySelectorAll('#typeFilter button, #yearFilter button, #seenFilter button').length,
       radiusChosen: (() => {
-        const s = document.getElementById('radiusSlider');
-        return s ? s.value : null;
+        const chip = document.querySelector('#radiusButtons button[aria-pressed="true"]');
+        return chip ? chip.textContent.trim() : null;
       })(),
       storedRadius: localStorage.getItem('aircraft_radius'),
       storedCentre: (localStorage.getItem('aircraft_centre') ?? '').slice(0, 60),
@@ -64,11 +64,7 @@ await page.waitForSelector('#placeResults .place-result');
 await page.$eval('#placeResults .place-result', (e) => e.click());
 await page.waitForTimeout(1200);
 
-await page.$eval('#radiusSlider', (el) => {
-  el.value = '6';
-  el.dispatchEvent(new Event('input', { bubbles: true }));
-  el.dispatchEvent(new Event('change', { bubbles: true }));
-});
+await page.click('#radiusButtons button[data-km="20"]');
 await page.waitForTimeout(1200);
 await look('after answering step 1');
 

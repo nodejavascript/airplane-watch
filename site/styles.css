@@ -1731,96 +1731,21 @@ main > #status {
   margin: -6px 0 12px;
 }
 
-/* ------------------------------------------------ how far out (the slider) --- */
-/* 🔴 FULL WIDTH, AND NO END LABELS. George, 20 Sep 2026: *"remove closewide … make this full
- * width and remove things like the whole region"*. The words at each end ("close", "wide")
- * and the description under the track both went: the number says what was chosen, and the
- * track itself says which way is further. What is left is the control and its value. */
-.radius-row {
-  display: flex;
-  align-items: center;
-  margin: 4px 0 2px;
-}
-
+/* ------------------------------------------------ how far out (the chips) --- */
 /* ---------------------------------------------------------------------------
- * 🔴 THE BOX THE READOUT IS POSITIONED AGAINST.
+ * 🔴 THE SLIDER'S STYLES ARE GONE, AND SO IS THE SLIDER.
  *
- * The value is absolutely positioned inside this, so its `left` is a percentage of THE TRACK rather
- * than of the card — which is what lets a percentage mean "a percentage of the dot's travel". The top
- * padding is the room the value sits in, immediately above the dot it belongs to. See `placeReadout`
- * in src/app.ts for the arithmetic, and `RADIUS_THUMB_PX` for the correction it needs.
- * ------------------------------------------------------------------------ */
-.radius-track {
-  position: relative;
-  flex: 1 1 auto;
-  min-width: 120px;
-  padding-top: 21px;
-}
-
-.radius-slider {
-  display: block;
-  width: 100%;
-  height: 22px;
-  appearance: none;
-  -webkit-appearance: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-.radius-slider::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 999px;
-  background: var(--line);
-}
-
-.radius-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
-  margin-top: -7px;
-  border-radius: 50%;
-  background: var(--theme);
-  border: 2px solid rgba(4, 16, 26, 0.85);
-}
-
-.radius-slider::-moz-range-track {
-  height: 4px;
-  border-radius: 999px;
-  background: var(--line);
-}
-
-.radius-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--theme);
-  border: 2px solid rgba(4, 16, 26, 0.85);
-}
-
-.radius-slider:focus-visible {
-  outline: 2px solid var(--theme);
-  outline-offset: 4px;
-}
-
-/* ---------------------------------------------------------------------------
- * 🔴 THE VALUE RIDES ON THE DOT.
+ * George, 22 Sep 2026: *"i forgot the slider is actually a filter for pic an aircraf. lets remove the
+ * slider and ask the distance about the pick an aircraf under kind"*. What was deleted here: the
+ * `.radius-row` flex line, the `.radius-track` box the value was positioned against, `.radius-slider`
+ * with its four browser-specific track and thumb rules, and `.radius-value` — the label that rode on
+ * the thumb, written by `placeReadout` against the thumb's own width.
  *
- * George, 22 Sep 2026: *"**20 km** stick this to the dot on the line"*. The number belongs to the dot
- * — the dot is the thing the reader moved — so it travels with it instead of standing still while the
- * dot leaves it behind. `left` is written on every change by `placeReadout`, and `translateX(-50%)`
- * centres it on the dot rather than hanging it off one side.
+ * The distance is a row of `chip chip-small` buttons in step 3 now, so it needs no styles of its own:
+ * it wears the same chips as the kind, year and last-seen filters, which is the point of making it a
+ * chip row rather than a track. Nothing here is left behind to rot, because a rule for an element the
+ * page no longer draws is how a deleted control keeps looking alive.
  * ------------------------------------------------------------------------ */
-.radius-value {
-  position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-  color: var(--theme);
-  font-size: 15px;
-  font-weight: 600;
-  white-space: nowrap;
-  /* It is a label, not a control: a click meant for the dot must reach the dot. */
-  pointer-events: none;
-}
 
 /* 🔴 THE TYPE GROUP HEADING IN THE "WHAT THE FEED CAN SEE" TABLE. George, 20 Sep 2026:
  * *"i want to group by aircraft type, and the airport"*. A group has to look like a group

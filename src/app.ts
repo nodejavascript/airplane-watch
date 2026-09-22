@@ -114,16 +114,21 @@ const POLL_MAX_MS = 180_000;
  * number and "the airport and the city around it" is an answer.
  */
 /**
- * 🔴 THE DISTANCE IS A LOGARITHMIC LADDER NOW, NOT THREE BUTTONS. George, 20 Sep 2026:
- * *"How far out from you? maybe this should be a slider? logrythmic?"*
+ * 🔴 THE DISTANCE IS A LOGARITHMIC LADDER, AND THE STOPS OUTLIVED THE SLIDER.
  *
- * Three chips offered three answers, and the two that mattered sat at the ends: the
- * difference between 10 and 20 km is the whole difference between catching an aircraft
- * on the ground and not, while the difference between 20 and 50 is barely noticeable.
- * A slider alone would be worse — dragging to 37 km is false precision for a fence, and
- * a fence is a question you answer, not a number you tune — so the slider is
- * **logarithmic and snapped**: equal travel gives equal RATIOS (each step is about a
- * quarter larger than the last), and every stop is a round number.
+ * George, 20 Sep 2026: *"How far out from you? maybe this should be a slider? logrythmic?"* — and
+ * then, 22 Sep 2026: *"i forgot the slider is actually a filter for pic an aircraf. lets remove the
+ * slider and ask the distance about the pick an aircraf under kind"*.
+ *
+ * The REASON for the ladder is unchanged, and it is why there are seventeen stops rather than three
+ * buttons: three chips offered three answers, and the two that mattered sat at the ends — the
+ * difference between 10 and 20 km is the whole difference between catching an aircraft on the ground
+ * and not, while the difference between 20 and 50 is barely noticeable. Equal steps in RATIO (each
+ * about a quarter larger than the last) put the detail where the eye can use it.
+ *
+ * What the slider contributed was the dragging, and that is what went: it could stop between two
+ * stops, which is false precision for a fence, and it hid its answers behind a gesture. The chips
+ * print every answer and one press is one answer.
  *
  * 5 km to 200 km covers everything the page is good at: below 5 the round loses the
  * airport's own apron, and above 200 on a 30-minute poll the fence is wider than any
@@ -132,17 +137,6 @@ const POLL_MAX_MS = 180_000;
 const RADIUS_LADDER = [
   5, 6, 8, 10, 12, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200,
 ];
-
-/**
- * 🔴 THE WIDTH OF THE SLIDER'S THUMB, AND IT MUST MATCH THE STYLESHEET.
- *
- * The readout sits ON the dot, and a range input's dot does not travel the full width of its track —
- * it travels `width − thumb`, centred half a thumb in from each end. So placing the label needs the
- * thumb's width in pixels as well as a percentage, and this is where that number lives. It is 18px in
- * `site/styles.css` (`.radius-slider::-webkit-slider-thumb` and the `-moz-` equivalent). If the dot is
- * ever resized, this moves with it or the label drifts at the ends of the line.
- */
-const RADIUS_THUMB_PX = 18;
 
 
 /**
@@ -1160,122 +1154,79 @@ class Page {
   /* ------------------------------------------------------------ the airport */
 
   /**
-   * 🔴 A SLIDER, LOGARITHMIC, SNAPPED — and the feed is only asked when you let go.
+   * 🔴 THE DISTANCE IS A CHIP ROW UNDER THE KIND FILTER, NOT A SLIDER ABOVE THE MAP.
    *
-   * The slider's POSITION is linear and its VALUE is not: position n is
-   * `RADIUS_LADDER[n]`, and the ladder is roughly geometric, so the same drag moves you
-   * 5→6 km at one end of the track and 160→200 km at the other. That is what makes a
-   * short distance feel controllable without wasting half the track on numbers nobody
-   * can tell apart.
+   * George, 22 Sep 2026: *"i forgot the slider is actually a filter for pic an aircraf. lets remove the
+   * slider and ask the distance about the pick an aircraf under kind"*. He is describing what the
+   * control actually does: the distance decides how far out the feed is asked, and therefore which
+   * aircraft are on the list at all. It is part of choosing what to watch, so it is asked where the
+   * choosing happens.
    *
-   * 🔴 DRAGGING REDRAWS; RELEASING FETCHES. `input` fires on every pixel of a drag, so
-   * it redraws the map and the sentence — local work — and `change` fires when the
-   * reader lets go, which is what re-aims the fence and may ask the feed. Measured
-   * against the live feed on 20 Sep 2026: ten requests three seconds apart were refused
-   * with 429 from the third onward. A control that asked on every pixel would exhaust
-   * that budget in one gesture.
+   * 🔴 AND A CHIP IS BETTER THAN A SLIDER HERE FOR A REASON THAT WAS MEASURED, NOT PREFERRED. A slider
+   * is dragged, so it can stop between two stops — and `RADIUS_LADDER[index]` is `undefined` for an
+   * index past either end, which blanks the whole map silently (21 Sep 2026: `radiusKm` held `undefined`,
+   * every mark landed at NaN, and the caption read *"the undefined km gap you chose"*). A chip cannot
+   * do that. It also PRINTS ITS ANSWER — every other choice on this page does, and a reader can see
+   * what is available instead of discovering it by dragging.
+   *
+   * Every press re-aims the fence and re-asks the feed exactly once, which is what a distance changes.
    */
   private buildRadiusButtons(): void {
     const host = byId('radiusButtons');
     if (!host) return;
     host.innerHTML = '';
+    for (const km of RADIUS_LADDER) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'chip chip-small';
+      button.textContent = `${km} km`;
+      button.dataset.km = String(km);
+      button.setAttribute('data-ga', 'distance');
+      button.setAttribute('aria-pressed', String(km === this.currentRadius()));
+      button.addEventListener('click', () => {
+        for (const other of host.querySelectorAll('button')) {
+          other.setAttribute('aria-pressed', String(other === button));
+        }
+        this.chooseRadius(km);
+      });
+      host.append(button);
+    }
+  }
 
-    const nearest = RADIUS_LADDER.reduce(
-      (best, _km, index) =>
-        Math.abs(RADIUS_LADDER[index] - this.radiusKm) < Math.abs(RADIUS_LADDER[best] - this.radiusKm) ? index : best,
-      0
+  /**
+   * The distance actually in use, snapped to a stop on the ladder.
+   *
+   * 🔴 IT IS SNAPPED BECAUSE A KEPT VALUE CAN BE OFF THE LADDER. A distance stored by an earlier
+   * version, or a ladder that later loses a stop, leaves `radiusKm` holding a number no chip prints —
+   * and then no chip is pressed, which reads as "nothing is chosen" while the page is measuring
+   * perfectly well. Snapping to the nearest stop means the pressed chip is always the distance in use.
+   */
+  private currentRadius(): number {
+    return RADIUS_LADDER.reduce(
+      (best, km) => (Math.abs(km - this.radiusKm) < Math.abs(best - this.radiusKm) ? km : best),
+      RADIUS_LADDER[0] ?? this.radiusKm
     );
+  }
 
-    const row = document.createElement('div');
-    row.className = 'radius-row';
-
-    const slider = document.createElement('input');
-    slider.type = 'range';
-    slider.id = 'radiusSlider';
-    slider.className = 'radius-slider';
-    slider.min = '0';
-    slider.max = String(RADIUS_LADDER.length - 1);
-    slider.step = '1';
-    slider.value = String(nearest);
-    slider.setAttribute('aria-label', 'How far out to look');
-
-    const readout = document.createElement('b');
-    readout.id = 'radiusValue';
-    readout.className = 'radius-value';
-
-    /**
-     * 🔴 THE VALUE SITS ON THE DOT, NOT OFF TO ONE SIDE. George, 22 Sep 2026: *"**20 km** stick this to
-     * the dot on the line"*. The number belongs to the dot — the dot is what the reader moved — so it
-     * travels with it instead of standing still while the dot leaves it behind.
-     *
-     * The arithmetic, because a range input's geometry is not obvious: the thumb's centre at fraction
-     * `f` is at `f × (width − thumb) + thumb/2`, which is `f × width + (0.5 − f) × thumb`. So the
-     * position is a percentage plus a pixel correction — the percentage keeps it right when the card is
-     * resized, and the correction keeps it right at BOTH ends, where a bare percentage would hang the
-     * label half a thumb off the track and the last stop would read off the edge of the card.
-     */
-    const placeReadout = (index: number): void => {
-      const steps = RADIUS_LADDER.length - 1;
-      const fraction = steps > 0 ? index / steps : 0;
-      readout.style.left =
-        `calc(${(fraction * 100).toFixed(3)}% + ${((0.5 - fraction) * RADIUS_THUMB_PX).toFixed(2)}px)`;
-    };
-
-    const show = (index: number): void => {
-      // 🔴 A VALUE OFF THE LADDER MUST NOT BLANK THE MAP. `RADIUS_LADDER[index]` is `undefined`
-      // for an index past the end of the list, and an undefined radius propagates as NaN through
-      // the map's fit arithmetic: no tiles are drawn at all, every mark lands at NaN, and the
-      // caption reads *"the undefined km gap you chose"*. Measured on 21 Sep 2026 by setting the
-      // slider to 40 — past the end of a 17-step ladder. A real drag cannot reach it, but a stale
-      // or restored value can, and the failure is completely silent: a working page with a blank
-      // map on it.
-      const km = RADIUS_LADDER[index] ?? this.radiusKm;
-      readout.textContent = `${km} km`;
-      slider.setAttribute('aria-valuetext', `${km} kilometres`);
-      placeReadout(index);
-    };
-    show(nearest);
-
-    slider.addEventListener('input', () => {
-      const index = Number(slider.value);
-      // Keeps the previous distance rather than becoming undefined — see the note above.
-      this.radiusKm = RADIUS_LADDER[index] ?? this.radiusKm;
-      show(index);
-      // Local only: the sentence, the circle and the map all come from `radiusKm`,
-      // and none of them needs the feed to be asked again.
-      this.renderMap();
-    });
-
-    slider.addEventListener('change', () => {
-      // 🔴 MOVING THE SLIDER IS A CHOICE, NOT AN ANSWER TO A STEP — and it used to be both. It
-      // re-aims the fence at the distance the reader actually wants, keeps it for the next visit,
-      // and re-asks the feed, which is the only thing on this page a distance changes.
-      const first = !this.radiusChosen;
-      this.radiusChosen = true;
-      const km = RADIUS_LADDER[Number(slider.value)];
-      // Kept, so a reload does not ask the same question again.
-      writeStore(RADIUS_KEY, String(km));
-      this.updateSteps();
-      // Re-aimed with the distance they actually chose. Nothing is re-fetched by the
-      // page: `point()` already falls back to the airports that are picked, so this is
-      // the same point at a new radius rather than a new question.
-      this.rearm();
-      track('distance_chosen', { km, nm: kmToNm(km), first });
-    });
-
-    // 🔴 THE TRACK IS A BOX THE READOUT CAN BE POSITIONED AGAINST. The value is absolutely positioned
-    // inside it, so it is placed in the slider's own coordinates rather than the card's — which is what
-    // lets a percentage of the track mean a percentage of the dot's travel.
-    //
-    // ⚠️ AND IT IS NOT CALLED `track`. `track()` is this file's analytics helper, and a local of that
-    // name shadows it inside this method — which is not a style point: the compiler catches it here,
-    // but the failure it describes (*"this expression is not callable"*) is the shape of the bug that
-    // would otherwise ship silently on a page with no analytics in it at all.
-    const trackBox = document.createElement('div');
-    trackBox.className = 'radius-track';
-    row.append(trackBox);
-    trackBox.append(slider, readout);
-    host.append(row);
+  /**
+   * One press of a distance chip: kept, applied, and the feed asked once at the new fence.
+   *
+   * It used to be two events on a slider — `input` redrew the map locally, `change` re-aimed the fence
+   * and fetched — because a drag fires on every pixel and the feed refuses a burst (measured 20 Sep
+   * 2026: ten requests three seconds apart were refused with 429 from the third onward). A chip has one
+   * event, so there is nothing to debounce and nothing to explain.
+   */
+  private chooseRadius(km: number): void {
+    const first = !this.radiusChosen;
+    this.radiusChosen = true;
+    this.radiusKm = km;
+    // Kept, so a reload does not ask the same question again.
+    writeStore(RADIUS_KEY, String(km));
+    this.updateSteps();
+    // Re-aimed at the distance they actually chose. `point()` already falls back to the airports that
+    // are picked, so this is the same point at a new radius rather than a new question.
+    this.rearm();
+    track('distance_chosen', { km, nm: kmToNm(km), first });
   }
 
   private buildTypeFilter(): void {

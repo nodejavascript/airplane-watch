@@ -234,6 +234,27 @@
         <h2><span class="step">3</span> Pick an aircraft type</h2>
         <p class="sub">The aircraft that actually fly here, measured from the feed. Star the ones you care about. Each row carries the year its type first flew and when it was last seen here. <b>Heritage &amp; war planes</b> is deliberately short: many military aircraft never transmit at all.</p>
         <div class="chips" id="typeFilter" role="group" aria-label="Filter the type list by kind"></div>
+
+        <!--
+          🔴 THE DISTANCE IS ASKED HERE, WITH THE AIRCRAFT, BECAUSE THAT IS WHAT IT DOES.
+
+          George, 22 Sep 2026: *"i forgot the slider is actually a filter for pic an aircraf. lets
+          remove the slider and ask the distance about the pick an aircraf under kind"*.
+
+          He is describing what the control ACTUALLY does, and he is right: the distance does not
+          decorate the map. It decides how far out the feed is asked, and therefore which aircraft are
+          on the list at all — it is part of choosing what to watch, so it belongs where the choosing
+          happens rather than in the card that shows the result. It sat above the map for one day
+          (*"i want this above the map"*) and it never fitted there: a control that changes the list
+          was drawn in the card that reads the list.
+
+          ⚠️ AND IT IS NO LONGER A SLIDER. A slider is dragged, so it can land between two stops —
+          which is false precision for a fence — and it hides its own answers behind a gesture. Every
+          other choice on this page is a chip: one press, one answer, and the answer is printed on the
+          chip before you press it. The stops themselves are unchanged.
+        -->
+        <h3 class="subhead" id="radiusHead">How far out from you?</h3>
+        <div class="chips" id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
         <div class="chips" id="yearFilter" role="group" aria-label="Filter the type list by the year the type first flew"></div>
         <div class="chips" id="seenFilter" role="group" aria-label="Filter the type list by when it was last seen"></div>
         <p class="small muted" id="filterNote">Loading what the feed has been showing…</p>
@@ -290,42 +311,17 @@
           draws it, exactly as they did before.
         -->
         <!--
-          🔴 THE DISTANCE CONTROL LIVES ABOVE THE MAP IT DRAWS. George, 22 Sep 2026: *"i want this
-          above the map"* — and he pasted the block back: *"How far out from you? / 20 km /
-          Everything on this page is measured from here…"*.
+          🔴 THE DISTANCE CONTROL USED TO BE HERE, ABOVE THE MAP, AND IT MOVED.
 
-          It used to sit in step 1, where it ALSO unlocked step 3 (`place && radiusChosen`). That was
-          sound while the two were in one card, and it became a circle the moment the control moved
-          here: step 4 is revealed only after something is picked in step 3, so a distance that could
-          only be chosen in step 4 could never be chosen at all, step 3 would never arrive, and nothing
-          could ever be picked. So the distance no longer gates anything — a distance is in use from
-          the start (20 km, or whatever the reader last chose), step 3 arrives as soon as a place is
-          known, and the slider here re-draws the circle and re-asks the feed at the distance chosen.
-        -->
-        <h3 class="subhead" id="radiusHead">How far out from you?</h3>
-        <div id="radiusButtons" role="group" aria-label="Choose how far out to look"></div>
+          George, 22 Sep 2026: *"i forgot the slider is actually a filter for pic an aircraf. lets
+          remove the slider and ask the distance about the pick an aircraf under kind"*. It is asked
+          in step 3 now, under the kind filter, because the distance changes the LIST and not the map,
+          and it is a chip row rather than a slider. The history of why it ended up here is kept in
+          step 3, where the control actually is.
 
-        <!--
-          🔴 WHAT THE FENCE IS MEASURED FROM, AND ONLY WHEN IT IS NOT THE READER.
-
-          George, 21 Sep 2026: *"i wanrt from my location"*. The page measures from the reader once a
-          place is known — but with no place it falls back to an AIRPORT, and a reader who has picked
-          Hamilton and never said where they are gets a 20 km circle drawn round CYHM with nothing on
-          the page saying so. That is what this paragraph is for, and why it is filled by
-          `renderFenceFrom` in one case only.
-
-          🔴 AND THE OTHER CASE IS NOW SILENT. George, 22 Sep 2026, pasting it back: *"remove The
-          circle is centred on **your location** — Hamilton. Everything on this page is measured from
-          there."* He is right that it was noise: the heading directly above it already reads *"How far
-          out from you?"*, so the paragraph restated the heading and then explained the heading. It is
-          left EMPTY when the centre is the reader, and the one it still fills is the airport case —
-          which is a fact the heading does not carry, and the only place the offer to move the centre
-          onto the reader can live.
-
-          🔴 AND THE NOTE THAT USED TO SIT HERE IS GONE. George, 22 Sep 2026: *"remove Everything on
-          this page is measured from here: … moving the slider re-draws the circle and re-asks the
-          feed at the distance you chose."* It explained the control to a reader who is looking at the
-          control, which is the same mistake as the paragraph above it.
+          🔴 WHAT BELONGS HERE IS THE MAP AND THE LINE THAT AGES IT. *"last refresh should be the
+          first thing above the map, right aligned"* — the refreshed line is still the first thing
+          above the map and nothing else came with it.
         -->
         <p class="small muted" id="fenceFrom"></p>
         <button type="button" class="ghost" id="fenceFromLocate" data-ga="fence-from-locate" hidden>Measure from my location</button>

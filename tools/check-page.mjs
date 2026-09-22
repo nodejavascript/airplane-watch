@@ -40,14 +40,9 @@ out.notifyNoteBefore = await text('#notifyNote');
 await page.fill('#postalInput', '[redacted]');
 await page.press('#postalInput', 'Enter');
 await page.waitForTimeout(3500);
-await page.$eval(
-  '#radiusSlider',
-  (el) => {
-    el.value = '6';
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-);
+// 🔴 THE DISTANCE IS A CHIP NOW, NOT A SLIDER — one press, one answer, instead of writing a value
+// into a range input and firing two synthetic events at it.
+await page.click('#radiusButtons button[data-km="20"]');
 await page.waitForSelector('#typeList .typerow', { timeout: 30_000 });
 
 out.seenChips = await page.$$eval('#seenFilter button', (nodes) => nodes.map((n) => n.textContent.trim()));
@@ -133,11 +128,7 @@ out.filterNote = await text('#filterNote');
 await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(1800);
 await page.$eval('#consentDecline', (el) => el.click()).catch(() => {});
-await page.$eval('#radiusSlider', (el) => {
-  el.value = '6';
-  el.dispatchEvent(new Event('input', { bubbles: true }));
-  el.dispatchEvent(new Event('change', { bubbles: true }));
-});
+await page.click('#radiusButtons button[data-km="20"]');
 await page.waitForSelector('#typeList .typerow', { timeout: 30_000, state: 'attached' });
 // 🔴 THE STAR COUNT BEFORE THE BELL, BECAUSE THE SECTION ABOVE STARRED EVERYTHING AND
 // localStorage SURVIVES THE RELOAD. Measured the first time: 59 stars pressed after a bell

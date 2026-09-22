@@ -65,29 +65,19 @@ async function place() {
 const out = { place: await place(), atDistance: {}, atAirports: {} };
 
 // ── the distance ladder ───────────────────────────────────────────────────────
-const steps = await page.$$eval('#radiusButtons .radius-slider', (sliders) =>
-  sliders.map((s) => ({ min: Number(s.min), max: Number(s.max) }))
+// 🔴 THE DISTANCE IS A CHIP ROW NOW, SO THE LADDER IS READ OFF THE CHIPS AND EACH STOP IS PRESSED.
+// The three probes are the shortest stop, the middle one and the longest.
+const ladder = await page.$$eval('#radiusButtons button[data-km]', (chips) =>
+  chips.map((chip) => Number(chip.dataset.km))
 );
-const ladder = steps[0] ?? { min: 0, max: 0 };
-for (const value of [ladder.min, Math.round((ladder.min + ladder.max) / 2), ladder.max]) {
-  await page.$eval(
-    '#radiusButtons .radius-slider',
-    (slider, v) => {
-      slider.value = String(v);
-      slider.dispatchEvent(new Event('input', { bubbles: true }));
-    },
-    value
-  );
+for (const km of [ladder[0], ladder[Math.floor((ladder.length - 1) / 2)], ladder[ladder.length - 1]]) {
+  await page.click(`#radiusButtons button[data-km="${km}"]`);
   await page.waitForTimeout(700);
-  const label = await page.$eval('#radiusValue', (el) => el.textContent.trim()).catch(() => String(value));
-  out.atDistance[label] = { ...(await zoom()), airports: await picked() };
+  out.atDistance[`${km} km`] = { ...(await zoom()), airports: await picked() };
 }
 
 // ── and the airport set ───────────────────────────────────────────────────────
-await page.$eval('#radiusButtons .radius-slider', (slider, v) => {
-  slider.value = String(v);
-  slider.dispatchEvent(new Event('input', { bubbles: true }));
-}, ladder.min);
+await page.click(`#radiusButtons button[data-km="${ladder[0]}"]`);
 await page.waitForTimeout(500);
 
 for (const want of [1, 2, 3]) {

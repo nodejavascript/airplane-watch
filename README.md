@@ -61,13 +61,17 @@ npm run deploy     # build → test → rsync → wrangler → live check
 
 Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
 
-- **No more nautical miles, and the distance now sits above the map it draws.** *"nobody understand nm"* — the
-  reader moves one **logarithmic** slider (each stop a round number, each step about a quarter larger than the
-  last) with the value printed beside it. George, 22 Sep 2026: *"i want this above the map"* — it used to live
-  in step 1, where it ALSO gated step 3; that became a circle the moment the map became its only home, because
-  the control sat in the card step 3 unlocks and so could only be reached after it had been answered. The gate
-  is the place alone now, a distance is in use from the start, and the block carries *"Last refreshed &lt;time&gt;"*
-  underneath — counted from the last feed reading, by the same ticker that ages every row. The feed still takes
+- **No more nautical miles, and the distance is asked where the aircraft are picked.** *"nobody understand nm"* — the
+  reader presses one **logarithmic** stop (each a round number, each about a quarter larger than the last).
+  **It was a slider for one day.** George, 22 Sep 2026: *"i want this above the map"* — then, the same day:
+  *"i forgot the slider is actually a filter for pic an aircraf. lets remove the slider and ask the distance
+  about the pick an aircraf under kind"*. He is describing what the control actually does: the distance decides
+  which aircraft the feed is asked about, and therefore which rows exist at all — so it belongs with choosing
+  what to watch, and it is asked in step 3, under the kind filter, as a row of chips. A chip also cannot do the
+  thing that made the slider dangerous: land between two stops, where `RADIUS_LADDER[index]` is `undefined` and
+  the whole map draws at NaN. The gate on step 3 is the place alone; a distance is in use from the start. What
+  stayed above the map is *"Last refreshed &lt;time&gt;"* — counted from the last feed reading, by the same
+  ticker that ages every row. The feed still takes
   nautical miles, because its own endpoint summary says *"up to 250nm"*, so the conversion is exact (1 nm =
   1852 m) and lives in `kmToNm` / `nmToKm` where a test can check it.
 - **Watch a type, then narrow it if you want.** `npm run survey` reads the feed around all seven airports and

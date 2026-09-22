@@ -129,28 +129,25 @@ async function openPage(aircraftByPoll) {
 }
 
 /**
- * Answers step 1 the way a reader does — by moving the distance slider.
+ * Answers the distance question the way a reader does — by pressing a distance chip.
  *
- * 🔴 THIS WAS FOUR CALLS TO `#radiusButtons button`, AND THE BUTTONS ARE GONE. George,
- * 20 Sep 2026: *"maybe this should be a slider? logrythmic?"* — so the row of distance
- * buttons became one slider, and every test that pressed a button started failing on a
- * missing selector. That reads exactly like a broken page and is not one, which is why the
- * gesture lives here, once, instead of in each test.
+ * 🔴 THIS HAS BEEN TWO THINGS AND IS BACK TO THE FIRST. It pressed `#radiusButtons button` until
+ * 20 Sep 2026, when George asked for a slider (*"maybe this should be a slider? logrythmic?"*) and the
+ * buttons became one track; on 22 Sep 2026 he took it back — *"i forgot the slider is actually a
+ * filter for pic an aircraf. lets remove the slider and ask the distance about the pick an aircraf
+ * under kind"* — so the chips are back, drawn from the same ladder, and this is a press again rather
+ * than a synthetic `input` event on a range input.
  *
- * `index` is the slider's own step, which is not the same as a distance: the track is
- * linear and the values are not, so `10` is 50 km. The default step is what "just move it"
- * means, and a test that cares about the exact distance passes one in.
+ * That history is why the gesture lives here, once. Every version of this control has broken every
+ * test that touched it directly, and a missing selector inside a test reads exactly like a broken page.
+ *
+ * `km` is the DISTANCE, not a position on a track: the chips print what they will do, so a test names
+ * the answer it wants. The default is 20 km, the distance the page starts on.
  */
-async function chooseDistance(page, index = 6) {
-  await page.$eval(
-    '#radiusSlider',
-    (element, value) => {
-      element.value = String(value);
-      element.dispatchEvent(new Event('input', { bubbles: true }));
-      element.dispatchEvent(new Event('change', { bubbles: true }));
-    },
-    index
-  );
+async function chooseDistance(page, km = 20) {
+  const chip = `#radiusButtons button[data-km="${km}"]`;
+  await page.waitForSelector(chip, { state: 'visible' });
+  await page.click(chip);
 }
 
 /**
@@ -211,9 +208,9 @@ async function armEveryBell(page) {
   });
 }
 
-/** The distance the page is currently showing, in km. */
+/** The distance the page is currently showing, in km — read off the chip that is pressed. */
 async function shownDistance(page) {
-  return page.$eval('#radiusValue', (element) => element.textContent.trim());
+  return page.$eval('#radiusButtons button[aria-pressed="true"]', (element) => element.textContent.trim());
 }
 
 /* ------------------------------------------------------------------- shell --- */
@@ -693,7 +690,7 @@ test('the reader is shown kilometres, and the feed is still asked in nautical mi
   // buttons that carried words like "Just the airport" beside each distance; George asked
   // for a slider on 20 Sep 2026 (*"maybe this should be a slider? logrythmic?"*) and the
   // words went with the buttons. What the reader is told now is the number.
-  await chooseDistance(page, 6);
+  await chooseDistance(page, 20);
   const shown = await shownDistance(page);
   assert.match(shown, /^\d+ km$/, `the distance readout is not a distance in km: ${shown}`);
   const stated = Number(shown.replace(/[^\d]/g, ''));
@@ -2180,7 +2177,7 @@ test('45 · moving the distance does not throw away the flight paths', async () 
   assert.ok((await trailPoints()) >= 2, 'no path was drawn before the distance was moved');
 
   // 🔴 NOW MOVE THE DISTANCE. Without the handover this is where the paths vanish.
-  await chooseDistance(page, 8);
+  await chooseDistance(page, 32);
 
   // 🔴 THREE POINTS CANNOT BE REACHED BY ACCIDENT. A fresh engine would hold exactly one point, and
   // one point is not a path — nothing would be drawn at all. So this can only pass if the two points

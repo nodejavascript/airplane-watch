@@ -1063,7 +1063,7 @@ test('the three filter rows live INSIDE the gated type section, so whatever open
   const end = section.indexOf('</section>');
   const inner = section.slice(0, end === -1 ? section.length : end);
 
-  for (const id of ['typeFilter', 'yearFilter', 'seenFilter', 'filterNote', 'typeList']) {
+  for (const id of ['typeFilter', 'radiusHead', 'radiusButtons', 'yearFilter', 'seenFilter', 'filterNote', 'typeList']) {
     assert.ok(inner.includes(`id="${id}"`), `${id} is not inside the step-3 section`);
   }
   assert.ok(html.includes('class="card step-gated" id="step-3"'), 'step 3 is no longer a gated section');
@@ -1091,57 +1091,71 @@ test('the type section opens on a PLACE — the distance no longer gates it', ()
   assert.match(app, /this\.radiusChosen = true/, 'the saved distance no longer counts as chosen');
 });
 
-test('the distance control sits ABOVE the map it draws, refreshed line first and right-aligned', () => {
-  // 🔴 George, 22 Sep 2026: *"i want this above the map"*, then *"top above map right aligned"*, then
-  // *"last refresh should be the first thing above the map, right aligned"*, then *"remove Everything
-  // on this page is measured from here: …"*. The last one settled it: the line belongs to the MAP, so
-  // it is the FIRST THING ABOVE THE MAP — the line the eye meets coming up off it — rather than the
-  // top of the block, where it sat under the watchlist and read as a footnote to that instead.
+test('the distance is asked WITH the aircraft, and the refreshed line is the first thing above the map', () => {
+  // 🔴 George, 22 Sep 2026: *"i forgot the slider is actually a filter for pic an aircraf. lets remove
+  // the slider and ask the distance about the pick an aircraf under kind"*.
+  //
+  // The distance decides how far out the feed is asked and therefore which aircraft are on the list, so
+  // it is asked in the step where the aircraft are picked, under the kind filter. It sat above the map
+  // for one day (*"i want this above the map"*) and a control that changes the list was drawn in the
+  // card that reads the list.
   const code = htmlCode;
-  const head = code.indexOf('id="radiusHead"');
-  const buttons = code.indexOf('id="radiusButtons"');
+  const step3 = code.slice(code.indexOf('id="step-3"'), code.indexOf('id="step-4"'));
+  const kind = step3.indexOf('id="typeFilter"');
+  const head = step3.indexOf('id="radiusHead"');
+  const chips = step3.indexOf('id="radiusButtons"');
+  const year = step3.indexOf('id="yearFilter"');
+  for (const [what, at] of [
+    ['the kind filter', kind],
+    ['the distance heading', head],
+    ['the distance chips', chips],
+    ['the year filter', year],
+  ]) {
+    assert.ok(at > -1, `${what} is not in the card where aircraft are picked`);
+  }
+  assert.ok(kind < head && head < chips && chips < year,
+    'the distance is not asked under the kind filter');
+
+  // And it is NOT asked in the map's card any more — it is the same one control, not a second copy.
+  const step4 = code.slice(code.indexOf('id="step-4"'), code.indexOf('id="live"'));
+  assert.equal(step4.includes('id="radiusButtons"'), false, 'the distance is still asked in the map\'s card');
+  assert.equal((code.match(/id="radiusButtons"/g) ?? []).length, 1, 'the distance control is on the page twice');
+
+  // 🔴 THE SLIDER IS GONE, AND SO IS EVERY PIECE OF GEOMETRY IT NEEDED. A rule for an element the page
+  // no longer draws is how a deleted control keeps looking alive, so the track, the thumb and the label
+  // that rode on it are all asserted absent rather than left to rot.
+  const app = readSrc('src/app.ts');
+  const css = read(SITE, 'styles.css');
+  assert.equal(/radiusSlider|type = 'range'/.test(app), false, 'a slider is still built');
+  assert.equal(/radius-track|placeReadout|RADIUS_THUMB_PX/.test(app), false,
+    'the code that positioned a value against the slider track is still here');
+  assert.equal(/\.radius-(track|slider|value|row)\s*[:{]/.test(css), false,
+    'a slider rule survives in the stylesheet');
+
+  // 🔴 AND THE CHIPS ARE THE LADDER, WITH THE ONE IN USE PRESSED. A chip row that does not say which
+  // answer is live reads as an unanswered question, which is the fault the pressed state exists for.
+  assert.match(app, /for \(const km of RADIUS_LADDER\)/, 'the chips are not the ladder');
+  assert.match(app, /String\(km === this\.currentRadius\(\)\)/, 'the chip in use is not the pressed one');
+
+  // 🔴 AND THE REFRESHED LINE IS STILL THE FIRST THING ABOVE THE MAP — it belongs to the map, not to the
+  // control that moved away from it. *"last refresh should be the first thing above the map, right
+  // aligned"*, and *"start off my saying now"*.
   const fence = code.indexOf('id="fenceFrom"');
   const refreshed = code.indexOf('id="refreshedAgo"');
   const map = code.indexOf('id="watchMap"');
-
   for (const [what, at] of [
-    ['the distance heading', head],
-    ['the distance slider', buttons],
     ['the centre paragraph', fence],
     ['the refreshed line', refreshed],
     ['the map', map],
   ]) {
     assert.ok(at > -1, `${what} is not on the page at all`);
   }
-  assert.ok(head < buttons && buttons < fence && fence < refreshed && refreshed < map,
-    'the distance control, the refreshed line and the map are not in that order');
+  assert.ok(fence < refreshed && refreshed < map, 'the refreshed line is not the first thing above the map');
   assert.equal((code.match(/id="radiusRefreshed"/g) ?? []).length, 1, 'the refreshed line is on the page twice');
-
-  // 🔴 AND THE NOTE HE REMOVED IS NOT BACK. It explained the control to a reader looking at the control.
   assert.equal(code.includes('id="radiusNote"'), false, 'the distance note is on the page again');
-
-  // It opens on "now", not on a placeholder that reads like a fault — *"start off my saying now"*.
   assert.match(code, /id="refreshedAgo">now</, 'the refreshed line does not open on "now"');
-
-  // And it is in the WATCHING card, not back in step 1.
-  const step4 = code.slice(code.indexOf('id="step-4"'), code.indexOf('id="live"'));
-  assert.ok(step4.includes('id="radiusButtons"'), 'the distance slider is not in the map\'s own card');
-  assert.ok(step4.includes('id="refreshedAgo"'), 'the refreshed line is not in the map\'s own card');
-
-  // The line is filled by the same ticker that ages every row, or it would freeze at whatever it said
-  // when the poll landed.
-  const app = readSrc('src/app.ts');
   assert.match(app, /#refreshedAgo/, 'nothing keeps the refreshed line honest');
   assert.match(app, /fromNow\(this\.lastPollAt\)/, 'the refreshed line is not counted from the last poll');
-
-  // 🔴 THE VALUE RIDES ON THE DOT — *"**20 km** stick this to the dot on the line"* — so the slider's own
-  // box has to exist to position it against, and the thumb width has to be known to place it.
-  assert.ok(code.includes('id="radiusButtons"'), 'the slider host is gone');
-  assert.match(app, /radius-track/, 'nothing positions the value against the track');
-  assert.match(app, /placeReadout/, 'the value is not placed on the dot');
-  const css = read(SITE, 'styles.css');
-  assert.match(css, /\.radius-value\s*\{[\s\S]{0,200}position:\s*absolute/, 'the value is not positioned');
-  assert.match(css, /\.radius-value\s*\{[\s\S]{0,300}translateX\(-50%\)/, 'the value is not centred on the dot');
   assert.match(css, /\.refreshed-line\s*\{[\s\S]{0,120}text-align:\s*right/, 'the refreshed line is not right-aligned');
 });
 
