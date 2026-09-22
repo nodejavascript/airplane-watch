@@ -684,6 +684,22 @@ nd `.limits` styles the
  * a position. George replaced that press with a boolean: *"even though the filight may or may not be in the
  * air, i want this to be a boolean input, not a link"*. Verified by counting: `data-hex` on a watchlist row
  * and `row-selected` are both 0 in `src/app.ts` now. */
+/*
+ * THE FILTER COUNT AND ITS REFRESH, ON ONE LINE: the sentence takes the width, the control takes the
+ * right edge — the same arrangement as `.refreshed-line` above the map, so the page has one way of
+ * saying "this number, and a way to ask for it again".
+ */
+.filter-note-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.filter-note-line #filterNote {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
 .refreshed-line {
   margin: 0 0 2px;
   text-align: right;

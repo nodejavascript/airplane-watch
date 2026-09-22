@@ -330,7 +330,18 @@
             <div class="chips" id="seenFilter" role="group" aria-labelledby="seenFilterLabel"></div>
           </div>
         </div>
-        <p class="small muted" id="filterNote">Loading what the feed has been showing…</p>
+        <!--
+          🔴 THE FILTER RESULTS CAN BE REFRESHED IN PLACE. George, 22 Sep 2026: *"**Showing 17 of 184
+          types.** is want to be able to refrech the filters results"*. It sits on this line because this
+          line IS the count the press is about — the sentence on the left, the control on the right, the
+          same shape as the clock above the map. The press does two things, because the count has two
+          inputs: it reads the measured type file again, and it asks the feed again.
+        -->
+        <div class="filter-note-line">
+          <p class="small muted" id="filterNote">Loading what the feed has been showing…</p>
+          <button type="button" class="linkish refresh-now" id="refreshFilters" data-ga="refresh-filters"
+                  title="Read what the feed has been showing again, and put your filters through it now.">refresh</button>
+        </div>
         <div class="typelist" id="typeList"></div>
         <p class="small muted" id="typeNote">Loading what the feed has been showing…</p>
 

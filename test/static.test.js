@@ -2709,3 +2709,55 @@ test('103 · "in the air" and "seen just now" mean INSIDE YOUR CIRCLE, not somew
   assert.match(app, /const inTheAir = this\.liveTypes\.has\(row\.code\.toUpperCase\(\)\);/,
     'the type list no longer reads the census this test just scoped');
 });
+
+test('104 · the filter count can be refreshed in place, and one press is one round of work', () => {
+  // George, 22 Sep 2026: *"**Showing 17 of 184 types.** is want to be able to refrech the filters
+  // results"*. The count on that line has TWO inputs — the measured type file and the live census — so
+  // the press refreshes both, and the control lives on the line whose number it is about.
+  const page = read(SITE, 'index.html');
+  const app = readSrc('src/app.ts');
+  const cssRules = stripCss(read(SITE, 'styles.css'));
+
+  // The control is ON the count's own line — not somewhere else in the step, where the reader would have
+  // to work out that it was about this number.
+  const line = page.slice(page.indexOf('class="filter-note-line"'), page.indexOf('</div>', page.indexOf('class="filter-note-line"')));
+  assert.ok(line.length > 100, 'the filter-note line could not be isolated, so this check is vacuous');
+  assert.ok(line.includes('id="filterNote"'), 'the count is no longer in the filter-note line');
+  assert.match(line, /<button[^>]*id="refreshFilters"/,
+    'the line that shows the filter count has no refresh on it');
+  assert.match(line, /title="Read what the feed has been showing again/, 'the refresh has no explanation');
+
+  // And it is bound the delegated way, like the other controls that sit in markup they do not own.
+  const bind = app.slice(app.indexOf('private bindRefresh('), app.indexOf('private bindVisibility('));
+  assert.ok(bind.length > 150, 'the refresh binding could not be isolated, so this check is vacuous');
+  assert.match(bind, /target\?\.closest\('#refreshFilters'\)/,
+    'the press is not recognised, or is recognised only by the map\'s own refresh button');
+  assert.match(bind, /void this\.refreshFilterResults\(\);/, 'nothing is run when the press is recognised');
+
+  // ONE PRESS, BOTH INPUTS. The file is read again and the feed is asked again; either one alone leaves
+  // half the number stale.
+  // ⚠️ THE SLICE IS BOUNDED BY SOMETHING DECLARED *AFTER* `refreshFilterResults`, and that is the whole
+  // lesson of this file's fourth false failure: `slice(a, b)` with `b < a` returns an EMPTY string, the
+  // method is never found, and the check reports a failure against code that is correct. `bindVisibility`
+  // comes after it — `bindRefresh` does not, and bounding on it is the mistake that was made here first.
+  const method = app.slice(app.indexOf('private async refreshFilterResults('), app.indexOf('private bindVisibility('));
+  assert.ok(method.length > 300, 'the filter refresh could not be isolated, so this check is vacuous');
+  assert.match(method, /await this\.loadSurvey\(\);/, 'the measured type file is not read again, so the list cannot change');
+  assert.match(method, /this\.refreshNow\(\);/, 'the feed is not asked again, so the live half of the count stays stale');
+
+  // AND A PRESS THAT IS ANSWERED FROM THE CACHE IS NOT A REFRESH.
+  assert.match(app, /fetch\('\/types\.json', \{\s*\n\s*headers: \{ accept: 'application\/json' \},\s*\n\s*cache: 'no-store',/,
+    'the type file is fetched from the cache, so "refresh" can show the previous data');
+
+  // ONE PRESS IS ONE ROUND OF WORK — three presses in a row must not spend three rounds.
+  assert.match(app, /if \(this\.filterRefreshPending\) return;/,
+    'a second press while the first is running starts a second round of the same work');
+  assert.match(app, /private filterRefreshPending = false;/, 'nothing records that a refresh is in flight');
+
+  // One line in the stylesheet, the sentence taking the width and the control the right edge — the same
+  // arrangement as the clock above the map.
+  const lineRule = cssRules.slice(cssRules.indexOf('.filter-note-line {'), cssRules.indexOf('}', cssRules.indexOf('.filter-note-line {')));
+  assert.match(lineRule, /display: flex/, 'the count and its refresh are not on one line');
+  const noteRule = cssRules.slice(cssRules.indexOf('.filter-note-line #filterNote {'), cssRules.indexOf('}', cssRules.indexOf('.filter-note-line #filterNote {')));
+  assert.match(noteRule, /flex: 1 1 auto/, 'the sentence cannot take the width, so the control is not pushed right');
+});

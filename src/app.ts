@@ -971,6 +971,11 @@ class Page {
   private surveyRead = false;
 
   /**
+   * One refresh of the filter results at a time — see `refreshFilterResults`.
+   */
+  private filterRefreshPending = false;
+
+  /**
    * Type codes the feed itself marks as military, harvested by
    * `tools/survey-military.mjs`. Empty if that file could not be read.
    */
@@ -1693,9 +1698,49 @@ class Page {
   private bindRefresh(): void {
     document.addEventListener('click', (event) => {
       const target = event.target as HTMLElement | null;
+      // 🔴 TWO REFRESHES, AND THEY ARE NOT THE SAME PRESS. The one on the clock above the map asks the
+      // feed again; the one on the filter count reads the measured type file again *and* asks the feed,
+      // because the count on that line is made of both. Delegated on the document, like the other, so a
+      // redraw cannot leave it bound to a node that is gone.
+      if (target?.closest('#refreshFilters')) {
+        void this.refreshFilterResults();
+        return;
+      }
       if (!target?.closest('#refreshNow')) return;
       this.refreshNow();
     });
+  }
+
+  /**
+   * 🔴 "REAPPLY MY FILTERS TO WHAT THE FEED IS SHOWING NOW." George, 22 Sep 2026: *"**Showing 17 of 184
+   * types.** is want to be able to refrech the filters results"*.
+   *
+   * The count on that line has TWO inputs, so one press refreshes both: `/types.json` is read again —
+   * `no-store`, because a press that is answered from the browser's cache is not a refresh — and the
+   * feed is asked again, because the census of what is being heard right now is the other half of the
+   * list. The re-reading itself is `loadSurvey()`, which is the same work the first load does: it sets
+   * the note, the filter count, the list and the watch rows, so nothing here has to repeat any of it.
+   *
+   * ⚠️ ONE PRESS IS ONE ROUND OF WORK. A second press while the first is still in flight returns, and
+   * the label says so, because two fetches for one press would spend the feed's allowance twice and
+   * answer the same question.
+   */
+  private async refreshFilterResults(): Promise<void> {
+    if (this.filterRefreshPending) return;
+    this.filterRefreshPending = true;
+    const button = byId<HTMLButtonElement>('refreshFilters');
+    const label = button?.textContent ?? null;
+    if (button) button.textContent = 'refreshing…';
+    this.setStatus('Reading what the feed has been showing again…', 'working');
+    try {
+      await this.loadSurvey();
+      // The sky, not just the file. `refreshNow()` carries the status line and the coalescing into
+      // `schedulePoll()`, so a press in the same moment as a distance change is still ONE request.
+      this.refreshNow();
+    } finally {
+      this.filterRefreshPending = false;
+      if (button) button.textContent = label ?? 'refresh';
+    }
   }
 
   /**
@@ -2165,7 +2210,13 @@ class Page {
   private async loadSurvey(): Promise<void> {
     const note = byId('typeNote');
     try {
-      const response = await fetch('/types.json', { headers: { accept: 'application/json' } });
+      // 🔴 `no-store`, AND IT IS THE POINT OF THE REFRESH. George asked for a control that reapplies the
+      // filters to CURRENT data; an answer that comes out of the browser's cache is the previous data, so
+      // the request is made uncacheable rather than hoped to be fresh.
+      const response = await fetch('/types.json', {
+        headers: { accept: 'application/json' },
+        cache: 'no-store',
+      });
       this.survey = (await readJson(response)) as TypesDocument;
       this.surveyRead = true;
     } catch (error) {
