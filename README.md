@@ -101,6 +101,27 @@ Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
   run. Each leg carries its own city, because a four-letter code is precise and useless to anyone who has
   not memorised four thousand of them. Every code in the table is still printed with the place it means
   beside it.
+- 🔴 **A ROW YOU PRESS PUTS THE MAP ON THAT AIRCRAFT, AND PRESSING IT AGAIN PUTS IT BACK.** George,
+  22 Sep 2026: *"i want to be able to select one of those rows, if i do that i want the map to zoom in to
+  that flight. if slect again, it will unselect and zom back out again. the select and unselected can be a
+  simple green hue border"*. The whole of the selected state is that border, drawn in one green — on the
+  row and as a ring round the aeroplane on the map, so the two cannot be read as being about two different
+  flights. The frame is then built from that aircraft **and the path behind it** and nothing else, so it
+  comes out as close as the path allows: measured on the live page, **zoom 6 for the whole fence and zoom
+  14 for one flight**, and back to 6 on the second press. A watched **type** is deliberately not
+  pressable — it can cover several aircraft, so there is no single flight to go to — and a named tail on
+  the watchlist is, but only while that aeroplane is actually reporting a position.
+- 🔴 **AND THE TABLE AND THE MAP FOLLOW A CHANGE TO WHAT YOU WATCH, AT ONCE.** *"when i make a change to
+  what im watching the map should refresh"* — starring a type, ticking a tail or stopping watching one
+  used to redraw the list and leave the table and map for the next poll, up to twenty seconds of a map
+  that disagreed with the list above it. Measured after the change: sixty rows to none inside 400 ms.
+- 🔴 **THE MAP IS TALLER, WHICH IS WHAT LETS IT ZOOM IN FURTHER.** *"dont forget to zoom in as much as
+  possible with out losing what in on the map"*. The fence is a circle and the map is a rectangle, so the
+  circle's own diameter has to fit in both directions — and the height was the binding constraint at every
+  distance. Measured on an 854-pixel card: the 463 km ring needed **522 pixels at zoom 6** against **380
+  usable pixels** of a 460-pixel-high map, so a whole zoom step was being given away to the map's own
+  shape with two thirds of the width unused beside it. The map is 620 pixels high now and the same ring
+  fits at zoom 6 — twice the area for the same content.
 - **The phase is a tag now, not a column.** It said `airborne` on nearly every row — measured on the live
   table — so the column was there to repeat one word. What is ever news is the row that is **not** airborne:
   an aircraft on the ground inside the fence, or one transmitting a position with no altitude at all. Those

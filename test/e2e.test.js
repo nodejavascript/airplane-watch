@@ -2275,3 +2275,64 @@ test('45 · moving the distance does not throw away the flight paths', async () 
 
   await context.close();
 });
+
+test('pressing a row puts the map on that flight, and pressing it again puts the map back', async () => {
+  // 🔴 THE WHOLE GESTURE, ON A REAL PAGE. George, 22 Sep 2026: *"i want to be able to select one of
+  // those rows, if i do that i want the map to zoom in to that flight. if slect again, it will unselect
+  // and zom back out again. the select and unselected can be a simple green hue border"*.
+  const polls = [
+    [
+      { hex: 'c011e4', flight: 'ACA123', t: 'B738', alt_baro: 8000, gs: 400, lat: 43.18, lon: -79.94 },
+      { hex: 'abc999', flight: 'BBA535', t: 'B738', alt_baro: 9000, gs: 380, lat: 43.2, lon: -79.8 },
+    ],
+  ];
+  const { context, page } = await openPage(polls);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await answerStep1(page);
+  await starEveryType(page);
+  await page.waitForSelector('#aircraftBody tr.aircraft-row', { timeout: 45_000 });
+
+  // The zoom is read off the tile URLs, because that is the map's own statement about how close it is —
+  // not a number the page keeps for the test's benefit.
+  const zoomNow = () =>
+    page.evaluate(() => {
+      const tile = document.querySelector('#watchMap .locmap-tile');
+      return tile ? Number(tile.getAttribute('src').split('/')[3]) : null;
+    });
+  const before = await zoomNow();
+  assert.ok(Number.isInteger(before), `no tiles were drawn, so the zoom cannot be read: ${before}`);
+  assert.equal(await page.$$eval('#watchMap .locmap-plane-pick', (nodes) => nodes.length), 0,
+    'an aircraft is ringed before anything was pressed');
+
+  await page.click('#aircraftBody tr.aircraft-row');
+
+  // The ring is the map's half of the green border, and it is the thing to wait on.
+  await page.waitForSelector('#watchMap .locmap-plane-pick', { timeout: 20_000 });
+  assert.equal(await page.$$eval('#watchMap .locmap-plane-pick', (nodes) => nodes.length), 1,
+    'the picked aircraft is ringed more than once');
+  const border = await page.$eval('#aircraftBody tr.row-selected td', (cell) => getComputedStyle(cell).borderTopColor);
+  assert.equal(border, 'rgb(74, 222, 128)', `the pressed row is not the green asked for: ${border}`);
+  const after = await zoomNow();
+  assert.ok(after > before, `pressing a row did not zoom in: ${before} then ${after}`);
+  assert.match(await page.$eval('#watchMap .locmap-note', (element) => element.textContent), /zoomed to/i,
+    'the map is on one aircraft and the note does not say so');
+  assert.equal(await page.$$eval('#watchMap .locmap-fence', (nodes) => nodes.length), 0,
+    'the fence is drawn across a map that is on one aircraft');
+
+  // 🔴 AND THE SAME ROW UNPICKS IT. The border, the ring and the zoom all go back, because a selection
+  // that cannot be undone is a page the reader has lost control of.
+  await page.click('#aircraftBody tr.row-selected');
+  await page.waitForFunction(
+    () => document.querySelectorAll('#watchMap .locmap-plane-pick').length === 0,
+    null,
+    { timeout: 20_000 }
+  );
+  assert.equal(await page.$$eval('#aircraftBody tr.row-selected', (nodes) => nodes.length), 0,
+    'the row keeps its green border after being pressed a second time');
+  const back = await zoomNow();
+  assert.equal(back, before, `the map did not go back to the frame it started on: ${before} then ${back}`);
+
+  await context.close();
+});

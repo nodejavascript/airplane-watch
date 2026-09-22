@@ -869,6 +869,19 @@ class Page {
      */
     startedAt = null;
     /**
+     * 🔴 THE ONE AIRCRAFT THE MAP IS ZOOMED TO, BY HEX, OR `null` FOR THE WHOLE FENCE.
+     *
+     * George, 22 Sep 2026: *"i want to be able to select one of those rows, if i do that i want the map to
+     * zoom in to that flight. if slect again, it will unselect and zom back out again. the select and
+     * unselected can be a simple green hue border"*. It is a hex rather than a callsign or a row index
+     * because the feed can reuse a callsign and the row order changes on every sort — and because the
+     * engine's own key for an airframe is the one identifier that survives both.
+     *
+     * It is cleared when that airframe is no longer on the list (see `renderAircraft`), so a selection can
+     * never outlive the flight it describes and leave the map zoomed to nothing.
+     */
+    selectedHex = null;
+    /**
      * Whether the reader has moved the distance slider — which is now a record of a CHOICE, not of an
      * answered step.
      *
@@ -956,6 +969,7 @@ class Page {
         this.renderWatchButton();
         this.bindStepToggles();
         this.bindStartOver();
+        this.bindFlightPick();
         this.bindLocate();
         this.bindChangePlace();
         this.bindVisibility();
@@ -1613,6 +1627,13 @@ class Page {
         // copy written here.
         const all = this.engine.snapshot();
         const rows = all.filter((state) => this.isWatchedNow(state)).slice(0, 60);
+        // 🔴 A PICKED FLIGHT THAT IS NO LONGER ON THE LIST IS NOT PICKED ANY MORE. Without this the map would
+        // stay zoomed to an aircraft that has left the fence for as long as the tab is open, with nothing on
+        // the page saying why — and the reader's only way back would be to press a row that is gone.
+        if (this.selectedHex !== null &&
+            !rows.some((one) => String(one.hex ?? '').toLowerCase() === this.selectedHex)) {
+            this.selectedHex = null;
+        }
         if (rows.length === 0) {
             // The empty state has to say WHICH empty it is. "Nothing in the fence" over a card
             // that is deliberately filtered would be a lie: there may be forty aircraft out
@@ -1681,6 +1702,9 @@ class Page {
             // longer mean "selected". It means the narrower and rarer thing: you named this
             // tail number yourself, rather than it arriving because a type you starred was up.
             const byName = this.matchKind(state) === 'aircraft';
+            // 🔴 IS THIS THE AIRCRAFT THE MAP IS ZOOMED TO? Compared on the engine's own key, lowercased once
+            // here because the feed is inconsistent about the case it sends a hex in.
+            const picked = this.selectedHex !== null && this.selectedHex === String(state.hex ?? '').toLowerCase();
             // 🔴 THE PHASE IS A TAG ON THE ROW, NOT A COLUMN OF ITS OWN. George, 22 Sep 2026: *"the airborn
             // phase column is redundant"* — and it was, on the rows that say "airborne", which is nearly all
             // of them. What is NOT redundant is the exception: an aircraft on the ground inside the fence, and
@@ -1709,7 +1733,17 @@ class Page {
             // page has for it leaving the ground and the destination carries the time still to run; the
             // three states an answer can be in — on its way, none on file, and known — are still decided in
             // one place each (`departureCell`, `destinationCell`), and the time is drawn in all three.
-            `<tr class="aircraft-row${byName ? ' watched-row' : ''}">` +
+            // 🔴 THE ROW IS ALSO THE CONTROL THAT PUTS THE MAP ON THIS AIRCRAFT — see `bindFlightPick`.
+            // It carries the airframe's own hex, because that is the one identifier the feed does not reuse
+            // and the one the engine keys its state by, and `tabindex` so the same press works from the
+            // keyboard. The green border is the whole of the selected state: George, 22 Sep 2026,
+            // *"the select and unselected can be a simple green hue border"*.
+            `<tr class="aircraft-row${byName ? ' watched-row' : ''}${picked ? ' row-selected' : ''}" ` +
+                `data-hex="${escapeHtml(String(state.hex ?? ''))}" tabindex="0"` +
+                (picked
+                    ? ' aria-current="true" title="Showing this aircraft on the map — press again to go back to the whole fence"'
+                    : ' title="Press to put the map on this aircraft"') +
+                '>' +
                 this.departureCell(route, state) +
                 this.destinationCell(route, state) +
                 `<td>${info
@@ -3367,6 +3401,68 @@ class Page {
             track('step_folded', { step: section.dataset.step ?? '', folded });
         });
     }
+    /**
+     * 🔴 PRESSING A ROW PUTS THE MAP ON THAT AIRCRAFT, AND PRESSING IT AGAIN TAKES IT OFF.
+     *
+     * George, 22 Sep 2026: *"i want to be able to select one of those rows, if i do that i want the map to
+     * zoom in to that flight. if slect again, it will unselect and zom back out again"*.
+     *
+     * It is DELEGATED ON THE DOCUMENT, not bound to the rows, because the table is rewritten on every poll
+     * and on every filter change — listeners attached to a row are gone with the row, which is the fault
+     * this file has already recorded once for the footer's consent door.
+     *
+     * Two kinds of row are selectable, and both are ONE AIRCRAFT: a row of the flight table, and a named
+     * tail on the watchlist when that aeroplane is in the air. A watched TYPE is deliberately not
+     * selectable — it can cover several aircraft at once, so "zoom to that flight" would have no single
+     * answer, and the table below is where one aeroplane is named.
+     */
+    bindFlightPick() {
+        document.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!target)
+                return;
+            // A press inside a control is that control's business — the tail chips narrow a type, and the two
+            // x buttons stop watching. Nothing here may swallow those.
+            if (target.closest('button, a, input, .tail-chip'))
+                return;
+            const row = target.closest('tr.aircraft-row');
+            if (row) {
+                this.pickFlight(row.dataset.hex ?? '');
+                return;
+            }
+            const named = target.closest('li.watch-type[data-hex]');
+            if (named)
+                this.pickFlight(named.dataset.hex ?? '');
+        });
+        // And the same on the keyboard, because a row that can only be pressed with a mouse is a row some
+        // readers cannot press at all.
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ')
+                return;
+            const target = event.target;
+            const row = target?.closest('tr.aircraft-row, li.watch-type[data-hex]');
+            if (!row)
+                return;
+            event.preventDefault();
+            this.pickFlight(row.dataset.hex ?? '');
+        });
+    }
+    /**
+     * Pick a flight, or unpick the one already picked.
+     *
+     * The second press of the SAME aircraft clears it — that is the "unselect and zoom back out" George
+     * asked for — and pressing a different row moves the zoom rather than clearing it.
+     */
+    pickFlight(hex) {
+        const key = hex.trim().toLowerCase();
+        if (key === '')
+            return;
+        const wasSelected = this.selectedHex === key;
+        this.selectedHex = wasSelected ? null : key;
+        track(wasSelected ? 'flight_unselected' : 'flight_selected', {});
+        this.renderAircraft();
+        this.renderWatchlist();
+    }
     async loadMilitary() {
         try {
             const response = await fetch('/military.json', { headers: { accept: 'application/json' } });
@@ -3708,6 +3804,12 @@ class Page {
                 this.saveTypeRules();
                 this.renderWatchlist();
                 this.renderTypeList();
+                // 🔴 AND THE MAP AND THE TABLE REDRAW WITH IT. George, 22 Sep 2026: *"when i make a change to what
+                // im watching the map should refresh"*. Starring a type changes which aircraft are on the map,
+                // and this used to wait for the next poll — up to twenty seconds of a map that disagreed with
+                // the list above it. `renderAircraft` ends by drawing the map and the row statuses, so one call
+                // is the whole refresh.
+                this.renderAircraft();
             });
         }
         // 🔴 THE BELL, WHICH IS A DIFFERENT QUESTION FROM THE STAR. It keeps its own list, so
@@ -3781,6 +3883,9 @@ class Page {
                 this.saveAlertRules();
                 this.renderWatchlist();
                 this.renderTypeList();
+                // The same refresh for a tail tick: what the table lists has just changed, so the map is redrawn
+                // with it rather than on the next poll.
+                this.renderAircraft();
                 track('tail_highlighted', { code, highlighted: !on });
             });
         }
@@ -3916,7 +4021,25 @@ class Page {
         const namedItems = this.watchlist
             .map((item) => {
             const state = this.watchStateOfTail(item, live);
-            return (`<li class="watch-type"><span class="watch-what">${MARK_STAR}` +
+            // 🔴 AND A NAMED TAIL THAT IS IN THE AIR CAN BE PRESSED TO PUT THE MAP ON IT. The watchlist is
+            // where a reader is looking when they want to know what their aircraft is doing, and the map is
+            // directly underneath — so the row carries the hex of the aeroplane it names, and only while
+            // that aeroplane is actually reporting a position. A tail with nothing in the air has nothing to
+            // zoom to, so it stays a plain row rather than a control that does nothing.
+            const flying = live.find((one) => normaliseKey(one.registration) === normaliseKey(item) &&
+                typeof one.lat === 'number' &&
+                typeof one.lon === 'number');
+            const hex = flying ? String(flying.hex ?? '').toLowerCase() : '';
+            const picked = hex !== '' && this.selectedHex === hex;
+            return (`<li class="watch-type${picked ? ' row-selected' : ''}"` +
+                (hex !== ''
+                    ? ` data-hex="${escapeHtml(hex)}" tabindex="0"` +
+                        (picked
+                            ? ' aria-current="true" title="Showing this aircraft on the map — press again to go back to the whole fence"'
+                            : ' title="Press to put the map on this aircraft"')
+                    : '') +
+                '>' +
+                `<span class="watch-what">${MARK_STAR}` +
                 `<span class="mono">${escapeHtml(item)}</span> — <b>this aircraft</b></span>` +
                 `<span class="watch-state" data-state="${state.kind}" ` +
                 `title="${escapeHtml(state.why)}">${escapeHtml(state.text)}</span>` +
@@ -3932,6 +4055,9 @@ class Page {
                 this.saveTypeRules();
                 this.renderWatchlist();
                 this.renderTypeList();
+                // Stopping watching a type takes its aircraft off the map, so the map is redrawn here too — see
+                // the note on the star's own handler.
+                this.renderAircraft();
             });
         }
         for (const button of host.querySelectorAll('.watch-remove')) {
@@ -4181,6 +4307,33 @@ class Page {
         // caption describing one. Found by measuring the page rather than reading it, and it is
         // the same fault as the ring that was reported missing earlier today.
         const anchor = this.point();
+        // 🔴 SOMETIMES THE MAP IS ON ONE AIRCRAFT INSTEAD OF ON THE WHOLE FENCE.
+        //
+        // George, 22 Sep 2026: *"i want to be able to select one of those rows, if i do that i want the map to
+        // zoom in to that flight"*. A picked flight replaces the frame outright — the fence is far too big to
+        // be the frame around one aeroplane, and a circle drawn at that zoom would be a wall of green across
+        // the view. The selection is read from the engine's own state, so an aircraft that has stopped
+        // reporting cannot hold the map.
+        const snapshot = this.engine ? this.engine.snapshot() : [];
+        const found = this.selectedHex === null
+            ? undefined
+            : snapshot.find((one) => String(one.hex ?? '').toLowerCase() === this.selectedHex);
+        const pickedFlown = found && typeof found.lat === 'number' && typeof found.lon === 'number'
+            ? found
+            : null;
+        // What the page calls that aeroplane, built the same way the map's own label builds it — the type's
+        // name, then its tail, then the callsign — so the sentence under the map names it exactly as the map
+        // does. A code with no name in the table prints as its code, which is what the label does too.
+        const pickedInfo = pickedFlown && pickedFlown.type ? describeType(pickedFlown.type) : null;
+        const pickedLabel = pickedFlown
+            ? [
+                pickedInfo ? (pickedInfo.known ? pickedInfo.name : pickedInfo.code) : 'type not transmitted',
+                (pickedFlown.registration ?? '').trim(),
+                (pickedFlown.callsign ?? '').trim(),
+            ]
+                .filter((part) => part !== '')
+                .join(' · ')
+            : '';
         const needed = [
             ...(at ? [at] : []),
             ...this.airports.map((one) => ({ lat: one.lat, lon: one.lon })),
@@ -4196,7 +4349,16 @@ class Page {
         // zoom was chosen for a NARROW view, which is half of why it had to zoom out
         // further than it needed to for the same airports to fit.
         const VIEW_W = Math.max(280, Math.round(host.clientWidth) || 512);
-        const VIEW_H = Math.round(Math.min(VIEW_W * 0.66, 460));
+        // 🔴 THE MAP IS TALLER THAN IT WAS, WHICH IS WHAT MAKES IT ZOOM IN FURTHER.
+        //
+        // George, 22 Sep 2026: *"dont forget to zoom in as much as possible with out losing what in on the
+        // map"*. The fence is a CIRCLE and the map is a rectangle, so what has to fit is the circle's own
+        // diameter in BOTH directions — and the height was the binding constraint at every distance, not the
+        // width. Measured on an 854-pixel card, 22 Sep 2026: the 463 km ring needed 261 pixels at zoom 5 and
+        // 522 at zoom 6, against 380 usable pixels of a 460-pixel-high map — so one whole zoom step was being
+        // given away to the map's own shape, with two thirds of the width unused beside it. At 620 pixels
+        // high the same ring fits at zoom 6, which is twice the area of the same map drawn as it was.
+        const VIEW_H = Math.round(Math.min(VIEW_W * 0.78, 620));
         // Room for a code label to the right of a mark, so nothing that fits the box is
         // drawn with its label running off the edge of the view.
         const PAD = 40;
@@ -4232,13 +4394,41 @@ class Page {
         // 🔴 AROUND THE AIM, NOT NECESSARILY AROUND THE READER. With no place known the fence is
         // aimed at the middle of the airports being watched (see `point()`), and the ring has to
         // be whole around THAT — the caption underneath already said which one it was.
-        if (anchor) {
+        if (anchor && !pickedFlown) {
             const dLat = this.radiusKm / 111.32;
             const dLon = this.radiusKm / (111.32 * Math.max(0.2, Math.cos((anchor.lat * Math.PI) / 180)));
             minLat = Math.min(minLat, anchor.lat - dLat);
             maxLat = Math.max(maxLat, anchor.lat + dLat);
             minLon = Math.min(minLon, anchor.lon - dLon);
             maxLon = Math.max(maxLon, anchor.lon + dLon);
+        }
+        // 🔴 A PICKED FLIGHT SETS THE FRAME ON ITS OWN, AND THE BOX ABOVE IS THROWN AWAY FOR IT.
+        //
+        // ⚠️ THE FIRST VERSION OF THIS ADDED THE AIRCRAFT TO A BOX THAT STILL HELD ALL SEVENTY-SIX AIRPORTS,
+        // which is worth recording because the code read as though it did the right thing: the map came out at
+        // zoom 7 for a flight that could have been shown at 14, because the frame was still a continent wide.
+        // The airports, the reader's place and the fence are what the map shows when NOTHING is picked; on one
+        // aeroplane they are beside the point, so the box is built from that aeroplane alone.
+        //
+        // The box takes the aircraft AND every point of the path behind it, because a zoom that cut the path
+        // off would lose the thing the map was zoomed in to show — the trail reaches back about ten minutes of
+        // flying, which at a jet's speed is about seventy miles, and the two-hundredths-of-a-degree floor the
+        // fence fit uses still applies so a nearly stationary aircraft is not taken to a car park.
+        if (pickedFlown) {
+            const points = [
+                { lat: pickedFlown.lat, lon: pickedFlown.lon },
+                ...(pickedFlown.trail ?? []).map((point) => ({ lat: point.lat, lon: point.lon })),
+            ];
+            minLat = 90;
+            maxLat = -90;
+            minLon = 180;
+            maxLon = -180;
+            for (const point of points) {
+                minLat = Math.min(minLat, point.lat);
+                maxLat = Math.max(maxLat, point.lat);
+                minLon = Math.min(minLon, point.lon);
+                maxLon = Math.max(maxLon, point.lon);
+            }
         }
         const midLat = (minLat + maxLat) / 2;
         const midLon = (minLon + maxLon) / 2;
@@ -4301,7 +4491,14 @@ class Page {
             : { lat: spanLat, lon: spanLon };
         const zoomForEverything = fittest(spanLat, spanLon);
         const zoomForFence = fittest(spanForFence.lat, spanForFence.lon);
-        const zoom = at && anchor ? Math.max(zoomForEverything, zoomForFence - 1) : zoomForEverything;
+        // A picked flight is the whole of the request, so it takes the frame with nothing else folded in —
+        // the box above already holds the aircraft and its path, and "as zoomed in as it can be without
+        // losing what is on the map" is exactly `fittest` on that box.
+        const zoom = pickedFlown
+            ? zoomForEverything
+            : at && anchor
+                ? Math.max(zoomForEverything, zoomForFence - 1)
+                : zoomForEverything;
         const scale = (156543.03392 * Math.cos((midLat * Math.PI) / 180)) / 2 ** zoom;
         const span = 2 ** zoom;
         const middleX = lonToTile(midLon, zoom) * TILE;
@@ -4390,11 +4587,19 @@ class Page {
         // 🔴 AND THE CIRCLE IS WHAT MAKES THE TWO SETS OF SHAPES ONE PICTURE. The aircraft are filtered
         // to the fence by the engine, so without the ring a reader cannot tell whether an empty map
         // means nothing is flying or nothing is flying *here*. The ring is that answer.
-        const watching = (this.engine ? this.engine.snapshot() : []).filter((one) => this.isWatchedNow(one));
+        const watching = snapshot.filter((one) => this.isWatchedNow(one));
         const placed = watching.filter((one) => typeof one.lat === 'number' && typeof one.lon === 'number');
         // Drawn AFTER the airports and after the reader's own mark, so nothing is laid over a plane.
         let planes = '';
         let drawn = 0;
+        // 🔴 AND AIRCRAFT THAT ARE SIMPLY OUTSIDE THE FRAME ARE NOT THE SAME AS AIRCRAFT WITH NO POSITION.
+        //
+        // This loop `continue`d past an off-view aircraft and the note below counted every aircraft it had
+        // not drawn as *"on the list without a reported position yet"* — which was survivable while the frame
+        // was built to hold them all, and became a plainly false sentence the moment a picked flight zoomed
+        // the map to one aeroplane and left the other fifty-nine outside it. They have positions; they are
+        // off the edge. Two counts, because they are two facts.
+        let offView = 0;
         let traced = 0;
         let graded = 0;
         // 🔴 THE RATE OF CLIMB OF THE READING ON SCREEN, BECAUSE A TRAIL CAN BE TOO SHORT TO SAY.
@@ -4413,8 +4618,10 @@ class Page {
         for (const one of placed.slice(0, 60)) {
             const spot = spotOf(one.lat, one.lon);
             // Off the view is off the view, and saying so below is better than clipping it silently.
-            if (spot.x < 0 || spot.x > VIEW_W || spot.y < 0 || spot.y > VIEW_H)
+            if (spot.x < 0 || spot.x > VIEW_W || spot.y < 0 || spot.y > VIEW_H) {
+                offView += 1;
                 continue;
+            }
             drawn += 1;
             // The flight path, from what this page has heard across polls — the feed reports only where
             // an aircraft is now. Two points are needed to be a path: one point is a position, and
@@ -4462,14 +4669,25 @@ class Page {
                 .filter((part) => part !== null && part !== '')
                 .join(' · ');
             const heading = typeof one.trackDeg === 'number' ? ` rotate(${one.trackDeg.toFixed(1)})` : '';
+            const picked = pickedFlown !== null && String(one.hex ?? '').toLowerCase() === String(pickedFlown.hex ?? '').toLowerCase();
             planes +=
-                `<g class="locmap-plane-mark" transform="translate(${spot.x.toFixed(1)} ${spot.y.toFixed(1)})${heading}">` +
+                `<g class="locmap-plane-mark${picked ? ' locmap-plane-mark-picked' : ''}" ` +
+                    `transform="translate(${spot.x.toFixed(1)} ${spot.y.toFixed(1)})${heading}">` +
                     `<path class="locmap-plane-icon" transform="scale(0.72) translate(-12 -12)" d="${PLANE_PATH}" />` +
                     '</g>' +
-                    `<text class="locmap-plane-label" x="${(spot.x + 11).toFixed(1)}" ` +
+                    // 🔴 THE PICKED AIRCRAFT IS RINGED IN THE SAME GREEN AS ITS ROW, so the row and the map cannot
+                    // be read as being about two different aeroplanes. It is drawn from the same mark as the row's
+                    // border, which is what George asked for — *"the select and unselected can be a simple green
+                    // hue border"* — rather than a second, louder colour the page uses nowhere else.
+                    (picked
+                        ? `<circle class="locmap-plane-pick" cx="${spot.x.toFixed(1)}" cy="${spot.y.toFixed(1)}" r="17" />`
+                        : '') +
+                    `<text class="locmap-plane-label${picked ? ' locmap-plane-label-picked' : ''}" x="${(spot.x + 11).toFixed(1)}" ` +
                     `y="${(spot.y + 4).toFixed(1)}">${escapeHtml(what)}</text>`;
         }
-        const unplaced = watching.length - drawn;
+        // `placed` is what has a position; anything on the list that is not in it has none, and that is the
+        // only thing this number may now mean — see the note on `offView`.
+        const unplaced = watching.length - placed.length;
         const described = this.airports.length === 1
             ? `the airport you picked (${this.airports[0].icao})`
             : `${this.airports.length} airports you picked (${this.chosenIcaos().join(', ')})`;
@@ -4477,9 +4695,11 @@ class Page {
             tiles +
             `<svg class="locmap-over" viewBox="0 0 ${VIEW_W} ${VIEW_H}" role="img" ` +
             `aria-label="A map showing ${escapeHtml(described)}` +
-            (anchorPx
-                ? `, a ${this.radiusKm} kilometre circle around ${you ? 'your position' : 'the airports you are watching'}`
-                : '') +
+            (pickedFlown
+                ? `, zoomed to one aircraft: ${escapeHtml(pickedLabel)}`
+                : anchorPx
+                    ? `, a ${this.radiusKm} kilometre circle around ${you ? 'your position' : 'the airports you are watching'}`
+                    : '') +
             `, the nearest other airports marked with their codes` +
             (drawn === 0
                 ? ', and no aircraft on your list inside it at the moment'
@@ -4487,7 +4707,11 @@ class Page {
             `">` +
             // Paths first, so nothing is ever drawn across one.
             paths +
-            (anchorPx
+            // 🔴 THE FENCE IS NOT DRAWN WHEN THE MAP IS ON ONE AIRCRAFT. At that zoom the circle's edge is
+            // hundreds of kilometres away, so the only thing it could draw is a green wall across the view —
+            // and it would make the page look as though the fence had become tiny. The note below says which
+            // frame is in use, so the ring's absence is stated rather than left to be puzzled over.
+            (anchorPx && !pickedFlown
                 ? `<circle class="locmap-fence" cx="${anchorPx.x.toFixed(1)}" cy="${anchorPx.y.toFixed(1)}" r="${fencePx.toFixed(1)}" />`
                 : '') +
             marks +
@@ -4520,14 +4744,19 @@ class Page {
             // above"* — described a map that no longer exists.
             '<p class="small muted locmap-note">The map is ' +
             '<a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, free and with no API key. ' +
-            (anchor
-                ? `It is fitted so the ${this.radiusKm} km gap you chose is inside the frame, together with the airports you picked — a ring you can only see part of is no use as a distance. `
-                : 'It is fitted to the airports you picked. ') +
+            (pickedFlown
+                ? `It is zoomed to <b>${escapeHtml(pickedLabel)}</b>, with the path this page has heard behind it, instead of the ${this.radiusKm} km circle — press that row again, or press another, to change it. `
+                : anchor
+                    ? `It is fitted so the ${this.radiusKm} km gap you chose is inside the frame, together with the airports you picked — a ring you can only see part of is no use as a distance. `
+                    : 'It is fitted to the airports you picked. ') +
             (drawn === 0
                 ? 'Nothing you are watching is inside the fence at this moment, so the map is drawn with ' +
                     'no aircraft on it — it stays where it is, and one appears the moment the feed sees it. '
-                : 'Every aircraft on your list and inside the fence, named in full and drawn where the ' +
-                    'feed last reported it. ') +
+                : pickedFlown
+                    ? 'Only that aircraft is drawn at this zoom — everything else on your list is in the table ' +
+                        'above, and the map goes back to the whole fence when you press its row again. '
+                    : 'Every aircraft on your list and inside the fence, named in full and drawn where the ' +
+                        'feed last reported it. ') +
             (traced > 0
                 ? 'The line behind an aircraft is the path it has flown in the last few minutes, drawn ' +
                     'from what this page has heard — the feed reports only where a plane is now. ' +
@@ -4535,6 +4764,10 @@ class Page {
                     '<b>green</b> where it gained height, <b>amber</b> where it lost it, <b>blue</b> where it ' +
                     'held it, and a <b>dashed blue</b> where the reading carried no altitude to compare. ' +
                     (graded > 0 ? '' : 'No aircraft on the map is reporting an altitude yet, so every path is dashed. ')
+                : '') +
+            (offView > 0
+                ? `${offView} more ${offView === 1 ? 'is' : 'are'} on your list outside this frame, so they are ` +
+                    'listed and not drawn. '
                 : '') +
             (unplaced > 0
                 ? `${unplaced} ${unplaced === 1 ? 'is' : 'are'} on the list without a reported position ` +

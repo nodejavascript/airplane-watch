@@ -2164,3 +2164,133 @@ test('97 · a takeoff time is never invented, and a run to the destination is ne
   assert.match(page, /straight-line distance still to[^.]*run at the speed/,
     'the page does not say what the estimate assumes');
 });
+
+test('98 · a row you press puts the map on that flight, and pressing it again puts it back', () => {
+  const app = readSrc('src/app.ts');
+  const page = read(SITE, 'index.html');
+  const css = read(SITE, 'styles.css');
+
+  // 🔴 THE SELECTION IS ONE HEX, AND IT IS THE ENGINE'S OWN KEY. George, 22 Sep 2026: *"i want to be
+  // able to select one of those rows, if i do that i want the map to zoom in to that flight. if slect
+  // again, it will unselect and zom back out again"*. A callsign is reused and a row index moves when
+  // the table is re-sorted, so the airframe's hex is the only identifier that survives both — and a
+  // selection that outlives its flight is cleared rather than left holding the map.
+  assert.match(app, /private selectedHex: string \| null = null;/, 'nothing records which flight was picked');
+  const rows = app.slice(app.indexOf('private renderAircraft'), app.indexOf('private tickReadingAges'));
+  assert.ok(rows.length > 400, 'the row builder could not be isolated, so this check is vacuous');
+  assert.match(rows, /this\.selectedHex === String\(state\.hex \?\? ''\)\.toLowerCase\(\)/,
+    'a row cannot tell whether it is the picked one');
+  assert.match(rows, /!rows\.some\(\(one\) => String\(one\.hex \?\? ''\)\.toLowerCase\(\) === this\.selectedHex\)[\s\S]{0,80}this\.selectedHex = null;/,
+    'a selection whose aircraft has left the list is never cleared, so the map stays on nothing');
+
+  // 🔴 AND THE ROW CARRIES BOTH THE KEY AND THE PRESS. `data-hex` is what the delegated listener reads;
+  // `tabindex` is what makes the same press possible from the keyboard, because a row that only a mouse
+  // can press is a row some readers cannot press at all.
+  assert.match(rows, /data-hex="\$\{escapeHtml\(String\(state\.hex \?\? ''\)\)\}" tabindex="0"/,
+    'the row does not carry the airframe it names, or cannot be reached from the keyboard');
+  assert.match(rows, /\$\{picked \? ' row-selected' : ''\}/, 'the picked row is not marked as picked');
+  assert.equal(/aria-pressed/.test(rows), false,
+    'the row claims to be a pressed button, which a table row is not');
+
+  // 🔴 THE LISTENER IS ON THE DOCUMENT. The table is rewritten on every poll, so a listener attached to
+  // a row goes with the row — the fault this file has already recorded once for the footer's door.
+  const bind = app.slice(app.indexOf('private bindFlightPick('), app.indexOf('private pickFlight('));
+  assert.ok(bind.length > 400, 'the pick binding is gone, so this check is vacuous');
+  assert.match(bind, /document\.addEventListener\('click'/, 'the pick is bound to the rows instead of delegated');
+  assert.match(bind, /document\.addEventListener\('keydown'/, 'the pick cannot be made from the keyboard');
+  assert.match(bind, /event\.key !== 'Enter' && event\.key !== ' '/, 'Enter and space do not both work');
+  assert.match(bind, /closest\('button, a, input, \.tail-chip'\)\) return/,
+    'the pick swallows presses meant for the controls inside a row');
+  assert.match(app, /this\.bindFlightPick\(\);/, 'the pick is never bound, so no row can be pressed');
+
+  // The second press of the same aircraft clears it; a press on another row moves the zoom.
+  const pick = app.slice(app.indexOf('private pickFlight('), app.indexOf('private async loadMilitary('));
+  assert.ok(pick.length > 200, 'the pick itself is gone, so this check is vacuous');
+  assert.match(pick, /const wasSelected = this\.selectedHex === key;/,
+    'the second press cannot tell that it is the second press');
+  assert.match(pick, /this\.selectedHex = wasSelected \? null : key;/, 'the second press does not clear the pick');
+  assert.match(pick, /this\.renderAircraft\(\);[\s\S]{0,60}this\.renderWatchlist\(\);/,
+    'picking a flight does not redraw what it changes');
+
+  // 🔴 AND THE MAP IS FRAMED ON THAT AIRCRAFT ALONE. The first version of this added the aircraft to a
+  // box that still held every airport, so a flight came out at zoom 7 where 14 was available — the
+  // measurement is in the comment beside it, because the code looked right and the number did not.
+  const map = app.slice(app.indexOf('private renderMap('), app.indexOf('private bindMapResize('));
+  assert.ok(map.length > 800, 'the map could not be isolated, so this check is vacuous');
+  const pickBox = map.slice(map.indexOf('if (pickedFlown) {'), map.indexOf('const midLat'));
+  assert.ok(pickBox.length > 200, 'the picked frame is gone, so this check is vacuous');
+  assert.match(pickBox, /minLat = 90;/, 'the picked frame keeps the airports inside it, so it cannot zoom in');
+  assert.match(pickBox, /pickedFlown\.trail \?\? \[\]/, 'the flight path is left out of the frame it should be fitted to');
+  assert.match(map, /const zoom = pickedFlown\s*\n?\s*\? zoomForEverything/, 'a picked flight does not take the frame on its own');
+  // The fence is not drawn at that zoom — its edge is hundreds of kilometres away, so all it could draw
+  // is a wall of green across the view.
+  assert.match(map, /\(anchorPx && !pickedFlown\s*\n?\s*\? `<circle class="locmap-fence"/,
+    'the fence is drawn across a map that is zoomed to one aircraft');
+
+  // 🔴 AND AIRCRAFT OUTSIDE A ZOOMED FRAME ARE NOT AIRCRAFT WITHOUT A POSITION. The note said the
+  // second when it meant the first, which was survivable while the frame held everything and became a
+  // plainly false sentence the moment a picked flight left fifty-nine aircraft off the edge.
+  assert.match(map, /let offView = 0;/, 'aircraft pushed off the edge by the zoom are not counted');
+  assert.match(map, /const unplaced = watching\.length - placed\.length;/,
+    'the count of aircraft with no position still includes the ones merely off the edge');
+  assert.match(map, /offView > 0[\s\S]{0,200}outside this frame/, 'the page does not say that aircraft are outside the frame');
+
+  // 🔴 AND THE MAP IS TALLER, WHICH IS WHAT LETS IT ZOOM IN FURTHER. The fence is a circle and the map
+  // is a rectangle, so the circle's own diameter has to fit in both directions — and the height was the
+  // binding constraint at every distance. Measured on an 854-pixel card: the 463 km ring needed 522
+  // pixels at zoom 6 against 380 usable, so one whole step was being given away to the map's shape.
+  assert.match(map, /Math\.min\(VIEW_W \* 0\.78, 620\)/, 'the map was not made taller, so the same ring is drawn a step further out');
+  assert.equal(/VIEW_W \* 0\.66, 460/.test(map), false, 'both the old height and a new one are in the file');
+
+  // 🔴 AND THE TABLE AND THE MAP FOLLOW A CHANGE TO WHAT IS WATCHED, AT ONCE. George, 22 Sep 2026:
+  // *"when i make a change to what im watching the map should refresh"*. Pressing a star used to redraw
+  // the list and leave the table and map until the next poll — up to twenty seconds of a map that
+  // disagreed with the list above it.
+  // ⚠️ THE REGION RUNS TO THE NEXT METHOD, NOT TO `renderFilterNote` — that call sits INSIDE
+  // `renderTypeList`, above every listener bound below it, so slicing to it returned the markup and
+  // none of the handlers and the check failed on a file that was correct. A false failure is worse
+  // than no check.
+  const typeList = app.slice(app.indexOf('private renderTypeList('), app.indexOf('private renderWatchlist('));
+  const starHandler = typeList.slice(typeList.indexOf("querySelectorAll<HTMLButtonElement>('.type-toggle')"), typeList.indexOf("querySelectorAll<HTMLButtonElement>('.alert-toggle')"));
+  assert.ok(starHandler.length > 400, 'the star handler could not be isolated, so this check is vacuous');
+  assert.match(starHandler, /this\.renderAircraft\(\);/,
+    'starring a type does not redraw the table and the map, so they wait for the next poll');
+  const tailHandler = typeList.slice(typeList.indexOf("querySelectorAll<HTMLButtonElement>('.tail-chip')"));
+  assert.match(tailHandler, /this\.renderAircraft\(\);/,
+    'ticking a tail does not redraw the table and the map');
+  const watchlist = app.slice(app.indexOf('private renderWatchlist('), app.indexOf('private renderWatchButton('));
+  const removeHandler = watchlist.slice(watchlist.indexOf("querySelectorAll<HTMLButtonElement>('.type-remove')"));
+  assert.match(removeHandler, /this\.renderAircraft\(\);/,
+    'stopping watching a type does not redraw the table and the map');
+
+  // 🔴 AND THE WATCHLIST ROW THAT NAMES ONE AIRCRAFT CAN BE PRESSED TOO — but only while that aircraft
+  // has a position. A watched TYPE is not given this: it can cover several aircraft, so there is no
+  // single flight for the map to go to.
+  assert.match(watchlist, /normaliseKey\(one\.registration\) === normaliseKey\(item\)/,
+    'a named tail is not matched to the aircraft it names');
+  assert.match(watchlist, /const hex = flying \? String\(flying\.hex \?\? ''\)\.toLowerCase\(\) : '';/,
+    'a named tail carries a hex even when nothing is in the air');
+  assert.match(watchlist, /hex !== ''\s*\n?\s*\? ` data-hex=/, 'the named tail row cannot be pressed');
+  assert.equal(/watch-type[^`]*data-hex/.test(typeList), false, 'a watched type was made pressable, and it names no single flight');
+
+  // 🔴 ONE GREEN HUE, ON THE ROW AND ON THE MAP. George, 22 Sep 2026: *"the select and unselected can be
+  // a simple green hue border"*. On a `border-collapse: collapse` table the border goes on the cells,
+  // because a border on the row only shows where a cell does not already own that edge.
+  assert.match(css, /\.aircraft tr\.row-selected td \{[^}]*border-top: 2px solid #4ade80/,
+    'the picked row has no green border');
+  assert.match(css, /\.aircraft tr\.row-selected td:first-child \{[^}]*border-left: 2px solid #4ade80/,
+    'the green box is not closed on the left');
+  assert.match(css, /\.aircraft tr\.row-selected td:last-child \{[^}]*border-right: 2px solid #4ade80/,
+    'the green box is not closed on the right');
+  assert.match(css, /\.locmap-plane-pick \{[^}]*stroke: #4ade80/, 'the picked aircraft is not ringed in the same green');
+  assert.match(css, /\.watch-type\.row-selected \{[^}]*border-color: #4ade80/,
+    'a picked named tail is not marked in the same green');
+  assert.match(css, /\.aircraft tr\.aircraft-row \{[^}]*cursor: pointer/,
+    'a row that can be pressed does not look as though it can be');
+
+  // And the page says which frame is in use, because a map that suddenly has no ring must say why — and
+  // it says, where the rows are, that the rows can be pressed at all.
+  assert.match(map, /It is zoomed to <b>/, 'the note does not say that the map is on one aircraft');
+  assert.match(page, /Press any row to put the map on that aircraft/,
+    'the page never tells the reader that a row can be pressed');
+});

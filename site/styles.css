@@ -804,6 +804,90 @@ main {
   white-space: nowrap;
 }
 
+/* ===========================================================================
+ * 🔴 THE PICKED FLIGHT, IN ONE GREEN HUE — ON THE ROW AND ON THE MAP.
+ *
+ * George, 22 Sep 2026: *"i want to be able to select one of those rows, if i do that i want the map to
+ * zoom in to that flight. if slect again, it will unselect and zom back out again. the select and
+ * unselected can be a simple green hue border"*.
+ *
+ * So the border is the whole of the selected state, and it is drawn in the SAME green in both places —
+ * the row that was pressed, and the aeroplane the map is on. Two colours, or a colour here and a
+ * different one there, would read as two different things being selected.
+ *
+ * 🔴 THE BORDER IS DRAWN ON THE CELLS, NOT ON THE ROW. The table is `border-collapse: collapse`, and a
+ * border on a `<tr>` only shows where the cells do not already own that edge — which is why the
+ * hairlines between rows win over one. Each cell takes the top and bottom edge and the two ends take the
+ * sides, so the box closes around the whole row.
+ * ------------------------------------------------------------------------ */
+.aircraft tr.row-selected td {
+  border-top: 2px solid #4ade80;
+  border-bottom: 2px solid #4ade80;
+  background: rgba(74, 222, 128, 0.08);
+}
+.aircraft tr.row-selected td:first-child {
+  border-left: 2px solid #4ade80;
+}
+.aircraft tr.row-selected td:last-child {
+  border-right: 2px solid #4ade80;
+}
+
+/* A row that can be pressed says so, and lights up under the pointer — the whole row is the target, so
+ * the whole row is what responds. */
+.aircraft tr.aircraft-row {
+  cursor: pointer;
+}
+.aircraft tr.aircraft-row:hover td {
+  background: rgba(56, 189, 248, 0.07);
+}
+.aircraft tr.aircraft-row:focus-visible {
+  outline: 2px solid var(--theme);
+  outline-offset: -2px;
+}
+
+/* The same green on a named tail in the watchlist, which names one aircraft and can be pressed for the
+ * same reason. A watched TYPE is not given this: it can cover several aircraft, so there is no single
+ * flight for the map to go to. */
+.watch-type[data-hex] {
+  cursor: pointer;
+}
+.watch-type[data-hex]:hover {
+  border-color: var(--theme);
+}
+.watch-type[data-hex]:focus-visible {
+  outline: 2px solid var(--theme);
+  outline-offset: 2px;
+}
+.watch-type.row-selected {
+  border-color: #4ade80;
+  box-shadow: inset 0 0 0 1px #4ade80;
+}
+
+/* 🔴 AND THE GREEN OUTRANKS THE HOVER, BECAUSE THE POINTER IS STILL SITTING ON THE ROW IT JUST PRESSED.
+ *
+ * Measured on the live page, 22 Sep 2026: after pressing a named tail the border read
+ * `rgb(56, 189, 248)` — the theme cyan of the hover rule — because `[data-hex]:hover` is one class
+ * heavier than `.row-selected`. So the selection looked as though it had not taken, on exactly the row
+ * the reader was looking at. Both rules now carry the green, and the hover tint on the table row is the
+ * same green rather than the cyan one, so a selected row reads as selected under the pointer. */
+.aircraft tr.row-selected:hover td {
+  background: rgba(74, 222, 128, 0.14);
+}
+.watch-type.row-selected:hover {
+  border-color: #4ade80;
+  box-shadow: inset 0 0 0 1px #4ade80;
+}
+
+/* And the ring around the aeroplane the map is on, in that same green. */
+.locmap-plane-pick {
+  fill: none;
+  stroke: #4ade80;
+  stroke-width: 2;
+}
+.locmap-plane-label-picked {
+  fill: #4ade80;
+}
+
 /* ---------------------------------------------------------------------------
  * THE ROUTE, LEADING THE ROW IN TWO CELLS: `from KDTW` then `to CYYZ`.
  *
