@@ -771,14 +771,22 @@ class Page {
         readout.id = 'radiusValue';
         readout.className = 'radius-value';
         const show = (index) => {
-            const km = RADIUS_LADDER[index];
+            // 🔴 A VALUE OFF THE LADDER MUST NOT BLANK THE MAP. `RADIUS_LADDER[index]` is `undefined`
+            // for an index past the end of the list, and an undefined radius propagates as NaN through
+            // the map's fit arithmetic: no tiles are drawn at all, every mark lands at NaN, and the
+            // caption reads *"the undefined km gap you chose"*. Measured on 21 Sep 2026 by setting the
+            // slider to 40 — past the end of a 17-step ladder. A real drag cannot reach it, but a stale
+            // or restored value can, and the failure is completely silent: a working page with a blank
+            // map on it.
+            const km = RADIUS_LADDER[index] ?? this.radiusKm;
             readout.textContent = `${km} km`;
             slider.setAttribute('aria-valuetext', `${km} kilometres`);
         };
         show(nearest);
         slider.addEventListener('input', () => {
             const index = Number(slider.value);
-            this.radiusKm = RADIUS_LADDER[index];
+            // Keeps the previous distance rather than becoming undefined — see the note above.
+            this.radiusKm = RADIUS_LADDER[index] ?? this.radiusKm;
             show(index);
             // Local only: the sentence, the circle and the map all come from `radiusKm`,
             // and none of them needs the feed to be asked again.
@@ -3443,17 +3451,23 @@ class Page {
         }
         const watching = (this.engine ? this.engine.snapshot() : []).filter((one) => this.isWatchedNow(one));
         const placed = watching.filter((one) => typeof one.lat === 'number' && typeof one.lon === 'number');
-        if (watching.length === 0) {
-            const empty = '<p class="small muted">Nothing on your list is inside the fence at this moment, so there ' +
-                'is nothing to place on a map yet. Aircraft appear here as they arrive.</p>';
-            if (empty !== this.lastPlot) {
-                this.lastPlot = empty;
-                host.innerHTML = empty;
-            }
-            return;
-        }
         const { VIEW_W, VIEW_H, tiles, spotOf } = frame;
+        // 🔴 THE MAP IS DRAWN WHETHER OR NOT ANYTHING IS ON IT. George, 21 Sep 2026: *"can you leave
+        // the map up even if there are no planes in the air"*. It used to be replaced by a paragraph
+        // the moment nothing was inside the fence, so the one thing the reader had asked for
+        // disappeared exactly when they went looking for it. A map with nothing on it is still a map,
+        // and it still shows where they are; the sentence explaining the emptiness belongs under it.
+        //
+        // Where "here" is, drawn before the aircraft so no aeroplane is ever covered by it.
+        const here = this.centre ?? this.point();
         let marks = '';
+        if (here) {
+            const spot = spotOf(here.lat, here.lon);
+            marks +=
+                `<circle class="locmap-you" cx="${spot.x.toFixed(1)}" cy="${spot.y.toFixed(1)}" r="5" />` +
+                    `<text class="locmap-you-label" x="${spot.x.toFixed(1)}" ` +
+                    `y="${(spot.y + 18).toFixed(1)}" text-anchor="middle">${this.centre ? 'you' : 'watched'}</text>`;
+        }
         let drawn = 0;
         for (const one of placed.slice(0, 60)) {
             const spot = spotOf(one.lat, one.lon);
@@ -3461,14 +3475,16 @@ class Page {
             if (spot.x < 0 || spot.x > VIEW_W || spot.y < 0 || spot.y > VIEW_H)
                 continue;
             drawn += 1;
-            // 🔴 THE AEROPLANE, THEN WHAT IT IS, THEN WHICH ONE IT IS. George, 21 Sep 2026: *"in the
-            // map, i want to see the images of the plane and the aircraft type, then the tail"*.
-            // A shape of an aeroplane instead of a dot, the type next to it, and the tail after that —
-            // and a value the feed did not transmit is simply absent rather than filled in with a
-            // guess.
-            const type = (one.type || '').toUpperCase().trim();
+            // 🔴 THE AEROPLANE, THEN WHAT IT IS, THEN WHICH ONE IT IS — AND WHAT IT IS IS ITS WHOLE
+            // NAME, NOT ITS FOUR-LETTER CODE. George, 21 Sep 2026: *"i want the map identifying planes
+            // by their full airplane name **Cirrus SR22T** like this"*. The type list has always named
+            // aircraft in full (*"Boeing 737 MAX 8"*); the map was the last place still speaking in
+            // codes. A code this site cannot name is shown as itself rather than dressed up, and a
+            // value the feed did not transmit is named as missing rather than invented.
+            const info = describeType(one.type);
+            const name = info.code ? (info.known ? info.name : info.code) : 'type not transmitted';
             const tail = (one.registration || '').toUpperCase().trim();
-            const what = [type || 'type not transmitted', tail || null]
+            const what = [name, tail || null]
                 .filter((part) => part !== null && part !== '')
                 .join(' · ');
             marks +=
@@ -3482,18 +3498,29 @@ class Page {
         const html = `<div class="locmap" style="width:${VIEW_W}px;height:${VIEW_H}px">` +
             tiles +
             `<svg class="locmap-over" viewBox="0 0 ${VIEW_W} ${VIEW_H}" role="img" ` +
-            `aria-label="${drawn} aircraft you are watching, plotted where the feed last reported them">` +
+            `aria-label="${escapeHtml(drawn === 0
+                ? 'A map of the area you are watching, with no aircraft on it at the moment'
+                : `${drawn} aircraft you are watching, plotted where the feed last reported them`)}">` +
             marks +
             '</svg></div>' +
-            '<p class="small muted locmap-note">Every aircraft on your list and inside the fence, ' +
-            'drawn where the feed last reported it — in the same frame as the map above, so the two ' +
-            'agree about where those aircraft are. ' +
+            '<p class="small muted locmap-note">' +
+            (drawn === 0
+                ? 'Nothing you are watching is inside the fence at this moment, so the map is drawn with ' +
+                    'no aircraft on it — it stays where it is, and one appears the moment the feed sees it. '
+                : 'Every aircraft on your list and inside the fence, named in full and drawn where the ' +
+                    'feed last reported it. ') +
+            'In the same frame as the map above, so the two agree about where things are. ' +
             (unplaced > 0
                 ? `${unplaced} ${unplaced === 1 ? 'is' : 'are'} on the list without a reported position ` +
                     'yet, so they are listed and not plotted.'
                 : '') +
             '</p>';
-        // An unchanged picture is left alone — see `lastPlot`.
+        // 🔴 NOTHING CHANGED, SO NOTHING IS WRITTEN — WHICH IS ALSO HOW AN EMPTY MAP STOPS COSTING
+        // ANYTHING. George, 21 Sep 2026: *"can you stop updating when there are no plans in the
+        // air?"*. With no aircraft the markup above is identical on every poll, so this comparison
+        // holds and the map is left exactly as it is: no tiles re-fetched, no marks rebuilt, no
+        // flicker. It begins changing again by itself the moment an aircraft appears, because then
+        // the markup differs.
         if (html !== this.lastPlot) {
             this.lastPlot = html;
             host.innerHTML = html;

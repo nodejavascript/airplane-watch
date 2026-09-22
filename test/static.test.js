@@ -1227,8 +1227,21 @@ test('the watching section has its own map, drawn in the OTHER map\'s frame', ()
   assert.equal(/fittest\(/.test(body), false, 'the second map computes its own zoom, so the two maps can disagree');
   assert.equal(/156543/.test(body), false, 'the second map computes its own scale, so the two maps can disagree');
 
-  // And the empty state is stated rather than left blank.
-  assert.match(body, /Nothing on your list is inside the fence/i, 'the empty position map says nothing');
+  // 🔴 AND THE MAP STAYS UP WHEN THERE IS NOTHING ON IT. George, 21 Sep 2026: *"can you leave
+  // the map up even if there are no planes in the air"*. So the empty case must not return early
+  // with a paragraph where the map should be: the map is drawn either way and the sentence
+  // explaining the emptiness goes underneath it.
+  assert.match(body, /Nothing you are watching is inside the fence/i,
+    'the empty position map says nothing about why it is empty');
+  assert.equal(/if \(watching\.length === 0\) \{\s*const empty/.test(body), false,
+    'the map is replaced by a paragraph when nothing is in the air, instead of being left up');
+  // 🔴 AND NOTHING IS WRITTEN WHEN NOTHING HAS CHANGED. George, 21 Sep 2026: *"can you stop
+  // updating when there are no plans in the air?"* — with no aircraft the markup is identical on
+  // every poll, so the write has to sit behind the comparison for that to cost nothing.
+  assert.ok(body.indexOf('const html =') > -1 && body.indexOf('const html =') < body.indexOf('if (html !== this.lastPlot)'),
+    'the map is not assembled before the comparison, so this check would be vacuous');
+  assert.match(body, /if \(html !== this\.lastPlot\) \{\s*this\.lastPlot = html;\s*host\.innerHTML = html;/,
+    'the map is written on every poll instead of only when it changes');
 });
 
 test('a watched row reports what it is doing, and keeps its way out', () => {
@@ -1275,6 +1288,12 @@ test('a watched row reports what it is doing, and keeps its way out', () => {
   // will not understand this. make the messatge can be time related like was on map x hours ago,
   // or minutes from now()"*.
   assert.match(state, /this\.agoText\(at\)/, 'the status does not say how long ago the type was seen');
+  // The longer explanation rides on the element rather than lengthening the column — and it must be
+  // refreshed with the wording, or it describes the status the row used to have.
+  assert.match(app, /class="watch-state"[\s\S]{0,200}?title="\$\{escapeHtml\(state\.why\)\}"/,
+    'the status carries no explanation for the reader who wants one');
+  assert.match(app, /if \(state\.title !== next\.why\) state\.title = next\.why;/,
+    'the explanation goes stale while the wording is refreshed');
   assert.match(app, /private agoText\(at: Date\): string/, 'the relative-time wording has gone');
   assert.match(state, /this\.historySpanDays\(\)/,
     'a type with no sighting is not given the span the record actually covers');
@@ -1310,9 +1329,15 @@ test('the map mark is an aeroplane, then the type, then the tail', () => {
   assert.match(app, /const PLANE_PATH =/, 'the aeroplane shape has gone');
   assert.match(body, /PLANE_PATH/, 'the mark is not drawn from the aeroplane shape');
   assert.equal(/locmap-plane\b(?!-)/.test(body), false, 'the mark is still a plain dot');
-  assert.ok(body.indexOf("type ||") < body.indexOf("tail ||"),
-    'the tail is placed before the type, and the order asked for is type then tail');
-  assert.match(body, /\.join\(' · '\)/, 'the type and the tail are not joined into one label');
+  // 🔴 THE NAME IS THE AEROPLANE'S WHOLE NAME, NOT ITS CODE. George, 21 Sep 2026: *"i want the
+  // map identifying planes by their full airplane name Cirrus SR22T like this"*. The type list
+  // has always named aircraft in full; the map was the last place still speaking in codes.
+  assert.match(body, /describeType\(one\.type\)/, 'the mark names the aircraft by its code instead of its name');
+  assert.match(body, /const name = info\.code \? \(info\.known \? info\.name : info\.code\) : 'type not transmitted'/,
+    'the name does not fall back honestly for a code this site cannot name');
+  assert.ok(body.indexOf('const name =') < body.indexOf('const tail ='),
+    'the tail is placed before the name, and the order asked for is the aeroplane then the tail');
+  assert.match(body, /\.join\(' · '\)/, 'the name and the tail are not joined into one label');
   // A value the feed did not transmit is absent or named as absent — never invented.
   assert.match(body, /type not transmitted/, 'a missing type is not named as missing');
 

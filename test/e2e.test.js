@@ -1784,14 +1784,21 @@ test('the watching section plots the aircraft on the list', async () => {
   const planes = await page.$$eval('#watchMap .locmap-plane-icon', (nodes) => nodes.length);
   assert.ok(planes > 0, 'the position map drew no aircraft, so the list has nothing plotted on it');
 
-  // 🔴 THE AEROPLANE, THEN WHAT IT IS, THEN WHICH ONE IT IS. George, 21 Sep 2026: *"in the map,
-  // i want to see the images of the plane and the aircraft type, then the tail"*.
+  // 🔴 THE AEROPLANE, THEN WHAT IT IS, THEN WHICH ONE IT IS — AND WHAT IT IS IS ITS WHOLE NAME.
+  // George, 21 Sep 2026: *"i want the map identifying planes by their full airplane name Cirrus
+  // SR22T like this"*.
   const labels = await page.$$eval('#watchMap .locmap-plane-label', (nodes) => nodes.map((n) => n.textContent));
-  assert.ok(labels.some((text) => /B38M/.test(text)), `the plotted aircraft does not name its type: ${labels.join(', ')}`);
+  assert.ok(labels.some((text) => /Boeing 737 MAX 8/.test(text)),
+    `the plotted aircraft is not named in full: ${labels.join(', ')}`);
   assert.ok(labels.some((text) => /C-GXXX/.test(text)), `the plotted aircraft does not name its tail: ${labels.join(', ')}`);
   assert.ok(
-    labels.some((text) => /B38M\s*·\s*C-GXXX/.test(text)),
-    `the label does not read type-then-tail as asked: ${labels.join(', ')}`
+    labels.some((text) => /Boeing 737 MAX 8\s*·\s*C-GXXX/.test(text)),
+    `the label does not read name-then-tail as asked: ${labels.join(', ')}`
+  );
+  assert.equal(
+    labels.some((text) => /^B38M/.test(text)),
+    false,
+    `the label still leads with the four-letter code: ${labels.join(', ')}`
   );
 
   // 🔴 THE TWO MAPS SHARE ONE FRAME. That is the whole reason the frame is kept rather than
@@ -1819,18 +1826,44 @@ test('the watching section plots the aircraft on the list', async () => {
   await context.close();
 });
 
-test('the position map SAYS when it has nothing to plot', async () => {
-  // The honest empty state matters more than the happy one: a blank map is indistinguishable
-  // from a map that failed, and at a quiet hour that is the normal case.
+test('the map STAYS UP when there is nothing in the air, and says why', async () => {
+  // 🔴 George, 21 Sep 2026: *"can you leave the map up even if there are no planes in the air"*.
+  //
+  // It used to be REPLACED by a paragraph the moment nothing was inside the fence, so the one
+  // thing the reader had asked for vanished exactly when they went to look at it — and a quiet
+  // hour is the normal case, not an edge one.
+  //
+  // ⚠️ AN EMPTY FEED, RATHER THAN AN AIRCRAFT THAT LEAVES. The engine holds a track for a while
+  // after the last sighting, so a later empty poll does not remove the aircraft; the first
+  // attempt at this test waited for it to go and timed out after 60 seconds for exactly that.
   const { context, page } = await openPage([]);
+
   await page.goto(BASE, { waitUntil: 'load' });
   await page.$eval('#consentDecline', (element) => element.click());
   await answerStep1(page);
-  await page.waitForTimeout(1200);
+  await page.waitForSelector('#typeList .typerow');
+  await page.$$eval('#typeList .typerow', (items) => {
+    items.find((item) => /Boeing 737 MAX 8/.test(item.textContent)).querySelector('.type-toggle').click();
+  });
+  await page.waitForTimeout(1500);
 
-  const text = await page.$eval('#watchMap', (element) => element.textContent.replace(/\s+/g, ' ').trim());
-  assert.match(text, /nothing/i, `an empty position map says nothing at all: "${text}"`);
-  assert.match(text, /fence/i, 'the empty position map does not say what it is waiting for');
+  const state = await page.evaluate(() => ({
+    box: document.querySelectorAll('#watchMap .locmap').length,
+    tiles: document.querySelectorAll('#watchMap .locmap-tile').length,
+    planes: document.querySelectorAll('#watchMap .locmap-plane-icon').length,
+    here: document.querySelectorAll('#watchMap .locmap-you').length,
+    text: (document.getElementById('watchMap')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+  }));
+
+  assert.equal(state.box, 1, 'the map was taken away when the sky was empty, instead of being left up');
+  assert.ok(state.tiles > 0, 'the map is showing no tiles, so it is not a map any more');
+  assert.equal(state.planes, 0, 'an aircraft is plotted that the feed never reported');
+  assert.equal(state.here, 1, 'the map does not show where you are, so an empty map means nothing');
+  // And it still has to SAY what the emptiness means, or it reads as a map that failed.
+  assert.match(state.text, /nothing/i, `an empty map says nothing at all: ${state.text}`);
+  assert.match(state.text, /fence/i, 'the empty map does not say what it is waiting for');
+  assert.match(state.text, /stays where it is/i, 'the empty map does not say that it will stay');
 
   await context.close();
 });
+
