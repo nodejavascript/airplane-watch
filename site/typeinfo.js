@@ -264,6 +264,107 @@ const TABLE = {
     B212: ['Bell 212', 'helicopter'],
     S76: ['Sikorsky S-76', 'helicopter'],
     S92: ['Sikorsky S-92', 'helicopter'],
+    /* ------------------------------------- the codes the survey measured but this table could not name
+     *
+     * 🔴 EVERY CODE HERE CAME OUT OF THE FEED'S OWN AIRCRAFT DATABASE, NOT OUT OF MEMORY — the
+     * same file this table's other entries were read from, re-downloaded 22 Sep 2026:
+     * `https://raw.githubusercontent.com/wiedehopf/tar1090-db/csv/aircraft.csv.gz` (618,617
+     * airframes). The number beside each one is how many airframes in it carry that code.
+     *
+     * 🔴 WHY THEY WERE MISSING, AND WHY IT MATTERED MORE THAN A LABEL. The survey watches the
+     * live feed, so it finds codes nobody wrote down here in advance, and 71 of the 167 it had
+     * measured had no name. The page then showed *"A388 (type not in this list)"* — and the
+     * photograph survey SEARCHES THAT NAME, so it searched for the sentence and matched a
+     * Wikipedia list page. One missing name cost the reader the label, the photograph, and the
+     * photograph of every other unnamed type at the same time. George, 22 Sep 2026: *"there are
+     * some like A388 airplane type that have no image, correct that"*.
+     */
+    /* airliner */
+    A339: ['Airbus A330-900', 'airliner'],
+    A388: ['Airbus A380-800', 'airliner'],
+    B732: ['Boeing 737-200', 'airliner'],
+    B733: ['Boeing 737-300', 'airliner'],
+    B734: ['Boeing 737-400', 'airliner'],
+    B735: ['Boeing 737-500', 'airliner'],
+    B736: ['Boeing 737-600', 'airliner'],
+    B762: ['Boeing 767-200', 'airliner'],
+    B772: ['Boeing 777-200', 'airliner'],
+    /* regional */
+    CRJ1: ['Bombardier CRJ-100', 'regional'],
+    E45X: ['Embraer ERJ-145XR', 'regional'],
+    SW4: ['Swearingen Metro', 'regional'],
+    DHC3: ['de Havilland Canada DHC-3 Otter', 'regional'],
+    /* business */
+    BE10: ['Beechcraft King Air 100', 'business'],
+    GL5T: ['Bombardier Global 5000/5500', 'business'],
+    E545: ['Embraer Praetor 500', 'business'],
+    E550: ['Embraer Praetor 600', 'business'],
+    GA6C: ['Gulfstream G600', 'business'],
+    GLF6: ['Gulfstream G650', 'business'],
+    GLF4: ['Gulfstream IV', 'business'],
+    GLF5: ['Gulfstream V', 'business'],
+    H25B: ['Hawker 750/850', 'business'],
+    HDJT: ['Honda HA-420 HondaJet', 'business'],
+    WW24: ['IAI 1124 Westwind', 'business'],
+    LJ31: ['Learjet 31', 'business'],
+    LJ35: ['Learjet 35', 'business'],
+    LJ75: ['Learjet 75', 'business'],
+    AC90: ['North American Rockwell Turbo Commander 690/840', 'business'],
+    /* light */
+    SLG2: ['Airplane Factory Sling 2', 'light'],
+    BE35: ['Beechcraft Bonanza 35', 'light'],
+    CH7B: ['Bellanca 7 Citabria', 'light'],
+    C170: ['Cessna 170', 'light'],
+    C72R: ['Cessna 172RG Cutlass RG', 'light'],
+    C177: ['Cessna 177 Cardinal', 'light'],
+    C180: ['Cessna 180 Skywagon', 'light'],
+    C414: ['Cessna 414 Chancellor', 'light'],
+    C421: ['Cessna 421 Executive Commuter', 'light'],
+    C10T: ['Cessna P210 Turbine', 'light'],
+    C82R: ['Cessna R182 Skylane RG', 'light'],
+    C82S: ['Cessna T182 Turbo Skylane', 'light'],
+    T206: ['Cessna T206 Turbo Stationair', 'light'],
+    SF50: ['Cirrus SF50 Vision Jet', 'light'],
+    K100: ['Daher Kodiak 100', 'light'],
+    DV20: ['Diamond DA20 Katana', 'light'],
+    EVSS: ['Evektor SportStar', 'light'],
+    A5: ['ICON A-5', 'light'],
+    AA5: ['Grumman American AA-5 Tiger', 'light'],
+    LNC4: ['Lancair IV', 'light'],
+    M20T: ['Mooney M20T', 'light'],
+    MR35: ['Murphy SR-3500 Super Rebel', 'light'],
+    AC11: ['North American Rockwell Commander 112/114', 'light'],
+    M600: ['Piper M600', 'light'],
+    PA27: ['Piper PA-23-250 Aztec', 'light'],
+    PA24: ['Piper PA-24 Comanche', 'light'],
+    P28B: ['Piper PA-28-235 Cherokee', 'light'],
+    P28T: ['Piper PA-28RT-201 Arrow', 'light'],
+    PA31: ['Piper PA-31 Navajo', 'light'],
+    PA32: ['Piper PA-32 Cherokee Six', 'light'],
+    PA34: ['Piper PA-34 Seneca', 'light'],
+    PIVI: ['Pipistrel Virus', 'light'],
+    P06T: ['Tecnam P2006T', 'light'],
+    RV6: ["Van's RV-6", 'light'],
+    RV9: ["Van's RV-9", 'light'],
+    /* helicopter */
+    B06: ['Bell 206 JetRanger', 'helicopter'],
+    B505: ['Bell 505 JetRanger X', 'helicopter'],
+    /* military */
+    ST75: ['Stearman Kaydet', 'military'],
+    /* other */
+    AS21: ['AS21', 'other'], // NOT in the database — see the note at the end of this block
+    BALL: ['Balloon', 'other'],
+    CL2P: ['Canadair CL-215', 'other'],
+    CL2T: ['Canadair CL-415 SuperScooper', 'other'],
+    RCAL: ['RCAL', 'other'], // NOT in the database — see the note at the end of this block
+    SS2P: ['Rockwell Thrush Commander', 'other'],
+    /*
+     * 🔴 TWO CODES ARE DELIBERATELY LEFT AS THEMSELVES, AND THAT IS THE HONEST ANSWER.
+     * A name invented for a code the database does not hold would be a fact the page
+     * cannot support — and a wrong name beside a photograph is worse than no name at all.
+     */
+    // AS21 — the database has no name for this code, and a search for "AS21" returns a road, a rifle and an armoured vehicle rather than an aeroplane.
+    // RCAL — the database has no name for this code, and a search for "RCAL" returns a laboratory method and a children's television programme.
 };
 /** The name for a code, its class, and whether we actually know the code. */
 export function describeType(code) {
