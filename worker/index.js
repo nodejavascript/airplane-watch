@@ -28,7 +28,25 @@
  * untouched, which is why every failure below is a 503.
  */
 
-const UPSTREAM = 'https://api.adsb.lol';
+/**
+ * 🔴 THE FEED IS ASKED FROM THE DROPLET'S OWN ADDRESS, NOT FROM HERE — 23 September 2026.
+ *
+ * This read `https://api.adsb.lol` and asked it from the Worker, whose egress is a pool shared with every
+ * other Workers customer. Measured at the same moment: adsb.lol answered this Worker **429** on /v2/point
+ * and on /v2/hex while it answered **200 with real aircraft** to the dvs-sites droplet — and it answered
+ * **200** to this Worker on /0/me, so it is a limit on the data endpoints keyed to the asking address, not
+ * a ban on the address and not a broken Worker.
+ *
+ * So the Worker now asks `airplane-watch.nodejavascript.com/feed…`, and **Caddy on the droplet asks
+ * adsb.lol** from the droplet's address. **Only the egress changes:** the edge cache, the cooldown, the
+ * stale reading served with its age, and the refusal written in this site's own words all stay exactly as
+ * they were. `upstreamPath()` already produces the feed's own path — `/v2/…` and `/api/0/…` — so the
+ * mapping on the droplet is a single strip of `/feed`, with no per-endpoint special cases.
+ *
+ * The token is what keeps that path from being an open relay through the droplet's address. It is a Worker
+ * secret; the matching value lives in the droplet's Caddyfile.
+ */
+const UPSTREAM = 'https://airplane-watch.nodejavascript.com/feed';
 const CACHE_SECONDS = 25;
 
 /**
@@ -621,10 +639,26 @@ export default {
       return refusal(cached, now, refusedWith || 429);
     }
 
+    // 🔴 A PROXY THAT CANNOT ASK SAYS SO, AND NEVER LOOKS LIKE A FEED PROBLEM. The droplet's Caddy refuses
+    // `/feed/*` without this token, so a missing secret would otherwise reach the reader as "the feed is
+    // refusing us" — the least debuggable shape this page has, and the one thing worse than being down.
+    if (!env?.FEED_TOKEN) {
+      return json(503, {
+        ok: false,
+        error:
+          'This proxy is not configured, so the feed cannot be reached: the feed token is missing from its environment.',
+      });
+    }
+
     let upstream;
     try {
       upstream = await fetch(target, {
-        headers: { accept: 'application/json', 'user-agent': USER_AGENT },
+        headers: {
+          accept: 'application/json',
+          'user-agent': USER_AGENT,
+          // The token the droplet's Caddy requires, so /feed/* is not an open relay through its address.
+          'x-airplane-watch-feed': env.FEED_TOKEN,
+        },
         signal: AbortSignal.timeout(12_000),
       });
     } catch (error) {

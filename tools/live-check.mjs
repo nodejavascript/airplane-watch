@@ -210,7 +210,14 @@ try {
     () => {
       const chips = document.querySelectorAll('.near-chip').length;
       if (chips === 0) return false;
-      const marks = document.querySelectorAll('svg.locmap .locmap-plane-mark, svg.locmap .locmap-airport, svg.locmap .locmap-you').length;
+      // 🔴 THE MAP'S OWN MARKUP, NOT THE MARKUP THIS CHECK REMEMBERED — fixed 23 September 2026, and it
+      // failed a checkout that was drawing perfectly. It looked for `svg.locmap`; the map's root is a
+      // **`div.locmap`** whose overlay SVG is **`svg.locmap-over`**, so every selector here matched nothing
+      // and the wait timed out on a page showing nine map tiles, the fence, ten airports and the reader's
+      // own position. The aircraft pins are deliberately NOT counted: they are drawn once something is
+      // chosen, not the moment the map appears, so requiring them here is a check that can only pass by
+      // accident. What proves the map drew is its airports and the reader.
+      const marks = document.querySelectorAll('.locmap-airport, .locmap-you, .locmap-plane-mark').length;
       const status = document.getElementById('status')?.textContent ?? '';
       return marks > 0 || /slow down|429|rate/i.test(status);
     },
@@ -220,7 +227,7 @@ try {
   const resolved = await page.evaluate(() => ({
     status: document.getElementById('status')?.textContent.trim() ?? '',
     chips: document.querySelectorAll('.near-chip').length,
-    map: document.querySelectorAll('svg.locmap .locmap-plane-mark, svg.locmap .locmap-airport, svg.locmap .locmap-you').length,
+    map: document.querySelectorAll('.locmap-airport, .locmap-you, .locmap-plane-mark').length,
     place: document.getElementById('placeName')?.textContent.trim() ?? '',
     note: document.getElementById('nearbyNote')?.textContent.trim().slice(0, 80) ?? '',
   }));
