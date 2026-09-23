@@ -208,8 +208,34 @@
    * inside the box, so padding on the footer does not lift the footer's own
    * bottom edge clear of a bar fixed to the bottom of the window — measured on
    * gord100, 19 Sep 2026, where it was tried first.
+   *
+   * 🔴 AND THE WRITE IS DEFERRED ONE FRAME, BECAUSE THE BROWSER SAID SO OUT LOUD.
+   * 23 September 2026: the **first real event this site's fault reporter ever caught**
+   * — from a real visit, with a real Cloudflare ray, to `/` — was
+   *
+   *     ResizeObserver loop completed with undelivered notifications.
+   *
+   * and that warning is a description of this function. `reserveSpace` IS the
+   * ResizeObserver's callback, and it wrote a custom property on `<html>`, which
+   * invalidates layout DURING the delivery of the notifications — precisely the
+   * condition the warning names. Nothing was visibly wrong and the space was reserved
+   * correctly, so this is a true warning about a bad pattern rather than a break.
+   *
+   * **The honest answer to a true warning is to stop doing the thing it describes, not
+   * to teach the reporter to ignore it.** Deferring the write to the next frame takes it
+   * out of that delivery. A single frame of delay in body padding is invisible; a
+   * browser warning that fires on real visits and that nobody will ever act on is noise
+   * in a fault list.
    */
   function reserveSpace(): void {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(applySpace);
+      return;
+    }
+    applySpace();
+  }
+
+  function applySpace(): void {
     var root = document.documentElement;
     var height = !bar || bar.hidden ? 0 : Math.ceil(bar.getBoundingClientRect().height);
     if (root.style.getPropertyValue('--consent-height') === height + 'px') return;

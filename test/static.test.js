@@ -186,6 +186,25 @@ test('2 · the bar reserves its height on <body>, not inside the footer', () => 
   // Padding is INSIDE the box, so padding on the footer does not lift the
   // footer's own bottom edge clear of a bar fixed to the bottom of the window.
   assert.match(css, /body\s*\{[^}]*padding-bottom:\s*var\(--consent-height\)/s);
+
+  // 🔴 AND THE WRITE HAPPENS OUTSIDE THE OBSERVER'S OWN DELIVERY. 23 Sep 2026: the first
+  // real event the fault reporter ever caught — from a real visit, with a real Cloudflare
+  // ray — was `ResizeObserver loop completed with undelivered notifications`, and that
+  // warning is a description of `reserveSpace`: it IS the observer's callback, and it wrote
+  // a custom property on <html>, which invalidates layout while the notifications are being
+  // delivered. The browser was telling the truth, so the write was deferred a frame rather
+  // than the warning being filtered out of the reporter. **This is the check that it stays
+  // deferred**, because putting it back is a one-line change that nothing else would notice.
+  const reserved = consentJs.slice(
+    consentJs.indexOf('function reserveSpace'),
+    consentJs.indexOf('function hide')
+  );
+  assert.ok(reserved.length > 100, 'reserveSpace could not be isolated, so this check is vacuous');
+  assert.match(
+    reserved,
+    /requestAnimationFrame/,
+    'the reservation is written inside the ResizeObserver delivery again, which is what the browser warned about'
+  );
 });
 
 /* ------------------------------------------------------------- part 3 · bar --- */
