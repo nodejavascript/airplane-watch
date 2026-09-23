@@ -72,6 +72,7 @@ say "5/6 · publish the static site, then the proxy"
 if [ "$DRY_RUN" = "--dry-run" ]; then
   echo "  dry run: rsync $SITE_DIR/ → dvs-sites:$REMOTE_DIR/"
   echo "  dry run: wrangler deploy"
+  echo "  dry run: report the deploy to Rollbar"
 else
   ssh dvs-sites "sudo mkdir -p $REMOTE_DIR"
   rsync -az --delete --rsync-path="sudo rsync" "$SITE_DIR/" "dvs-sites:$REMOTE_DIR/"
@@ -105,6 +106,14 @@ else
   # which is right (a purge is not worth failing a publish over) but it hid the fault in the output.
   "${PURGE_PY:-$HOME/Documents/git/gitlab.com/datavisionstudios/docker-compose-master/.venv/bin/python3}" \
     "$HOME/.cloudflare_purge.py" --all || echo "  (purge skipped — run it by hand if a stale file is suspected)"
+
+  # Rollbar is told WHICH REVISION WENT OUT, so an error is read next to the
+  # release that introduced it. 🔴 MEASURED 23 September 2026: this is the one
+  # Rollbar call that works before a plan is chosen — `POST /item/` answers 429
+  # "This account has been deactivated" while `POST /deploy/` answers 200 with the
+  # SAME post_server_item key. It cannot fail the deploy: see tools/report-deploy.mjs.
+  node tools/report-deploy.mjs --revision "$(git rev-parse HEAD)" ||
+    echo "  (the Rollbar deploy report was skipped — the site is deployed regardless)"
 fi
 
 say "6/6 · verify the DEPLOYED page — never trust the push"
