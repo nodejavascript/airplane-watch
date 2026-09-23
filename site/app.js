@@ -4319,6 +4319,12 @@ class Page {
             this.computeNearby(kept.lat, kept.lon, kept.label);
             return;
         }
+        // 🔴 AND A PLACE ALREADY PICKED IS ORDERED NOW, NOT LEFT EMPTY. This is the other half of the
+        // race `computeNearby` records: a reader whose search answered before this document arrived
+        // has a centre and an empty `nearby`, so without this the list would stay empty until they
+        // picked the same place a second time. Recomputing here is what makes an early pick land.
+        if (this.centre)
+            this.nearby = this.rankNearby(this.centre.lat, this.centre.lon);
         this.renderNearby();
     }
     /**
@@ -5127,7 +5133,14 @@ class Page {
         const host = byId('nearbyList');
         const head = byId('nearbyHead');
         const note = byId('nearbyNote');
-        if (!host || !this.listedAirports)
+        // 🔴 A MISSING AIRPORT LIST NO LONGER STOPS THE WHOLE PANEL. It used to return here, which
+        // meant a place picked before `/airports.json` arrived could not draw its heading, its label
+        // or its distance controls either — the list being late took the reader's own answer down
+        // with it. Both branches below are now written so that the list is a thing they may not have
+        // yet: the no-location branch asks it which airports are picked (nothing, if it is not here
+        // — and it is asked again by `loadAirports` when it is), and the rest of this method never
+        // needed it at all.
+        if (!host)
             return;
         // 🔴 WITH NO LOCATION THERE IS NO SUCH THING AS "NEAR YOU", SO NOTHING IS OFFERED.
         //
@@ -5142,7 +5155,7 @@ class Page {
         // already chose — an airport they picked is a fact, not a distance, and it has to stay
         // on screen or they cannot unpick it.
         if (this.centre === null) {
-            const picked = (this.listedAirports.airports ?? []).filter((one) => this.isChosen(one.icao));
+            const picked = (this.listedAirports?.airports ?? []).filter((one) => this.isChosen(one.icao));
             if (picked.length === 0) {
                 host.innerHTML = '';
                 host.hidden = true;
@@ -5311,21 +5324,27 @@ class Page {
      * this place's communities cannot become the label.
      */
     preferredArea = '') {
-        const list = this.listedAirports?.airports ?? [];
-        if (list.length === 0)
-            return;
-        // 400 km, because that is roughly the reach of the list as it stands. The
-        // filter is not decoration: three of the identifiers in the source region
-        // file are far outside it — Brampton's CNC3 is fine, but a mistyped code
-        // resolved to Paramount Bistcho in northern Alberta, and a list that
-        // offered that as an airport "near you" would be worse than a shorter list.
-        this.nearby = list
-            .map((airport) => ({ airport, km: nmToKm(distanceNm(lat, lon, airport.lat, airport.lon)) }))
-            .filter((row) => row.km <= 400)
-            .sort((a, b) => a.km - b.km);
-        // 🔴 THE READER'S PLACE IS NOW THE CENTRE OF EVERYTHING — the fence, the
-        // chart and the airport order all hang off it, because the question is what
-        // is in the air around THEM.
+        // 🔴 THE READER'S PLACE IS KEPT FIRST, AND IT DOES NOT WAIT FOR THE AIRPORT LIST.
+        //
+        // THIS IS A RACE THAT WAS MEASURED, NOT IMAGINED, AND IT ATE THE READER'S ANSWER.
+        // `/airports.json` is built by this site's own server from the feed and takes a moment to
+        // arrive. A reader whose search came back first could type a place, pick it from the list,
+        // and lose it: this method opened with `if (list.length === 0) return;`, so the centre, the
+        // label and the stored place were all discarded — and the page then HID the distance
+        // controls, because it still knew of no place. The reader saw their choice clear the list
+        // and change nothing.
+        //
+        // Reproduced 23 September 2026 with everything else held equal: the geocoder answering in
+        // the same tick dropped the pick and left `#placeName` on "your position", while the same
+        // answer delayed 300 ms worked. That delay is the whole of the difference, and it is why
+        // the e2e harness had been carrying one to keep its own tests alive.
+        //
+        // So the two halves are now separate. The answer is applied here, always. Only the ORDERING
+        // waits for the list — `rankNearby` below, and the recompute in `loadAirports` when the
+        // document lands.
+        //
+        // 🔴 THE READER'S PLACE IS THE CENTRE OF EVERYTHING — the fence, the chart and the airport
+        // order all hang off it, because the question is what is in the air around THEM.
         this.centre = { lat, lon };
         // Kept so a reload does not forget where the reader is. The label travels with
         // it, because "restored to Hamilton (Riverdale)" is an answer and a pair of
@@ -5343,6 +5362,7 @@ class Page {
                 ? remembered
                 : '';
         writeStore(CENTRE_KEY, JSON.stringify({ lat, lon, label }));
+        this.nearby = this.rankNearby(lat, lon);
         this.renderPlace();
         this.renderNearby();
         // 🔴 RE-ARMED EVEN WITH NO AIRPORT. `this.point()` falls back to the centre, and
@@ -5353,6 +5373,28 @@ class Page {
         this.rearm();
         this.updateSteps();
         track('nearby_computed', { count: this.nearby.length });
+    }
+    /**
+     * The airports near a place, nearest first.
+     *
+     * 🔴 THIS IS THE ONLY PART OF APPLYING A PLACE THAT NEEDS THE AIRPORT LIST, which is why it
+     * is its own method rather than the head of `computeNearby`. Called with the list still in
+     * flight it returns nothing and is called again when the document arrives — see the
+     * recompute in `loadAirports`. Called before 23 September 2026, its emptiness was fatal
+     * instead: the guard lived in `computeNearby` and took the reader's place down with it.
+     *
+     * 400 km, because that is roughly the reach of the list as it stands. The filter is not
+     * decoration: three of the identifiers in the source region file are far outside it —
+     * Brampton's CNC3 is fine, but a mistyped code resolved to Paramount Bistcho in northern
+     * Alberta, and a list that offered that as an airport "near you" would be worse than a
+     * shorter list.
+     */
+    rankNearby(lat, lon) {
+        const list = this.listedAirports?.airports ?? [];
+        return list
+            .map((airport) => ({ airport, km: nmToKm(distanceNm(lat, lon, airport.lat, airport.lon)) }))
+            .filter((row) => row.km <= 400)
+            .sort((a, b) => a.km - b.km);
     }
     /**
      * Search for a place by NAME, then let the reader pick from the matches.

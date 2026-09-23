@@ -201,6 +201,21 @@ async function chooseDistance(page, km = 25) {
  * at all, and the suite's noise was hiding it.
  */
 async function answerStep1(page) {
+  // ⚠️ THIS ANSWERS THE DISTANCE QUESTION AND NOTHING ELSE, AND THAT IS NOW A KNOWN LIMIT.
+  //
+  // The distance blocks are hidden until the page knows where the reader is
+  // (`renderDistance` shows them on `hasCentre || airports.length > 0`) — George's rule of
+  // 20 Sep 2026, *"if you dont know location, there should be no airports seen expect selected
+  // one"*. So a test that never says where it is cannot answer step 1, and `chooseDistance`
+  // burns its full 30-second timeout: measured 23 September 2026, the chip resolved 63 times to
+  // a HIDDEN button while the test waited for it to be visible.
+  //
+  // `pickPlace` + `chooseDistance` was tried here on 23 September 2026 and REVERTED, because it
+  // changes what a dozen tests believe about the page (the table's rows, the fence, the searched
+  // place) and two of them started failing somewhere else entirely — a fixture's aircraft sit
+  // relative to a place those tests never had. Making the harness model the reader properly is a
+  // decision about every fixture in this file, not a one-line repair, so it is LEFT AS IT IS and
+  // reported rather than half-changed.
   await chooseDistance(page);
 }
 
@@ -263,7 +278,12 @@ test('no URL ending in .html is served as a page', async () => {
 test('robots.txt and the sitemap answer, and the sitemap lists one URL', async () => {
   const robots = await fetch(`${BASE}robots.txt`);
   assert.equal(robots.status, 200);
-  assert.match(await robots.text(), /Sitemap: https:\/\/planewatch\.nodejavascript\.com\/sitemap\.xml/);
+  // ⚠️ THE HOST IS AIRPLANE-WATCH, AND THIS ASSERTION WAS LEFT BEHIND BY THE RENAME. The site was
+  // called `planewatch.nodejavascript.com` until it was renamed on 23 September 2026, and the old
+  // host was REMOVED from DNS, Analytics and Search Console rather than redirected (house part 7b:
+  // a removed hostname is removed, and it is never restored) — so this check has to name the host
+  // the page actually publishes, or it waits for a name that cannot come back.
+  assert.match(await robots.text(), /Sitemap: https:\/\/airplane-watch\.nodejavascript\.com\/sitemap\.xml/);
 
   const sitemap = await fetch(`${BASE}sitemap.xml`);
   assert.equal(sitemap.status, 200);
@@ -403,6 +423,12 @@ test('the page names the airport it looked up, and lists what the feed can see',
   // no longer prints an airport's coordinates to the reader at all. So the coordinate claim
   // is DROPPED rather than faked, and what is left is checked against the elements that do
   // exist: the airport is named in the nearby list, and the feed answered.
+  // ⚠️ THIS TEST NEVER SAYS WHERE THE READER IS, AND THE PAGE DRAWS NO AIRPORT UNTIL IT KNOWS.
+  // George, 20 Sep 2026: *"if you dont know location, there should be no airports seen expect
+  // selected one"* — so the `#nearbyList` this waits on is empty by design, and the wait can only
+  // ever time out. Adding `pickPlace` here fixed this assertion and then broke the 45-second wait
+  // below it, because the fixture's aircraft were never placed relative to a searched place. The
+  // test is left exactly as it was found and reported; see the note on `answerStep1`.
   await page.waitForFunction(
     () => /CYHM/.test(document.getElementById('nearbyList')?.textContent ?? ''),
     null,
@@ -1119,23 +1145,24 @@ test('refusing the position request leaves a usable page', async () => {
  *
  * 🔴 The reader picks one of these; nothing is applied until they do. The first row is a real
  * community inside Hamilton, so the label has something to say beyond the town.
+ *
+ * 🔴 THE 300 ms DELAY THIS STUB USED TO CARRY IS GONE, BECAUSE THE FAULT IT HID IS FIXED.
+ * Measured 23 September 2026, on this build, with everything else held equal:
+ *   - the stub answering in the same tick  → the rows rendered, the click CLEARED the list,
+ *     and the place was NEVER APPLIED: `#placeName` stayed on "your position" and
+ *     `#radiusButtons` stayed hidden, so every test that answers step one died in
+ *     `chooseDistance` on a 30-second timeout (~30 minutes of suite, saying nothing);
+ *   - the same stub delayed 300 ms       → the place applied, the chips appeared;
+ *   - `route.continue()`, i.e. the real endpoint through the local proxy → applied.
+ * The delay was added here to keep the suite alive while that was reported rather than
+ * papered over. It was the page's race, not the harness's: `/airports.json` is slow, a reader
+ * whose search answers first had their pick discarded, and `placeStub` was simply winning the
+ * race on the reader's behalf. The page now applies the answer immediately and orders the
+ * airports when the list lands, so the delay is no longer needed — and its absence is what
+ * proves it, because a dozen tests below pick a place and then choose a distance.
  */
 async function placeStub(route) {
   const asked = new URL(route.request().url()).searchParams.get('q') ?? '';
-  // 🔴 THE STUB MUST NOT ANSWER INSTANTLY, AND THAT IS A FINDING ABOUT THE PAGE.
-  // Measured 23 September 2026, on this build, with everything else held equal:
-  //   - the stub answering in the same tick  → the rows render, the click CLEARS the
-  //     list, and the place is NEVER APPLIED: `#placeName` stays on "your position"
-  //     and `#radiusButtons` stays hidden, so every test that answers step one dies in
-  //     `chooseDistance` on a 30-second timeout (~30 minutes of suite, saying nothing);
-  //   - the same stub delayed 300 ms       → the place applies, the chips appear;
-  //   - `route.continue()`, i.e. the real endpoint through the local proxy → applies.
-  // So the page applies a picked place only once its own render pass has settled, and a
-  // geocode answer that arrives too fast is dropped. That is worth a look on its own —
-  // a reader on a fast connection is the reader most likely to hit it — and it is
-  // reported rather than papered over. The delay here is the harness matching reality,
-  // not the fault being hidden.
-  await new Promise((resolve) => setTimeout(resolve, 300));
   if (asked.trim().length < 2) {
     return route.fulfill({
       status: 400, contentType: 'application/json',
@@ -1212,6 +1239,58 @@ test('a place searched by name orders the airports by distance, without asking t
   // The community the reader picked leads the heading, not the town it sits in.
   const heading = await page.$eval('#nearbyHead', (element) => element.textContent);
   assert.match(heading, /Stoney Creek/, `the community was dropped from the heading: ${heading}`);
+
+  await context.close();
+});
+
+test('a place picked before the airport list arrives is applied, and the list fills in behind it', async () => {
+  // 🔴 THE RACE ITSELF, MADE DETERMINISTIC RATHER THAN RACY. This is the defect the 300 ms delay
+  // in `placeStub` used to conceal: the reader's search came back before `/airports.json` — which
+  // this site's own server builds from the feed and which therefore takes a moment — the click was
+  // discarded, and the page hid the distance controls while `#placeName` still read "your position".
+  //
+  // A hold we release by hand is used rather than a sleep, so the ORDER is fixed: the list is
+  // certain to be in flight when the row is pressed, and no timing luck can make this pass.
+  const { context, page } = await openPage([[[]]]);
+  await page.route('**/api/geo/search**', placeStub);
+  let releaseList;
+  const listHeld = new Promise((resolve) => { releaseList = resolve; });
+  await page.route('**/airports.json**', async (route) => {
+    const response = await route.fetch();
+    await listHeld;
+    await route.fulfill({ response });
+  });
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+
+  const listed = () => page.$$eval('#nearbyList .near-chip', (items) => items.length);
+  assert.equal(await listed(), 0, 'the airport list arrived before the place was picked, so this test proved nothing');
+
+  await page.fill('#placeSearchInput', 'Stoney Creek Ontario');
+  await page.$eval('#placeSearchForm button[type="submit"]', (element) => element.click());
+  await page.waitForSelector('#placeResults .place-result');
+  await page.$eval('#placeResults .place-result', (element) => element.click());
+  await page.waitForTimeout(400);
+
+  // The reader's answer must have landed WITH THE LIST STILL IN FLIGHT.
+  assert.equal(await listed(), 0, 'the list was already drawn, so the pick was not the thing being tested');
+  const named = await page.$eval('#placeName', (element) => element.textContent);
+  assert.equal(/your position/.test(named), false,
+    `the picked place was discarded when the airport list was late: #placeName reads "${named}"`);
+  assert.match(named, /Stoney Creek/, `the community the reader picked is missing: "${named}"`);
+  assert.equal(await page.$eval('#radiusButtons', (element) => element.hidden), false,
+    'the distance controls were hidden over a place the reader had just given');
+  assert.match(await page.$eval('#nearbyHead', (element) => element.textContent), /Stoney Creek/,
+    'the heading did not follow the place because the airport list was late');
+
+  // …and when the document does land, the list appears without the reader picking anything again.
+  releaseList();
+  await page.waitForFunction(
+    () => document.querySelectorAll('#nearbyList .near-chip').length > 3, null, { timeout: 15_000 });
+  const chips = await page.$$eval('#nearbyList .near-chip',
+    (items) => items.map((item) => item.textContent.replace(/\s+/g, ' ').trim()));
+  assert.match(chips[0], /CYHM/, `Hamilton should be nearest to Stoney Creek, got: ${chips[0]}`);
 
   await context.close();
 });

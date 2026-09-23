@@ -242,6 +242,67 @@ test('2b · the map redraw is deferred out of the ResizeObserver delivery too', 
   );
 });
 
+test('2c · a place the reader picks does not wait for the airport list', () => {
+  // 🔴 THE RACE, IN THE SHAPE OF THE CODE, BECAUSE THE BEHAVIOUR TEST CAN ONLY SHOW ONE ORDER OF IT.
+  // Measured 23 September 2026: `/airports.json` is built by this site's own server from the feed,
+  // so it arrives a beat late — and `computeNearby` opened with `if (list.length === 0) return;`,
+  // which threw the reader's place away entirely. The pick then cleared the result list, left
+  // `#placeName` reading "your position" and HID the distance controls. A reader on a fast
+  // connection is the reader most likely to meet it.
+  //
+  // Two halves, and both are needed: the answer is applied unconditionally here, and the ORDERING
+  // is recomputed by `loadAirports` when the document lands. Asserting only the first would pass a
+  // page that keeps the place and never lists an airport near it.
+  //
+  // ⚠️ THE ANCHORS ARE THE COMPILED SPELLINGS, AND THE START ANCHOR IS THE SIGNATURE. This suite
+  // reads `site/app.js`, not `src/app.ts`, so `private` is gone and `as AirportsDocument` is
+  // erased — and the first `computeNearby(` in the file is a CALL SITE, three thousand lines
+  // above the method, so anchoring on the bare name slices the wrong text and reads a caller.
+  const body = between(
+    appJs,
+    "computeNearby(lat, lon, label = '', town = '', areas = [],",
+    "track('nearby_computed'",
+    'the computeNearby signature'
+  );
+
+  assert.match(body, /this\.centre = \{ lat, lon \};/, 'the place is not applied in computeNearby at all');
+  assert.equal(
+    /listedAirports/.test(body),
+    false,
+    'computeNearby still reaches for the airport list, so a late list can still take the place with it'
+  );
+  assert.equal(
+    /list\.length === 0/.test(body),
+    false,
+    'the bail-out that discarded a picked place while the airport list was in flight is back'
+  );
+  assert.match(
+    body,
+    /this\.nearby = this\.rankNearby\(/,
+    'the ordering no longer happens through rankNearby, so the check above proves nothing'
+  );
+
+  // …and the ordering is redone when the list arrives, or an early pick renders an empty list.
+  const load = between(appJs, 'async loadAirports(', 'renderPlace(', 'loadAirports');
+  assert.match(
+    load,
+    /this\.listedAirports = \(await readJson\(response\)\);/,
+    'the airport document is no longer assigned in loadAirports, so the recompute below proves nothing'
+  );
+  assert.match(
+    load,
+    /if \(this\.centre\)/,
+    'the recompute in loadAirports is not guarded on a place being known, so it runs without one'
+  );
+  // ⚠️ FORMATTING-TOLERANT ON PURPOSE: `tsc` splits this statement across two lines, so a pattern
+  // written as one line passes on the source and fails on the artefact this suite actually reads.
+  assert.match(
+    load,
+    /this\.nearby = this\.rankNearby\(this\.centre\.lat, this\.centre\.lon\);/,
+    'a place picked before the list arrived is never ordered, so the reader is left with no airports'
+  );
+});
+
 /* ------------------------------------------------------------- part 3 · bar --- */
 
 test('3 · the header is the brand and NOTHING ELSE — no nav', () => {
