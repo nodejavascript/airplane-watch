@@ -688,16 +688,33 @@ nd `.limits` styles the
  * THE FILTER COUNT AND ITS REFRESH, ON ONE LINE: the sentence takes the width, the control takes the
  * right edge — the same arrangement as `.refreshed-line` above the map, so the page has one way of
  * saying "this number, and a way to ask for it again".
+ *
+ * 🔴 AND THE CONTROL SITS ON THE COUNT'S OWN LINE, NOT THE PARAGRAPH'S FIRST. George, 23 Sep 2026:
+ * *"the refresh should be to the right of showing x of x types. and right aligned."* This note is one
+ * long paragraph and the count is its LAST line, so `align-items: baseline` put the control beside the
+ * first line — four lines above the number, floating. `last baseline` aligns it with the last line box,
+ * which is the count; `flex-end` precedes it as the fallback where a browser does not know the keyword.
  */
 .filter-note-line {
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
+  align-items: last baseline;
   gap: 0.5rem;
 }
 
 .filter-note-line #filterNote {
   flex: 1 1 auto;
   margin: 0;
+}
+
+/*
+ * 🔴 AND THE COUNT IS PUSHED RIGHT, SO THE TWO SIT TOGETHER — the number, then the way to ask for it
+ * again, both against the right edge. That is the same shape as `.refreshed-line` above the map. Left
+ * as it was, the count would stay at the left of its own line and the refresh would be a word on its own
+ * at the far right, with the width of the card between them.
+ */
+.filter-note-line .filter-count {
+  text-align: right;
 }
 
 .refreshed-line {

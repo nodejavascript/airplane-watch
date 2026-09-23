@@ -74,6 +74,11 @@ const SEEN_KEY = 'aircraft_seen';
  * effectivly resets their location, and everything else"* — and then, so the scope could
  * not be read narrowly: *"this rests all defalt filters too"*.
  *
+ * 🔴 AND THE LABEL WAS WIDENED THE NEXT DAY TO SAY WHERE THE PRESS LANDS. George, 23 Sep 2026:
+ * *"delete my data can say delete my data and start over"*. The control clears the store AND comes
+ * back as a first visit with every default in place, and the old word named only the first half — so
+ * the label, the privacy page's two mentions and this comment now all say the same four-word thing.
+ *
  * Every key this page writes begins with this prefix, so a wipe can enumerate what is
  * actually there instead of carrying a list of names. That matters, because the list the
  * older "Start over" button carries had already fallen behind the page twice: `ALERTS_KEY`
@@ -2653,6 +2658,12 @@ class Page {
             // one number they actually want the least visible thing on the card. Now the reason comes
             // first and the number is the last thing, on its own line, in the theme colour.
             //
+            // 🔴 AND SINCE 23 Sep 2026 THE COUNT'S OWN LINE IS WHERE THE REFRESH SITS. George: *"the
+            // refresh should be to the right of showing x of x types. and right aligned."* The markup is
+            // unchanged — the control is the last item in `.filter-note-line` — and the stylesheet is what
+            // puts it on this last line and pushes both against the right edge. Nothing here had to move,
+            // which is why the count is still written by this one function and cannot drift from the list.
+            //
             // And the trailing homily went with it — *"an aircraft that does not fly near you is not a
             // choice worth making"* explains a decision to a reader who never saw the alternative, and
             // `bite` already says how many were hidden.
@@ -3194,6 +3205,10 @@ class Page {
      * change location called delete my data, with confirmation box. this effectivly resets their
      * location, and everything else"* — then *"this rests all defalt filters too"* — and then,
      * about the box itself: *"the delete should not use browser confirm."*
+     *
+     * 🔴 AND IT IS LABELLED "delete my data and start over" SINCE 23 Sep 2026. George: *"delete my data
+     * can say delete my data and start over"*. The label is in the markup, not here — this note exists so
+     * the account of the control and the words on the control stay the same sentence.
      *
      * 🔴 WHY A `<dialog>` AND NOT `window.confirm`. A browser confirm is a small grey rectangle with
      * the browser's name on it, its buttons are ordered by the browser rather than by the site, it

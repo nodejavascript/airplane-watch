@@ -238,12 +238,19 @@
           one row that states something this page remembers about the reader, it is the
           LAST item so it reads as the end of the row, it is pushed to the right, and it
           asks before it does anything.
+
+          🔴 AND ITS LABEL NOW SAYS WHERE THE PRESS LANDS, NOT ONLY WHAT IT REMOVES. George, 23 Sep
+          2026: *"delete my data can say delete my data and start over"*. The old word described the
+          first half of what the control does and stopped there — and this one does the second half
+          too: the store is cleared AND the page comes back as a first visit with every default in
+          place. The label is the same on the privacy page's two mentions below, because a reader who
+          looks a control up must find the words that are on it.
         -->
         <p class="place-line" id="placeKnown" hidden>
           <span class="place-label">Your location</span>
           <b class="place-value" id="placeName"></b>
           <button type="button" class="linkish" id="changePlace" data-ga="change-place">change location</button>
-          <button type="button" class="linkish place-forget" id="forgetMine" data-ga="forget-mine">delete my data</button>
+          <button type="button" class="linkish place-forget" id="forgetMine" data-ga="forget-mine">delete my data and start over</button>
         </p>
         <div class="chips" id="areaPicker" role="group" aria-label="Which community in this area" hidden></div>
 
@@ -361,6 +368,13 @@
           line IS the count the press is about — the sentence on the left, the control on the right, the
           same shape as the clock above the map. The press does two things, because the count has two
           inputs: it reads the measured type file again, and it asks the feed again.
+
+          🔴 AND IT MUST SIT WITH THE COUNT ITSELF, ON THE COUNT'S OWN LINE. George, 23 Sep 2026:
+          *"the refresh should be to the right of showing x of x types. and right aligned."* The note is
+          one long paragraph and the count is its LAST line, so a top-aligned control floated beside
+          the first line — several lines above the number it is about, which is the fault this fixes.
+          The control is still the last item in this row; the stylesheet is what moves it down, and
+          `last baseline` is what puts it on the count's line rather than near it.
         -->
         <div class="filter-note-line">
           <p class="small muted" id="filterNote">Loading what the feed has been showing…</p>
@@ -596,7 +610,7 @@
             <b>Where it is kept.</b> Nowhere on a server. Your watchlist, the place you gave, the airports you aimed the
             fence at, the distance you set, the filters you chose, the tails you highlighted and your answer to the
             cookie question live in this browser's own storage, and they go when you clear this site's data — or when
-            you press <b>delete my data</b>, which does the same in one step.
+            you press <b>delete my data and start over</b>, which does the same in one step.
           </li>
         </ol>
       </section>
@@ -618,7 +632,8 @@
           </li>
           <li>
             <b>All of it can be deleted, by you, at any time.</b> The row that shows your location ends with a
-            <b>delete my data</b> link, which asks you to confirm and then clears every one of those settings — your
+            <b>delete my data and start over</b> link, which asks you to confirm and then clears every one of those
+            settings — your
             place and the community inside it, your distance, your airports, your starred types, your alerts, your
             tails, every filter, and your answer to the cookie question — and reloads the page as a first visit.
             There is no copy on this side, so nothing has to be requested from anyone.

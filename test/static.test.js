@@ -2889,7 +2889,7 @@ test('99 · the list and the map show the same aircraft: what you watch, inside 
 
 /* ----------------------------------- part 4 · the way out of the settings --- */
 
-test('100 · "delete my data" is the last item on the location row, asks first, and takes the filters with it', () => {
+test('100 · "delete my data and start over" is the last item on the location row, asks first, and takes the filters with it', () => {
   const app = readSrc('src/app.ts');
   const page = stripHtml(read(SITE, 'index.html'));
 
@@ -2902,9 +2902,12 @@ test('100 · "delete my data" is the last item on the location row, asks first, 
   const onTheRow = [...row.matchAll(/<button[^>]*id="([^"]+)"/g)].map((match) => match[1]);
   assert.deepEqual(onTheRow, ['changePlace', 'forgetMine'],
     `the location row's controls are ${onTheRow.join(', ')} — delete my data must be the LAST item on it`);
+  // 🔴 THE LABEL IS READ OFF THE BUTTON, SO IT IS THE LABEL THE READER SEES. George, 23 Sep 2026:
+  // *"delete my data can say delete my data and start over"* — the control clears the store AND comes
+  // back as a first visit, and the old word named only the first half of that.
   assert.match(row,
-    /<button type="button" class="linkish place-forget" id="forgetMine" data-ga="forget-mine">delete my data<\/button>/,
-    'the control is missing, is not a button (so it cannot be reached from the keyboard), or its label is not "delete my data"');
+    /<button type="button" class="linkish place-forget" id="forgetMine" data-ga="forget-mine">delete my data and start over<\/button>/,
+    'the control is missing, is not a button (so it cannot be reached from the keyboard), or its label is not "delete my data and start over"');
 
   // 🔴 AND IT SITS ON THE RIGHT. Equal-specifity rules and source order are the two ways a right-align
   // quietly does nothing, so both are checked: this rule is more specific than `.place-line .linkish`
@@ -3023,7 +3026,7 @@ test('100 · "delete my data" is the last item on the location row, asks first, 
     'Start over carries a hand-written list of keys again — the list that had already fallen behind the page');
 
   // And the policy tells the reader the control exists, because a way out nobody can find is not a way out.
-  assert.match(page, /<b>delete my data<\/b> link/, 'the privacy section does not name the control');
+  assert.match(page, /<b>delete my data and start over<\/b> link/, 'the privacy section does not name the control');
   assert.match(page, /which asks you to confirm and then clears/, 'the privacy section does not say that it asks');
 });
 
