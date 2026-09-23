@@ -59,6 +59,7 @@ check(
 );
 check('the Google tag is NOT in the served HTML', !/googletagmanager/i.test(shell.body));
 check('consent.js is in the served HTML', /consent\.js/.test(shell.body));
+check('faults.js is in the served HTML', /faults\.js/.test(shell.body));
 // 🔴 COMMENTS COME OUT FIRST, BECAUSE THE PAGE EXPLAINS ITS OWN RULES AND THE EXPLANATION NAMES THEM.
 // This check failed on a page that is exactly right: `index.html` carries a note reading *"There is NO
 // privacy.html anywhere — the policy is a #privacy section of the page itself"*, and a bare substring
@@ -72,13 +73,38 @@ check('the served HTML has no link ending in .html', !/href="[^"]*\.html?"/i.tes
 check('there is no www form of this host in the served HTML', !new RegExp(`www\\.${EXPECTED_TITLE.replace(/\./g, '\\.')}`, 'i').test(shell.body));
 
 const assets = await Promise.all(
-  ['/consent.js', '/app.js', '/detect.js', '/styles.css', '/favicon.svg', '/favicon-32.png', '/favicon.ico', '/apple-touch-icon.png', '/manifest.webmanifest', '/robots.txt', '/sitemap.xml'].map(
+  ['/consent.js', '/faults.js', '/app.js', '/detect.js', '/styles.css', '/favicon.svg', '/favicon-32.png', '/favicon.ico', '/apple-touch-icon.png', '/manifest.webmanifest', '/robots.txt', '/sitemap.xml'].map(
     async (path) => [path, await head(new URL(path, HOST).href)]
   )
 );
 for (const [path, result] of assets) {
   check(`${path} answers 200`, result.status === 200, `got ${result.status}`);
 }
+
+/* ---------------------------------------- the fault endpoint, from outside --- */
+
+// 🔴 THE THREE PROBES ARE DELIBERATELY THE ONES THAT CANNOT BECOME ITEMS. A live check
+// that posted a real fault would put a test item in the project on every deploy, and an
+// item list that always carries the last deploy's noise is an item list nobody reads. An
+// empty body is refused upstream of Rollbar by the same allow-list that refuses a
+// stranger's payload — so the 204 proves the whole path (route, parse, clean, answer)
+// while writing nothing at all.
+const faultEndpoint = new URL('/api/fault', HOST).href;
+const probe = async (init) =>
+  fetch(faultEndpoint, { redirect: 'manual', ...init }).then(
+    (response) => response.status,
+    () => 0
+  );
+
+check('/api/fault is deployed (a GET is refused)', (await probe({})) === 405);
+check(
+  '/api/fault refuses a body that is not JSON',
+  (await probe({ method: 'POST', headers: { 'content-type': 'application/json' }, body: 'not json' })) === 400
+);
+check(
+  '/api/fault accepts a report, and writes nothing for an empty one',
+  (await probe({ method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })) === 204
+);
 
 /* --------------------------------------------------------- in a real Chrome --- */
 
@@ -172,6 +198,12 @@ try {
 
   const panel = await page.$eval('#consentPanel, #consentPrefs', (element) => element.textContent);
   check('the panel does not offer the owner his own switch', !/This device|count my visits/i.test(panel));
+  // 🔴 THE PANEL MUST DECLARE WHAT CANNOT BE SWITCHED OFF. A panel that showed only the
+  // optional item would be a menu, not a disclosure: a reader would see one control and
+  // reasonably conclude nothing else ran. The required reporter is the other half of the
+  // answer, and this is the check that it is on the deployed page rather than in a plan.
+  check('the panel declares the required fault report', /Fault report/.test(panel) && /Required/i.test(panel));
+  check('the policy on the deployed page names the fault note', /fault note/i.test(rendered));
 
   // 🔴 THE CHECK ANSWERS STEP 1, BECAUSE A VISITOR HAS TO. The page deliberately draws no airport list
   // until it knows where the reader is — George's rule: *"if you dont know location, there should be no

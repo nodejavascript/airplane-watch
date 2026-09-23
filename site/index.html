@@ -107,6 +107,23 @@
          hostname yet has no property yet. test/static.test.js fails while this
          reads G-PENDING, which means `npm test` cannot pass against a deployed
          site whose property was never made. That is the gate, not an oversight. -->
+    <!-- 🔴 THE FAULT REPORTER IS NOT BEHIND THE COOKIE BAR, AND IT IS NOT A COOKIE.
+
+         23 September 2026. This file is added before the consent gate, so it runs
+         whether or not the visitor has answered, and that is deliberate: a fault on a
+         reader's machine is otherwise invisible for ever, which is the test for a
+         strictly necessary signal rather than an optional one.
+
+         What it costs the reader is nothing that needs asking for — no cookie, no
+         storage, nothing read from this page — and what it sends goes to `/api/fault`
+         ON THIS DOMAIN, where the Worker relays it. So the promise above — that a
+         declined visit makes no request to Google, and that the browser asks no other
+         site for anything — is still literally true with this file in the page.
+
+         Because it cannot be switched off, it is DECLARED in the cookie panel as a
+         Required row with no switch, rather than hidden behind the one control on
+         offer. See the panel's own note. -->
+    <script src="./faults.js" defer></script>
     <script src="./consent.js" data-ga-id="G-XWQ2VN6RW0" defer></script>
     <script type="module" src="./app.js"></script>
   </head>
@@ -588,15 +605,16 @@
         <h2>Privacy</h2>
         <p>
           This policy governs <span class="mono">airplane-watch.nodejavascript.com</span>, and it is written from what
-          the code does rather than from a template. It was last changed on 22 September 2026.
+          the code does rather than from a template. It was last changed on 23 September 2026.
         </p>
         <ul class="limits">
           <li>
-            <b>There is no account and no server-side store.</b> Your watchlist, the place you gave, the airports you
-            aimed the fence at, the distance you set, the filters you chose, the tails you highlighted and your answer
-            to the cookie question are kept in your own browser's storage. Exactly one thing leaves your browser so it
-            can be looked up: a place name you search for, or a position you ask the browser to find. It is turned into
-            a place and is not written down by this site.
+            <b>There is no account here, and no store of what you set up.</b> Your watchlist, the place you gave, the
+            airports you aimed the fence at, the distance you set, the filters you chose, the tails you highlighted and
+            your answer to the cookie question are kept in your own browser's storage. Exactly one thing leaves your
+            browser so it can be looked up: a place name you search for, or a position you ask the browser to find. It
+            is turned into a place and is not written down by this site. The only other thing that can leave is a fault
+            note, and only when something has broken — the next-but-one item says what is in it and where it goes.
           </li>
           <li>
             <b>All of it can be deleted, by you, at any time.</b> The row that shows your location ends with a
@@ -619,23 +637,37 @@
             decision would be its own small joke.
           </li>
           <li>
+            <b>If the page breaks, it says so — and that one is not a cookie and not a choice.</b> A fault on your
+            machine is invisible from here, so a short note is sent to this site's own address and relayed from there:
+            the error, the page you were on, and which script and line it came from. It sets no cookie, keeps nothing in
+            your browser, and is not stored on this side at all. Nothing you typed can be in it — no tail number, no
+            callsign, no place you searched — because the code that sends it never reads your watchlist, your settings
+            or anything else this browser has saved. The page address travels without its query, so a place name or a
+            position cannot ride along. You can watch it happen in your browser's own network panel: one request, to
+            this domain, while the page is still open. It is the one thing here that runs without asking, and
+            <b>Reject all</b> stops Google and does not stop this.
+          </li>
+          <li>
             <b>You can change your answer at any time</b> with the <b>Cookie settings</b> button in the footer.
             Rejecting after accepting reloads the page so that counting genuinely stops.
           </li>
           <li>
             <b>What leaves your machine while the page is open.</b> Every request goes to this domain — your address
             reaches this site's server, as it does for any page you open — and this site's own server passes the
-            request on, so your browser asks no other site for anything, whether or not you accept cookies. Three
+            request on, so your browser asks no other site for anything, whether or not you accept cookies. Four
             things travel that way: a request for the aircraft inside your fence every twenty seconds or so, passed to
             the flight feed <a href="https://adsb.lol/" rel="noopener">adsb.lol</a> and carrying the centre and the
             distance you chose; the place name you search for, or a position you asked the browser to find, passed to
             OpenStreetMap's <a href="https://nominatim.openstreetmap.org/" rel="noopener">Nominatim</a> and
-            <a href="https://photon.komoot.io/" rel="noopener">Photon</a> lookups to be turned into a place; and the
-            map squares and the photographs of each type, passed to
+            <a href="https://photon.komoot.io/" rel="noopener">Photon</a> lookups to be turned into a place; the map
+            squares and the photographs of each type, passed to
             <a href="https://www.openstreetmap.org/" rel="noopener">OpenStreetMap</a> and to
-            <a href="https://www.wikipedia.org/" rel="noopener">Wikipedia</a>. Those services are asked by this
-            site's server and are not given your address. The flight feed is under the Open Database License, the map
-            squares under OpenStreetMap's own, and each photograph under the licence named beside it.
+            <a href="https://www.wikipedia.org/" rel="noopener">Wikipedia</a>; and, only when something has gone
+            wrong, the fault note described above, relayed to the fault-tracking service
+            <a href="https://rollbar.com/" rel="noopener">Rollbar</a>, where it is kept for a short period and cannot
+            be traced back to you. Those services are asked by this site's server and are not given your address. The
+            flight feed is under the Open Database License, the map squares under OpenStreetMap's own, and each
+            photograph under the licence named beside it.
           </li>
           <li>
             <b>Aircraft data is about aircraft, not about people.</b> The feed carries no passenger information, and
@@ -665,18 +697,32 @@
         <p class="consentText">
           <b>Accept all to help decide what gets built next.</b> The numbers show which parts people actually use, and
           that is what the work follows. Analytics is the only cookie here, it is not loaded until you say yes, and
-          nothing you type — a tail number, a callsign — is ever sent anywhere.
-          <a href="#privacy">See Privacy</a>
+          nothing you type — a tail number, a callsign — is ever sent anywhere. One thing is always on and
+          <b>Reject all does not stop it</b>: if the page breaks on your machine, a short note about the fault goes to
+          this site's own address so it can be found and fixed — no cookie, nothing stored, and never anything you
+          typed. <a href="#privacy">See Privacy</a>
         </p>
       </div>
 
-      <!-- 🔴 THE PANEL NAMES THE ONE REAL CHOICE AND NOTHING ELSE.
-           There is exactly one row here, because this site has exactly one
-           optional thing. There is deliberately NO "this device / count my
-           visits" row: George ruled it out on 19 Sep 2026, verbatim: *"new rule
-           i dont want count my visits in the cookie settings"*. The owner's
-           switch is ?ga=off in the address bar, and a visitor has no reason to
-           look for it. -->
+      <!-- 🔴 THE PANEL NAMES THE ONE REAL CHOICE — AND DECLARES THE ONE THING THAT IS
+           NOT A CHOICE. There is exactly one SWITCH here, because this site has exactly
+           one optional thing; and there is one row WITHOUT a switch, because since
+           23 Sep 2026 the page also sends a fault note that is not optional.
+
+           🔴 HIDING IT WOULD BE THE DISHONEST OPTION. A reader looking at the only
+           control on offer would reasonably conclude that nothing else ran. A panel
+           whose job is to tell somebody what a site does cannot do that by showing
+           them one half of the answer.
+
+           🔴 AND IT IS A ROW WITHOUT A SWITCH ON PURPOSE. A switch there would be a
+           control that does nothing when pressed — a fake choice, which is worse than
+           no choice at all. So it is a tag the reader can see, not a button they can
+           press, and the stylesheet draws it that way.
+
+           There is still deliberately NO "this device / count my visits" row: George
+           ruled it out on 19 Sep 2026, verbatim: *"new rule i dont want count my
+           visits in the cookie settings"*. The owner's switch is ?ga=off in the
+           address bar, and a visitor has no reason to look for it. -->
       <div class="consentPrefs" id="consentPrefs" hidden>
         <div class="consentHead">
           <h2 class="consentTitle">Cookie preferences</h2>
@@ -685,6 +731,19 @@
           </button>
         </div>
         <ul class="consentList">
+          <li class="consentRow">
+            <div>
+              <p class="consentRowName">Fault report</p>
+              <p class="consentRowWhy">
+                Not a cookie, and not something this page can ask about: if it breaks on your machine the breakage is
+                invisible from here and cannot be fixed. So a short note — the error, and the page you were on — is
+                sent to this site's own address, which relays it. It sets no cookie, keeps nothing in your browser,
+                and never includes anything you typed: no tail number, no callsign, no place you searched. Reject all
+                does not stop it.
+              </p>
+            </div>
+            <span class="consentAlways">Required</span>
+          </li>
           <li class="consentRow">
             <div>
               <p class="consentRowName">Analytics</p>

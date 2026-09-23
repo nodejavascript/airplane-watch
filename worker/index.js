@@ -46,7 +46,7 @@
  * The token is what keeps that path from being an open relay through the droplet's address. It is a Worker
  * secret; the matching value lives in the droplet's Caddyfile.
  */
-import { reportFailure } from './rollbar.js';
+import { reportBrowserFault, reportFailure } from './rollbar.js';
 
 const UPSTREAM = 'https://airplane-watch.nodejavascript.com/feed';
 const CACHE_SECONDS = 25;
@@ -566,10 +566,73 @@ async function serveTile(path) {
  * both a smaller diff and an honest statement of what happened here: the proxy
  * was not touched, a boundary was added around it.
  */
+/*
+ * 🔴 THE PAGE'S OWN FAULTS ARRIVE HERE, AND THIS IS THE ONLY ROUTE THAT TAKES A
+ * POST. It is answered before the GET-only check below because it is the one path
+ * that is not a proxy at all: the page reports a fault to its own origin and this
+ * Worker relays it, which is what keeps every credential out of the published
+ * repository and keeps the reader's browser from calling a monitoring service
+ * directly. See `worker/rollbar.js` for what may be kept and what is thrown away.
+ *
+ * It is deliberately NOT behind the cookie gate — a fault on a reader's machine is
+ * otherwise invisible for ever — so it is declared as Required in the panel
+ * instead of being offered as a choice, and the page's copy says so.
+ */
+async function serveFault(request, env, ctx) {
+  if (request.method !== 'POST') {
+    return json(405, { ok: false, error: 'A fault report is a POST.' });
+  }
+
+  // Cheap hygiene, not security. A browser always sends Origin on a POST, so a
+  // page on somebody else's site cannot use this endpoint from a reader's browser.
+  // A client that is not a browser can put anything in the header, which is
+  // exactly why the defence is the allow-list in rollbar.js and not this line.
+  const origin = request.headers.get('origin');
+  if (origin) {
+    let host = '';
+    try {
+      host = new URL(origin).host;
+    } catch {
+      host = '';
+    }
+    if (host !== new URL(request.url).host) {
+      return json(403, { ok: false, error: 'Fault reports are accepted from this site only.' });
+    }
+  }
+
+  const body = await request.text().catch(() => '');
+  if (body.length > 8_000) {
+    return json(413, { ok: false, error: 'That fault report is larger than this endpoint accepts.' });
+  }
+
+  let raw;
+  try {
+    raw = JSON.parse(body);
+  } catch {
+    return json(400, { ok: false, error: 'A fault report is JSON.' });
+  }
+
+  const url = new URL(request.url);
+  reportBrowserFault(env, ctx, raw, {
+    origin: url.origin,
+    colo: request.cf && request.cf.colo,
+    ray: request.headers.get('cf-ray'),
+  });
+
+  // 204 whatever the outcome, because the reader's page has nothing to do with
+  // the answer — it has already moved on. A refused or undeliverable report is
+  // visible in the Worker's own logs, not in the visitor's browser.
+  return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
+}
+
 const proxy = {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/^\/api/, '');
+
+    if (path === '/fault') {
+      return serveFault(request, env, ctx);
+    }
 
     if (request.method !== 'GET') {
       return json(405, { ok: false, error: 'Only GET is proxied.' });

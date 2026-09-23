@@ -940,6 +940,32 @@ nd `.limits` styles the
   max-width: 68ch;
 }
 
+/* 🔴 THE REQUIRED TAG IS NOT A SWITCH, AND THIS RULE IS WHERE THAT IS TRUE.
+ *
+ * The panel is a disclosure, so it carries the one thing that cannot be switched
+ * off as well as the one thing that can — and the difference has to be visible,
+ * not merely stated. A row that cannot be changed must not be DRAWN as a control:
+ * no pill, no ring, no pointer cursor, nothing that invites a press which would do
+ * nothing. A switch that does nothing when pressed is a fake choice, which is
+ * worse than no choice, because it teaches the reader that the panel is theatre.
+ *
+ * So this is a label and it is shaped like one — a small bordered tag, in the
+ * muted colour the panel uses for text rather than the theme colour it uses for
+ * anything live. It sits where the switch sits, so the two rows read as a pair and
+ * the difference between them is the answer to "which of these can I change". */
+.consentAlways {
+  flex: none;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 /* The visual state is drawn from `aria-checked`, so the ring and what a screen
  * reader announces cannot disagree — they are the same attribute. Nothing here
  * toggles a class. */

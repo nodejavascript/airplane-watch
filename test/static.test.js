@@ -2434,7 +2434,7 @@ test('95 · the honest page and the honest code agree about the feed', () => {
     'the privacy section no longer admits that the aircraft inside the fence are sent to this server');
   assert.equal(/Nothing you type is sent to this site/.test(privacy), false,
     'the privacy section is back to claiming that nothing is transmitted, which the code contradicts');
-  assert.match(privacy, /last changed on 22 September 2026/,
+  assert.match(privacy, /last changed on 23 September 2026/,
     'the policy was rewritten without moving its own date');
 });
 

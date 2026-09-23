@@ -1604,7 +1604,14 @@ class Page {
           return;
         }
         const payload = await readJson(response);
-        if (!response.ok) throw new Error(`The feed answered ${response.status} for ${icao}.`);
+        // 🔴 THE AIRPORT CODE LEFT THIS MESSAGE ON 23 Sep 2026, and both reasons
+        // point the same way. It read `… answered ${response.status} for ${icao}`
+        // — and `icao` is an airport this reader chose, found from a place they
+        // asked for, so the message carried something derived from them into a
+        // text that can reach the fault report. It was also worse copy: the row
+        // already says which airport was being looked up, so naming it again in
+        // the status line only made a short sentence longer.
+        if (!response.ok) throw new Error(`The feed answered ${response.status} while resolving an airport.`);
         resolved = parseAirport(icao, payload);
       } catch (error) {
         this.lastError = error instanceof Error ? error.message : String(error);
@@ -5879,7 +5886,14 @@ class Page {
         district?: string;
         note?: string;
       };
-      if (!body.ok || !body.town) throw new Error(body.place ?? 'no name');
+      // 🔴 THE PLACE NAME LEFT THIS ERROR ON 23 Sep 2026. It read
+      // `new Error(body.place ?? 'no name')`, and `body.place` is the name of the town
+      // the reader's own coordinates fall in — a fact about where they are, carried as
+      // the text of an error. The catch below discards the message, so nothing the
+      // reader sees has changed; what changed is that a visitor's position can no
+      // longer be the text of an error at all, which is the property the fault report
+      // rests on and which is now checked.
+      if (!body.ok || !body.town) throw new Error('That position could not be named.');
       this.computeNearby(lat, lon, body.town, body.town, Array.isArray(body.areas) ? body.areas : []);
       // 🔴 ONE CLAUSE, AND GEORGE ASKED FOR IT THAT WAY. His words, 20 Sep 2026, pasting the
       // paragraph back: *"i dont want any of this anymore"*. It had grown into three sentences —
