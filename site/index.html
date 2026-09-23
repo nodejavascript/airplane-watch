@@ -364,22 +364,37 @@
         </div>
         <!--
           🔴 THE FILTER RESULTS CAN BE REFRESHED IN PLACE. George, 22 Sep 2026: *"**Showing 17 of 184
-          types.** is want to be able to refrech the filters results"*. It sits on this line because this
-          line IS the count the press is about — the sentence on the left, the control on the right, the
-          same shape as the clock above the map. The press does two things, because the count has two
-          inputs: it reads the measured type file again, and it asks the feed again.
+          types.** is want to be able to refrech the filters results"*. The press does two things,
+          because the count has two inputs: it reads the measured type file again, and it asks the feed
+          again.
 
-          🔴 AND IT MUST SIT WITH THE COUNT ITSELF, ON THE COUNT'S OWN LINE. George, 23 Sep 2026:
-          *"the refresh should be to the right of showing x of x types. and right aligned."* The note is
-          one long paragraph and the count is its LAST line, so a top-aligned control floated beside
-          the first line — several lines above the number it is about, which is the fault this fixes.
-          The control is still the last item in this row; the stylesheet is what moves it down, and
-          `last baseline` is what puts it on the count's line rather than near it.
+          🔴 THREE INSTRUCTIONS IN TWO DAYS, AND THE THIRD IS THE ONE THAT HOLDS. George, 23 Sep 2026:
+          *"the refresh should be to the right of showing x of x types. and right aligned."* — and then,
+          the same day: *"let's make these left aligned and turn the refresh to an icon, it should spin
+          if loading"*. So the count sits on its own line at the LEFT, where the rest of the sentence
+          is, and the control is immediately to its right — which is the "to the right of Showing x of
+          x types" part, kept, with the right-align that came with it dropped. The control is an icon
+          because a word on this line competed with the number for the same glance.
+
+          🔴 AND THAT IS WHY THE COUNT AND THE CONTROL HAVE THEIR OWN TWO SPANS. A control placed
+          *after* the paragraph cannot be beside the paragraph's LAST line: the paragraph takes the
+          width, so the control is pinned to the far edge whatever the alignment says. The first attempt
+          propped the two up with `align-items: last baseline` and a right-aligned count — which looked
+          right only because both had been pushed into the same corner. Here they are in one flex line,
+          so "beside the count" is true by construction and the two move together.
         -->
         <div class="filter-note-line">
-          <p class="small muted" id="filterNote">Loading what the feed has been showing…</p>
-          <button type="button" class="linkish refresh-now" id="refreshFilters" data-ga="refresh-filters"
-                  title="Read what the feed has been showing again, and put your filters through it now.">refresh</button>
+          <p class="small muted" id="filterNote">
+            <span id="filterNoteText">Loading what the feed has been showing…</span>
+            <span class="filter-count-line">
+              <b class="filter-count" id="filterCount"></b>
+              <button type="button" class="linkish refresh-now" id="refreshFilters" data-ga="refresh-filters"
+                      title="Read what the feed has been showing again, and put your filters through it now."
+                      aria-label="Refresh the count"><svg class="refresh-icon" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                      aria-hidden="true" focusable="false"><path d="M12 4a8 8 0 1 1-8 8"/><path d="M12 1.4 14.6 4 12 6.6"/></svg></button>
+            </span>
+          </p>
         </div>
         <div class="typelist" id="typeList"></div>
         <p class="small muted" id="typeNote">Loading what the feed has been showing…</p>

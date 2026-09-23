@@ -3250,12 +3250,21 @@ test('104 · the filter count can be refreshed in place, and one press is one ro
     'a second press while the first is running starts a second round of the same work');
   assert.match(app, /private filterRefreshPending = false;/, 'nothing records that a refresh is in flight');
 
-  // One line in the stylesheet, the sentence taking the width and the control the right edge — the same
-  // arrangement as the clock above the map.
-  const lineRule = cssRules.slice(cssRules.indexOf('.filter-note-line {'), cssRules.indexOf('}', cssRules.indexOf('.filter-note-line {')));
+  // 🔴 ONE LINE OF ITS OWN, AT THE LEFT, COUNTER THEN CONTROL — and the loading state is the SPIN.
+  // George, 23 Sep 2026: *"the refresh should be to the right of showing x of x types"*, then
+  // *"let's make these left aligned and turn the refresh to an icon, it should spin if loading"*.
+  //
+  // ⚠️ THE SLICE IS TAKEN FROM THE RULE, NOT FROM THE WHOLE STYLESHEET. `indexOf` on a bare selector
+  // finds the first mention anywhere — including inside another rule's selector list — and the lesson
+  // this file's header keeps teaching is that a check reading the wrong thing reports a failure
+  // against correct code.
+  const lineAt = cssRules.indexOf('.filter-count-line {');
+  assert.ok(lineAt > -1, 'the count and its refresh are no longer given a line of their own');
+  const lineRule = cssRules.slice(lineAt, cssRules.indexOf('}', lineAt));
   assert.match(lineRule, /display: flex/, 'the count and its refresh are not on one line');
-  const noteRule = cssRules.slice(cssRules.indexOf('.filter-note-line #filterNote {'), cssRules.indexOf('}', cssRules.indexOf('.filter-note-line #filterNote {')));
-  assert.match(noteRule, /flex: 1 1 auto/, 'the sentence cannot take the width, so the control is not pushed right');
+  assert.match(lineRule, /justify-content: flex-start/, 'the count and its control are not left aligned');
+  assert.match(cssRules, /#refreshFilters\.is-running \.refresh-icon \{/,
+    'the refresh has no loading state, so nothing spins while it works');
 });
 
 /* 🔴 105 · NO SENTENCE MAY PROMISE A CADENCE THE CODE CANNOT KEEP (23 September 2026).

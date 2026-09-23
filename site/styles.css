@@ -685,36 +685,29 @@ nd `.limits` styles the
  * air, i want this to be a boolean input, not a link"*. Verified by counting: `data-hex` on a watchlist row
  * and `row-selected` are both 0 in `src/app.ts` now. */
 /*
- * THE FILTER COUNT AND ITS REFRESH, ON ONE LINE: the sentence takes the width, the control takes the
- * right edge — the same arrangement as `.refreshed-line` above the map, so the page has one way of
- * saying "this number, and a way to ask for it again".
+ * 🔴 THE COUNT AND ITS REFRESH ARE ONE LINE OF THEIR OWN, AT THE LEFT.
  *
- * 🔴 AND THE CONTROL SITS ON THE COUNT'S OWN LINE, NOT THE PARAGRAPH'S FIRST. George, 23 Sep 2026:
- * *"the refresh should be to the right of showing x of x types. and right aligned."* This note is one
- * long paragraph and the count is its LAST line, so `align-items: baseline` put the control beside the
- * first line — four lines above the number, floating. `last baseline` aligns it with the last line box,
- * which is the count; `flex-end` precedes it as the fallback where a browser does not know the keyword.
+ * George, 23 Sep 2026: *"the refresh should be to the right of showing x of x types"*, and then the
+ * same day: *"let's make these left aligned and turn the refresh to an icon, it should spin if
+ * loading"*. The count stays where the rest of the sentence is — the left — and the control is
+ * immediately to its right, so the pair moves together and neither is pinned to an edge.
+ *
+ * ⚠️ WHY THIS IS A LINE OF ITS OWN RATHER THAN A CONTROL BESIDE THE PARAGRAPH. A control placed after
+ * a paragraph cannot sit beside the paragraph's LAST line: the paragraph takes the width, so the
+ * control lands at the far edge whatever the alignment says. The previous arrangement only looked
+ * right because the count was right-aligned into the same corner — two alignments propping each other
+ * up. Here both are in one flex line, so "beside the count" is true by construction.
  */
-.filter-note-line {
-  display: flex;
-  align-items: flex-end;
-  align-items: last baseline;
-  gap: 0.5rem;
-}
-
 .filter-note-line #filterNote {
-  flex: 1 1 auto;
   margin: 0;
 }
 
-/*
- * 🔴 AND THE COUNT IS PUSHED RIGHT, SO THE TWO SIT TOGETHER — the number, then the way to ask for it
- * again, both against the right edge. That is the same shape as `.refreshed-line` above the map. Left
- * as it was, the count would stay at the left of its own line and the refresh would be a word on its own
- * at the far right, with the width of the card between them.
- */
-.filter-note-line .filter-count {
-  text-align: right;
+.filter-count-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  margin-top: 4px;
 }
 
 .refreshed-line {
@@ -722,11 +715,59 @@ nd `.limits` styles the
   text-align: right;
 }
 
-/* The one control on this line, and the gap that keeps it off the sentence it follows. It is
- * deliberately the same `.linkish` shape `change location` and `delete my data` use, so the three
- * quiet text controls on the page read as one kind of thing. */
+/* The clock's own control, above the map: still a word, and still the quiet text control the page uses
+ * everywhere. The gap keeps it off the sentence it follows. */
 .refresh-now {
   margin-left: 0.5rem;
+}
+
+/*
+ * 🔴 THE COUNT'S REFRESH IS AN ICON, AND IT SPINS WHILE IT WORKS. George, 23 Sep 2026: *"turn the
+ * refresh to an icon, it should spin if loading"*. A word on the count's line competed with the number
+ * for the same glance, and the spin says "working" without changing the width of the line the way the
+ * old word swap did. It is quieter than the count — muted until the pointer or the keyboard is on it,
+ * exactly like `delete my data` — so the eye lands on the number first.
+ *
+ * ⚠️ THE ICON IS AN INLINE `<svg>` IN THE MARKUP, NOT SOMETHING THE PAGE BUILDS. The note is redrawn
+ * on every filter change, and a control re-created with it would restart its own animation mid-refresh.
+ */
+#refreshFilters {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+  line-height: 0;
+  text-decoration: none;
+}
+
+#refreshFilters:hover,
+#refreshFilters:focus-visible {
+  color: var(--theme);
+}
+
+#refreshFilters .refresh-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+#refreshFilters.is-running .refresh-icon {
+  animation: refresh-spin 0.9s linear infinite;
+}
+
+@keyframes refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A spin is decoration; a reader who has asked for less motion gets the state without it. */
+@media (prefers-reduced-motion: reduce) {
+  #refreshFilters.is-running .refresh-icon {
+    animation: none;
+  }
 }
 
 /* 🔴 AND THE PLACE BESIDE THE CODE, THE TYPE'S NAME, AND THE TAIL UNDER IT ALL WENT WITH THE TABLE.
@@ -2153,13 +2194,17 @@ main > #status {
  *
  * 🔴 ON ITS OWN LINE, AND HIGHLIGHTED. George, 21 Sep 2026: *"and Showing 32 of 143 types.
  * should be on a new line and highlighted"*. It was the tail of a long grey paragraph, so
- * the one number the reader actually wants was the least visible thing on the card. It is a
- * block so it cannot run into the sentence before it, and it takes the theme colour because
- * a count is a result, not a caveat.
+ * the one number the reader actually wants was the least visible thing on the card. It takes
+ * the theme colour because a count is a result, not a caveat.
+ *
+ * ⚠️ AND SINCE 23 Sep 2026 THE LINE IS NOT THIS RULE'S TO MAKE. The count sits in
+ * `.filter-count-line` beside the refresh control, and THAT is what puts it on a line of its
+ * own at the left and holds the gap above it — so the `margin-top` that used to be here
+ * belongs to the line now. One rule decides the line, and the number cannot be pushed off it
+ * on its own.
  * ------------------------------------------------------------------------ */
 .filter-count {
   display: block;
-  margin-top: 4px;
   color: var(--theme);
   font-weight: 600;
 }

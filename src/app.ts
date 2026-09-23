@@ -1841,15 +1841,20 @@ class Page {
    * the note, the filter count, the list and the watch rows, so nothing here has to repeat any of it.
    *
    * ⚠️ ONE PRESS IS ONE ROUND OF WORK. A second press while the first is still in flight returns, and
-   * the label says so, because two fetches for one press would spend the feed's allowance twice and
+   * the control says so, because two fetches for one press would spend the feed's allowance twice and
    * answer the same question.
+   *
+   * 🔴 AND THE LOADING STATE IS THE SPIN, NOT A WORD. George, 23 Sep 2026: *"turn the refresh to an
+   * icon, it should spin if loading"*. The label used to be swapped for "refreshing…" and swapped back,
+   * which on an icon would have had nothing to say — and on a control this narrow it changed the width
+   * of the line it sits on while the reader was watching. One class, and the stylesheet owns the rest.
    */
   private async refreshFilterResults(): Promise<void> {
     if (this.filterRefreshPending) return;
     this.filterRefreshPending = true;
     const button = byId<HTMLButtonElement>('refreshFilters');
-    const label = button?.textContent ?? null;
-    if (button) button.textContent = 'refreshing…';
+    button?.classList.add('is-running');
+    button?.setAttribute('aria-busy', 'true');
     this.setStatus('Reading what the feed has been showing again…', 'working');
     try {
       await this.loadSurvey();
@@ -1858,7 +1863,8 @@ class Page {
       this.refreshNow();
     } finally {
       this.filterRefreshPending = false;
-      if (button) button.textContent = label ?? 'refresh';
+      button?.classList.remove('is-running');
+      button?.removeAttribute('aria-busy');
     }
   }
 
@@ -3017,11 +3023,12 @@ class Page {
       // one number they actually want the least visible thing on the card. Now the reason comes
       // first and the number is the last thing, on its own line, in the theme colour.
       //
-      // 🔴 AND SINCE 23 Sep 2026 THE COUNT'S OWN LINE IS WHERE THE REFRESH SITS. George: *"the
-      // refresh should be to the right of showing x of x types. and right aligned."* The markup is
-      // unchanged — the control is the last item in `.filter-note-line` — and the stylesheet is what
-      // puts it on this last line and pushes both against the right edge. Nothing here had to move,
-      // which is why the count is still written by this one function and cannot drift from the list.
+      // 🔴 THE COUNT HAS ITS OWN SPAN NOW, AND THE CONTROL SITS BESIDE IT IN THE MARKUP. George,
+      // 23 Sep 2026: *"the refresh should be to the right of showing x of x types"*, and then the same
+      // day: *"let's make these left aligned and turn the refresh to an icon, it should spin if
+      // loading"*. So this function writes TWO things — the sentence and the number — and the control is
+      // written in the page and never here: an icon re-created on every repaint would restart its own
+      // spin while the refresh it is reporting was still running.
       //
       // And the trailing homily went with it — *"an aircraft that does not fly near you is not a
       // choice worth making"* explains a decision to a reader who never saw the alternative, and
@@ -3031,15 +3038,24 @@ class Page {
         `${runs} look${runs === 1 ? '' : 's'} at the sky recorded so far` +
         (span > 0 ? `, spanning ${this.spanText(span)}` : '') +
         '.';
-      // `innerHTML` rather than `textContent` so the count can be its own block. Nothing here is
-      // reader input, and the one interpolated string is the count itself.
-      note.innerHTML =
-        escapeHtml(`${parts.join(' ')} ${words}`) +
-        ` <b class="filter-count">Showing ${counts.rows.length} of ${counts.total} ` +
-        `type${counts.total === 1 ? '' : 's'}.</b>`;
+      // 🔴 TWO ELEMENTS, ONE CALL, AND NOTHING IS BUILT AS MARKUP ANY MORE. The sentence goes in one
+      // span and the number in another, which is what lets the count be its own line with the control
+      // beside it — and it also removes the escaping: `textContent` cannot be read as markup, so the
+      // one interpolated string no longer has to be escaped to be safe.
+      const body = byId('filterNoteText');
+      if (body) body.textContent = `${parts.join(' ')} ${words}`;
+      const number = byId('filterCount');
+      if (number) {
+        number.textContent = `Showing ${counts.rows.length} of ${counts.total} type${counts.total === 1 ? '' : 's'}.`;
+      }
       return;
     }
-    note.textContent = parts.join(' ');
+    // The sentence alone — and the number is CLEARED rather than left standing, because a count from the
+    // previous filter is the one thing this note must never show.
+    const body = byId('filterNoteText');
+    if (body) body.textContent = parts.join(' ');
+    const number = byId('filterCount');
+    if (number) number.textContent = '';
   }
 
   /** "40 minutes" / "7 hours" / "3 days" — the span the survey history covers. */
