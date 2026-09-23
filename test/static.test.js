@@ -2291,7 +2291,21 @@ test('94 · the feed card and the honesty card are gone, and nothing draws a tab
 
   // 🟢 WHAT IS LEFT: the map is the list, and the alert is still gated — arming a bell with nothing
   // picked is a bell about nothing.
-  assert.match(page, /id="notifyBlock"/, 'the alert block went with the card it moved into');
+  //
+  // 🔴 AND THE NOTIFY BUTTON IS COMMENTED OUT FOR NOW — 23 September 2026, George: *"comment that
+  // button for now, and update copy"*. The page stops asking the feed the moment the tab is hidden
+  // (`bindVisibility()` calls `this.stop()`), so the alert could only fire while the reader was already
+  // looking at the page — a doorbell wired to the room you are standing in.
+  //
+  // ⚠️ THIS ASSERTION IS THE FLIP SIDE OF THAT DECISION, and it is written on `stripHtml` because that
+  // helper removes comments — so a commented-out button is invisible to it, exactly as it is to a
+  // reader. **It fails if the button or the notification promise is put back without the hidden-tab
+  // problem being settled first.** `notifyBlock` appearing in the raw markup is fine and expected; it
+  // is inside a comment, which `stripHtml` deletes.
+  assert.equal(/id="notifyBtn"/.test(stripHtml(page)), false,
+    'the notify button is live again — read the note where it was commented out in site/index.html');
+  assert.equal(/browser notification/i.test(stripHtml(page)), false,
+    'the page promises a browser notification again, and it cannot keep that promise');
   assert.match(code, /private syncAlertVisibility\(\): void/, 'nothing hides the alert when nothing is picked');
 
   // And no rule is left styling a row that no longer exists.

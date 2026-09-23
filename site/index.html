@@ -47,7 +47,7 @@
             "url": "https://airplane-watch.nodejavascript.com/",
             "applicationCategory": "UtilitiesApplication",
             "operatingSystem": "Any browser",
-            "browserRequirements": "JavaScript, Notification API for alerts",
+            "browserRequirements": "JavaScript",
             "description": "Watch one airport on a public ADS-B feed, name the aircraft you care about, and be told when one of them leaves.",
             "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CAD" },
             "isAccessibleForFree": true
@@ -160,8 +160,8 @@
         <h1>Watch a named aircraft leave a named airport</h1>
         <p class="lede">
           Pick an airport, point a fence at it, and name the aircraft you care about by tail number or callsign. The
-          page reads a public flight feed every twenty seconds and tells you the moment one of yours is airborne — with a
-          browser notification if you want one. Everything runs in this tab. There is no account, no key, and nothing
+          page reads a public flight feed every twenty seconds and shows you the moment one of yours is airborne.
+          Everything runs in this tab. There is no account, no key, and nothing
           to install.
         </p>
         <ul class="facts">
@@ -391,12 +391,36 @@
           air around them"* is his own sentence, and the card that used to hold this button has now
           been deleted twice — so the button has moved with it each time rather than being dropped.
           It was in the feed card; the feed card is gone as of 22 Sep 2026, so it sits here, directly
-          under the list of the aircraft the alert is about.
+          under the list of the aircraft the alert is about. **It was commented out on 23 September
+          2026 — the note immediately below says why, and how to bring it back.**
         -->
+        <!--
+          🔴 COMMENTED OUT FOR NOW — 23 September 2026. George: *"comment that button for now, and
+          update copy"*.
+
+          **Why it cannot do what it says.** A browser notification is for the moment you are NOT
+          looking at the page — and the page STOPS ASKING THE FEED the moment the tab is hidden
+          (`bindVisibility()` calls `this.stop()`, deliberately, so a tab nobody is reading does not
+          spend a volunteer feed's allowance). So the alert could only ever fire while the reader was
+          already looking at the page, which is exactly when they do not need telling. The button was
+          a doorbell wired to the room you are standing in.
+
+          **The machinery is untouched and the bell still arms.** `renderWatchButton()` returns early
+          when these two elements are missing, so commenting the markup cannot throw, and `notify()`
+          sits exactly where it was for the day this returns.
+
+          🔴 TO BRING IT BACK: uncomment this block; restore the three pieces of copy noted at each
+          site (the lede, the privacy bullet, and `browserRequirements` in the JSON-LD); flip the
+          assertion in test/static.test.js that now checks it is absent. **And settle the real
+          problem first — a hidden tab has to be allowed a slow poll.** The Worker's edge cache and
+          cooldown, added the same day, are what make that affordable.
+        -->
+        <!--
         <div class="notify" id="notifyBlock">
           <button id="notifyBtn" class="ghost" type="button" data-ga="notify">Tell me when they leave</button>
           <p class="small muted" id="notifyNote"></p>
         </div>
+        -->
 
         <!--
           🔴 THE ONE MAP, AND THE CIRCLE IS DRAWN ON IT.
@@ -617,10 +641,15 @@
             <b>Aircraft data is about aircraft, not about people.</b> The feed carries no passenger information, and
             none is available from it.
           </li>
+          <!-- 🔴 COMMENTED OUT WITH THE BUTTON — 23 September 2026. The page no longer asks for
+               notification permission, so there is nothing here left to explain. Restore this with the
+               notify block when the alert returns. -->
+          <!--
           <li>
             <b>Notifications</b> are sent by your own browser, from your own machine, and only if you pressed the
             button that asks for permission. Declining them changes nothing else on the page.
           </li>
+          -->
           <li>
             <b>To contact anyone about this site, or to ask what is held about you:</b> the answer is nothing, and the
             way to prove it is to clear this site's data in your browser. Questions can be raised through the contact
