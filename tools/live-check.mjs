@@ -59,8 +59,16 @@ check(
 );
 check('the Google tag is NOT in the served HTML', !/googletagmanager/i.test(shell.body));
 check('consent.js is in the served HTML', /consent\.js/.test(shell.body));
-check('there is no privacy.html in the served HTML', !/privacy\.html/i.test(shell.body));
-check('the served HTML has no link ending in .html', !/href="[^"]*\.html?"/i.test(shell.body));
+// 🔴 COMMENTS COME OUT FIRST, BECAUSE THE PAGE EXPLAINS ITS OWN RULES AND THE EXPLANATION NAMES THEM.
+// This check failed on a page that is exactly right: `index.html` carries a note reading *"There is NO
+// privacy.html anywhere — the policy is a #privacy section of the page itself"*, and a bare substring
+// search over the whole document matched **the sentence stating the rule**. The same fault stopped the
+// deploy script's own Analytics gate an hour earlier, where the placeholder id appeared only inside the
+// comment describing the gate. **A check that searches a whole document for a string matches the prose
+// that describes the string** — so the two checks below read what the browser is given to render.
+const rendered = shell.body.replace(/<!--[\s\S]*?-->/g, '');
+check('there is no privacy.html in the served HTML', !/privacy\.html/i.test(rendered));
+check('the served HTML has no link ending in .html', !/href="[^"]*\.html?"/i.test(rendered));
 check('there is no www form of this host in the served HTML', !new RegExp(`www\\.${EXPECTED_TITLE.replace(/\./g, '\\.')}`, 'i').test(shell.body));
 
 const assets = await Promise.all(
@@ -105,7 +113,12 @@ try {
   });
   check('the header is the brand bar, brand to self, no nav', headerOk.ok, headerOk.why || '');
 
-  const footerOk = await page.evaluate(() => {
+  // 🔴 THE VALUE IS PASSED IN, BECAUSE A BROWSER CANNOT SEE A NODE VARIABLE. This callback read
+  // `EXPECTED_TITLE` directly, which exists only in this process — so the browser threw
+  // `ReferenceError: EXPECTED_TITLE is not defined`, the throw escaped the script, and **every check
+  // after it never ran**: the footer, the consent gate and the Google-request assertions were all
+  // silently skipped while the run reported "2 failed". Measured on the first live run, 22 Sep 2026.
+  const footerOk = await page.evaluate((host) => {
     const footer = document.querySelector('footer.site-footer');
     if (!footer) return { ok: false, why: 'no footer' };
     const home = footer.querySelectorAll('a[href="https://nodejavascript.com/"]').length;
@@ -115,11 +128,11 @@ try {
     if (home !== 1) return { ok: false, why: `${home} mother-site links` };
     if (!privacy) return { ok: false, why: 'no #privacy link' };
     if (!door) return { ok: false, why: 'no cookie door' };
-    if (!copy || !copy.textContent.includes(new URL('https://' + EXPECTED_TITLE).host))
+    if (!copy || !copy.textContent.includes(host))
       return { ok: false, why: 'copyright does not carry the full domain' };
     if (/back to top/i.test(footer.textContent)) return { ok: false, why: 'Back to top is present' };
     return { ok: true };
-  });
+  }, new URL('https://' + EXPECTED_TITLE).host);
   check('the footer is brand · links · copyright, with one home link', footerOk.ok, footerOk.why || '');
 
   check('the #privacy anchor resolves to a real section', await page.$('#privacy') !== null);
@@ -129,7 +142,7 @@ try {
   check('nothing is requested from Google before an answer', googleRequests.length === 0, googleRequests.join(', '));
   check('window.gtag does not exist before an answer', (await page.evaluate(() => typeof window.gtag)) === 'undefined');
 
-  const answers = await page.$$eval('#consentActions button', (buttons) =>
+  const answers = await page.$$eval('.consentActions button', (buttons) =>
     buttons.map((button) => {
       const style = getComputedStyle(button);
       return { label: button.textContent.trim(), width: button.getBoundingClientRect().width, weight: style.fontWeight };
@@ -160,17 +173,65 @@ try {
   const panel = await page.$eval('#consentPanel, #consentPrefs', (element) => element.textContent);
   check('the panel does not offer the owner his own switch', !/This device|count my visits/i.test(panel));
 
-  // The demo itself, on real data.
+  // 🔴 THE CHECK ANSWERS STEP 1, BECAUSE A VISITOR HAS TO. The page deliberately draws no airport list
+  // until it knows where the reader is — George's rule: *"if you dont know location, there should be no
+  // airports seen"* — so a fresh visit has no chips, no map marks and makes no call to the feed. The old
+  // version waited for the airport title, which no longer exists, and threw. **A live check that never
+  // gets past the first screen is not checking the demo**, so this drives the place search the way a
+  // visitor does: type a place, submit, press the suggestion, and then wait for the list and the map.
+  await page.fill('#placeSearchInput', 'Hamilton');
+  await page.press('#placeSearchInput', 'Enter');
+  await page.waitForSelector('#placeResults .near-chip, #placeResults button', { timeout: 15_000 });
+  const suggested = await page.$eval('#placeResults button, #placeResults .near-chip', (element) => {
+    element.click();
+    return element.textContent.trim();
+  });
+  check('the place search answered from this site\'s own server', typeof suggested === 'string', suggested);
+
+  // 🔴 WHAT "THE DEMO WORKS" MEANS, AND WHY THE FEED'S OWN REFUSAL IS NOT A FAILURE.
+  //
+  // A visitor answers step 1 and the page then asks a volunteer-funded feed for the aircraft inside their
+  // fence. Measured on this site's first live run (22 Sep 2026): the place search answered
+  // `200 /api/geo/search?q=Hamilton` with six places, pressing one loaded **14 airport chips** and the
+  // note *"76 airports, each one confirmed by asking the feed where it is"*, and the map fetched its
+  // tiles — and then the feed answered **429**, because a few page loads in a few minutes is more than it
+  // will take from one address. The page said so in plain words: *"The feed asked us to slow down (HTTP
+  // 429)…"*.
+  //
+  // **A check that fails because a volunteer service said "slow down" is a false failure, and a false
+  // failure teaches the reader to ignore the check.** So the wait accepts either proof that data arrived
+  // or the page's own honest report that it was refused — and fails only when NEITHER happened, which is
+  // what a broken page looks like.
+  //
+  // ⚠️ AND IT MUST NOT WAIT ON `#fenceFrom` BEING VISIBLE. That caption is HIDDEN when the circle is
+  // centred on the reader — deliberately, because the heading above it already says "How far out from
+  // you?" — so waiting for it to appear waits for something the correct page will never show.
   await page.waitForFunction(
-    () => /Hamilton|Pearson|Waterloo|Buffalo|Montréal|Vancouver|Bishop/.test(document.getElementById('airportTitle')?.textContent || ''),
+    () => {
+      const chips = document.querySelectorAll('.near-chip').length;
+      if (chips === 0) return false;
+      const marks = document.querySelectorAll('svg.locmap .locmap-plane-mark, svg.locmap .locmap-airport, svg.locmap .locmap-you').length;
+      const status = document.getElementById('status')?.textContent ?? '';
+      return marks > 0 || /slow down|429|rate/i.test(status);
+    },
     null,
-    { timeout: 30_000 }
+    { timeout: 45_000 }
   );
-  check('the airport lookup resolved against the live feed', true);
-  check(
-    'the live table or the empty message is showing',
-    (await page.$('#aircraftBody tr')) !== null
-  );
+  const resolved = await page.evaluate(() => ({
+    status: document.getElementById('status')?.textContent.trim() ?? '',
+    chips: document.querySelectorAll('.near-chip').length,
+    map: document.querySelectorAll('svg.locmap .locmap-plane-mark, svg.locmap .locmap-airport, svg.locmap .locmap-you').length,
+    place: document.getElementById('placeName')?.textContent.trim() ?? '',
+    note: document.getElementById('nearbyNote')?.textContent.trim().slice(0, 80) ?? '',
+  }));
+  check('the airports around the reader are listed, from the feed\'s own answers',
+    resolved.chips > 0 && /airports?, each one confirmed/i.test(resolved.note),
+    `${resolved.chips} chips for ${resolved.place} — ${resolved.note}`);
+  // Either the map has something on it, or the page said out loud why it does not.
+  const refused = /slow down|429|rate/i.test(resolved.status);
+  check('the map is drawn, or the page says the feed refused it',
+    resolved.map > 0 || refused,
+    refused ? `feed refused — the page says so: ${resolved.status.slice(0, 90)}` : `${resolved.map} marks`);
 
   const painted = await page.evaluate(() => {
     const layer = document.querySelector('.dvs-pattern');

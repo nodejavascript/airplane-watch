@@ -41,7 +41,19 @@ say "3/6 · check the pieces that must exist before a deploy"
 for icon in favicon.svg favicon-32.png favicon.ico apple-touch-icon.png; do
   [ -f "$SITE_DIR/$icon" ] || die "missing $SITE_DIR/$icon — run: npm run icons"
 done
-grep -q 'G-PENDING' "$SITE_DIR/index.html" && die "the Analytics id is still the placeholder"
+
+# 🔴 THE GATE READS THE ATTRIBUTE, NOT THE FILE (fixed 22 Sep 2026, at the first deploy).
+#
+# It was `grep -q 'G-PENDING' "$SITE_DIR/index.html"` — a bare substring search over the whole page —
+# and the comment beside the script tag contains the words "reads G-PENDING, which means `npm test`
+# cannot pass". So the gate found the placeholder in its OWN EXPLANATION and refused to deploy a site
+# whose Analytics id was real. Measured: the only occurrence in the file was inside that comment.
+#
+# **A check that searches the whole file for a string matches the prose that describes the string.**
+# This one reads the attribute it is about, and it fails loudly if the attribute is missing altogether —
+# a page with no tag at all must not pass by absence.
+grep -q 'data-ga-id="G-PENDING"' "$SITE_DIR/index.html" && die "the Analytics id is still the placeholder"
+grep -q 'data-ga-id="G-' "$SITE_DIR/index.html" || die "no Analytics property is wired — the tag has gone"
 
 say "4/6 · has the DNS record been created? (house rule 7a: at deployment, never before)"
 if ! dig +short "$HOST" >/dev/null 2>&1 || [ -z "$(dig +short "$HOST" || true)" ]; then
@@ -87,7 +99,12 @@ else
   # sends no cross-origin header.
   npx --yes wrangler deploy
 
-  .venv/bin/python3 "$HOME/.cloudflare_purge.py" --all || true
+  # 🔴 THE INTERPRETER IS NAMED ABSOLUTELY, BECAUSE THIS REPO HAS NO `.venv` OF ITS OWN.
+  # It read `.venv/bin/python3` — a relative path that exists in the compose repo and not here — so the
+  # purge failed with `No such file or directory` on the first deploy. `|| true` kept the deploy running,
+  # which is right (a purge is not worth failing a publish over) but it hid the fault in the output.
+  "${PURGE_PY:-$HOME/Documents/git/gitlab.com/datavisionstudios/docker-compose-master/.venv/bin/python3}" \
+    "$HOME/.cloudflare_purge.py" --all || echo "  (purge skipped — run it by hand if a stale file is suspected)"
 fi
 
 say "6/6 · verify the DEPLOYED page — never trust the push"

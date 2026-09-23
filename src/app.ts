@@ -3366,8 +3366,15 @@ class Page {
       // ask the feed about a point that does not exist. The table keeps its last
       // reading rather than being emptied, because an empty table says "nothing is
       // flying" when the truth is "nothing has been asked for yet".
+      // 🔴 THE PAGE MAY NOT INVITE THE READER TO PICK FROM A LIST IT DELIBERATELY WITHHOLDS.
+      // It said *"Pick an airport above, or say where you are, and this fills in."* — and there is no
+      // airport above: `renderNearby` draws nothing until a centre is known, because George's rule is
+      // *"if you dont know location, there should be no airports seen"*. So the first screen of a
+      // fresh visit told a visitor to press something that is not there, while the seven airports the
+      // page is built around went undrawn. **A promise the page does not keep is the defect, not the
+      // withheld list** — the list stays withheld and the sentence now says what to do.
       this.stop();
-      this.setStatus('Pick an airport above, or say where you are, and this fills in.', 'working');
+      this.setStatus('Say where you are — search for a place, or let the browser find you — and this fills in.', 'working');
       return;
     }
     // 🔴 THE HISTORY CROSSES THE RE-AIM, OR MOVING THE DISTANCE WIPES EVERY FLIGHT PATH.

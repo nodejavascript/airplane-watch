@@ -963,6 +963,16 @@ nd `.limits` styles the
   margin: 12px auto 6px;
 }
 
+/* 🔴 THE TWO ANSWERS ARE THE SAME SIZE, SO NEITHER ONE IS NUDGED.
+ * "Accept all" and "Reject all" are different lengths, and buttons sized to their own text made the
+ * accept button 104.3 px wide and the reject button 100.3 px — a four-pixel advantage to the answer the
+ * site would rather have, on the one control where the reader's choice must not be steered. Found by the
+ * live check, which measures both on the deployed page: `the two answers are the same size and weight`. */
+.consentActions button {
+  flex: 1 1 9rem;
+  min-width: 9rem;
+}
+
 .consentSettings {
   display: block;
   margin: 0 auto;
