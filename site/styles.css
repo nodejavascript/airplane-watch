@@ -826,6 +826,28 @@ nd `.limits` styles the
   color: var(--ink);
 }
 
+/* 🔴 THE GITHUB STAR — house part 4b, 23 September 2026: a star to the LEFT of a GitHub link, in
+   the page's own yellow — and ONLY the star is yellow, never the address beside it.
+
+   `display: inline-block` is the load-bearing declaration, not decoration. A site in this family
+   with a global `svg { display: block }` for its icon sets would leave this inline SVG inheriting
+   BLOCK and drop the star onto a line of its own above the label; the apex measured exactly that
+   on 23 September 2026 and its own end-to-end test caught it. A browser cannot warn you until the
+   line has already wrapped.
+
+   `var(--yellow, #fbbf24)` reads the token where a page defines one and falls back to the family
+   value where it does not — **the colour is read from the stylesheet, never typed into the
+   markup**, so one family cannot drift into nine yellows. */
+.gh-star {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 5px;
+  flex: none;
+  vertical-align: -0.05em;
+  fill: var(--yellow, #fbbf24);
+}
+
 .footer-copy {
   margin: 0;
   font-size: 12.5px;
