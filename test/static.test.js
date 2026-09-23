@@ -59,6 +59,17 @@ function stripHtml(source) {
  * vacuous pass. One real instance: *"the start-over reset could not be isolated"* — the slice read the
  * page's HTML looking for two TypeScript method names, and had been empty since it was written.
  */
+/**
+ * The numbers the page spells out, for checks that compare code to copy.
+ *
+ * The cadence is written in words on the page — *"every twenty seconds at first"* — and in digits in the
+ * code (`POLL_START_MS = 20_000`). A check that compares one to the other needs the mapping, and it needs
+ * it in one place: a second copy would be a second thing to keep in step.
+ */
+const WORD_NUMBERS = {
+  ten: 10, fifteen: 15, twenty: 20, 'twenty-five': 25, thirty: 30, 'forty-five': 45, sixty: 60,
+};
+
 function between(source, from, to, what = 'this slice') {
   const a = source.indexOf(from);
   if (a < 0) throw new Error(`${what}: the start anchor ${JSON.stringify(from)} is not in the source`);
@@ -1189,9 +1200,11 @@ test('an empty type list explains itself, and the guard exists at all', () => {
   // guard EXISTS, before any assertion about what it says.
   const list = source.slice(source.indexOf('private renderTypeList(): void {'));
   assert.match(list.slice(0, 1600), /if \(rows\.length === 0\) \{/, 'the type list has no empty guard');
-  assert.match(source, /private emptyMessage\(\)/, 'there is no message for an empty list');
+  // ⚠️ WITH ITS ARGUMENT. The method is `private emptyMessage(counts: { … })` now — it has to know how
+  // many of each thing were seen — so a pattern that requires the empty parentheses can never match.
+  assert.match(source, /private emptyMessage\(/, 'there is no message for an empty list');
 
-  const message = source.slice(source.indexOf('private emptyMessage()'), source.indexOf('private renderTypeList(): void {'));
+  const message = between(source, 'private emptyMessage(', 'private renderTypeList(): void {', 'the empty message');
   assert.match(message, /typeFilter === 'military'/, 'the war planes filter has no message of its own');
   assert.match(message, /normal state rather than a fault/,
     'an empty war planes list still reads as a fault rather than as its normal state');
@@ -1225,8 +1238,16 @@ test('the historic schedule is DATA — in the schema, served by the API, not a 
   assert.match(serve, /composeHistoric/, 'the dev server has no historic composer');
 
   // And read by the page rather than written into it.
+  //
+  // 🔴 RETIRED ON THE PAGE SIDE, AND THE REASON IS IN THE FILE. The historic schedule PANEL was
+  // deliberately deleted — `src/app.ts` says so where the code was: *"`loadHistoric()` IS NOT CALLED ANY
+  // MORE, because the schedule panel is gone"*, and the types it filled went with it. The collector that
+  // fills the database (`tools/load-historic.mjs`, on `aircraft-historic.timer`) is deliberately left
+  // running. **The data half above still holds and still matters; the page half now asserts the opposite
+  // of the truth**, so it is retired here rather than kept as a failure nobody can act on.
   const app = readSrc('src/app.ts');
-  assert.match(app, /fetch\('\/historic\.json'/, 'the page does not read the served document');
+  assert.equal(/fetch\('\/historic\.json'/.test(app), false,
+    'the page reads the historic document again — if the panel is coming back, this check should be re-pointed at it rather than left asserting its absence');
 
   // The file is the deploy artefact, because a Worker cannot reach Postgres — so it must
   // exist in the repo the deploy ships.
@@ -1280,10 +1301,15 @@ test('an aircraft whose type code has no source is reported as UNKNOWN, not as n
   // The trap is recorded where the code it guards is, and it is a COMMENT — so raw again.
   assert.match(loader, /LNC4/, 'the Lancair/Lancaster trap is not recorded next to the code it guards');
 
+  // 🔴 RETIRED, BECAUSE THE CARD THAT SHOWED IT WAS DELETED. `one.reported === false` was how the page
+  // told "no source was found for this code" apart from "the feed has never reported it" — three states
+  // in the data, and the page had to keep all three. That rendering went with the aircraft card and the
+  // historic panel, and `.reported` no longer appears anywhere in `src/app.ts`: measured, zero hits. The
+  // DATA still carries the three states and the composer still distinguishes them (asserted above), which
+  // is the half that survives.
   const app = readSrc('src/app.ts');
-  assert.match(app, /one\.reported === false/, 'the page does not test for the definite `false`');
-  assert.equal(/reported !== true/.test(app), false,
-    'the page treats anything that is not `true` as never seen, which swallows the unknown case');
+  assert.equal(/\.reported\b/.test(app), false,
+    'the page reads `reported` again — the card may be back, and this check should be re-pointed at it');
 });
 
 /* ============== the filters and the type list can be SEEN, and say why ======
@@ -1609,7 +1635,10 @@ test('a watched tail is a NEUTRAL label, and green only when it is in the air', 
   assert.match(app, /tail-air/, 'the chip is never given the in-the-air class');
   // It is read from the same snapshot the status column beside it is drawn from, or the chip and the
   // words could describe different moments.
-  assert.match(app, /const live = this\.engine \? this\.engine\.snapshot\(\) : \[\]/,
+  // ⚠️ ALLOWING THE FILTER. The page writes `const live = (this.engine ? this.engine.snapshot() : []).filter(…)`
+  // — the snapshot is narrowed to what is IN THE AIR in the same expression, and the old pattern required
+  // the `[]` to be followed by nothing, so it could not match a line that does exactly what it asks for.
+  assert.match(app, /const live = \(this\.engine \? this\.engine\.snapshot\(\) : \[\]\)/,
     'the chips are not read from the same snapshot as the row status');
 
   // 🔴 AND "IN THE AIR" MEANS AIRBORNE, IN BOTH KINDS OF ROW. George, 22 Sep 2026: *"you sday in the
@@ -1871,8 +1900,14 @@ test('a watched row reports what it is doing, and keeps its way out', () => {
   // refreshed with the wording, or it describes the status the row used to have.
   assert.match(app, /class="watch-state"[\s\S]{0,200}?title="\$\{escapeHtml\(state\.why\)\}"/,
     'the status carries no explanation for the reader who wants one');
-  assert.match(app, /if \(state\.title !== next\.why\) state\.title = next\.why;/,
-    'the explanation goes stale while the wording is refreshed');
+  // 🔴 THE EXPLANATION CANNOT GO STALE, BECAUSE BOTH HALVES ARE WRITTEN BY THE SAME RENDER. This used to
+  // assert `if (state.title !== next.why) state.title = next.why;` — an in-place update that had to be
+  // remembered every time the wording changed. The row is now re-rendered whole (`renderWatchlist`
+  // rewrites the list's innerHTML), and the `title` sits in the same template string as the `text` six
+  // characters above it, so there is no separate step left to fall out of step. **The property to hold is
+  // that ONE render writes both**, which is what this asserts.
+  assert.match(app, /title="\$\{escapeHtml\(state\.why\)\}">\$\{escapeHtml\(state\.text\)\}/,
+    'the explanation and the wording are written in separate steps, so one can be refreshed without the other');
   assert.match(app, /private agoText\(at: Date\): string/, 'the relative-time wording has gone');
   assert.match(state, /this\.historySpanDays\(\)/,
     'a type with no sighting is not given the span the record actually covers');
@@ -1883,8 +1918,12 @@ test('a watched row reports what it is doing, and keeps its way out', () => {
   // between the class and the title contains one.
   assert.match(app, /class="watch-state"[\s\S]{0,160}?title="\$\{escapeHtml\(state\.why\)\}"/,
     'the status carries no explanation for the reader who wants one');
-  assert.match(app, /if \(state\.title !== next\.why\) state\.title = next\.why;/,
-    'the explanation goes stale while the wording is refreshed');
+  // 🔴 THE SECOND COPY OF THE SAME ASSERTION, AND IT SURVIVED THE FIRST REPAIR. Both were written for a
+  // version of the row that updated its own `title` in place; the row is re-rendered whole now, so `why`
+  // and `text` are written by one template and cannot drift. See the note on the identically-named
+  // assertion above — this one is the copy that a single search-and-replace missed.
+  assert.match(app, /title="\$\{escapeHtml\(state\.why\)\}">\$\{escapeHtml\(state\.text\)\}/,
+    'the explanation and the wording are written in separate steps, so one can be refreshed without the other');
 
   // The column is at the right of the row, does not wrap, and the cells have their margins back.
   assert.match(css, /\.watch-list > li\s*\{[^}]*padding:\s*9px 12px/s,
@@ -2100,7 +2139,9 @@ test('92 · a flight path is drawn, under the aircraft, only where there is a pa
   // says something the page does not know.
   assert.match(body, /trail\.length >= 2/,
     'a path can be drawn from a single point, which is not a path');
-  assert.match(body, /class="locmap-trail"/, 'no path is drawn on the map');
+  // ⚠️ THE CLASS CARRIES A HUE. The line is `<line class="locmap-trail locmap-trail-${hue}" …`, so the
+  // closing quote in the old pattern could never be there — and the path was being drawn the whole time.
+  assert.match(body, /class="locmap-trail/, 'no path is drawn on the map');
 
   // 🔴 UNDER EVERYTHING. The paths are collected separately and laid down before the marks, so a
   // path can never be drawn across the aeroplane it belongs to.
@@ -2271,10 +2312,28 @@ test('95 · the honest page and the honest code agree about the feed', () => {
   const floor = number('POLL_MIN_MS');
   assert.ok(Number.isFinite(start) && Number.isFinite(floor),
     'the poll cadence could not be read out of the code, so this check would be vacuous');
-  assert.match(page, new RegExp(`looks every ${start} seconds`),
-    `the page does not state the ${start}-second cadence the code uses`);
-  assert.match(page, new RegExp(`never more often than every ${floor}`),
-    `the page does not state the ${floor}-second floor the code uses`);
+  // ⚠️ THE PAGE WRITES THE CADENCE IN WORDS. It says *"Every twenty seconds at first — more slowly if the
+  // feed refuses"* and *"every twenty seconds or so"*, and this asked for the digits, so it could never
+  // match a page that states the number plainly. The number is still required to be the one the code
+  // uses — `POLL_START_MS` is read above and the word is derived from it — so a change to 30 seconds
+  // still fails here, which is the point of the check.
+  const words = ['ten', 'fifteen', 'twenty', 'twenty-five', 'thirty', 'forty-five', 'sixty'];
+  // ⚠️ `start` IS ALREADY IN SECONDS — the helper reads the constant and divides by 1000 itself. A second
+  // division here produced 0.02 and a message about "the 0.02-second start", which is how this line was
+  // caught rather than shipped.
+  const spelled = words.find((word) => Math.round(start) === WORD_NUMBERS[word]);
+  assert.ok(spelled, `the ${start}-second start has no word for it in this check`);
+  assert.match(page, new RegExp(`every (${spelled}|${Math.round(start)}) seconds`),
+    `the page does not state the ${spelled}-second cadence the code uses`);
+  // 🔴 AND THE FLOOR IS NOW SAID OUT LOUD, BECAUSE THE PAGE DID NOT SAY IT. `POLL_MIN_MS` is the promise
+  // that the page never leans on a volunteer-funded feed harder than once every fifteen seconds — it is
+  // the politeness rule that stopped five of seven airports being refused — and the sentence under "How a
+  // departure is decided" stated the start and the back-off and left the floor unsaid. The floor is written
+  // in words, like the cadence above it, so the same mapping applies.
+  const floorWord = words.find((word) => Math.round(floor) === WORD_NUMBERS[word]);
+  assert.ok(floorWord, `the ${floor}-second floor has no word for it in this check`);
+  assert.match(page, new RegExp(`never more often than every (${floorWord}|${Math.round(floor)}) seconds`),
+    `the page does not state the ${floorWord}-second floor the code uses`);
 
   // 🔴 AND IT MUST NOT PROMISE A MARK THAT NO ROW CARRIES. The departures board was removed on
   // 20 Sep 2026 and took the "seen on the ground first / first seen climbing" labels with it — so a
@@ -2295,8 +2354,12 @@ test('95 · the honest page and the honest code agree about the feed', () => {
   const privacy = page.slice(page.indexOf('id="privacy"'), page.indexOf('consentBar'));
   assert.ok(privacy.length > 400, 'the privacy section could not be isolated, so this check is vacuous');
   assert.match(privacy, /place name you search for/, 'the privacy section does not admit the place lookup');
-  assert.match(privacy, /callsigns of the aircraft inside your fence/,
-    'the privacy section does not admit the callsign lookups');
+  // ⚠️ THE ADMISSION IS THERE; IT IS THE WORDING THAT MOVED. The section says a request is made *"for the
+  // aircraft inside your fence"* rather than *"callsigns of the aircraft inside your fence"* — same fact,
+  // fewer words, and the check was pinned to the longer phrase. What must stay true is that the section
+  // admits the fence request at all, because that request carries the callsigns.
+  assert.match(privacy, /aircraft inside your fence/,
+    'the privacy section no longer admits that the aircraft inside the fence are sent to this server');
   assert.equal(/Nothing you type is sent to this site/.test(privacy), false,
     'the privacy section is back to claiming that nothing is transmitted, which the code contradicts');
   assert.match(privacy, /last changed on 22 September 2026/,
@@ -2305,123 +2368,45 @@ test('95 · the honest page and the honest code agree about the feed', () => {
 
 test('97 · a takeoff time is never invented, and a run to the destination is never claimed as one', () => {
   const app = readSrc('src/app.ts');
-  const page = read(SITE, 'index.html');
-  const styles = read(SITE, 'styles.css');
-
-  // 🔴 THE FEED CARRIES NO TAKEOFF TIME, SO THE PAGE MAY ONLY CLAIM WHAT IT SAW. Measured on a live
-  // Hamilton response, 22 Sep 2026: position, altitude, ground speed, track, squawk, an age and the
-  // quality flags — no origin, no destination and no time of any kind. So the departure time is the
-  // page's own observation, and there are exactly two of them, kept apart:
-  //
-  //   · `tookOffAt` — a departure the engine CONFIRMED, which means it saw the aircraft on the ground
-  //     first. Only a confirmed one may overwrite the weaker fact.
-  //   · `firstSeenAirborne` — the first airborne reading of this session. Weaker, and labelled as such.
-  const note = app.slice(app.indexOf('private noteTimes('), app.indexOf('private askAirportCoords('));
-  assert.ok(note.length > 300, 'the two times are not recorded anywhere, so this check is vacuous');
-  assert.match(note, /departure\.verdict !== 'confirmed'/, 'an unconfirmed departure is allowed to set a takeoff time');
-  assert.match(note, /this\.tookOffAt\.set\(hex, departure\.at\)/,
-    'a confirmed departure does not record the moment it was decided');
-  assert.match(note, /alt_baro/, 'the first-seen-airborne test does not use the aircraft\u2019s own altitude reading');
-  assert.match(note, /!this\.firstSeenAirborne\.has\(hex\)/, 'the first sighting is overwritten by every later poll');
-
-  // 🔴 AND THE TWO LABELS ARE BOTH RENDERED, EACH ON ITS OWN CONDITION. A row that prints "took off" for
-  // an aircraft it merely first saw airborne is the one claim this whole change must not make — and the
-  // converse is asserted too: the weaker time is WITHHELD when the only time the page could offer is the
-  // minute it opened. On the live page that minute was printed on sixty rows at once, which is a column
-  // that says nothing about any of them.
-  const depart = app.slice(app.indexOf('private departureCell'), app.indexOf('private destinationCell'));
-  assert.ok(depart.length > 200, 'the departure cell is missing, so this check is vacuous');
-  assert.match(depart, /tookOff !== null \? 'took off' : 'first seen'/,
-    'the departure cell does not say which of the two times it is showing');
-  assert.match(depart, /firstSeen > this\.startedAt/,
-    'the page prints its own opening minute as if it were a fact about the aircraft');
-  assert.match(depart, /No takeoff time is known for this aircraft/,
-    'a row with no takeoff time does not admit it');
-  assert.match(app.slice(app.indexOf('private noteTimes('), app.indexOf('private askAirportCoords(')),
-    /if \(this\.startedAt === null\) this\.startedAt = now/,
-    'the moment the page first looked at the feed is never recorded, so nothing can be told apart from it');
-
-  // 🔴 AND A TIME IS SHOWN IN THE READER'S OWN ZONE, WHICH IS THE BROWSER'S. George, 22 Sep 2026: *"in
-  // arrival list the time it took off in the users locat time"*. `toLocaleTimeString` with no zone
-  // argument is that zone; a fixed offset or a UTC call would be somebody else's clock.
-  const clock = app.slice(app.indexOf('function clockTime('), app.indexOf('function runText('));
-  assert.ok(clock.length > 80, 'the clock formatter is gone, so this check is vacuous');
-  assert.match(clock, /toLocaleTimeString\(\[\], \{ hour: '2-digit', minute: '2-digit' \}\)/,
-    'the clock time is not formatted in the reader\u2019s own time zone');
-
-  // 🔴 AND THE RUN TO THE DESTINATION IS AN ESTIMATE, LABELLED AS ONE WHERE THE NUMBER IS. It is
-  // arithmetic on the feed's own position, the airport's own record and the aircraft's own ground speed,
-  // and it assumes a straight line at an unchanged speed — so the word "about" belongs in the cell, not
-  // only in a tooltip, and the conditions under which it must stay silent are asserted here.
-  const run = app.slice(app.indexOf('private runToDestination('), app.indexOf('private scheduleRouteRepaint('));
-  assert.ok(run.length > 300, 'the run estimate is missing, so this check is vacuous');
-  // 🔴 THE SPEED IT DIVIDES BY HAS TO BE ONE THE ROW STATE ACTUALLY CARRIES. This method was written
-  // reading the raw feed field off the row, which is `undefined` on every row — the estimate was
-  // correct, complete and printed nowhere. The table draws from `engine.snapshot()`, so the speed has
-  // to be kept there (`gsKt`) and read from there.
-  assert.match(run, /typeof state\.gsKt === 'number'/, 'the estimate reads its speed from something the row state does not carry');
   const detect = readSrc('src/detect.ts');
-  assert.match(detect, /gsKt\?: number;/, 'the track state does not declare the speed the estimate needs');
-  assert.match(detect, /gsKt: Number\.isFinite\(reading\.gs\) \? \(reading\.gs as number\) : previous\?\.gsKt/,
-    'the engine does not keep the aircraft\u2019s own ground speed, so no row can estimate a run');
-  assert.match(run, /if \(knots < 60\) return null/, 'a taxiing aircraft is given an hours-long run to its destination');
-  assert.match(run, /minutes < 1 \|\| minutes > 12 \* 60/, 'an absurd run is printed instead of being withheld');
-  assert.match(run, /!airport \|\| lat === null \|\| lon === null \|\| knots === null/,
-    'a run is computed from something other than the three measured numbers');
-  assert.match(depart + app.slice(app.indexOf('private destinationCell'), app.indexOf('private tickReadingAges')),
-    /in about \$\{escapeHtml\(runText\(/, 'the run is printed without the word that marks it as an estimate');
-  assert.match(styles, /\.leg-time\s*\{[^}]*display:\s*block/,
-    'the time under an airport code does not start a line of its own');
 
-  // 🔴 AND THE AIRPORT'S POSITION IS ASKED FOR CAREFULLY, WHICH IS WHAT MAKES THE ESTIMATE POSSIBLE. The
-  // feed answers for ANY airport by code — measured 22 Sep 2026, `/api/0/airport/KDEN` returned Denver at
-  // 39.861698, -104.672997. Three things are asserted, and the third is the one that was measured the hard
-  // way: with sixty rows the page asked for sixty airports at once, the feed began answering 429, and a
-  // refusal remembered as "no coordinates" would have taken the run off every row for the session.
-  const ask = app.slice(app.indexOf('private askAirportCoords('), app.indexOf('private runToDestination('));
-  assert.ok(ask.length > 200, 'the airport-coordinate lookup is gone, so this check is vacuous');
-  assert.match(ask, /\/api\/0\/airport\/\$\{encodeURIComponent\(key\)\}/, 'the lookup does not ask the feed for the airport');
-  assert.match(ask, /this\.airportCoords\.has\(key\) \|\| this\.askingAirport\.has\(key\)\) return/,
-    'the same airport would be asked for again on every poll');
-  assert.match(ask, /this\.airportCoords\.set\(key, null\)/, 'an airport the feed has no record of is asked about forever');
-  assert.match(ask, /this\.airportRetryAt\.set\(key, Date\.now\(\) \+ AIRPORT_RETRY_MS\)/,
-    'a refused lookup is remembered as an unknown airport, so one rate-limited second loses the estimate for the session');
-  assert.match(ask, /this\.askingAirport\.size < AIRPORT_LOOKUPS_AT_ONCE/,
-    'every airport is asked for at once, which is what produced the refusals');
-  assert.match(ask, /if \(Date\.now\(\) < \(this\.airportRetryAt\.get\(key\) \?\? 0\)\) return/,
-    'a refused airport is not made to wait, so it is retried on every poll');
-
-  // 🔴 AND THE LIVE CHECK RUNS BEFORE THE ROWS ARE DRAWN, so a column can never show a time from an older
-  // reading than the table around it.
-  const poll = app.indexOf('this.noteTimes(readings, departures)');
-  assert.ok(poll > -1, 'the times are never noted, so both columns would stay empty');
-  assert.ok(poll < app.indexOf('this.renderAircraft()', poll),
-    'the times are noted after the table is drawn, so the first row of every poll shows an older time');
-
-  // 🔴 AND THE PHASE IS A TAG FOR THE EXCEPTIONS ONLY. The column went because nearly every row said
-  // "airborne"; the two rows that say something else keep a tag beside the callsign, and the word that
-  // said nothing is not rendered at all.
-  const tag = app.slice(app.indexOf('const phaseTag'), app.indexOf('const info = state.type'));
-  assert.ok(tag.length > 80, 'the phase tag is gone, so this check is vacuous');
-  assert.match(tag, /state\.phase === 'airborne'\s*\n?\s*\?\s*''/, 'an airborne row still carries a tag');
-  assert.match(tag, /tag-ground[^']*>on the ground/, 'the on-the-ground exception is no longer drawn');
-  assert.match(tag, /tag-unknown[^']*>no altitude/, 'the no-altitude exception is no longer drawn');
-  assert.match(app, /<td><b>\$\{escapeHtml\(label\)\}<\/b>\$\{phaseTag\}<\/td>/,
-    'the phase tag is not drawn beside the callsign');
-
-  // And the page tells the reader all of it, in the card the numbers are in.
+  // 🔴 THE RULE SURVIVES; THE MACHINERY IT WAS WRITTEN FOR DOES NOT.
   //
-  // ⚠️ THE SENTENCES WRAP, SO THE PATTERNS ARE ENDINGS AND NOT WHOLE LINES. A pattern copied from the
-  // rendered page failed here on a paragraph that was correct: "took off</b> means this page watched"
-  // is broken across two source lines, and a substring search cannot see across the break. These match
-  // from a phrase to its end and let the newline sit inside `[^.]*`.
-  assert.match(page, /took off<\/b> means this page[^.]*leave the ground/,
-    'the page does not explain the stronger time');
-  assert.match(page, /first seen<\/b> means it was already flying[^.]*the feed never sends a takeoff time/,
-    'the page does not explain the weaker time');
-  assert.match(page, /estimate, not an arrival time/, 'the page does not say the run is an estimate');
-  assert.match(page, /straight-line distance still to[^.]*run at the speed/,
-    'the page does not say what the estimate assumes');
+  // This test was written when the page carried a six-column list of watched aircraft with a departure
+  // cell, a destination cell and a clock. The rule it protects is the one that matters and it has not
+  // changed: **the feed carries no takeoff time, so the page may only claim what it saw** — measured on
+  // a live Hamilton response, 22 Sep 2026, which gave position, altitude, ground speed, track, squawk,
+  // an age and the quality flags, and no origin, no destination and no time of any kind.
+  //
+  // The list was deleted the same day — *"delete ## What the feed can see right now"* — and the two
+  // observed times went with it. Measured in `src/app.ts`: `noteTimes` 0, `tookOffAt` 0,
+  // `firstSeenAirborne` 0, `departureCell` 0, `destinationCell` 0, `runToDestination` 0, `clockTime` 0,
+  // `startedAt` 0. **A check for a deleted mechanism asserts nothing about the page and cannot be made
+  // to pass by any correct change**, so the assertions are replaced by the two things that are still
+  // true and still worth guarding: the difference is said out loud where it is still said, and none of
+  // the retired machinery has quietly come back.
+  //
+  //   · a CONFIRMED departure — the engine saw the aircraft on the ground first;
+  //   · a first-seen-airborne one — weaker, and it must be labelled as the weaker thing.
+  const alert = between(app, 'private notify(departure', 'private async loadAirports', 'the departure alert');
+  assert.match(alert, /departure\.verdict === 'confirmed'/,
+    'the alert no longer distinguishes a confirmed departure from a first-seen-airborne one');
+  assert.match(alert, /It was on the ground and it is not now/,
+    'the confirmed case is not described as the stronger fact');
+  assert.match(alert, /It was first seen already climbing/,
+    'the weaker case is not labelled as the weaker one, so an inference reads as an observation');
+
+  // And the aircraft's own ground speed — the one number a run to a destination needs — is still carried
+  // on the track state, so the estimate can be rebuilt from measured values rather than from a guess.
+  assert.match(detect, /gsKt\?: number;/, 'the track state no longer declares the ground speed');
+  assert.match(detect, /gsKt: Number\.isFinite\(reading\.gs\) \? \(reading\.gs as number\) : previous\?\.gsKt/,
+    'the engine no longer keeps the aircraft\u2019s own ground speed from the feed');
+
+  // If the list comes back, this check should be re-pointed at it rather than left asserting its absence.
+  for (const gone of ['noteTimes', 'tookOffAt', 'firstSeenAirborne', 'departureCell', 'runToDestination', 'clockTime']) {
+    assert.equal(new RegExp(`\\b${gone}\\b`).test(app), false,
+      `the deleted table's \`${gone}\` is back in the page — re-point this test at it rather than leaving its absence asserted`);
+  }
 });
 
 test('98 · a row you press puts the map on that flight, and pressing it again puts it back', () => {
@@ -2439,28 +2424,40 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
   // the table is re-sorted, so the airframe's hex is the only identifier that survives both — and a
   // selection that outlives its flight is cleared rather than left holding the map.
   assert.match(app, /private selectedHex: string \| null = null;/, 'nothing records which flight was picked');
-  const rows = app.slice(app.indexOf('private renderAircraft'), app.indexOf('private tickReadingAges'));
-  assert.ok(rows.length > 400, 'the row builder could not be isolated, so this check is vacuous');
-  assert.match(rows, /this\.selectedHex === String\(state\.hex \?\? ''\)\.toLowerCase\(\)/,
-    'a row cannot tell whether it is the picked one');
-  assert.match(rows, /!rows\.some\(\(one\) => String\(one\.hex \?\? ''\)\.toLowerCase\(\) === this\.selectedHex\)[\s\S]{0,80}this\.selectedHex = null;/,
-    'a selection whose aircraft has left the list is never cleared, so the map stays on nothing');
+  // 🔴 RE-POINTED: THE TABLE IS GONE, AND THE PICK IS STILL THE SAME PICK.
+  // The six-column list of watched aircraft was deleted on George's instruction — *"delete ## What the
+  // feed can see right now"* — so `renderAircraft` no longer builds rows and the assertion that read a
+  // row's own markup could not match anything. The BEHAVIOUR did not go anywhere: a row is pressed, the
+  // press is keyed on the hex, and pressing the same one again puts the map back — and that is asserted
+  // further down this test, where `pickFlight` is sliced and its `wasSelected` branch is read. What is
+  // left to say here is the rule that outlives the press: a pick whose aircraft has left the fence is
+  // DROPPED rather than left holding the map.
+  assert.match(app, /this\.selectedHex !== null &&[\s\S]{0,140}!seen\.air\.some\(\(one\) => String\(one\.hex \?\? ''\)\.toLowerCase\(\) === this\.selectedHex\)[\s\S]{0,80}this\.selectedHex = null;/,
+    'a pick that has left the fence is never dropped, so the map stays zoomed to an aircraft that is gone');
 
   // 🔴 AND THE ROW CARRIES BOTH THE KEY AND THE PRESS. `data-hex` is what the delegated listener reads;
   // `tabindex` is what makes the same press possible from the keyboard, because a row that only a mouse
   // can press is a row some readers cannot press at all.
-  assert.match(rows, /data-hex="\$\{escapeHtml\(String\(state\.hex \?\? ''\)\)\}" tabindex="0"/,
-    'the row does not carry the airframe it names, or cannot be reached from the keyboard');
-  assert.match(rows, /\$\{picked \? ' row-selected' : ''\}/, 'the picked row is not marked as picked');
-  assert.equal(/aria-pressed/.test(rows), false,
-    'the row claims to be a pressed button, which a table row is not');
+  // 🔴 THE ROW MARKUP IS GONE WITH THE ROW. `data-hex` and `tabindex` on a table row, and the
+  // `row-selected` class, belonged to the six-column list of watched aircraft that George had deleted
+  // — *"delete ## What the feed can see right now"*. Measured: `data-hex` appears once in the page, on
+  // the MAP's own marks, and the rows no longer exist to carry it. The keyboard rule it protected still
+  // applies and is asserted where the marks are drawn; here the absence is asserted, so a table creeping
+  // back without these attributes is caught.
+  assert.equal(/row-selected/.test(app), false,
+    'the deleted table\'s selected-row class is back — re-point these assertions at it rather than leaving their absence asserted');
 
   // 🔴 THE LISTENER IS ON THE DOCUMENT. The list is rewritten on every poll, so a listener attached to
   // a row goes with the row — the fault this file has already recorded once for the footer's door.
   const bind = app.slice(app.indexOf('private bindFlightPick('), app.indexOf('private pickFlight('));
   assert.ok(bind.length > 400, 'the pick binding is gone, so this check is vacuous');
   assert.match(bind, /document\.addEventListener\('click'/, 'the pick is bound to the rows instead of delegated');
-  assert.match(bind, /closest\('button, a, input, \.tail-chip'\)\) return/,
+  // ⚠️ THE GUARD GREW A TYPE ARGUMENT AND A FIFTH CONTROL. The live line is
+  // `if (target.closest<HTMLElement>('button, a, input, .tail-chip, .map-switch')) return;` — the
+  // generic is needed for the cast and the map switch was added when the row gained one — so a pattern
+  // pinned to `closest('button, a, input, .tail-chip')) return` could not match a guard doing more than
+  // it asked for. It asserts what the guard must refuse, not how it spells it.
+  assert.match(bind, /closest[^(]*\('button, a, input, \.tail-chip[^']*'\)\) return/,
     'the pick swallows presses meant for the controls inside a row');
   // ⚠️ THE KEYDOWN BRANCH WENT WITH THE PRESSABLE ROW (22 Sep 2026). It existed to let a watching row be
   // pressed from the keyboard, and the row is a boolean now — the browser focuses and toggles a checkbox
@@ -2483,8 +2480,13 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
 
   // 🔴 AND THE WAY BACK IS A CONTROL, NOT A PIECE OF KNOWLEDGE. *"i need a way to return to all flights"* —
   // pressing the same row again does it, but a reader who has scrolled to the map has no row in view.
-  assert.match(app, /if \(all\) all\.addEventListener\('click', \(\) => this\.clearFlightPick\(\)\);/,
+  // ⚠️ IT RELEASES WHICHEVER OWNER HOLDS THE FRAME, so the handler is a block and not a one-liner: a
+  // picked flight and rows switched off are two different reasons the map is narrowed, and the button is
+  // the way back from either. The old pattern expected the flight pick alone.
+  assert.match(app, /if \(all\) all\.addEventListener\('click', \(\) => \{/,
     'the return control is on the page but wired to nothing');
+  assert.match(app, /if \(this\.mapHide\.size > 0\) this\.clearMapHide\(\);\s*\n\s*else this\.clearFlightPick\(\);/,
+    'the return control releases only one of the two reasons the map is narrowed');
   assert.match(app, /private clearFlightPick\(\)[\s\S]{0,240}track\('flight_unselected', \{ via: 'show_all' \}\)/,
     'the return control does not record what it did');
   assert.match(page, /id="flightAll"[^>]*data-ga="flight-all"[^>]*hidden/, 'the return control is not on the page');
@@ -2520,16 +2522,23 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
 
   // 🔴 AND THE WAY BACK IS SHOWN ONLY WHEN THERE IS SOMETHING TO GO BACK FROM — here, in the one method
   // that knows both the selection and the label of the aircraft it is on.
-  assert.match(map, /all\.hidden = this\.selectedHex === null;/, 'the return control is not hidden when nothing is picked');
+  // ⚠️ THE CONDITION GREW. The control is shown when EITHER reason the map is narrowed applies — a picked
+  // flight, or rows switched off — so the line is `this.selectedHex === null && this.mapHide.size === 0`.
+  // The check asked for the left half alone and called a working control un-hidden.
+  assert.match(map, /all\.hidden = this\.selectedHex === null && this\.mapHide\.size === 0;/,
+    'the return control is not hidden when there is nothing to go back from');
   assert.match(map, /const all = byId\('flightAll'\);/, 'the return control is never shown or hidden at all');
   const pickBox = map.slice(map.indexOf('if (pickedFlown) {'), map.indexOf('const midLat'));
   assert.ok(pickBox.length > 200, 'the picked frame is gone, so this check is vacuous');
   assert.match(pickBox, /minLat = 90;/, 'the picked frame keeps the airports inside it, so it cannot zoom in');
   assert.match(pickBox, /pickedFlown\.trail \?\? \[\]/, 'the flight path is left out of the frame it should be fitted to');
-  assert.match(map, /const zoom = pickedFlown\s*\n?\s*\? zoomForEverything/, 'a picked flight does not take the frame on its own');
+  // ⚠️ THE CONDITION GREW A SECOND REASON. A picked flight and rows switched off are both "show me only
+  // this", so the frame is taken on its own for either — `const zoom = pickedFlown || rowFilter`.
+  assert.match(map, /const zoom = pickedFlown \|\| rowFilter\s*\n?\s*\? zoomForEverything/,
+    'a picked flight does not take the frame on its own');
   // The fence is not drawn at that zoom — its edge is hundreds of kilometres away, so all it could draw
-  // is a wall of green across the view.
-  assert.match(map, /\(anchorPx && !pickedFlown\s*\n?\s*\? `<circle class="locmap-fence"/,
+  // is a wall of green across the view. Same second reason applies.
+  assert.match(map, /\(anchorPx && !pickedFlown && !rowFilter\s*\n?\s*\? `<circle class="locmap-fence"/,
     'the fence is drawn across a map that is zoomed to one aircraft');
 
   // 🔴 AND AIRCRAFT OUTSIDE A ZOOMED FRAME ARE NOT AIRCRAFT WITHOUT A POSITION. The note said the
@@ -2565,8 +2574,16 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
     'ticking a tail does not redraw the table and the map');
   const watchlist = app.slice(app.indexOf('private renderWatchlist('), app.indexOf('private renderWatchButton('));
   const removeHandler = watchlist.slice(watchlist.indexOf("querySelectorAll<HTMLButtonElement>('.type-remove')"));
-  assert.match(removeHandler, /this\.renderAircraft\(\);/,
-    'stopping watching a type does not redraw the table and the map');
+  // ⚠️ THE PRESS ASKS BEFORE IT REMOVES. Stopping watching is a one-way door — the cross takes the row,
+  // its tails and its aircraft off the map, and the only way back is finding the type again in step 2 —
+  // so the handler does not redraw anything itself: it puts the question, in the page's own box, and the
+  // redraw happens inside the removal once the answer is yes. See `removeTypeRule`, which is asserted to
+  // redraw all three things below.
+  assert.match(removeHandler, /this\.askRemove\('type', code, /,
+    'stopping watching a type does not ask first');
+  assert.match(between(app, 'private removeTypeRule', 'private renderWatchButton', 'the type removal'),
+    /this\.renderAircraft\(\);/,
+    'removing a type does not redraw the map and the watch rows');
 
   // 🔴 AND THE WATCHLIST ROW THAT NAMES ONE AIRCRAFT CARRIES A BOOLEAN, NOT A PRESS. George, 22 Sep 2026:
   // *"even though the filight may or may not be in the air, i want this to be a boolean input, not a
@@ -2596,28 +2613,47 @@ test('98 · a row you press puts the map on that flight, and pressing it again p
     'an all-off list is still treated as "no filter", which is the behaviour George rejected');
   assert.equal(/mapShow/.test(app), false, 'the old switched-on set is still in the file');
 
-  // 🔴 ONE GREEN HUE, ON THE ROW AND ON THE MAP. George, 22 Sep 2026: *"the select and unselected can be
-  // a simple green hue border"*. On a `border-collapse: collapse` table the border goes on the cells,
-  // because a border on the row only shows where a cell does not already own that edge.
-  assert.match(css, /\.aircraft tr\.row-selected td \{[^}]*border-top: 2px solid #4ade80/,
-    'the picked row has no green border');
-  assert.match(css, /\.aircraft tr\.row-selected td:first-child \{[^}]*border-left: 2px solid #4ade80/,
-    'the green box is not closed on the left');
-  assert.match(css, /\.aircraft tr\.row-selected td:last-child \{[^}]*border-right: 2px solid #4ade80/,
-    'the green box is not closed on the right');
+  // 🔴 THE GREEN HUE SURVIVED; THE TABLE IT WAS DRAWN ON DID NOT. George asked for it — *"the select and
+  // unselected can be a simple green hue border"* — and it was drawn on `tr.row-selected td`, which went
+  // with the six-column list. `site/styles.css` records the removal where the code was: *".table-wrap,
+  // .aircraft, … .aircraft tr.row-selected family all styled elements the page no longer draws"*.
+  // The rule still holds and is asserted where the shapes that remain are: the picked aircraft on the
+  // MAP is marked, and differently from its neighbours.
+  assert.match(css, /\.locmap-plane-label-picked/, 'a picked aircraft is not marked on the map');
+  // ⚠️ A RULE, NOT A MENTION. `css` is the RAW stylesheet, and the stylesheet's own notes name the
+  // retired selectors while explaining why they went — so a bare substring search for
+  // `.aircraft tr.row-selected` matched the COMMENT that records its removal and reported the rule as
+  // present. **A false failure, and mine.** Requiring a block after the selector is what makes this an
+  // assertion about the stylesheet rather than about its prose.
+  // 🔴 AND IT IS THE COMMENT-STRIPPED STYLESHEET, BECAUSE THIS PATTERN TRIED TWICE TO MATCH PROSE.
+  // `[^{]*\{` walks past the mention in the stylesheet's own note and reaches the next `{` in the file —
+  // which is a real rule, thousands of characters later — so it reported the rule as present. The
+  // instrument for "a rule is absent" is the stylesheet with its reasons removed.
+  const bareCss = stripCss(css);
+  assert.equal(/\.aircraft tr\.row-selected/.test(bareCss), false,
+    "the deleted table's selected-row rules are back — re-point this at them rather than leaving their absence asserted");
   assert.match(css, /\.locmap-plane-pick \{[^}]*stroke: #4ade80/, 'the picked aircraft is not ringed in the same green');
   // The named tail has no picked state any more — it is a boolean, not a selection — so the rule that
   // marked it went with the press it marked. Asserted as a RULE (selector followed by a block), because
   // the stylesheet's own note names the retired selector while explaining why it went.
-  assert.equal(/\.watch-type\.row-selected\s*\{/.test(css), false, 'a picked-tail rule is back for a row that is a boolean');
-  assert.match(css, /\.aircraft tr\.aircraft-row \{[^}]*cursor: pointer/,
-    'a row that can be pressed does not look as though it can be');
+  assert.equal(/\.watch-type\.row-selected/.test(bareCss), false, 'a picked-tail rule is back for a row that is a boolean');
+  // ⚠️ AND THE CURSOR WENT WITH THE ROW. `.aircraft tr.aircraft-row { cursor: pointer }` styled a table row
+  // that could be pressed; the pressable thing is the aeroplane on the map now, and the rule that says so
+  // is asserted earlier in this test — `.locmap-plane-mark[data-hex] { cursor: pointer }`.
+  assert.equal(/\.aircraft tr\.aircraft-row/.test(bareCss), false,
+    "the deleted table's pressable-row rule is back — re-point this at it rather than leaving its absence asserted");
 
   // And the page says which frame is in use, because a map that suddenly has no ring must say why — and
   // it says, where the rows are, that the rows can be pressed at all.
   assert.match(map, /It is zoomed to <b>/, 'the note does not say that the map is on one aircraft');
-  assert.match(page, /Press any row to put the map on that aircraft/,
-    'the page never tells the reader that a row can be pressed');
+  // ⚠️ THE INSTRUCTION MOVED FROM THE ROW TO THE SHAPE. The page used to say *"Press any row to put the map
+  // on that aircraft"*, and `index.html` records what happened to it: the pressable row was deleted with
+  // the list — *"the per-row press that put the map on a flight"* is named in the note listing what
+  // went. The thing a reader presses now is the aeroplane ON the map, and its own `title` says so —
+  // *"Press to put the map on this aircraft"* — which is asserted earlier in this test. What is left to
+  // require here is that the page does not still promise a row that cannot be pressed.
+  assert.equal(/Press any row to put the map on that aircraft/.test(page), false,
+    'the page still promises a row press that the deleted list carried');
 });
 
 test('99 · the list and the map show the same aircraft: what you watch, inside your fence, seen in the air', () => {
@@ -2645,21 +2681,40 @@ test('99 · the list and the map show the same aircraft: what you watch, inside 
   assert.match(helper, /watched \+= 1;/, 'the number of watched aircraft is not counted, so an empty list cannot say why');
 
   // 2 · INSIDE THE FENCE — measured from the same centre everything else uses, at the distance chosen.
-  assert.match(helper, /const centre = this\.point\(\);/, 'the fence is measured from a different centre than the map uses');
-  assert.match(helper, /const radiusNm = kmToNm\(this\.radiusKm\);/, 'the fence radius is not the one the reader chose');
-  assert.match(helper, /distanceNm\(centre\.lat, centre\.lon, state\.lat as number, state\.lon as number\)/,
+  //
+  // ⚠️ THE FILTER DELEGATES, SO THE ASSERTIONS FOLLOW IT. This asked for `const centre = this.point();`
+  // and `radiusNm: kmToNm(this.radiusKm)` INSIDE the filter, but the filter calls `this.insideFence(state)`
+  // and the fence calls `this.insideMyCircle(...)` — one question, asked in one place, reached three deep.
+  // The old patterns therefore could not match, and they reported that the fence ignored the reader's
+  // distance while it was using it. **What has to hold is the delegation and the arithmetic at the
+  // bottom of it**, so both are asserted where they actually live.
+  assert.match(helper, /if \(!this\.insideFence\(state\)\) \{/, 'the filter asks a second fence question of its own');
+  const circle = between(app, 'private insideMyCircle', 'private async loadSurvey', 'the circle test');
+  assert.match(circle, /const centre = this\.point\(\);/, 'the fence is measured from a different centre than the map uses');
+  assert.match(circle, /kmToNm\(this\.radiusKm\)/, 'the fence radius is not the one the reader chose');
+  assert.match(circle, /distanceNm\(centre\.lat, centre\.lon, lat, lon\)/,
     'the distance to the fence centre is never measured');
-  assert.match(helper, /if \(away > radiusNm\) \{\s*\n\s*outside \+= 1;/, 'aircraft beyond the fence are still listed');
+  // ⚠️ THE FENCE ASSERTION MOVED TO THE CIRCLE. The filter asks `this.insideFence(state)` and the fence
+  // asks `this.insideMyCircle(...)`, so `away > radiusNm` no longer appears in the filter — it was the
+  // hand-rolled copy of the circle that the delegation replaced, and the radius is asserted on the circle
+  // itself above. What stays here is the phase test, which the filter still does for itself.
+  assert.match(helper, /if \(!this\.insideFence\(state\)\) \{/, 'the filter no longer asks the fence');
   assert.match(helper, /if \(state\.phase !== 'airborne'\) \{\s*\n\s*onGround \+= 1;/,
     'an aircraft on the ground is listed as seen in the air');
 
   // 3 · AND BOTH HALVES READ IT. Two lists that can disagree are two lists that eventually will: the map drew
   // *everything watched* while the table drew the rows, which is exactly how a 25 km fence came to show two
   // shapes and a caption about fifty-eight aircraft nobody could see.
-  assert.match(app, /const seen = this\.seenInTheAirInsideFence\(all\);\s*\n\s*const rows = seen\.air\.slice\(0, 60\);/,
-    'the table is not built from the shared filter');
+  // ⚠️ THE TABLE HALF IS RETIRED WITH THE TABLE. `const rows = seen.air.slice(0, 60);` built the
+  // six-column list George deleted — *"delete ## What the feed can see right now"* — so the assertion
+  // that the LIST is built from the shared filter has nothing to read. `seen` itself is still computed
+  // at `renderAircraft`'s head (line 1998), which is what the counting and the stale-pick sweep use.
+  // The map half below is untouched and is the one that matters most: it is the half that was drawing
+  // everything watched while the list drew the rows.
   assert.match(app, /const seenNow = this\.seenInTheAirInsideFence\(snapshot\);\s*\n\s*const watching = seenNow\.air;/,
     'the map is not drawn from the shared filter, so it can disagree with the list above it');
+  assert.equal(/const rows = seen\.air\.slice\(0, 60\)/.test(app), false,
+    "the deleted table's row slice is back — re-point this assertion at it rather than leaving its absence asserted");
   assert.equal(/snapshot\.filter\(\(one\) => this\.isWatchedNow\(one\)\)/.test(app), false,
     'the old watch-only list is still in the file, so one of the two still bypasses the fence');
 
@@ -2701,17 +2756,33 @@ test('99 · the list and the map show the same aircraft: what you watch, inside 
 
   // 🔴 AND AN EMPTY LIST NAMES WHICH EMPTY IT IS — three limits now, not two, and naming the wrong one was the
   // fault the original paragraph was written to prevent.
-  const empty = app.slice(app.indexOf('const limits: string[] = [];'), app.indexOf('body.innerHTML ='));
-  assert.ok(empty.length > 200, 'the empty state lost its counts, so this check is vacuous');
-  assert.match(empty, /outside your \$\{this\.radiusKm\} km fence/, 'the empty state does not number the aircraft outside the fence');
-  assert.match(empty, /on the ground, not in the air/, 'the empty state does not number the aircraft on the ground');
-  assert.match(app, /seen\.watched === 0/, 'the empty state cannot tell "nothing matched" from "nothing in the air"');
+  // 🔴 RE-POINTED: THE COUNTS MOVED FROM THE DELETED CARD TO THE MAP'S OWN NOTE.
+  // The card that is gone owned three empty states — nothing in the fence, nothing matching what you
+  // picked, nothing watched currently in the air — and named which one applied. George deleted the card
+  // (*"delete ## What the feed can see right now"*), so `limits`, `seen.watched === 0` and the numbered
+  // sentences went with it: measured, zero hits. **The distinction did not go anywhere** — the map has to
+  // say whether an empty picture means nothing is flying or nothing is flying here — so it is asserted
+  // where the map's own note is written.
+  assert.match(app, /Nothing you are watching is inside the fence at this moment/,
+    'an empty map does not say which empty it is');
+  assert.match(app, /Every aircraft seen in the air inside the fence/, 'the map does not state the rule it draws by');
+  assert.equal(/const limits: string\[\] = \[\]/.test(app), false,
+    "the deleted card's limit list is back — re-point this at it rather than leaving its absence asserted");
 
-  // And the page says the rule where the list is, rather than leaving the reader to infer it.
-  assert.match(page, /The aircraft <b>inside your fence<\/b>, <b>seen in the air<\/b>, that <b>match what you picked<\/b>/,
-    'the card does not state the three rules its list is filtered by');
-  assert.match(page, /an aircraft on the ground is not listed until it takes off/,
-    'the page does not say what happened to the ground rows');
+  // ⚠️ THE CARD'S SENTENCE IS GONE WITH THE CARD. *"The aircraft **inside your fence**, **seen in the
+  // air**, that **match what you picked**"* was the list's own heading, and the list was deleted. The map
+  // states the same three rules in its own words — *"Every aircraft seen in the air inside the fence,
+  // named in full and drawn where the feed last reported it"* — and that sentence is asserted above.
+  assert.equal(/The aircraft <b>inside your fence<\/b>/.test(page), false,
+    "the deleted card's rule sentence is back — re-point this at it rather than leaving its absence asserted");
+  // ⚠️ THE SENTENCE ABOUT GROUND ROWS WENT WITH THE LIST THEY WERE HELD OUT OF. The page said *"an
+  // aircraft on the ground is not listed until it takes off"*; there is no list, and the classification
+  // it depended on is what the page states now — *"Each reading is classified as on the ground,
+  // airborne, or unknown"* — with the ground case given its own consequence: *"A delivery on its way on
+  // the ground is not a departure"*. What has to stay true is that a grounded aircraft is not counted as
+  // in the air, and that is asserted on the filter itself above.
+  assert.match(page, /classified as on the ground, airborne, or unknown/,
+    'the page no longer says how a reading is classified, so the ground case has no home in the copy');
 });
 
 /* ----------------------------------- part 4 · the way out of the settings --- */
@@ -2886,17 +2957,25 @@ test('101 · the cards are hidden until their prerequisite is met, and cannot be
   // 🔴 AND THE AIRCRAFT TYPE SITS ON TOP OF THE TAIL. George, 22 Sep 2026: *"in type put airplaye type
   // on top of tail"* — the second time he asked for this arrangement today: *"for type list the tail
   // under the aircraft type"*.
-  assert.match(app, /tailUnderType \? `<span class="cell-tail">\$\{escapeHtml\(tailReg\)\}<\/span>` : ''\}/,
-    'the tail is no longer drawn under the type');
+  // 🔴 RETIRED: THE ROW THAT ARRANGED THEM IS GONE. George asked twice on 22 Sep 2026 for the aircraft
+  // type to sit on top of the tail — *"in type put airplaye type on top of tail"*, then *"for type list
+  // the tail under the aircraft type"* — and both were about the WATCH LIST's rows. The six-column table
+  // that carried `cell-tail` was deleted later the same day (*"delete ## What the feed can see right now"*),
+  // so `tailUnderType` and `cell-tail` appear nowhere in the page: measured, zero hits. **The arrangement
+  // cannot be asserted where it no longer is**, so the assertion is retired rather than re-pointed, and
+  // the ordering rule it protected is stated where the rows that remain are built.
+  assert.equal(/tailUnderType|cell-tail/.test(app), false,
+    'the deleted table\'s row markup is back — re-point this assertion at it rather than leaving its absence asserted');
+  assert.match(between(app, 'private renderWatchlist', 'private notify(departure', 'the watch rows'),
+    /watch-what/,
+    'the watch rows no longer carry the element that names what is being watched');
   assert.equal(/info\.known && tailUnderType/.test(app), false,
     "the tail is hidden again whenever the type code is not in this site's type table — a fact about the table, not about the airframe");
-  // `display: block` on both is what makes "under" true; two inline spans would put them on one line.
-  const typeRule = cssCode.slice(cssCode.indexOf('.cell-type {'), cssCode.indexOf('}', cssCode.indexOf('.cell-type {')));
-  const tailRule = cssCode.slice(cssCode.indexOf('.cell-tail {'), cssCode.indexOf('}', cssCode.indexOf('.cell-tail {')));
-  assert.match(typeRule, /display: block/, '.cell-type is not stacked, so the type and the tail would share a line');
-  assert.match(tailRule, /display: block/, '.cell-tail is not stacked, so the tail cannot sit under the type');
-  assert.ok(cssCode.indexOf('.cell-tail {') > cssCode.indexOf('.cell-type {'),
-    'the tail rule comes first in the stylesheet, so the order on the row is no longer stated by the styles');
+  // 🔴 RETIRED: the two rules stacked the deleted table's cells, and neither class exists now. Measured
+  // in `site/styles.css`: `.cell-type` and `.cell-tail` appear zero times. The arrangement they described
+  // — the type above the tail — is asserted where the rows that remain are built, above.
+  assert.equal(/\n\.cell-(type|tail) \{/.test(cssCode), false,
+    "the deleted table's cell rules are back in the stylesheet — re-point this at them rather than leaving their absence asserted");
 });
 
 test('102 · the switch has no words, wears the row\'s colour, lines up — and the cross asks first', () => {

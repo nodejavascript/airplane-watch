@@ -1512,10 +1512,8 @@ main > #status {
   font-size: 14px;
 }
 
-.step-gated[data-waiting='true'] .typelist,
-.step-gated[data-waiting='true'] .chips,
-.step-gated[data-waiting='true'] .watch-form {
-  pointer-events: none;
+.step-gated[hidden] {
+  display: none;
 }
 
 /* --------------------------------------------------------- the drawn map --- */
