@@ -207,6 +207,41 @@ test('2 · the bar reserves its height on <body>, not inside the footer', () => 
   );
 });
 
+test('2b · the map redraw is deferred out of the ResizeObserver delivery too', () => {
+  // 🔴 THE SAME DEFECT, THE OTHER OBSERVER — AND THE ONE THE COOKIE FIX MISSED. 23 Sep 2026,
+  // off the Rollbar item: the page's fault reporter caught four events, every one of them
+  // `ResizeObserver loop completed with undelivered notifications`. The cookie bar's
+  // reservation was deferred a frame (the test above), and THREE OF THE FOUR EVENTS STILL
+  // ARRIVED AFTER THAT FIX WAS DEPLOYED (17:36:54Z) — with the shell and both bundles served
+  // `no-store` and Cloudflare bypassing, so a stale copy explains none of them.
+  //
+  // This page has exactly two observers. This was the other: `renderMap()` writes the tiles
+  // INTO `#watchMap`, the element being watched, so drawing from inside the callback
+  // mutates the box whose size is being delivered. **A measurement inside the delivery is
+  // fine; the write is what the browser objects to.** Both halves are asserted here,
+  // because the easy wrong fix is to stop redrawing and the easy wrong test is to assert
+  // only that the warning went away.
+  const body = between(appJs, 'bindMapResize() {', 'renderNearby() {', 'the map resize binding');
+
+  assert.match(
+    body,
+    /requestAnimationFrame/,
+    'the map redraw is back inside the ResizeObserver delivery, which is what the browser warned about'
+  );
+
+  const callback = between(body, 'new ResizeObserver(', '}).observe(', 'the map observer callback');
+  assert.equal(
+    /renderMap\s*\(/.test(callback),
+    false,
+    'the map is drawn inside the ResizeObserver delivery again — the observer must measure here and draw next frame'
+  );
+  assert.match(
+    callback,
+    /clientWidth/,
+    'the observer no longer measures the box it watches, so the check above proves nothing'
+  );
+});
+
 /* ------------------------------------------------------------- part 3 · bar --- */
 
 test('3 · the header is the brand and NOTHING ELSE — no nav', () => {

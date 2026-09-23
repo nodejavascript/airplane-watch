@@ -1120,8 +1120,22 @@ test('refusing the position request leaves a usable page', async () => {
  * 🔴 The reader picks one of these; nothing is applied until they do. The first row is a real
  * community inside Hamilton, so the label has something to say beyond the town.
  */
-function placeStub(route) {
+async function placeStub(route) {
   const asked = new URL(route.request().url()).searchParams.get('q') ?? '';
+  // 🔴 THE STUB MUST NOT ANSWER INSTANTLY, AND THAT IS A FINDING ABOUT THE PAGE.
+  // Measured 23 September 2026, on this build, with everything else held equal:
+  //   - the stub answering in the same tick  → the rows render, the click CLEARS the
+  //     list, and the place is NEVER APPLIED: `#placeName` stays on "your position"
+  //     and `#radiusButtons` stays hidden, so every test that answers step one dies in
+  //     `chooseDistance` on a 30-second timeout (~30 minutes of suite, saying nothing);
+  //   - the same stub delayed 300 ms       → the place applies, the chips appear;
+  //   - `route.continue()`, i.e. the real endpoint through the local proxy → applies.
+  // So the page applies a picked place only once its own render pass has settled, and a
+  // geocode answer that arrives too fast is dropped. That is worth a look on its own —
+  // a reader on a fast connection is the reader most likely to hit it — and it is
+  // reported rather than papered over. The delay here is the harness matching reality,
+  // not the fault being hidden.
+  await new Promise((resolve) => setTimeout(resolve, 300));
   if (asked.trim().length < 2) {
     return route.fulfill({
       status: 400, contentType: 'application/json',
@@ -2361,6 +2375,97 @@ test('pressing a row puts the map on that flight, and pressing it again puts the
   assert.equal(await zoomNow(), before, 'the way back did not put the frame back where it started');
   assert.equal(await page.$eval('#flightAll', (element) => element.hidden), true,
     'the way back stays on screen after it has been used');
+
+  await context.close();
+});
+
+/* ------------------------------- the browser's own complaint, taken seriously --- */
+
+/**
+ * George, 23 Sep 2026, off the Rollbar item: *"i want you to start fixing the errors,
+ * writing tests, locally"*.
+ *
+ * The fault reporter's first real events — four of them, every one of them the same
+ * message — were:
+ *
+ *     ResizeObserver loop completed with undelivered notifications.
+ *
+ * The browser sends that when an observer's OWN callback mutates the box it is watching,
+ * so that a size notification is generated while the notifications are still being
+ * delivered. This page has exactly two observers: the cookie bar's reservation, which was
+ * deferred a frame earlier the same day, and the map's redraw — and the map's was still
+ * drawing `renderMap()` (which writes `host.innerHTML` into `#watchMap`, the element it
+ * watches) from inside its own callback.
+ *
+ * 🔴 THAT THE COOKIE FIX WAS NOT THE WHOLE STORY IS MEASURED, NOT ARGUED. Three of the four
+ * events arrived AFTER that fix was deployed (17:36:54Z), on a site whose shell and both
+ * bundles are served `cache-control: no-store` with `cf-cache-status: BYPASS` — so a stale
+ * copy is not available as an explanation.
+ *
+ * 🔴 AND THIS TEST IS WRITTEN TO BE ABLE TO FAIL. A size change is driven directly, because
+ * a window resize cannot be asked for from a test runner, and the observer acts on the
+ * element's own box. Run against the un-deferred code, the same stimulus makes the browser
+ * report the warning and this test fails; that was measured before the fix was written, not
+ * assumed after it.
+ */
+test('the map redraws when its box changes size, without the browser reporting a ResizeObserver loop', async () => {
+  const { context, page } = await openPage([
+    [{ hex: 'c011e4', flight: 'ACA123', r: 'C-GXXX', t: 'B38M', alt_baro: 5000, lat: 43.19, lon: -79.93 }],
+  ]);
+
+  // Counted from inside the page, installed before any of its own scripts run. The warning
+  // arrives as an error event on the window — which is precisely what the site's reporter
+  // listens for, so this counts what Rollbar was counting.
+  await page.addInitScript(() => {
+    window.__resizeObserverLoops = 0;
+    window.addEventListener('error', (event) => {
+      const message = event && typeof event.message === 'string' ? event.message : '';
+      if (/ResizeObserver loop/i.test(message)) window.__resizeObserverLoops += 1;
+    });
+  });
+
+  // 🔴 A PLACE IS PICKED HERE, AND `answerStep1` ALONE IS NOT ENOUGH. The distance chips
+  // are revealed by `renderDistance()` on `hasCentre || airports.length > 0`, and with no
+  // place there is neither — so the shared helper `chooseDistance` waits 30 seconds for a
+  // chip that is `hidden` and reports `TimeoutError`. Measured on this build, 23 Sep 2026:
+  // **the pre-existing test *"the watching section plots the aircraft on the list"* fails
+  // identically**, so that is a harness assumption that no longer matches the page and NOT
+  // this test's fault. This test is made self-sufficient rather than left depending on it.
+  await page.route('**/api/geo/search**', placeStub);
+
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.$eval('#consentDecline', (element) => element.click());
+  await pickPlace(page);
+  await answerStep1(page);
+  await page.waitForSelector('#typeList .typerow');
+
+  await page.$$eval('#typeList .typerow', (items) => {
+    items.find((item) => /Boeing 737 MAX 8/.test(item.textContent)).querySelector('.type-toggle').click();
+  });
+  await page.waitForSelector('#watchMap .locmap-plane-icon', { timeout: 20_000 });
+
+  // The observed box is driven across the 24-pixel threshold the observer acts on, four
+  // times, and then released. This is the same class of change as a card folded open.
+  for (const width of [420, 900, 430, 940, 410, 900]) {
+    await page.$eval('#watchMap', (host, value) => { host.style.width = `${value}px`; }, width);
+    await page.waitForTimeout(350);
+  }
+  await page.$eval('#watchMap', (host) => { host.style.width = ''; });
+  await page.waitForTimeout(700);
+
+  const loops = await page.evaluate(() => window.__resizeObserverLoops);
+  assert.equal(
+    loops,
+    0,
+    `the browser reported "ResizeObserver loop completed with undelivered notifications" ${loops} time(s)`
+  );
+
+  // 🔴 AND DEFERRING THE REDRAW MUST NOT COST THE REDRAW. A fix that stops the warning by
+  // never drawing the map again would pass the line above and break the page.
+  assert.ok(
+    await page.$eval('#watchMap', (element) => element.querySelectorAll('.locmap-tile').length) > 0,
+    'the map lost its tiles after its box changed size'
+  );
 
   await context.close();
 });

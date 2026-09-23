@@ -5538,18 +5538,55 @@ class Page {
    * the map drawn again. A resize listener on the window would miss the case that
    * matters most here: a step that was folded open, or a card that grew when a note
    * filled in. A ResizeObserver sees all of them.
+   *
+   * 🔴 AND THE REDRAW IS DEFERRED OUT OF THE OBSERVER'S OWN DELIVERY, WHICH IS THE THING
+   * THE BROWSER WAS NAMING. George, 23 Sep 2026, off the Rollbar item: *"i want you to
+   * start fixing the errors, writing tests, locally"*. The fault reporter's first real
+   * events — four of them, every one of them the same message — were
+   *
+   *     ResizeObserver loop completed with undelivered notifications.
+   *
+   * which the browser emits when an observer's OWN callback mutates the box it is
+   * watching, so a size notification is generated while the notifications are being
+   * delivered. There are exactly two observers on this page. The cookie bar's reservation
+   * was deferred a frame for the same reason (`consent.ts`, earlier the same day), and
+   * **three of the four events still arrived AFTER that fix was deployed** — on a site
+   * whose shell and both bundles are served `cache-control: no-store` with
+   * `cf-cache-status: BYPASS`, so a stale copy is not available as an explanation. This
+   * was the other half: `renderMap()` writes the tiles INTO `#watchMap`, the element this
+   * observer watches, so drawing from inside the callback mutates the very box whose size
+   * is being delivered.
+   *
+   * One frame later the same tiles are drawn at the width the box settled on, which is if
+   * anything the more correct measurement. A frame of delay in a redraw nobody can see is
+   * the whole cost; teaching the reporter to swallow the message would have been easier
+   * and would have kept the bad pattern.
    */
   private bindMapResize(): void {
     const host = byId('watchMap');
     if (!host || typeof ResizeObserver === 'undefined') return;
     let last = host.clientWidth;
+    // Coalesced, because a width can move twice before the next frame and the map only
+    // needs drawing once, at the width it settled on.
+    let queued = 0;
+    const draw = (): void => {
+      queued = 0;
+      this.renderMap();
+    };
     new ResizeObserver(() => {
       const width = Math.round(host.clientWidth);
       // A folded-away card measures zero, and redrawing on zero would throw the map
       // away and not bring it back.
       if (width === 0 || Math.abs(width - last) < 24) return;
+      // The measurement is taken HERE, inside the delivery, because that is the only
+      // moment the new width is known. The WRITE is what must not happen here.
       last = width;
-      this.renderMap();
+      if (queued) return;
+      if (typeof requestAnimationFrame !== 'function') {
+        draw();
+        return;
+      }
+      queued = requestAnimationFrame(draw);
     }).observe(host);
   }
 
