@@ -178,9 +178,19 @@ export async function report(env, error, context = {}) {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!response.ok) {
-      // Worth a line in the Worker's own log, and nothing more: a report that
-      // cannot be delivered must not change what the visitor receives.
-      console.warn(`rollbar: item rejected with ${response.status}`);
+      // 🔴 READ THE BODY, BECAUSE THE STATUS ALONE LIES HERE. Measured 23 Sep 2026: an
+      // account that is not in a state to receive anything answers **429** — the same
+      // code as a genuine rate limit — while its rate-limit headers read 49,998 of
+      // 50,000 remaining, and the body says "This account has been deactivated. To
+      // reactivate it, log in to Rollbar and choose a plan." A log line reading
+      // "rejected with 429" sends the next reader hunting a rate limit that is not there.
+      //
+      // It stays a log line and nothing more: a report that cannot be delivered must
+      // never change what the visitor receives.
+      const detail = await response.text().catch(() => '');
+      console.warn(
+        `rollbar: item rejected (${response.status}) ${detail.replace(/\s+/g, ' ').slice(0, 200)}`
+      );
       return false;
     }
     return true;

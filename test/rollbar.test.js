@@ -217,6 +217,34 @@ test('report answers false rather than throwing when Rollbar refuses or the netw
   );
 });
 
+test('a rejected report logs Rollbar\'s own reason, because the status alone lies', async () => {
+  // Measured 23 Sep 2026: an account with no active plan answers 429 — the same code
+  // as a rate limit — while its rate-limit headers read 49,998 of 50,000 remaining.
+  // The body is the only thing that tells the two apart, so it is the only thing
+  // worth putting in the Worker's own log.
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (message) => warnings.push(String(message));
+  try {
+    await withFetch(
+      async () =>
+        new Response('{"err":1,"message":"This account has been deactivated."}', {
+          status: 429,
+          headers: { 'x-rate-limit-remaining': '49998' },
+        }),
+      async () => {
+        assert.equal(await report({ ROLLBAR_SERVER_TOKEN: 'tok' }, new Error('x'), {}), false);
+      }
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /429/);
+  assert.match(warnings[0], /deactivated/);
+});
+
 test('reportFailure hands the work to ctx.waitUntil instead of awaiting it', async () => {
   const scheduled = [];
   const request = new Request('https://airplane-watch.nodejavascript.com/api/v2/hex/abc123?t=1');
