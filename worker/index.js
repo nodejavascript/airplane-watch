@@ -46,6 +46,8 @@
  * The token is what keeps that path from being an open relay through the droplet's address. It is a Worker
  * secret; the matching value lives in the droplet's Caddyfile.
  */
+import { reportFailure } from './rollbar.js';
+
 const UPSTREAM = 'https://airplane-watch.nodejavascript.com/feed';
 const CACHE_SECONDS = 25;
 
@@ -556,7 +558,15 @@ async function serveTile(path) {
   }
 }
 
-export default {
+/**
+ * The proxy itself — every route, every cache, every refusal written below.
+ *
+ * It is an ordinary object rather than the module's default export so that the
+ * guard underneath can wrap it without a line of the proxy changing, which is
+ * both a smaller diff and an honest statement of what happened here: the proxy
+ * was not touched, a boundary was added around it.
+ */
+const proxy = {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/^\/api/, '');
@@ -709,6 +719,47 @@ export default {
       cooldownUntil = now + (named ?? cooldownMs);
     }
     return refusal(cached, now, upstream.status);
+  },
+};
+
+/**
+ * 🔴 THE GUARD — EVERY UNEXPECTED ERROR ENDS HERE, AND IT ENDS AS A 503.
+ *
+ * Measured 23 Sep 2026: the proxy had no boundary at all, so an exception thrown
+ * anywhere inside it — a route handler, the cache bookkeeping, a promise nobody
+ * awaited — left the Worker entirely. Cloudflare then answers with its own error
+ * page instead of this site's JSON, the page reports a parse error rather than a
+ * message, and nothing anywhere records that it happened. That is the shape of
+ * fault this site is least able to see, and the only one it cannot now have.
+ *
+ * THREE THINGS, IN THIS ORDER, AND THE ORDER MATTERS:
+ *
+ *   1. `reportFailure` is called BEFORE the response is built, and it schedules
+ *      the report with `ctx.waitUntil`, so the Rollbar POST is kept alive after
+ *      the visitor has their answer. It is never awaited, because a report is
+ *      worth less than the answer it would delay.
+ *   2. The visitor gets a 503 carrying this site's own JSON, so the page can say
+ *      something true instead of surfacing a parse error.
+ *   3. **NEVER 502.** House part 8: behind Cloudflare an origin's 502 has its body
+ *      REPLACED by the edge's own HTML error page, which destroys the explanation
+ *      written for the reader. 503 is passed through untouched, which is why every
+ *      failure in this file is a 503 — including this one.
+ *
+ * What is NOT put in the response, deliberately: nothing about the error itself.
+ * The message may name a file, an upstream or a token's absence, and none of that
+ * belongs in an answer to a stranger. It goes to Rollbar, where it is useful.
+ */
+export default {
+  async fetch(request, env, ctx) {
+    try {
+      return await proxy.fetch(request, env, ctx);
+    } catch (error) {
+      reportFailure(env, ctx, error, request);
+      return json(503, {
+        ok: false,
+        error: 'This proxy hit an unexpected error answering that request.',
+      });
+    }
   },
 };
 

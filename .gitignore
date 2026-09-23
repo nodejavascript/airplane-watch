@@ -3,6 +3,13 @@ node_modules/
 *.log
 .DS_Store
 db/.env
+
+# 🔴 WORKER SECRETS FOR LOCAL DEVELOPMENT — the local twin of the Cloudflare
+# secret. It holds the same Rollbar token, so it is a credential and it is never
+# committed. Production reads ROLLBAR_SERVER_TOKEN from the Worker's own secret
+# store; this file only matters to `wrangler dev`.
+.dev.vars
+
 # The most recent survey round — a working input to the load, not something the site
 # serves. `site/types.json` is the served artefact and it is rebuilt from the database.
 .survey/
