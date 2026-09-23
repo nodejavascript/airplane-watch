@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "serve": "npm run build && node tools/serve.mjs",
-    "test": "npm run build && node --test test/detect.test.js test/static.test.js test/rollbar.test.js",
+    "test": "npm run build && node --test test/detect.test.js test/static.test.js test/rollbar.test.js test/secrets.test.js",
     "test:e2e": "npm run build && node --test test/e2e.test.js",
     "test:all": "npm run build && node --test test/*.test.js",
     "test:live": "node tools/live-check.mjs",
