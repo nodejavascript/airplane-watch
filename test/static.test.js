@@ -27,7 +27,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const SITE = join(ROOT, 'site');
 
-const HOST = 'planewatch.nodejavascript.com';
+const HOST = 'airplane-watch.nodejavascript.com';
 const THEME = '#38bdf8';
 const BACKGROUND = '#04101a';
 
@@ -206,7 +206,7 @@ test('3 · the brand goes to THIS SITE, not to nodejavascript.com', () => {
 test('3 · the mark, the label and the parent name are all in the bar', () => {
   const header = htmlCode.match(/<header[\s\S]*?<\/header>/)[0];
   assert.match(header, /class="mark"/);
-  assert.match(header, /<b>planewatch<\/b>/);
+  assert.match(header, /<b>Airplane Watch<\/b>/);
   assert.match(header, /<small>nodejavascript\.com<\/small>/);
 });
 
@@ -248,7 +248,7 @@ where it goes**, rather than a phrase like *"the source"*, because the reader ca
 destination before they click. A **private** repository is not linked at all.
 
 AND THE CHECK READS THE ANSWER OUT OF THE CLONE, not out of a literal. `github.com/nodejavascript/
-planewatch` typed here would be a fifth copy of the repository's own name, and the day it moves it
+airplane-watch` typed here would be a fifth copy of the repository's own name, and the day it moves it
 would be the copy nobody updates (house standard 6c). The remote is what this checkout actually is.
 
 ⚠️ **IT DELIBERATELY DOES NOT ASK WHETHER THE REPOSITORY IS PUBLIC.** That is a fact about a forge,
@@ -346,7 +346,7 @@ test('5 · the Analytics id does not clash with the family register, when one is
   // House part 5 rule 4 says a site is ADDED TO THE REGISTER on the day it is deployed — and the
   // moment this site was added, this check started failing against itself: it reported *"these are
   // already taken by a live site: theme colour #38bdf8, background #04101a"* and the only row
-  // holding those values was **planewatch's own**. A false failure is the expensive kind (part 6),
+  // holding those values was **this site's own**. A false failure is the expensive kind (part 6),
   // and this one blocked the project's own deploy, because `deploy.sh` runs this suite.
   //
   // AND THE TEXTURE IS READ FROM OUR OWN ROW rather than pinned here. It was a literal
@@ -355,7 +355,7 @@ test('5 · the Analytics id does not clash with the family register, when one is
   // subject, which is house standard 6c. Comparing the register's own record of us is the one form
   // that cannot rot: if the drawing changes, the register changes with it.
   const hostOf = (row) => String(row.host || row.site || row.name || '');
-  const mine = rows.find((row) => hostOf(row).startsWith('planewatch'));
+  const mine = rows.find((row) => hostOf(row).startsWith('airplane-watch'));
   const others = rows.filter((row) => row !== mine);
 
   const clashes = [];

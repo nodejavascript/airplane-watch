@@ -15,7 +15,7 @@
 
 import { chromium } from 'playwright';
 
-const DEFAULT_HOST = 'https://planewatch.nodejavascript.com/';
+const DEFAULT_HOST = 'https://airplane-watch.nodejavascript.com/';
 const HOST = process.argv[2] || DEFAULT_HOST;
 const EXPECTED_TITLE = new URL(HOST).host;
 const EXPECTED_THEME = '#38bdf8';

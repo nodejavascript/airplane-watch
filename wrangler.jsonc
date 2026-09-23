@@ -1,12 +1,12 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "planewatch-proxy",
+  "name": "airplane-watch-proxy",
   "main": "worker/index.js",
   "compatibility_date": "2026-09-01",
   "observability": { "enabled": true },
   "routes": [
     {
-      "pattern": "planewatch.nodejavascript.com/api/*",
+      "pattern": "airplane-watch.nodejavascript.com/api/*",
       "zone_name": "nodejavascript.com"
     }
   ]

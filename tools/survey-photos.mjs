@@ -53,7 +53,7 @@ const API = 'https://en.wikipedia.org/w/api.php';
 const COMMONS = 'https://commons.wikimedia.org/w/api.php';
 
 /** 🔴 The feed refuses a request with no user agent; Wikipedia asks the same. */
-const UA = 'planewatch/1.0 (+https://planewatch.nodejavascript.com; tools/survey-photos.mjs)';
+const UA = 'planewatch/1.0 (+https://airplane-watch.nodejavascript.com; tools/survey-photos.mjs)';
 
 /** Wikimedia's own hosts, and the only hosts the page will ever be allowed to fetch from. */
 export const WIKIMEDIA_HOSTS = ['upload.wikimedia.org', 'thumb.wikimedia.org'];

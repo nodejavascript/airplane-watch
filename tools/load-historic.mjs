@@ -54,7 +54,7 @@ const SITE = join(ROOT, 'site');
 /** The museum's own flight-day handler, the one its schedule page calls per day. */
 const HANDLER = 'https://www.warplane.com/Warplane/DesktopModules/FlightPurchaseHandler.ashx';
 /** Named for the same reason the feed's requests are named: an anonymous caller is refused. */
-const UA = 'planewatch.nodejavascript.com';
+const UA = 'airplane-watch.nodejavascript.com';
 const PAUSE_MS = 2_000;
 
 /**

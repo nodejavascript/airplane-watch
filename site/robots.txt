@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://planewatch.nodejavascript.com/sitemap.xml
+Sitemap: https://airplane-watch.nodejavascript.com/sitemap.xml

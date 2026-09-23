@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# deploy.sh — build, test, then publish planewatch.
+# deploy.sh — build, test, then publish airplane-watch.
 #
 # 🔴 THIS SCRIPT REFUSES TO RUN UNTIL THE SITE IS ACTUALLY READY TO GO LIVE, and
 # that is the point rather than an annoyance. House standard parts 5c and 7a: on
@@ -21,8 +21,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 SITE_DIR="site"
-REMOTE_DIR="/srv/planewatch"
-HOST="planewatch.nodejavascript.com"
+REMOTE_DIR="/srv/airplane-watch"
+HOST="airplane-watch.nodejavascript.com"
 DRY_RUN="${1:-}"
 
 say() { printf '\n\033[1;36m%s\033[0m\n' "$*"; }

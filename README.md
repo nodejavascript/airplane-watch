@@ -1,17 +1,19 @@
-# planewatch
+# Airplane Watch
 
 Watch a named aircraft leave a named airport, and be told when it does.
 
-Live: **https://planewatch.nodejavascript.com** — deployed **22 September 2026**
+Live: **https://airplane-watch.nodejavascript.com** — renamed from `planewatch.nodejavascript.com`
+on **23 September 2026** and first deployed **22 September 2026**
 Local: `npm run serve` → http://127.0.0.1:4340/
 
-> **The names, because there are three and they do not agree yet.** The **repository** is
-> `airplane-watch` (private, renamed from `airplane-demo` on 23 September 2026); the **working
-> directory** is still `aircraft-demo`, because three systemd units run from that path and a path
-> things run from is not renamed as a tidy-up; and the **live site** is `planewatch.nodejavascript.com`.
-> **House part 1 makes a site's name its host**, so putting the visible name onto `airplane-watch`
-> means renaming the host — a separate, one-way pass (a new DNS record, Analytics property, card and
-> register rows, and the old hostname removed for good under part 7b). **Nothing here assumes it.**
+> **One name now, with one exception.** The **repository**, the **package** and the **live site**
+> are all `airplane-watch`. The site moved from `planewatch.nodejavascript.com` on 23 September
+> 2026 together with everything bound to it — its DNS record, its Analytics property (renamed and
+> re-pointed, so the measurement ID is unchanged), its card on the apex, and its register rows —
+> and **the old host was removed under part 7b, which says a removed host is never restored.**
+> **House part 1 makes a site's name its host**, which is why the rename could not stop at the
+> repository. The one exception is the **working directory**: it is still `aircraft-demo`, because
+> three systemd units run from that path and a path things run from is not renamed as a tidy-up.
 
 ## What it does
 
@@ -282,7 +284,7 @@ against the deployed page.
 not exist yet and are made together on the day it goes live."* **All four were made that day, and a
 fifth was written into the rule book since:**
 
-1. the DNS record for `planewatch.nodejavascript.com` — a proxied `A` record to `178.128.225.32`
+1. the DNS record for `airplane-watch.nodejavascript.com` — a proxied `A` record to `178.128.225.32`
 2. its own Google Analytics property in the `mcp` account, named with the full domain —
    **`G-XWQ2VN6RW0`**, read out of the served page
 3. its row in the family theme register

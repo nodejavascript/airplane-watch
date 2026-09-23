@@ -60,7 +60,7 @@ const aliases = existsSync(ALIAS_FILE)
  * **A sweep before publishing would have caught it, and one does now — house part 12c.**
  */
 const UA = {
-  'user-agent': 'planewatch/1.0 (+https://planewatch.nodejavascript.com)',
+  'user-agent': 'planewatch/1.0 (+https://airplane-watch.nodejavascript.com)',
   accept: 'application/json',
 };
 const API = 'https://www.wikidata.org/w/api.php';

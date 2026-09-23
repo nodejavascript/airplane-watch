@@ -1,5 +1,5 @@
 -- ---------------------------------------------------------------------------
--- planewatch — what this site knows, kept in one place.
+-- Airplane Watch — what this site knows, kept in one place.
 --
 -- 🔴 WHY A DATABASE AT ALL, IN GEORGE'S WORDS. 20 Sep 2026: *"as for last seen can
 -- yuo know fix that? should be be using postgres so we can reli less on the api

@@ -87,7 +87,7 @@ def main():
         sizes=[(16, 16), (32, 32), (48, 48)],
     )
 
-    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="planewatch">
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Airplane Watch">
   <rect width="32" height="32" rx="7" fill="#{GROUND[0]:02x}{GROUND[1]:02x}{GROUND[2]:02x}"/>
   <g stroke="#{THEME[0]:02x}{THEME[1]:02x}{THEME[2]:02x}" stroke-linecap="round">
     <path d="M16 5.2V9.4M16 22.6v4.2M5.2 16h4.2M22.6 16h4.2M8.4 8.4l3 3M20.6 20.6l3 3M23.6 8.4l-3 3M11.4 20.6l-3 3" stroke-width="1.6"/>
