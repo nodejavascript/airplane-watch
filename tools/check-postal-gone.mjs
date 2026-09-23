@@ -45,7 +45,11 @@ out.postalText = await page.$$eval('body *', (nodes) =>
   nodes
     .filter((node) => node.children.length === 0)
     .map((node) => node.textContent ?? '')
-    .filter((text) => /postal|ZIP code|[redacted]/i.test(text))
+    // 🔴 ANY POSTAL CODE, NOT ONE PARTICULAR CODE — 23 September 2026. This searched for
+    // the owner's own postal code, which is a private item in a repository that is now
+    // public. Matching the shape is also the stronger test: it catches a postal code the
+    // page might print that nobody thought to name.
+    .filter((text) => /postal|ZIP code|\b[A-Z]\d[A-Z][ -]?\d[A-Z]\d\b/i.test(text))
 );
 
 // 2. The place search is present, and it answers a real query.

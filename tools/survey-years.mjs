@@ -52,6 +52,12 @@ const aliases = existsSync(ALIAS_FILE)
 /**
  * Wikidata asks to be told who is calling, the same courtesy the tile server asks
  * for. A request with no user agent is refused by some of their edges.
+ *
+ * 🔴 WHAT IT MUST NOT CARRY IS A PERSON — 23 September 2026. This string held a personal
+ * email address, which is a private item sitting in a repository that is now **public**,
+ * and a public repo must not offer a way to contact somebody. The project's own URL is
+ * what the courtesy actually asks for: which application is calling, not who owns it.
+ * **A sweep before publishing would have caught it, and one does now — house part 12c.**
  */
 const UA = {
   'user-agent': 'planewatch/1.0 (+https://planewatch.nodejavascript.com)',

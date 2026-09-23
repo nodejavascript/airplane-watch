@@ -254,10 +254,11 @@ airports polled back to back had five refused by the third round).
 
 ## Licence
 
-**The source is public so it can be READ. No licence is granted, and all rights are reserved.** A
-repository anyone can open is not the same as code anyone may reuse: there is no licence file here,
-which means the ordinary position — no right to copy, modify or redistribute it. (House part 11c asks
-for this sentence rather than leaving a reader to assume it from the absence of a file.)
+**No licence is granted, and all rights are reserved.** The repository is **private**, so there is
+nothing here for a stranger to open or reuse: this is not open source, and no part of it may be
+copied, modified or redistributed without permission. (House part 11c asks for this sentence rather
+than leaving a reader to assume it from the absence of a licence file — and it applies whether the
+repository is open or closed, which is why it survives the repository going private.)
 
 The **data** is a different matter, and a more generous one: aircraft positions come from
 **[adsb.lol](https://adsb.lol/)** under the **Open Database License**, the map squares from

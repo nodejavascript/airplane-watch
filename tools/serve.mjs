@@ -625,7 +625,9 @@ async function servePlaceSearch(raw, response) {
  *
  *   Nominatim reverse, zoom=10 → "Hamilton"                            (city, correct)
  *   Nominatim reverse, zoom=14 → suburb: "Kentley Drive"                (a street)
- *   Nominatim reverse, zoom=18 → "a house — number, street and postal code withheld"           (a house)
+ *   Nominatim reverse, zoom=18 → a single house, its number, street and   (a house)
+ *                                postal code withheld: that is a real resident's address,
+ *                                and this repository is public
  *   BigDataCloud reverse       → city "Hamilton" at five points around Stoney Creek,
  *                                never anything finer, and postcode ""
  *   Photon reverse             → district "Kentley Drive" at one point and

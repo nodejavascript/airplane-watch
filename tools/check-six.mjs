@@ -22,12 +22,18 @@ await page.goto(`${BASE}/?v=${Date.now()}`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(2500);
 
 // Set a place, so the location line and the airport list are exercised.
-await page.fill('#postalInput', '[redacted]');
+//
+// 🔴 THE FIXTURE IS THE AIRPORT, NOT A HOME — 23 September 2026. It was the owner's own
+// postal code, which is a private item in a repository that is now public. This is the
+// airport the page is about, and the code was read off the geocoder rather than typed
+// from memory: a fixture that does not resolve fails the check for the wrong reason.
+await page.fill('#postalInput', 'L0R1W0');
 await page.press('#postalInput', 'Enter');
 await page.waitForTimeout(4000);
 
-// The community chips the postal area offers — this is the answer to "[redacted] should say
-// stoney creek at least".
+// The community chips a postal area offers — the answer to the complaint that a postal
+// search named the wrong community. **The complaint is not quoted here any more:** a quote
+// is still the code it quotes, and this repository is public.
 const areas = await page.$$eval('#areaPicker .area-chip', (nodes) => nodes.map((n) => n.textContent.trim()));
 const stoney = page.locator('#areaPicker .area-chip', { hasText: 'Stoney Creek' }).first();
 if (await stoney.count()) {

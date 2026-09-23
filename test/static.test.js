@@ -857,7 +857,13 @@ test('no postal door survives anywhere — not in the page, not in the tests, no
 
   // And the paragraph George pasted back is gone from the copy too, including the two claims
   // that only made sense while the door was there.
-  assert.equal(/[redacted]/.test(html), false, 'the page still quotes a postal code at the reader');
+  // 🔴 THE POSTAL CODE IS MATCHED BY SHAPE, NOT BY VALUE — 23 September 2026. This asserted
+  // the absence of the owner's own postal code, which is a private item in a repository
+  // that is now public. The pattern is also the stronger test, because it fails on ANY
+  // Canadian postal code reaching the reader rather than only the one that was once here.
+  // Proved able to fail: put a postal code into `site/index.html` and this goes red.
+  assert.equal(/\b[A-Z]\d[A-Z][ -]?\d[A-Z]\d\b/.test(html), false,
+    'the page still quotes a postal code at the reader');
   assert.equal(/ZIP such as/i.test(html), false, 'the page still offers a ZIP code as a way in');
 });
 

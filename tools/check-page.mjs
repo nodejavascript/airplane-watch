@@ -37,7 +37,12 @@ out.starsBefore = await page.$$eval('.star[aria-pressed="true"]', (n) => n.lengt
 out.notifyNoteBefore = await text('#notifyNote');
 
 // ── the seen chips ──────────────────────────────────────────────────────────────────────
-await page.fill('#postalInput', '[redacted]');
+// 🔴 THE FIXTURE IS A PUBLIC BUILDING'S POSTAL CODE, NEVER A HOME — 23 September 2026.
+// It was the owner's own postal code, which is a private item in a repository that is now
+// public. The airport replaces it: the same shape of query, and every aircraft this page
+// shows is at that airport. Measured from the geocoder before it was written down — which
+// is the only way a fixture may enter this repo, because a made-up one does not resolve.
+await page.fill('#postalInput', 'L0R1W0');
 await page.press('#postalInput', 'Enter');
 await page.waitForTimeout(3500);
 // 🔴 THE DISTANCE IS A CHIP NOW, NOT A SLIDER — one press, one answer, instead of writing a value

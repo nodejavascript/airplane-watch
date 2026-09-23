@@ -2987,7 +2987,9 @@ class Page {
    * The reader's place as one short NAME — the community they named, else the town.
    *
    * George, 20 Sep 2026: *"Your location just make it say the city name, not the others in
-   * ()"*, and *"it says [redacted] should say stoney creek at least"*.
+   * ()"*, and then — reading his own postal code back off the page — that it *"should say
+   * stoney creek at least"*. **The code itself is not repeated here:** it was his home, this
+   * repository is public, and a quotation is still the thing it quotes.
    *
    * He was reading a label that said the town followed by seven neighbourhoods in brackets,
    * because the postal service names the whole area in one string and the page printed it
@@ -3028,8 +3030,10 @@ class Page {
     if (known) known.hidden = !have;
     if (name) {
       // 🔴 THE LABEL IS A NAME, NOT A LIST AND NOT A CODE. George, 20 Sep 2026: *"Your
-      // location just make it say the city name, not the others in ()"*, and then *"it says
-      // [redacted] should say stoney creek at least"*. See `nearbyPlace`.
+      // location just make it say the city name, not the others in ()"*, and then, reading
+      // his own postal code back off the page, that it *"should say stoney creek at least"*.
+      // See `nearbyPlace`. (The code is not written here — it was his home, and this
+      // repository is public.)
       const { lead, tail } = this.nearbyPlaceLine();
       name.innerHTML =
         `<span class="place-area">${escapeHtml(lead)}</span>` +
