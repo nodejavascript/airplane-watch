@@ -5,6 +5,14 @@ Watch a named aircraft leave a named airport, and be told when it does.
 Live: **https://planewatch.nodejavascript.com** — deployed **22 September 2026**
 Local: `npm run serve` → http://127.0.0.1:4340/
 
+> **The names, because there are three and they do not agree yet.** The **repository** is
+> `airplane-watch` (private, renamed from `airplane-demo` on 23 September 2026); the **working
+> directory** is still `aircraft-demo`, because three systemd units run from that path and a path
+> things run from is not renamed as a tidy-up; and the **live site** is `planewatch.nodejavascript.com`.
+> **House part 1 makes a site's name its host**, so putting the visible name onto `airplane-watch`
+> means renaming the host — a separate, one-way pass (a new DNS record, Analytics property, card and
+> register rows, and the old hostname removed for good under part 7b). **Nothing here assumes it.**
+
 ## What it does
 
 Pick one of seven airports, choose a fence of 25 to 400 kilometres — the widest stop is
