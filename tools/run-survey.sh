@@ -61,8 +61,22 @@ fi
     exit 1
   fi
 
-  if node tools/load-db.mjs; then
+  # 🔴 EXIT 3 IS ITS OWN ANSWER, AND IT IS NOT A FAILURE. `load-db.mjs` withholds the
+  # publish when the round saw a type code the site has no name for — the file the site
+  # serves is left as it was. Anything else non-zero means the database could not be
+  # reached. Reporting 3 as "the database could not be reached" would send the next reader
+  # to check a tunnel that is working perfectly, which is the most expensive kind of
+  # wrong message.
+  set +e
+  node tools/load-db.mjs
+  code=$?
+  set -e
+
+  if [[ $code -eq 0 ]]; then
     say 'round complete'
+  elif [[ $code -eq 3 ]]; then
+    say 'the round loaded, but site/types.json was NOT published — the site has no name for a type it saw'
+    say 'the would-be file is in .survey/; name the codes in src/typeinfo.ts and the next round will publish'
   else
     say 'the survey was written to the file, but the database could not be reached'
     say 'run: systemctl --user status aircraft-db-tunnel.service'

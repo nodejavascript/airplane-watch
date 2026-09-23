@@ -23,6 +23,8 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
+import { unnamedCodes } from '../tools/nameable.mjs';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const SITE = join(ROOT, 'site');
@@ -542,13 +544,22 @@ test('every type the survey measured can be NAMED, or is marked unknown on purpo
   // The page shows a name and a class for each row. A code the table has never
   // heard of must still render — as itself, in the "other" class — rather than
   // being dropped or invented.
+  //
+  // 🔴 AND THE QUESTION IS ASKED OF `tools/nameable.mjs`, WHICH THE PIPELINE ASKS TOO. The
+  // round that writes this file runs on a timer and now refuses to publish a list the site
+  // cannot name — see the guard in `tools/load-db.mjs`. That guard and this test must agree
+  // about what "nameable" means, and the only way to be sure is to ask the same file.
   const survey = JSON.parse(readFileSync(join(SITE, 'types.json'), 'utf8'));
-  const info = stripJs(readFileSync(join(SITE, 'typeinfo.js'), 'utf8'));
-  const unknown = [];
-  for (const type of survey.types) {
-    if (!new RegExp(`\\b${type.code}:`).test(info)) unknown.push(type.code);
-  }
+  const unknown = unnamedCodes(survey.types.map((type) => type.code));
   assert.deepEqual(unknown, [], `these measured types have no name in typeinfo.ts: ${unknown.join(', ')}`);
+});
+
+test('the naming rule answers both ways, so the pipeline guard is not vacuous', () => {
+  // A code the table knows, and one it cannot. Without the second case the rule could
+  // answer "nothing is missing" for ever and the guard in the pipeline would never fire.
+  assert.deepEqual(unnamedCodes(['A320', 'B738']), [], 'a code the table knows was reported as unnamed');
+  assert.deepEqual(unnamedCodes(['ZZZZ']), ['ZZZZ'], 'a code the table cannot know was reported as named');
+  assert.deepEqual(unnamedCodes(['A320', 'ZZZZ', 'ZZZZ']), ['ZZZZ'], 'duplicates or order are not handled');
 });
 
 test('the type codes the feed actually sends are the shape the table expects', () => {

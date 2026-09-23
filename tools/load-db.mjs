@@ -43,10 +43,12 @@
  *   node tools/load-db.mjs --check    connect and print what is in there
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import pg from 'pg';
+
+import { unnamedCodes } from './nameable.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = join(ROOT, 'site');
@@ -294,8 +296,13 @@ async function main() {
   // field something has to remember to write — which is exactly what George named. It
   // is now read back out of the database in one query, so the file cannot disagree with
   // the view: it IS the view, formatted.
-  await writeTypesFile(client);
-
+  // 🔴 A WITHHELD PUBLISH IS NOT A FAILED ROUND, AND IT MUST NOT BE REPORTED AS ONE. The
+  // data loaded; only the publish was held back. Exit 3 says exactly that, so
+  // `tools/run-survey.sh` reports the real reason instead of blaming the tunnel — which is
+  // what it would say for any other non-zero code, and would send the next reader to
+  // check a service that is working perfectly.
+  const published = await writeTypesFile(client);
+  if (published === false) process.exitCode = 3;
   await client.end();
   console.log('\nloaded. Run `node tools/load-db.mjs --check` to see the counts, including last-seen.');
 }
@@ -384,11 +391,51 @@ async function writeTypesFile(client) {
     })),
   };
 
+  // 🔴 IT REFUSES TO PUBLISH A LIST THE SITE CANNOT NAME, AND THAT IS THE POINT OF THIS GUARD.
+  //
+  // This function is the only thing that writes the served file, and it is called by a
+  // round that runs on a **timer** — `aircraft-survey.timer`, every four hours. So a type
+  // code the table has never heard of used to travel out of the feed and into the deploy
+  // artefact by itself, and `npm test` then failed on a file nobody had touched.
+  // **Measured 23 September 2026:** the 12:24 round published eight such codes —
+  // `C700 EC20 RV4 DH2T A306 C525 G2CA GA5C` — and the next deploy stopped at step 2 until
+  // they were found and set aside by hand. Twice.
+  //
+  // 🔴 AND THE RULE IS ASKED OF THE SAME MODULE THE SUITE ASKS IT OF, so the two cannot
+  // disagree about what "nameable" means. Withholding is not failing: the round's data is
+  // kept, the file the site serves is left exactly as it was, and the reason is printed
+  // where a person will read it instead of being left in a dirty working tree.
+  // 🔴 AND THE GUARD MAY NOT BECOME THE REASON A ROUND FAILS. If the check itself cannot
+  // answer — the table missing, unreadable, unbuilt — it says so and PUBLISHES ANYWAY,
+  // which is exactly the behaviour this file had before the guard existed. **An instrument
+  // that cannot answer must never be worse than no instrument.** A withheld publish is a
+  // known, benign condition that leaves a dirty file; a round that dies is a round that
+  // stops recording what flew.
+  let unnamed = [];
+  try {
+    unnamed = unnamedCodes(document.types.map((type) => type.code));
+  } catch (error) {
+    console.log(`types.json      the naming check could not run (${error.message}) — publishing anyway`);
+  }
+
+  if (unnamed.length > 0) {
+    const stamp = new Date(latest.started_at).toISOString().slice(0, 10);
+    const aside = join(ROOT, '.survey', `types-${stamp}-needs-${unnamed.length}-names.json`);
+    mkdirSync(join(ROOT, '.survey'), { recursive: true });
+    writeFileSync(aside, JSON.stringify(document, null, 2) + '\n');
+    console.log(
+      `types.json      NOT rewritten — ${unnamed.length} code(s) this site cannot name: ${unnamed.join(', ')}`
+    );
+    console.log(`                kept at .survey/${basename(aside)}; site/types.json is untouched`);
+    return false;
+  }
+
   writeFileSync(join(SITE, 'types.json'), JSON.stringify(document, null, 2) + '\n');
   console.log(
     `types.json      rewritten from the view — ${document.types.length} types, ` +
       `${document.runsRecorded} run${document.runsRecorded === 1 ? '' : 's'} of history`
   );
+  return true;
 }
 
 main().catch((error) => {
