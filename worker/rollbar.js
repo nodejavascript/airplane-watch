@@ -155,23 +155,54 @@ export function buildItem(error, context = {}, env = {}) {
 }
 
 /**
+ * 🔴 WHICH TOKEN, AND WHY THE TWO ARE NOT INTERCHANGEABLE — MEASURED 23 Sep 2026.
+ *
+ * Rollbar answers a browser item sent with the server token in so many words:
+ *
+ *   POST https://api.rollbar.com/api/1/item/   →  HTTP 403
+ *   {"err":1,"message":"insufficient privileges: post_client_item scope is required
+ *    but the access token only has post_server_item."}
+ *
+ * It is a rule about the ITEM, not about the caller: a `platform: 'browser'` item
+ * needs a `post_client_item` token, and a server item needs `post_server_item`. The
+ * relay exists so that no key sits in the page, so the client token is held HERE,
+ * beside the server one. That is cheap, because a client token is public by design —
+ * every Rollbar browser SDK ships one in its pages. What it must never be is MISSING,
+ * because the failure has no symptom the visitor can see: the endpoint answers 204
+ * either way, and a browser fault sent with the only token on hand is refused with a
+ * 403 that nobody reads. **That is how this was found — a real fault POSTed to the
+ * deployed endpoint, answered 204, and never appeared in the project.**
+ */
+function tokenFor(env, item) {
+  const browser = item && item.platform === 'browser';
+  return browser
+    ? { name: 'ROLLBAR_PAGE_TOKEN', token: env && env.ROLLBAR_PAGE_TOKEN }
+    : { name: 'ROLLBAR_SERVER_TOKEN', token: env && env.ROLLBAR_SERVER_TOKEN };
+}
+
+/**
  * Send one item, and the ONLY place in this Worker that talks to Rollbar.
  *
- * Two callers now — the Worker's own faults and the faults the page sends up —
- * so the token check, the timeout and the read-the-body rule live here once
- * rather than once per caller. A copy of this function would be a second place
- * the 429 lesson could be forgotten.
+ * Two callers — the Worker's own faults and the faults the page sends up — so the
+ * token choice, the timeout and the read-the-body rule live here once rather than
+ * once per caller. A copy of this function would be a second place the 429 lesson
+ * could be forgotten.
  *
  * It resolves `true` when Rollbar accepted the item and `false` for every other
- * outcome — no token, a network failure, a timeout, a refused payload. It never
- * rejects, so a caller may fire it into `ctx.waitUntil` without a `.catch`, and
- * it never logs the token.
+ * outcome — no token, the wrong token, a network failure, a timeout, a refused
+ * payload. It never rejects, so a caller may fire it into `ctx.waitUntil` without a
+ * `.catch`, and it never logs the token.
  */
 async function post(env, item) {
-  const token = env && env.ROLLBAR_SERVER_TOKEN;
-  // Not configured is not an error. A local `wrangler dev` with no secret set
-  // must behave exactly as the site did before Rollbar existed.
-  if (!token) return false;
+  const { name, token } = tokenFor(env, item);
+  // Not configured is not an error the visitor should meet. A local `wrangler dev`
+  // with no secret set must behave exactly as the site did before Rollbar existed —
+  // but it IS said out loud here, because "no token" and "the wrong token" are
+  // different faults and the second one is otherwise invisible.
+  if (!token) {
+    console.warn(`rollbar: nothing sent — ${name} is not set for a ${item && item.platform} item`);
+    return false;
+  }
 
   try {
     const response = await fetch(ENDPOINT, {
@@ -401,9 +432,10 @@ export function reportBrowserFault(env, ctx, raw, meta = {}) {
   const fault = cleanBrowserFault(raw);
   if (!fault) return null;
 
-  // The same rule as `reportFailure`: with no token there is nothing to send, so no
-  // promise is held and no request is made.
-  if (!(env && env.ROLLBAR_SERVER_TOKEN)) return fault;
+  // 🔴 THE PAGE TOKEN, NOT THE SERVER TOKEN — see `tokenFor`. With the server token
+  // this call is refused 403 and the fault is lost with no symptom, so an absent page
+  // token means nothing is sent rather than something that cannot be delivered.
+  if (!(env && env.ROLLBAR_PAGE_TOKEN)) return fault;
 
   const work = post(env, buildBrowserItem(fault, env, meta));
   if (ctx && typeof ctx.waitUntil === 'function') {

@@ -410,10 +410,24 @@ test('nothing is sent when the Worker has no token, and a fault is still recogni
   const accepted = reportBrowserFault({}, ctx, { message: 'boom' }, {});
   assert.ok(accepted, 'a fault was refused even though it was well formed');
   assert.equal(calls.length, 0, 'a request was made with no token configured');
-  assert.equal(waited.length, 0);
+  assert.equal(waited.length, 0, 'a no-op was scheduled, so the request is held open for nothing');
 });
 
-test('a well formed fault is posted once, and scheduled so it outlives the 204', () => {
+/**
+ * 🔴 THE REGRESSION THAT PROMPTED THIS TEST, MEASURED 23 Sep 2026.
+ *
+ * The first version of this feature sent browser faults with the server token — the
+ * only one the Worker had. Rollbar refuses them:
+ *
+ *   HTTP 403  insufficient privileges: post_client_item scope is required but the
+ *             access token only has post_server_item.
+ *
+ * and the visitor's endpoint still answered **204**, so there was no symptom at all.
+ * The fault was found by POSTing a real one to the deployed endpoint, watching it
+ * answer 204, and then reading the project and finding nothing there. A test that
+ * asserts "not sent with the wrong token" is the only kind that can hold this.
+ */
+test('a browser fault is NOT posted with the server token, which Rollbar refuses', () => {
   const calls = [];
   const waited = [];
   globalThis.fetch = async (url, init) => {
@@ -421,13 +435,42 @@ test('a well formed fault is posted once, and scheduled so it outlives the 204',
     return { ok: true };
   };
   const ctx = { waitUntil: (work) => waited.push(work) };
-  const env = { ROLLBAR_SERVER_TOKEN: 'a-token' };
+
+  const accepted = reportBrowserFault(
+    { ROLLBAR_SERVER_TOKEN: 'the-server-token' },
+    ctx,
+    { message: 'boom' },
+    {}
+  );
+
+  assert.ok(accepted, 'the fault itself is still well formed, and should be recognised');
+  assert.equal(
+    calls.length,
+    0,
+    'a browser fault was posted with the server token — Rollbar answers 403 and the fault is lost with no symptom'
+  );
+  assert.equal(waited.length, 0);
+});
+
+test('a well formed fault is posted once with the PAGE token, and scheduled so it outlives the 204', () => {
+  const calls = [];
+  const waited = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, init });
+    return { ok: true };
+  };
+  const ctx = { waitUntil: (work) => waited.push(work) };
+  const env = { ROLLBAR_PAGE_TOKEN: 'a-page-token', ROLLBAR_SERVER_TOKEN: 'a-server-token' };
 
   const fault = reportBrowserFault(env, ctx, { message: 'boom', route: '/fence' }, {});
   assert.ok(fault);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, 'https://api.rollbar.com/api/1/item/');
-  assert.equal(calls[0].init.headers['x-rollbar-access-token'], 'a-token');
+  assert.equal(
+    calls[0].init.headers['x-rollbar-access-token'],
+    'a-page-token',
+    'a browser item was sent with the wrong token, and Rollbar refuses those silently'
+  );
   assert.equal(waited.length, 1, 'the report was not scheduled, so the runtime may cancel it');
 
   assert.equal(reportBrowserFault(env, ctx, { nothing: true }, {}), null);

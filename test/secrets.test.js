@@ -47,12 +47,13 @@ const SECRETS = process.env.AIRCRAFT_SECRETS_DIR || join(homedir(), 'Documents/s
 /** The Rollbar credentials this project uses. Their real home is the secrets folder. */
 const KEY_FILES = [
   '.rollbar_airplane_watch_server_token',
+  '.rollbar_airplane_watch_page_token',
   '.rollbar_airplane_watch_read_token',
   '.rollbar_access_token',
 ];
 
 /** A token NAME followed by a quoted value of 20+ token characters. */
-const ASSIGNED_TOKEN = /rollbar[-_ ]?(server|account|access)?[-_ ]?token["']?\s*[:=]\s*["'][A-Za-z0-9_\-]{20,}/i;
+const ASSIGNED_TOKEN = /rollbar[-_ ]?(server|page|client|account|access)?[-_ ]?token["']?\s*[:=]\s*["'][A-Za-z0-9_\-]{20,}/i;
 
 /** Files that must never be tracked at all. */
 const FORBIDDEN_FILE = /(^|\/)\.dev\.vars$|(^|\/)\.env(\.|$)|\.(pem|key|p12)$/i;
