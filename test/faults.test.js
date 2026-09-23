@@ -347,6 +347,58 @@ test('redactText keeps the address and drops the query, on every shape of URL', 
   assert.equal(redactText(undefined, 10), '');
 });
 
+/**
+ * 🔴 THE FRAME THAT WENT MISSING, MEASURED 23 Sep 2026.
+ *
+ * A V8 frame is `fn (url:line:column)` and the line and column come AFTER any query
+ * string, so a script loaded as `app.js?v=7` produces
+ * `at inner (https://host/app.js?v=7:1601:5)`. Redaction cut at the `?` and threw the
+ * coordinates away with it, `framesFromStack` could not parse the frame, and the
+ * traceback arrived one frame shorter — **redaction was silently costing evidence**.
+ * Found by POSTing a real fault to the deployed endpoint and reading the occurrence
+ * back: two frames were sent and one was stored.
+ */
+test('a script URL with a query still yields a frame, and the query is still gone', () => {
+  const cleaned = cleanBrowserFault({
+    message: 'boom',
+    route: '/',
+    // Written the way V8 prints it: the THROWING frame first, its caller under it.
+    // The throwing frame is the one whose script carried the query, which is the case
+    // that used to lose it.
+    stack: [
+      'Error: boom',
+      '    at inner (https://host/app.js?tail=C-FABC:1601:5)',
+      '    at outer (https://host/app.js?v=7:1614:11)',
+    ].join('\n'),
+  });
+  const item = buildBrowserItem(cleaned);
+
+  assert.deepEqual(
+    item.body.trace.frames.map((frame) => frame.method),
+    ['outer', 'inner'],
+    'a frame was lost to redaction'
+  );
+  assert.deepEqual(
+    item.body.trace.frames.map((frame) => frame.lineno),
+    [1614, 1601],
+    'the line numbers did not survive'
+  );
+  assert.equal(JSON.stringify(item).includes('C-FABC'), false, 'the query survived');
+  assert.equal(JSON.stringify(item).includes('?'), false, 'a query string reached the item');
+});
+
+/**
+ * 🔴 AND THE TAIL IS TAKEN ON A SHAPE TEST, NOT ON TRUST. Only two integers may be
+ * re-attached after a query is cut; anything else in the tail is dropped with the query.
+ * Without this, "keep the coordinates" would be an instruction to keep whatever followed
+ * a `?`, which is exactly the text this whole file exists to remove.
+ */
+test('only two integers may be recovered after a cut query', () => {
+  assert.equal(redactText('at https://host/app.js?token=secret:12:3', 200), 'at https://host/app.js:12:3');
+  assert.equal(redactText('at https://host/app.js?token=abc123', 200), 'at https://host/app.js');
+  assert.equal(redactText('at https://host/app.js?x=1:2:3:4', 200), 'at https://host/app.js:3:4');
+});
+
 test('the item says it came from the page, and carries no person and no address', () => {
   const fault = cleanBrowserFault({
     message: 'boom',
@@ -365,6 +417,10 @@ test('the item says it came from the page, and carries no person and no address'
   assert.equal(text.includes('?'), false, 'a query string reached the item');
   assert.equal(item.platform, 'browser');
   assert.equal(item.custom.reported_by, 'page');
+  // The framework is deliberately UNSET: `cloudflare-workers` would be the Worker's own
+  // and a lie about where this fault happened. Rollbar shows the empty field as
+  // "unknown", which is the honest answer — the platform says all that is true.
+  assert.equal('framework' in item, false, 'a framework was claimed for a browser fault');
   assert.equal(item.context, '/fence');
   assert.equal(item.request.url, 'https://airplane-watch.nodejavascript.com/fence');
   assert.equal(item.custom.colo, 'YYZ');

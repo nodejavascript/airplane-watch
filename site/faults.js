@@ -68,14 +68,22 @@
     var sent = {};
     var count = 0;
     /**
-     * A URL reduced to its address: no query, no hash.
+     * A URL reduced to its address: no query, no hash — but the COORDINATES on the end
+     * are kept.
      *
-     * The query is where a reader's own search lives, and it is the one part of a
-     * URL that could carry something typed. Applied to every URL-shaped run in a
-     * message or a stack, so a filename like `/app.js?v=7` arrives as `/app.js`.
+     * 🔴 A V8 FRAME PUTS THE LINE AND COLUMN AFTER THE QUERY. A frame reads
+     * `fn (https://host/app.js?v=7:1614:11)`, so cutting at the `?` throws away the only
+     * coordinates the frame has — and then the frame cannot be parsed and the traceback
+     * arrives a line shorter. Keeping a tail of exactly two integers loses nothing and
+     * lets nothing from the query through. Measured on the Worker side of this relay,
+     * 23 Sep 2026; the rule is applied here as well so the payload leaves correct.
      */
     function withoutQuery(text) {
-        return text.split('#')[0].split('?')[0];
+        var cut = text.search(/[?#]/);
+        if (cut === -1)
+            return text;
+        var tail = /(:\d+:\d+)$/.exec(text.slice(cut));
+        return text.slice(0, cut) + (tail ? tail[1] : '');
     }
     /** A script's address as a path on this site: no origin, no query, no hash. */
     function scriptPath(url) {

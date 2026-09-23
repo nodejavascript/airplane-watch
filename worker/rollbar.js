@@ -292,10 +292,26 @@ export function reportFailure(env, ctx, error, request) {
  */
 const FAULT_LIMITS = { route: 200, message: 300, stack: 4_000, source: 300 };
 
-/** A URL reduced to its address: no query, no hash. */
+/**
+ * A URL reduced to its address: no query, no hash — AND THE COORDINATES ON THE END KEPT.
+ *
+ * 🔴 WHY THE TAIL IS RE-ATTACHED, MEASURED 23 Sep 2026. A V8 frame is
+ * `fn (url:line:column)`, and when a script was loaded with a cache-busting query the
+ * frame reads `fn (https://host/app.js?v=7:1614:11)` — **the line and the column come
+ * AFTER the query.** Cutting at the `?` therefore threw away the only coordinates the
+ * frame had, `framesFromStack` could not parse it, and the frame was dropped: redaction
+ * was silently costing a traceback. Found by reading a real occurrence back from the
+ * project and finding one frame where two were sent.
+ *
+ * The tail is re-attached only when it is EXACTLY two integers, so nothing from the
+ * query can ride along. It is a shape test, not a guess, and the guarantee is unchanged:
+ * no query string survives, and the numbers are not secrets.
+ */
 function withoutQuery(token) {
   const cut = token.search(/[?#]/);
-  return cut === -1 ? token : token.slice(0, cut);
+  if (cut === -1) return token;
+  const tail = /(:\d+:\d+)$/.exec(token.slice(cut));
+  return token.slice(0, cut) + (tail ? tail[1] : '');
 }
 
 /**
