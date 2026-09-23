@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-21T11:44:34.222Z",
+  "generated": "2026-09-23T11:46:13.699Z",
   "source": "the operator's own published flight schedule",
   "method": "Read from the operator's flight-day endpoint, one request per day, two seconds apart. Its date parameter is one day ahead of the day it returns — measured against ten dates on 20 Sep 2026 — so the offset day is requested, and every event is then checked against the day it claims. If that offset ever changes, this returns nothing for a day rather than the wrong day's flights.",
   "caution": "These are the operator's scheduled flights, not a promise that the feed will report them. A flight that is equipped and transmitting appears in the list above like anything else. An aircraft whose type code has never been reported is marked, because that is a fact about the feed and not about the aircraft.",
@@ -210,13 +210,13 @@
           "url": "https://www.warplane.com/aircraft/flights/buy/form.aspx?aid=6&fid=25345"
         },
         {
-          "aircraft": 12,
+          "aircraft": 5,
           "beginsAt": "2026-09-26T14:30:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
         },
         {
-          "aircraft": 5,
+          "aircraft": 12,
           "beginsAt": "2026-09-26T14:30:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
@@ -246,13 +246,13 @@
           "url": "https://www.warplane.com/"
         },
         {
-          "aircraft": 3,
+          "aircraft": 12,
           "beginsAt": "2026-09-26T17:00:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
         },
         {
-          "aircraft": 12,
+          "aircraft": 3,
           "beginsAt": "2026-09-26T17:00:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
@@ -290,8 +290,8 @@
         {
           "aircraft": 5,
           "beginsAt": "2026-09-27T14:30:00.000Z",
-          "seats": "(1 Seat Available)",
-          "url": "https://www.warplane.com/aircraft/flights/buy/form.aspx?aid=56&fid=25365"
+          "seats": "(Sold Out)",
+          "url": "https://www.warplane.com/"
         },
         {
           "aircraft": 12,
@@ -318,13 +318,13 @@
           "url": "https://www.warplane.com/"
         },
         {
-          "aircraft": 8,
+          "aircraft": 7,
           "beginsAt": "2026-09-27T16:30:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
         },
         {
-          "aircraft": 7,
+          "aircraft": 8,
           "beginsAt": "2026-09-27T16:30:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
@@ -510,25 +510,25 @@
           "url": "https://www.warplane.com/"
         },
         {
-          "aircraft": 7,
-          "beginsAt": "2026-10-03T16:30:00.000Z",
-          "seats": "(Sold Out)",
-          "url": "https://www.warplane.com/"
-        },
-        {
           "aircraft": 8,
           "beginsAt": "2026-10-03T16:30:00.000Z",
           "seats": "(1 Seat Available)",
           "url": "https://www.warplane.com/aircraft/flights/buy/form.aspx?aid=32&fid=25588"
         },
         {
-          "aircraft": 12,
-          "beginsAt": "2026-10-03T17:00:00.000Z",
+          "aircraft": 7,
+          "beginsAt": "2026-10-03T16:30:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
         },
         {
           "aircraft": 3,
+          "beginsAt": "2026-10-03T17:00:00.000Z",
+          "seats": "(Sold Out)",
+          "url": "https://www.warplane.com/"
+        },
+        {
+          "aircraft": 12,
           "beginsAt": "2026-10-03T17:00:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
@@ -750,16 +750,16 @@
           "url": "https://www.warplane.com/aircraft/flights/buy/form.aspx?aid=56&fid=25495"
         },
         {
-          "aircraft": 6,
-          "beginsAt": "2026-10-11T15:00:00.000Z",
-          "seats": "(1 Seat Available)",
-          "url": "https://www.warplane.com/aircraft/flights/buy/form.aspx?aid=6&fid=25524"
-        },
-        {
           "aircraft": 12,
           "beginsAt": "2026-10-11T15:00:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
+        },
+        {
+          "aircraft": 6,
+          "beginsAt": "2026-10-11T15:00:00.000Z",
+          "seats": "(1 Seat Available)",
+          "url": "https://www.warplane.com/aircraft/flights/buy/form.aspx?aid=6&fid=25524"
         },
         {
           "aircraft": 7,
@@ -924,25 +924,25 @@
           "url": "https://www.warplane.com/aircraft/flights/buy/form.aspx?aid=6&fid=25508"
         },
         {
-          "aircraft": 5,
-          "beginsAt": "2026-10-17T14:30:00.000Z",
-          "seats": "(1 Seat Available)",
-          "url": "https://www.warplane.com/aircraft/flights/buy/form.aspx?aid=56&fid=25493"
-        },
-        {
           "aircraft": 12,
           "beginsAt": "2026-10-17T14:30:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
         },
         {
-          "aircraft": 6,
+          "aircraft": 5,
+          "beginsAt": "2026-10-17T14:30:00.000Z",
+          "seats": "(1 Seat Available)",
+          "url": "https://www.warplane.com/aircraft/flights/buy/form.aspx?aid=56&fid=25493"
+        },
+        {
+          "aircraft": 8,
           "beginsAt": "2026-10-17T15:00:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
         },
         {
-          "aircraft": 8,
+          "aircraft": 6,
           "beginsAt": "2026-10-17T15:00:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
@@ -966,14 +966,20 @@
           "url": "https://www.warplane.com/aircraft/flights/buy/form.aspx?aid=13&fid=25536"
         },
         {
+          "aircraft": 7,
+          "beginsAt": "2026-10-17T16:30:00.000Z",
+          "seats": "(Sold Out)",
+          "url": "https://www.warplane.com/"
+        },
+        {
           "aircraft": 8,
           "beginsAt": "2026-10-17T16:30:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
         },
         {
-          "aircraft": 7,
-          "beginsAt": "2026-10-17T16:30:00.000Z",
+          "aircraft": 12,
+          "beginsAt": "2026-10-17T17:00:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
         },
@@ -982,12 +988,6 @@
           "beginsAt": "2026-10-17T17:00:00.000Z",
           "seats": "(1 Seat Available)",
           "url": "https://www.warplane.com/aircraft/flights/buy/form.aspx?aid=13&fid=25550"
-        },
-        {
-          "aircraft": 12,
-          "beginsAt": "2026-10-17T17:00:00.000Z",
-          "seats": "(Sold Out)",
-          "url": "https://www.warplane.com/"
         },
         {
           "aircraft": 7,
@@ -1020,13 +1020,13 @@
           "url": "https://www.warplane.com/aircraft/flights/buy/form.aspx?aid=56&fid=25496"
         },
         {
-          "aircraft": 6,
+          "aircraft": 12,
           "beginsAt": "2026-10-18T15:00:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"
         },
         {
-          "aircraft": 12,
+          "aircraft": 6,
           "beginsAt": "2026-10-18T15:00:00.000Z",
           "seats": "(Sold Out)",
           "url": "https://www.warplane.com/"

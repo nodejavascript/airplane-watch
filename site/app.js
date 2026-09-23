@@ -1221,7 +1221,7 @@ class Page {
     feedTrouble(response) {
         if (response.status === 429) {
             return ('The feed asked us to slow down (HTTP 429). It is volunteer-funded and answers a limited number of ' +
-                'requests, and this page had been asking every ten seconds. It has slowed itself down to give the feed ' +
+                'requests, and this page had been asking every twenty seconds. It has slowed itself down to give the feed ' +
                 'room, and it will speed back up on its own — the map below keeps the last reading it managed to get.');
         }
         if (response.status >= 500) {
@@ -1230,7 +1230,7 @@ class Page {
                 'then recovers. The page keeps asking, and the map below keeps the last reading it got.');
         }
         if (!response.ok) {
-            return (`The feed answered HTTP ${response.status}. The page keeps asking every ten seconds, so this may clear ` +
+            return (`The feed answered HTTP ${response.status}. The page keeps asking every twenty seconds, so this may clear ` +
                 'on its own.');
         }
         return null;
@@ -2972,8 +2972,15 @@ class Page {
             // ask the feed about a point that does not exist. The table keeps its last
             // reading rather than being emptied, because an empty table says "nothing is
             // flying" when the truth is "nothing has been asked for yet".
+            // 🔴 THE PAGE MAY NOT INVITE THE READER TO PICK FROM A LIST IT DELIBERATELY WITHHOLDS.
+            // It said *"Pick an airport above, or say where you are, and this fills in."* — and there is no
+            // airport above: `renderNearby` draws nothing until a centre is known, because George's rule is
+            // *"if you dont know location, there should be no airports seen"*. So the first screen of a
+            // fresh visit told a visitor to press something that is not there, while the seven airports the
+            // page is built around went undrawn. **A promise the page does not keep is the defect, not the
+            // withheld list** — the list stays withheld and the sentence now says what to do.
             this.stop();
-            this.setStatus('Pick an airport above, or say where you are, and this fills in.', 'working');
+            this.setStatus('Say where you are — search for a place, or let the browser find you — and this fills in.', 'working');
             return;
         }
         // 🔴 THE HISTORY CROSSES THE RE-AIM, OR MOVING THE DISTANCE WIPES EVERY FLIGHT PATH.
@@ -3020,23 +3027,23 @@ class Page {
             // a third of a second apart, *"you didnt do the collpase / expand like i
             // asked"*. He was right: a stagger is not a sequence.
             //
-            // 🔴 THE DISTANCE IS NO LONGER PART OF THE SEQUENCE, AND IT CANNOT BE. George moved the
-            // control on 22 Sep 2026 — *"i want this above the map"* — and the map is in step 4, which
-            // step 3 unlocks. `place && radiusChosen` therefore became a circle that could never be
-            // entered: the distance could only be chosen in a card that appears after a distance has been
-            // chosen. The gate is the PLACE alone now, a distance is in use from the start, and the
-            // distance card says so in its own note.
+            // 🔴 THE FLOW IS THREE STEPS, AND IT IS NUMBERED 1-2-3 — ON THE PAGE AND IN THE GATE.
+            // It was **1, 3, 4** until 22 Sep 2026, and the reader could see the skip: the distance was
+            // step 2, George moved its control into the card that carries the map — *"i want this above the
+            // map"* — and the card it moved into was step 4, which step 3 unlocks. That left a sequence with
+            // no second step in it, so `place && radiusChosen` became a circle that could never be entered:
+            // the distance could only be chosen in a card that appears after a distance has been chosen.
+            // The gate is the PLACE alone now, a distance is in use from the start, and the distance card
+            // says so in its own note. The *numbering* was left behind by that change and is fixed the same
+            // day — a reader counted 1, 3, 4 on the screen, which is a defect however harmless the code is.
             //
-            //   1  where you are                 → ANSWERED by a place
-            //                                    → unlocks 3
-            //   3  the aircraft types            → ANSWERED when something is starred
-            //                                    → unlocks 4 (which carries the distance and the map)
-            //   5  name one aircraft             → the alternative to 3, so it rides with it
-            //   4, 6                             → a watchlist, a map and a board are all
-            //                                    empty until something has been picked
+            //   1  where you are              → ANSWERED by a place            → unlocks 2
+            //   2  the aircraft types         → ANSWERED when something is starred → unlocks 3
+            //   3  what you are watching      → carries the distance and the map, and is empty until
+            //                                   something has been picked
             const answered1 = place;
             const answered2 = answered1 && picked;
-            const show = step === 1 ? true : step === 3 || step === 5 ? answered1 : answered2;
+            const show = step === 1 ? true : step === 2 ? answered1 : answered2;
             if (show && section.hidden) {
                 section.hidden = false;
                 section.classList.add('step-arrive');

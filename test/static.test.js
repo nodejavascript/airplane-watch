@@ -308,11 +308,30 @@ test('5 · the Analytics id does not clash with the family register, when one is
   const rows = Array.isArray(register) ? register : register.sites || [];
   if (rows.length === 0) return;
 
+  // 🔴 OUR OWN ROW IS NOT A CLASH WITH OURSELVES (23 September 2026).
+  //
+  // House part 5 rule 4 says a site is ADDED TO THE REGISTER on the day it is deployed — and the
+  // moment this site was added, this check started failing against itself: it reported *"these are
+  // already taken by a live site: theme colour #38bdf8, background #04101a"* and the only row
+  // holding those values was **planewatch's own**. A false failure is the expensive kind (part 6),
+  // and this one blocked the project's own deploy, because `deploy.sh` runs this suite.
+  //
+  // AND THE TEXTURE IS READ FROM OUR OWN ROW rather than pinned here. It was a literal
+  // (`'1 radial + 2 linear'`) while the site's drawing had already changed to
+  // `3 radial + 2 linear + 1 conic + masked` — a check asserting a value that had outlived its
+  // subject, which is house standard 6c. Comparing the register's own record of us is the one form
+  // that cannot rot: if the drawing changes, the register changes with it.
+  const hostOf = (row) => String(row.host || row.site || row.name || '');
+  const mine = rows.find((row) => hostOf(row).startsWith('planewatch'));
+  const others = rows.filter((row) => row !== mine);
+
   const clashes = [];
-  if (rows.some((row) => String(row.theme).toLowerCase() === THEME)) clashes.push(`theme colour ${THEME}`);
-  if (rows.some((row) => String(row.background).toLowerCase() === BACKGROUND)) clashes.push(`background ${BACKGROUND}`);
-  const myTexture = '1 radial + 2 linear';
-  if (rows.some((row) => String(row.texture).toLowerCase() === myTexture)) clashes.push(`background image (${myTexture})`);
+  if (others.some((row) => String(row.theme).toLowerCase() === THEME)) clashes.push(`theme colour ${THEME}`);
+  if (others.some((row) => String(row.background).toLowerCase() === BACKGROUND)) clashes.push(`background ${BACKGROUND}`);
+  const myTexture = String(mine?.texture || '').toLowerCase();
+  if (myTexture && others.some((row) => String(row.texture).toLowerCase() === myTexture)) {
+    clashes.push(`background image (${myTexture})`);
+  }
   assert.deepEqual(clashes, [], `these are already taken by a live site: ${clashes.join(', ')}`);
 });
 
@@ -3151,4 +3170,52 @@ test('104 · the filter count can be refreshed in place, and one press is one ro
   assert.match(lineRule, /display: flex/, 'the count and its refresh are not on one line');
   const noteRule = cssRules.slice(cssRules.indexOf('.filter-note-line #filterNote {'), cssRules.indexOf('}', cssRules.indexOf('.filter-note-line #filterNote {')));
   assert.match(noteRule, /flex: 1 1 auto/, 'the sentence cannot take the width, so the control is not pushed right');
+});
+
+/* 🔴 105 · NO SENTENCE MAY PROMISE A CADENCE THE CODE CANNOT KEEP (23 September 2026).
+
+Found while deploying, and it was THREE sentences rather than one. The page's opening paragraph said
+the page "reads a public flight feed every ten seconds"; the message a reader gets when the feed asks
+the site to slow down said it "had been asking every ten seconds"; and the message for any other bad
+status said it "keeps asking every ten seconds". The code polls on `POLL_START_MS` and floors at
+`POLL_MIN_MS` — twenty seconds and fifteen — and the page's OWN detail section, two scrolls further
+down, already said twenty and fifteen. So the fault was never one wrong number: it was **one claim
+said three ways, with the false version in the first paragraph a visitor reads and in the two moments
+the page speaks to them about a fault**. House standard 6b: one claim, said one way — and a label
+that invites a wrong conclusion is a factual fault, not a matter of style.
+
+AND THE CHECK READS THE INTERVAL OUT OF THE CODE, so it cannot rot the way a pinned string would:
+set `POLL_MIN_MS` to 5,000 and this test keeps passing, because five seconds then becomes a cadence
+the page is allowed to promise. That is house standard 6c — a check reads its value out of the
+artefact it checks, or asserts a relation, and never a literal that can outlive its subject.
+
+Comments come out of BOTH files first. The source's own comments discuss the cadence this page used
+to poll at, in the past tense, and a file that describes what it *used* to do must not fail a check
+about what it does *now* — that is the false failure house standard 6 exists to prevent. */
+test('105 · no sentence promises a cadence the code cannot keep', () => {
+  const src = read(ROOT, 'src', 'app.ts');
+  const constant = (name) => {
+    const found = new RegExp(`${name}\\s*=\\s*([\\d_]+)`).exec(src);
+    return found ? Number(found[1].replace(/_/g, '')) : NaN;
+  };
+  const start = constant('POLL_START_MS') / 1000;
+  const floor = constant('POLL_MIN_MS') / 1000;
+  assert.ok(Number.isFinite(start) && Number.isFinite(floor) && floor > 0,
+    'the poll constants could not be read out of src/app.ts, so this check cannot judge anything');
+
+  const WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, ten: 10, fifteen: 15, twenty: 20, thirty: 30, sixty: 60 };
+  const claims = (text) => [...text.matchAll(/every\s+([a-z]+|\d+)\s+seconds?/gi)]
+    .map((m) => WORDS[m[1].toLowerCase()] ?? Number(m[1]))
+    .filter((n) => Number.isFinite(n));
+
+  const page = claims(stripHtml(read(SITE, 'index.html')));
+  const source = claims(stripJs(src));
+
+  assert.ok(page.length >= 2, `the page states its cadence in more than one place (found ${page.length})`);
+  for (const [where, list] of [['the page', page], ['the source it renders', source]]) {
+    const tooFast = list.filter((n) => n < floor);
+    assert.deepEqual(tooFast, [],
+      `${where} promises ${tooFast.join('s, ')}s and the code never polls faster than ${floor}s`);
+    assert.ok(list.includes(start), `${where} never states the cadence it actually starts on (${start}s)`);
+  }
 });

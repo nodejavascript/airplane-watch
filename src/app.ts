@@ -1497,7 +1497,7 @@ class Page {
     if (response.status === 429) {
       return (
         'The feed asked us to slow down (HTTP 429). It is volunteer-funded and answers a limited number of ' +
-        'requests, and this page had been asking every ten seconds. It has slowed itself down to give the feed ' +
+        'requests, and this page had been asking every twenty seconds. It has slowed itself down to give the feed ' +
         'room, and it will speed back up on its own — the map below keeps the last reading it managed to get.'
       );
     }
@@ -1510,7 +1510,7 @@ class Page {
     }
     if (!response.ok) {
       return (
-        `The feed answered HTTP ${response.status}. The page keeps asking every ten seconds, so this may clear ` +
+        `The feed answered HTTP ${response.status}. The page keeps asking every twenty seconds, so this may clear ` +
         'on its own.'
       );
     }

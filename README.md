@@ -2,14 +2,15 @@
 
 Watch a named aircraft leave a named airport, and be told when it does.
 
-Live: **https://planewatch.nodejavascript.com** *(not yet deployed — see below)*
+Live: **https://planewatch.nodejavascript.com** — deployed **22 September 2026**
 Local: `npm run serve` → http://127.0.0.1:4340/
 
 ## What it does
 
-Pick one of seven airports, point a fence of 5, 10 or 25 nautical miles at it, and
-name the aircraft you care about by tail number, callsign or transponder address.
-The page asks a public flight feed for everything inside the fence every ten
+Pick one of seven airports, choose a fence of 25 to 400 kilometres — the widest stop is
+the feed's own 250-nautical-mile limit, and it is labelled *All* — and name the
+aircraft you care about by tail number, callsign or transponder address.
+The page asks a public flight feed for everything inside the fence every twenty
 seconds, and tells you the moment a watched aircraft is airborne — with a browser
 notification if you allowed one.
 
@@ -251,21 +252,38 @@ Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
 The survey is polite about the feed's rate limit and reports any round it could not get (measured: seven
 airports polled back to back had five refused by the third round).
 
-## Not deployed yet, and what that means
+## Deployed 22 September 2026 — and the placeholder gate that had to be believed twice
 
-House rule **7a**: DNS is created at deployment, never before. This is a demo on a
-port, not a subdomain, so four things do not exist yet and are made together on
-the day it goes live:
+**Deployed Tuesday 22 September 2026**, commit **`356c853`** — *"planewatch is live, and the two gates
+that would have stopped it were wrong"* — with **106/106 static · 46/46 unit · 37/37 live checks**
+against the deployed page.
 
-1. the DNS record for `planewatch.nodejavascript.com`
-2. its own Google Analytics property in the `mcp` account, named with the full domain
+**Prior wording, preserved and now dead:** *"Not deployed yet, and what that means — four things do
+not exist yet and are made together on the day it goes live."* **All four were made that day, and a
+fifth was written into the rule book since:**
+
+1. the DNS record for `planewatch.nodejavascript.com` — a proxied `A` record to `178.128.225.32`
+2. its own Google Analytics property in the `mcp` account, named with the full domain —
+   **`G-XWQ2VN6RW0`**, read out of the served page
 3. its row in the family theme register
-4. its link from `nodejavascript.com`
+4. 🔴 **its card on `nodejavascript.com` — THE ONE ITEM MISSED, added 23 September.** House record
+   **7a** has made **five** things on deploy day since part 11 was written; four were done. **Nothing
+   in any suite could see the gap:** the card tests prove the data covers the cards and never that a
+   project *has* a card. It now sits in a **Maps** group, beside Artificial Intelligence & Machine
+   Learning, and the apex's live check reads the served page for the group, the card and the host it
+   points at.
+5. ⚠️ **the Open Graph image — and it was missing too.** `site/og.png` (1200×630) was written but
+   never committed and never deployed, so `og:image` and `twitter:image` both answered **404**: a
+   share of this page had no picture to show. Found and fixed on 23 September; it is committed and
+   deployed now.
 
-`site/index.html` carries `data-ga-id="G-PENDING"`, and **a unit test fails while
-that is true** — so `npm test`, and therefore `npm run deploy`, cannot complete
-against an undeployed site whose property was never created. That is the gate, not
-an oversight.
+**The `G-PENDING` gate did its job, and then refused a correct site.** `site/index.html` carrying
+`data-ga-id="G-PENDING"` makes `npm test` fail, so `npm run deploy` cannot publish a site whose
+Analytics property was never created — **that is the gate, and it is why this could not go live
+early.** On deploy day it then **refused a site whose id was real**, because it searched the whole
+file for the string and found it *inside the comment explaining the gate*. It reads the attribute
+now, and fails loudly when the attribute is missing altogether, so a page with no tag cannot pass
+by absence.
 
 ## Data
 
