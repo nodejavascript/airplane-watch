@@ -19,6 +19,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -237,6 +238,38 @@ test('4 · the copyright carries the full domain name', () => {
 test('4 · the privacy link is an in-page #privacy anchor and the section exists', () => {
   assert.match(htmlCode, /<a href="#privacy">Privacy<\/a>/);
   assert.match(htmlCode, /<section class="card" id="privacy">/);
+});
+
+/* 🔴 AND THE REPOSITORY IS LINKED — IF THERE IS ONE A STRANGER CAN OPEN (added 23 September 2026).
+
+House part 4, George 19 September 2026, verbatim: *"another rule, if the repo is public link it in the
+bottom where the full url expect the https::"* — so the footer points at the repository **and prints
+where it goes**, rather than a phrase like *"the source"*, because the reader can then see the
+destination before they click. A **private** repository is not linked at all.
+
+AND THE CHECK READS THE ANSWER OUT OF THE CLONE, not out of a literal. `github.com/nodejavascript/
+planewatch` typed here would be a fifth copy of the repository's own name, and the day it moves it
+would be the copy nobody updates (house standard 6c). The remote is what this checkout actually is.
+
+⚠️ **IT DELIBERATELY DOES NOT ASK WHETHER THE REPOSITORY IS PUBLIC.** That is a fact about a forge,
+and a unit suite reads files — so it returns silently when the footer links no repository at all,
+which is the correct state for a private one and must never be a failure. Publicness belongs to
+`~/.nodejs_compliance.py` part 12, which reads both forges in one call each. */
+test('4 · a repository linked in the footer shows the ADDRESS, and names the one this clone is', () => {
+  const footer = htmlCode.match(/<footer[\s\S]*?<\/footer>/)[0];
+  const links = [...footer.matchAll(/<a href="https:\/\/github\.com\/([^"]+)"[^>]*>([^<]+)<\/a>/g)];
+  if (links.length === 0) return; // a private repository is not linked at all — not a failure
+  assert.equal(links.length, 1, `the repository is linked ${links.length} times`);
+
+  const href = links[0][1];
+  const text = links[0][2].trim();
+  assert.equal(text, `github.com/${href}`,
+    'the repository link shows a label instead of the address, so the reader cannot see where it goes');
+
+  const remote = execFileSync('git', ['-C', ROOT, 'remote', 'get-url', 'origin'], { encoding: 'utf8' }).trim();
+  const m = /github[\w.-]*[:/]+([^/]+)\/(.+?)(?:\.git)?$/.exec(remote);
+  assert.ok(m, `the origin remote is not a GitHub URL, so this check cannot judge the link: ${remote}`);
+  assert.equal(href, `${m[1]}/${m[2]}`, 'the footer names a different repository than this clone points at');
 });
 
 test('4 · NO privacy page exists anywhere in the repository', () => {

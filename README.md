@@ -252,6 +252,17 @@ Two things were changed on 20 Sep 2026 because they were wrong for a visitor:
 The survey is polite about the feed's rate limit and reports any round it could not get (measured: seven
 airports polled back to back had five refused by the third round).
 
+## Licence
+
+**The source is public so it can be READ. No licence is granted, and all rights are reserved.** A
+repository anyone can open is not the same as code anyone may reuse: there is no licence file here,
+which means the ordinary position — no right to copy, modify or redistribute it. (House part 11c asks
+for this sentence rather than leaving a reader to assume it from the absence of a file.)
+
+The **data** is a different matter, and a more generous one: aircraft positions come from
+**[adsb.lol](https://adsb.lol/)** under the **Open Database License**, the map squares from
+**OpenStreetMap** under their own, and each photograph under the licence named beside it.
+
 ## Deployed 22 September 2026 — and the placeholder gate that had to be believed twice
 
 **Deployed Tuesday 22 September 2026**, commit **`356c853`** — *"planewatch is live, and the two gates
