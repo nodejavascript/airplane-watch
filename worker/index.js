@@ -554,6 +554,11 @@ export default {
       return servePhoto(url.searchParams.get('src'));
     }
 
+    // 🔴 THE EGRESS DIAGNOSTIC WAS HERE AND IS DELETED (23 Sep 2026, the session that added it). It asked
+    // eight endpoints from inside this Worker and printed a status for each — a body only when the status
+    // was not 200 — and what it proved is written in the note at the top of this file and in the project
+    // record, where it is useful, rather than left as a public path on a live Worker.
+
     // 🔴 THE EGRESS PROBE WAS HERE AND IS DELETED (23 Sep 2026, the same session that added it). It asked
     // three feeds the same question at the same moment and returned statuses only, and it answered the
     // question it was built for: **from a Cloudflare Worker, adsb.lol answers 429 and airplanes.live and
