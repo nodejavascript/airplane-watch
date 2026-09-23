@@ -158,6 +158,42 @@ function fire(page, type, event) {
   for (const listener of page.listeners.get(type) || []) listener(event);
 }
 
+/**
+ * Every catch block in a file, each with the body that belongs to it.
+ *
+ * 🔴 THE SAME CONSTRUCT HAS TWO SHAPES, AND KNOWING ONLY ONE COST A FALSE FAILURE ON THE
+ * FIRST RUN. `src/app.ts` writes `} catch {` on one line; **TypeScript emits the built
+ * file with the brace and `catch` on separate lines**. So a check that looked for
+ * `} catch` found **zero** catches in `site/faults.js` and reported *"this check is
+ * measuring nothing"* — a good failure to have, but still a check disagreeing with the
+ * thing it was checking.
+ *
+ * 🔴 AND THE BODY IS TAKEN TO THE END OF THE BLOCK, NOT FOR A FIXED FEW LINES. A four-line
+ * window missed the three catches in `src/app.ts` whose first statement sits under a
+ * longer explanation — a FALSE FAILURE on three catches that were correct, which is the
+ * expensive kind. The end is found by indentation: the first line that is nothing but a
+ * closing brace at the catch's own depth.
+ */
+function catchBlocks(source) {
+  const lines = source.split('\n');
+  const blocks = [];
+
+  lines.forEach((line, index) => {
+    if (!/^\s*(?:\}\s*)?catch\s*[({]/.test(line)) return;
+    const indent = (line.match(/^\s*/) || [''])[0].length;
+    let end = index + 1;
+    while (end < lines.length) {
+      const candidate = lines[end];
+      const depth = (candidate.match(/^\s*/) || [''])[0].length;
+      if (/^\s*\}$/.test(candidate) && depth === indent) break;
+      end += 1;
+    }
+    blocks.push({ at: index + 1, body: lines.slice(index + 1, end).join('\n') });
+  });
+
+  return blocks;
+}
+
 /** The JSON the page actually sent. */
 async function payloadOf(entry) {
   if (entry.blob) return JSON.parse(await entry.blob.text());
@@ -256,6 +292,103 @@ test('a promise nobody caught is reported too', async () => {
 
   const payload = await payloadOf(page.sent[0]);
   assert.match(payload.message, /^Error: nothing caught this$/);
+});
+
+/**
+ * 🔴 THE LIMITATION GEORGE NAMED, MEASURED 23 Sep 2026.
+ *
+ * ***"if you have any try/catch rollbar wont get it unless to invoke the catch err and
+ * send to rollbar."*** True, and the first version of this feature did not do it: the
+ * reporter hooked `error` and `unhandledrejection` and nothing else, so **every fault the
+ * page caught and handled was invisible** — including the five the page tells the reader
+ * about as problems, and the three shipped files whose failure it hides entirely.
+ *
+ * The entry point is `window.aircraftFault`, reachable from the page as `reportFault(...)`.
+ */
+test('a catch can send what it caught, through the entry point on the window', async () => {
+  const page = await loadPage();
+  const caught = new Error('the feed answered a web page instead of JSON');
+
+  page.window.aircraftFault(caught, 'reading the feed');
+
+  assert.equal(page.sent.length, 1, 'a caught error reported through the entry point went nowhere');
+  const payload = await payloadOf(page.sent[0]);
+  assert.equal(payload.message, 'Failed while reading the feed. Error: the feed answered a web page instead of JSON');
+  assert.match(payload.stack, /the feed answered a web page instead of JSON/);
+  assert.equal(JSON.stringify(payload).includes('?'), false);
+});
+
+test('a caught fault that repeats is sent once, like an escaping one', async () => {
+  const page = await loadPage();
+  for (let i = 0; i < 4; i += 1) {
+    page.window.aircraftFault(new Error('the same caught fault'), 'reading the feed');
+  }
+  assert.equal(page.sent.length, 1, 'a repeating caught fault is flooding the project');
+});
+
+test('the entry point never throws, however it is called', async () => {
+  const page = await loadPage();
+  assert.doesNotThrow(() => {
+    page.window.aircraftFault(undefined, 'a step');
+    page.window.aircraftFault({}, undefined);
+    page.window.aircraftFault(null, 42);
+  });
+});
+
+/**
+ * 🔴 AND THE CATCH ITSELF MUST SAY WHICH IT IS — this is the gate, not the paragraph.
+ *
+ * The failure this guards against is a `catch` added six months from now that quietly
+ * swallows something, and no convention in a comment stops that. So every catch in the
+ * page must do one of two things, and the check reads the first lines of its body:
+ *
+ *     reportFault(error, 'where it failed');   // this is a fault — send it
+ *     // expected: why this is an answer rather than a break
+ *
+ * ⚠️ THE SOURCE IS READ RAW, COMMENTS AND ALL, WHICH IS THE OPPOSITE OF EVERY OTHER
+ * CHECK IN THIS SUITE. Everywhere else a comment must not be able to satisfy a check;
+ * here the comment IS the artefact being checked — it is the author saying, at the
+ * moment of writing the catch, that they have thought about it.
+ *
+ * Scope: `src/app.ts`, which is where the page's real work happens and where these
+ * decisions are made. `src/consent.ts` has three catches, all of them around
+ * `localStorage` in private mode and all of them expected by construction; they are not
+ * counted here because a check that cannot tell a storage guard from a swallowed fault
+ * would be noise. `src/faults.ts` is the reporter itself and is checked separately below.
+ */
+test('every catch in the page either reports the fault or says why it is not one', () => {
+  const blocks = catchBlocks(read(ROOT, 'src', 'app.ts'));
+  const undecided = blocks
+    .filter((block) => !/reportFault\(/.test(block.body) && !/\/\/ expected:/.test(block.body))
+    .map((block) => `line ${block.at}`);
+
+  assert.ok(
+    blocks.length >= 15,
+    `only ${blocks.length} catch blocks were found, so this check is measuring nothing`
+  );
+  assert.deepEqual(
+    undecided,
+    [],
+    `these catches swallow a caught error without saying whether it is a fault: ${undecided.join(' | ')}`
+  );
+});
+
+/**
+ * 🔴 AND THE REPORTER MUST NEVER REPORT ITSELF.
+ *
+ * A reporter whose own failure became a report would have invented the one way this
+ * feature can turn into an incident: a report that fails to send, reported, which fails to
+ * send. Every `catch` in the reporter therefore does nothing but carry on, and this check
+ * is what stops somebody helpfully adding a report inside one.
+ */
+test('the reporter never sends a report from inside its own catch blocks', () => {
+  const blocks = catchBlocks(stripJs(read(SITE, 'faults.js')));
+  const selfReporting = blocks
+    .filter((block) => /\breport\(/.test(block.body))
+    .map((block) => `line ${block.at}`);
+
+  assert.ok(blocks.length >= 3, `only ${blocks.length} catches were found in the reporter, so this check is measuring nothing`);
+  assert.deepEqual(selfReporting, [], 'the reporter reports its own failure, which is a loop');
 });
 
 test('when the beacon is refused, the fetch takes over', async () => {

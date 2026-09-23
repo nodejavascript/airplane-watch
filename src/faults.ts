@@ -260,9 +260,9 @@
    */
   window.addEventListener('unhandledrejection', function (event: Event) {
     try {
-      var reason = (event as PromiseRejectionEvent).reason;
-      var message: string;
-      var stack = '';
+      const reason = (event as PromiseRejectionEvent).reason;
+      let message: string;
+      let stack = '';
       if (reason instanceof Error) {
         message = (reason.name || 'Error') + ': ' + reason.message;
         stack = reason.stack || '';
@@ -276,4 +276,61 @@
       /* as above */
     }
   });
+
+  /**
+   * 🔴 A CAUGHT ERROR IS INVISIBLE UNLESS THE CATCH SENDS IT.
+   *
+   * George, 23 September 2026, verbatim: ***"if you have any try/catch rollbar wont
+   * get it unless to invoke the catch err and send to rollbar."*** He is right, and it
+   * is the limitation people assume an error reporter does not have. A reporter sees
+   * two things and only two:
+   *
+   *   - an error that ESCAPED — `window.onerror`, hooked above;
+   *   - a promise NOBODY handled — `unhandledrejection`, hooked above.
+   *
+   * **Anything inside `try { } catch` has been caught, and catching it means the page
+   * chose to carry on.** The browser then tells nobody, so a fault a reader is quietly
+   * working around is a fault nobody can ever fix. That is the whole gap, and no
+   * amount of listening closes it: **the catch has to say so.**
+   *
+   * So this entry point exists, and there are two ways to use it:
+   *
+   *     reportFault(error, 'reading the feed');        // this is a fault, send it
+   *
+   *     // expected: private mode refuses to store; the visit still works
+   *
+   * **A catch must do one or the other, and `test/faults.test.js` fails on a catch that
+   * does neither** — because the failure this guards against is a catch added in six
+   * months that quietly swallows something, and a rule written in a comment cannot
+   * stop that. It is the same principle as the case gate: a record is read at the end,
+   * only a gate fires at the moment of work.
+   *
+   * It goes through `report`, so the cap, the de-duplication and the redaction all
+   * apply: a step failing on every poll of a twenty-second loop is ONE item with many
+   * occurrences, not hundreds of items.
+   *
+   * 🔴 IT NEVER THROWS, AND IT NEVER REPORTS ITS OWN FAILURE. A reporter that threw
+   * into the catch that called it would replace a handled fault with an unhandled one,
+   * and a reporter that reported its own failure would loop for ever.
+   */
+  function reportFault(error: unknown, where: unknown): void {
+    var label = typeof where === 'string' && where !== '' ? where : 'an unnamed step';
+    var detail =
+      error instanceof Error ? (error.name || 'Error') + ': ' + error.message : String(error);
+    report(
+      'Failed while ' + label + '. ' + detail,
+      error instanceof Error && error.stack ? error.stack : '',
+      '',
+      0,
+      0
+    );
+  }
+
+  /**
+   * 🔴 ON THE WINDOW, AND NAMED, BECAUSE THE PAGE HAS TO BE ABLE TO REACH IT. It is
+   * created here — before `consent.js` and before `app.js` — so it exists by the time
+   * anything that can fail is running. The page calls it with `?.`, so a page whose
+   * reporter did not load carries on without one instead of breaking on the name.
+   */
+  window.aircraftFault = reportFault;
 })();

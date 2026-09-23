@@ -590,6 +590,8 @@ async function readJson(response: Response): Promise<unknown> {
   try {
     return JSON.parse(text);
   } catch {
+    // expected: nothing is swallowed here — this re-throws, carrying the shape that
+    // went wrong, and the caller is the one that judges whether it is a fault.
     const kind = (response.headers.get('content-type') ?? 'no content type').split(';')[0];
     throw new Error(
       `The feed answered ${response.status} with ${kind} instead of JSON` +
@@ -716,6 +718,8 @@ function readRules(key: string): TypeRule[] {
         tails: Array.isArray(rule.tails) ? rule.tails.filter((tail: unknown) => typeof tail === 'string') : [],
       }));
   } catch {
+    // expected: rules that will not parse mean no rules, not a broken page. The
+    // reader keeps the defaults and loses nothing they had.
     return [];
   }
 }
@@ -724,10 +728,40 @@ function byId<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
 
+/**
+ * 🔴 A CAUGHT ERROR IS INVISIBLE TO THE FAULT REPORTER UNLESS THE CATCH SENDS IT.
+ *
+ * George, 23 September 2026, verbatim: ***"if you have any try/catch rollbar wont get it
+ * unless to invoke the catch err and send to rollbar."*** The reporter hooks `error` and
+ * `unhandledrejection` — an error that ESCAPED — and nothing else. Everything inside a
+ * `try`/`catch` has already been caught by the time anybody could be told, so **the only
+ * way a caught fault reaches the project is for the catch to say so.**
+ *
+ * Two forms, and every catch in this file uses one of them:
+ *
+ *     reportFault(error, 'reading the feed');        // this is a fault — send it
+ *     // expected: private mode refuses to store; the visit still works
+ *
+ * **A catch that does neither fails `npm test`.** The thing being guarded against is a
+ * catch added six months from now that quietly swallows something, and that cannot be
+ * guarded by a convention — a gate is the only instrument that fires at the moment of
+ * the work rather than at the end of it.
+ *
+ * ⚠️ NOT EVERY CATCH IS A FAULT, AND SENDING THEM ALL WOULD BE WORSE THAN SENDING NONE.
+ * A reader in private mode, a corrupt value in this browser's own storage, a free map
+ * service with no name for a field — those are answers, not breaks, and an item list
+ * full of them is an item list nobody reads. The test for a fault is not "did something
+ * throw" but **"is somebody going to have to fix this"**.
+ */
+function reportFault(error: unknown, where: string): void {
+  window.aircraftFault?.(error, where);
+}
+
 function readStore(key: string, fallback: string): string {
   try {
     return localStorage.getItem(key) ?? fallback;
   } catch {
+    // expected: storage switched off is not a fault — the fallback IS the answer.
     return fallback;
   }
 }
@@ -736,7 +770,8 @@ function writeStore(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
   } catch {
-    /* private mode — the session still works, it just does not survive a reload */
+    // expected: private mode refuses to store. The visit still works, it just does not
+    // survive a reload — which is the honest outcome, and what the policy says.
   }
 }
 
@@ -759,7 +794,7 @@ function storedKeys(includeConsent: boolean): string[] {
       }
     }
   } catch {
-    /* private mode: nothing was stored, so there is nothing to find */
+    // expected: private mode has nothing stored, so there is nothing to find.
   }
   return found;
 }
@@ -772,7 +807,8 @@ function dropStore(key: string): void {
   try {
     localStorage.removeItem(key);
   } catch {
-    /* private mode refuses to remove as well as to store */
+    // expected: private mode refuses to remove as well as to store, and the page
+    // carries on as a first visit either way.
   }
 }
 
@@ -1142,7 +1178,8 @@ class Page {
         this.restored = { lat: kept.lat, lon: kept.lon, label: kept.label ?? '', town: kept.town ?? '', areas: Array.isArray(kept.areas) ? kept.areas : [] };
       }
     } catch {
-      // A corrupt store is not worth failing over; the reader simply starts again.
+      // expected: a corrupt store is not worth failing over. The reader starts again,
+      // and the page says so rather than pretending to have restored something.
       this.restored = null;
     }
 
@@ -1228,6 +1265,9 @@ class Page {
       const raw = JSON.parse(readStore(key, '[]'));
       return Array.isArray(raw) ? raw.filter((item) => typeof item === 'string') : [];
     } catch {
+      // expected: a saved list that will not parse is an empty list, not a fault —
+      // this is this browser's own storage, and the reader loses only their own old
+      // choices.
       return [];
     }
   }
@@ -1545,6 +1585,8 @@ class Page {
       const said = typeof body?.error === 'string' ? body.error.trim() : '';
       return said.length > 0 && said.length <= 240 ? said : null;
     } catch {
+      // expected: an answer this page cannot read just means no sentence is shown.
+      // The reader still gets their whole table, and there is nothing to fix.
       return null;
     }
   }
@@ -1614,6 +1656,11 @@ class Page {
         if (!response.ok) throw new Error(`The feed answered ${response.status} while resolving an airport.`);
         resolved = parseAirport(icao, payload);
       } catch (error) {
+        // 🔴 THIS CATCH IS ONLY EVER REACHED BY A REAL FAULT. A known refusal from the
+        // feed is handled above and returns before the throw, so what lands here is a
+        // status this page does not recognise, or a body that was not JSON at all — and
+        // the reader is told about it either way, so the project should be too.
+        reportFault(error, 'resolving an airport against the feed');
         this.lastError = error instanceof Error ? error.message : String(error);
         this.setBusy(icao, false);
         this.setStatus(this.lastError, 'error');
@@ -1966,8 +2013,10 @@ class Page {
         'ok'
       );
     } catch (error) {
-      // The page keeps the last good picture and says what went wrong, rather
-      // than emptying the table and looking like nothing is there.
+      // As above: a refusal the page knows about never reaches this catch, so anything
+      // that does is a fault. The page keeps the last good picture and says what went
+      // wrong, rather than emptying the table and looking like nothing is there.
+      reportFault(error, 'reading the feed');
       this.lastError = error instanceof Error ? error.message : String(error);
       this.setStatus(`Feed problem: ${this.lastError}`, 'error');
     }
@@ -2289,6 +2338,10 @@ class Page {
       this.survey = (await readJson(response)) as TypesDocument;
       this.surveyRead = true;
     } catch (error) {
+      // A file this site ships that cannot be read is a deployment fault, not a normal
+      // outcome — and the page only answers by showing a quieter list, so nothing else
+      // would ever say so.
+      reportFault(error, 'reading the measured type list');
       this.survey = null;
       // A refusal is an answer, and it has to be recorded as one — otherwise the rows would
       // say they are still waiting for a record that is never going to arrive.
@@ -2331,7 +2384,11 @@ class Page {
     try {
       const response = await fetch('/years.json', { headers: { accept: 'application/json' } });
       this.yearsDoc = (await readJson(response)) as YearsDocument;
-    } catch {
+    } catch (error) {
+      // `/years.json` ships with this site, so not being able to read it means the
+      // deployment is wrong — and the page answers by showing no years at all, which is
+      // exactly the kind of quiet degradation nothing else would report.
+      reportFault(error, 'reading the year file');
       this.yearsDoc = null;
     }
     this.buildYearFilter();
@@ -3773,10 +3830,12 @@ class Page {
       const response = await fetch('/military.json', { headers: { accept: 'application/json' } });
       const doc = (await readJson(response)) as { codes?: { code: string }[]; note?: string };
       for (const row of doc.codes ?? []) this.militaryCodes.add(String(row.code).toUpperCase());
-    } catch {
-      // Not fatal, and deliberately silent in the page: without the file the
-      // warplanes filter still works for the historic types in the static table,
-      // which is where the Lancaster lives.
+    } catch (error) {
+      // Silent IN THE PAGE on purpose — without the file the warplanes filter still works
+      // for the historic types in the static table, which is where the Lancaster lives.
+      // Silent to the project it is not: `/military.json` ships with the site, so failing
+      // to read it is a deployment fault the reader would never think to mention.
+      reportFault(error, 'reading the warplane codes');
       this.militaryCodes.clear();
     }
     this.renderTypeList();
@@ -3858,9 +3917,12 @@ class Page {
       const response = await fetch('/photos.json', { headers: { accept: 'application/json' } });
       const doc = (await readJson(response)) as { found?: Record<string, PhotoEntry> };
       this.photos = doc.found ?? {};
-    } catch {
-      // Not fatal. Without the file every row falls back to its drawing, which is
-      // what a row with no trusted photograph does anyway.
+    } catch (error) {
+      // Not fatal to the reader — every row falls back to its drawing, which is what a row
+      // with no trusted photograph does anyway — but `/photos.json` is built from this
+      // site's own database, so not reading it means something upstream is wrong and the
+      // page would otherwise never say so.
+      reportFault(error, 'reading the photographs');
       this.photos = {};
     }
     this.renderTypeList();
@@ -4607,7 +4669,8 @@ class Page {
       try {
         await Notification.requestPermission();
       } catch {
-        /* older Safari takes a callback instead of a promise */
+        // expected: older Safari takes a callback instead of a promise, and the
+        // callback form above has already been offered.
       }
       this.renderWatchButton();
       track('notifications_asked', { permission: Notification.permission });
@@ -4626,9 +4689,9 @@ class Page {
         tag: departure.hex,
       });
     } catch {
-      /* Some browsers refuse to build a notification from a page that is not
-         itself in the foreground. The alert has already fired either way, and the
-         aircraft's phase is corrected in the table on the next render. */
+      // expected: some browsers refuse to build a notification from a page that is not
+      // in the foreground. The alert has already fired either way, and the aircraft's
+      // phase is corrected in the table on the next render.
     }
   }
 
@@ -4649,6 +4712,9 @@ class Page {
       const response = await fetch('/airports.json', { headers: { accept: 'application/json' } });
       this.listedAirports = (await readJson(response)) as AirportsDocument;
     } catch (error) {
+      // The reader only loses a longer menu of airports, but the list is served by this
+      // site, so a failure to read it is the project's to know about.
+      reportFault(error, 'reading the wider airport list');
       this.listedAirports = null;
       if (note) {
         note.textContent =
@@ -5800,6 +5866,9 @@ class Page {
         }
         if (note) note.textContent = `${places.length} place${places.length === 1 ? '' : 's'} matched “${value}”. Pick the right one:`;
       } catch (error) {
+        // The lookup goes through this site's own server, so a failure here is either the
+        // server or the free map service behind it — never the reader's mistake.
+        reportFault(error, 'searching for a place');
         if (note) {
           note.textContent =
             'The place search could not be reached. ' +
@@ -5889,32 +5958,44 @@ class Page {
       // 🔴 THE PLACE NAME LEFT THIS ERROR ON 23 Sep 2026. It read
       // `new Error(body.place ?? 'no name')`, and `body.place` is the name of the town
       // the reader's own coordinates fall in — a fact about where they are, carried as
-      // the text of an error. The catch below discards the message, so nothing the
-      // reader sees has changed; what changed is that a visitor's position can no
-      // longer be the text of an error at all, which is the property the fault report
-      // rests on and which is now checked.
-      if (!body.ok || !body.town) throw new Error('That position could not be named.');
-      this.computeNearby(lat, lon, body.town, body.town, Array.isArray(body.areas) ? body.areas : []);
-      // 🔴 ONE CLAUSE, AND GEORGE ASKED FOR IT THAT WAY. His words, 20 Sep 2026, pasting the
-      // paragraph back: *"i dont want any of this anymore"*. It had grown into three sentences —
-      // that a coordinate names the town it falls in, that a community name is not in the free
-      // map data, that the postal code is what carries one, and then a disclosure about what
-      // happens to the coordinates. The first three explained a limitation that no longer has
-      // anything to do with the reader (the postal route is gone), and the disclosure has moved
-      // to the top of the card, said once, where it covers every way in rather than one.
-      if (note) {
-        note.textContent = `Ordered by distance from ${body.town}${body.region ? `, ${body.region}` : ''}.`;
+      // the text of an error. Nothing the reader sees changed; what changed is that a
+      // visitor's position can no longer be the text of an error at all, which is the
+      // property the fault report rests on.
+      //
+      // 🔴 AND THIS IS NO LONGER A THROW, FOR THE SAME REASON IT IS NO LONGER AN ERROR
+      // MESSAGE (23 Sep 2026). "The free map data has no town for this coordinate" is an
+      // ANSWER, not a fault, and throwing it made the expected case indistinguishable
+      // from the broken one — the catch below could not tell a service that is down from
+      // a field with no name, so neither could the fault report. Falling out of the
+      // `try` now means "no name here", which is the fallback below, and the catch is
+      // reserved for failing to ask at all.
+      if (body.ok && body.town) {
+        this.computeNearby(lat, lon, body.town, body.town, Array.isArray(body.areas) ? body.areas : []);
+        // 🔴 ONE CLAUSE, AND GEORGE ASKED FOR IT THAT WAY. His words, 20 Sep 2026, pasting the
+        // paragraph back: *"i dont want any of this anymore"*. It had grown into three sentences —
+        // that a coordinate names the town it falls in, that a community name is not in the free
+        // map data, that the postal code is what carries one, and then a disclosure about what
+        // happens to the coordinates. The first three explained a limitation that no longer has
+        // anything to do with the reader (the postal route is gone), and the disclosure has moved
+        // to the top of the card, said once, where it covers every way in rather than one.
+        if (note) {
+          note.textContent = `Ordered by distance from ${body.town}${body.region ? `, ${body.region}` : ''}.`;
+        }
+        track('locate_named', { named: true });
+        return;
       }
-      track('locate_named', { named: true });
-    } catch {
-      // No name came back. Show the numbers the browser gave us — they are real, and the
-      // reader can see for themselves that the page is not pretending to know more.
-      this.computeNearby(lat, lon, fallback);
-      if (note) {
-        note.textContent = `Ordered by distance from ${fallback} — the position your browser gave.`;
-      }
-      track('locate_named', { named: false });
+    } catch (error) {
+      // Failing to ASK is a fault — the lookup unreachable, or an answer that was not JSON.
+      // The reader would otherwise be shown a pair of numbers with no explanation of why.
+      reportFault(error, 'naming the position from its coordinates');
     }
+    // No name came back. Show the numbers the browser gave us — they are real, and the
+    // reader can see for themselves that the page is not pretending to know more.
+    this.computeNearby(lat, lon, fallback);
+    if (note) {
+      note.textContent = `Ordered by distance from ${fallback} — the position your browser gave.`;
+    }
+    track('locate_named', { named: false });
   }
 
   /* --------------------------------------------------------- the live view */
