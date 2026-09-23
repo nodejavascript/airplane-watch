@@ -1220,20 +1220,53 @@ class Page {
      */
     feedTrouble(response) {
         if (response.status === 429) {
-            return ('The feed asked us to slow down (HTTP 429). It is volunteer-funded and answers a limited number of ' +
-                'requests, and this page had been asking every twenty seconds. It has slowed itself down to give the feed ' +
-                'room, and it will speed back up on its own — the map below keeps the last reading it managed to get.');
+            // 🔴 SHORT, ON PURPOSE. George, 23 Sep 2026, looking at the live site: *"maybe i dont want to see
+            // this again"*. What he was looking at was **the feed's own nginx page, passed through by the
+            // proxy** whenever the isolate held no reading to serve — so the proxy no longer does that (see
+            // `refusal()` in worker/index.js) and normally serves a reading with its age instead. What is left
+            // here is the sentence for the one case that has nothing to show at all: it names the fault, says
+            // there is nothing new yet, and says what happens next. It does not explain our polling to someone
+            // who came to look at aeroplanes.
+            return ('The feed asked us to slow down (HTTP 429). It is a volunteer service and it is refusing this site ' +
+                'just now, so there is nothing new to show yet — the page asks every twenty seconds and will slow ' +
+                'itself down further, and it will try again shortly.');
         }
         if (response.status >= 500) {
-            return (`The feed's own server is having trouble (HTTP ${response.status}). That is at their end, not yours and ` +
-                'not this site\'s: api.adsb.lol is a volunteer service and its gateway sometimes fails for a moment, ' +
-                'then recovers. The page keeps asking, and the map below keeps the last reading it got.');
+            return (`The feed is not answering properly just now (HTTP ${response.status}). That is at their end, not yours ` +
+                `and not this site's — api.adsb.lol is a volunteer service, and it fails for a moment and then recovers. ` +
+                'The page keeps asking.');
         }
         if (!response.ok) {
-            return (`The feed answered HTTP ${response.status}. The page keeps asking every twenty seconds, so this may clear ` +
-                'on its own.');
+            return (`The feed answered HTTP ${response.status}. The page keeps asking every twenty seconds, so this may ` +
+                'clear on its own.');
         }
         return null;
+    }
+    /**
+     * 🔴 THE PROXY EXPLAINS ITSELF IN JSON, AND ITS SENTENCE WINS OVER THE ONE ABOVE.
+     *
+     * Since 23 September 2026 a refusal the proxy cannot cover with a reading is answered **in JSON, in this
+     * site's own words** — it used to hand the reader the feed's own nginx page — so there is a better
+     * sentence available than this file's generic one, and it is the proxy that knows which upstream refused.
+     *
+     * It is CAPPED, deliberately: an unexpected or runaway message must not fill the status line, so anything
+     * longer than a couple of lines is discarded in favour of this page's own copy. A message from a server
+     * is still a message from somewhere else, and the status line is this page's to speak in.
+     */
+    async proxyMessage(response) {
+        if (!(response.headers.get('content-type') ?? '').includes('json'))
+            return null;
+        try {
+            // 🔴 THROUGH `readJson`, LIKE EVERY OTHER RESPONSE ON THIS PAGE — and the static suite checks the
+            // BUILT code for a bare `.json()`, because that trusts the other end to be JSON. It is how a reader
+            // once got a JavaScript parser complaint where a sentence had been written for them.
+            const body = (await readJson(response));
+            const said = typeof body?.error === 'string' ? body.error.trim() : '';
+            return said.length > 0 && said.length <= 240 ? said : null;
+        }
+        catch {
+            return null;
+        }
     }
     /**
      * 🔴 PICKING AN AIRPORT IS A TOGGLE, NOT A SLOT.
@@ -1542,6 +1575,8 @@ class Page {
             // hides the cause.
             const trouble = this.feedTrouble(response);
             if (trouble) {
+                // The proxy's own sentence is preferred when it offers one: it knows which upstream refused.
+                const proxySaid = await this.proxyMessage(response);
                 this.lastError = `the feed answered ${response.status}`;
                 // 🔴 BEING REFUSED IS A REASON TO ASK LESS OFTEN, NOT TO KEEP ASKING. Ten
                 // seconds was too fast even before a limit was hit; doubling on the refusal
@@ -1551,7 +1586,7 @@ class Page {
                     this.pollMs = Math.min(POLL_MAX_MS, Math.max(POLL_START_MS, this.pollMs * 2));
                     this.startTimer();
                 }
-                this.setStatus(trouble, 'error');
+                this.setStatus(proxySaid ?? trouble, 'error');
                 return;
             }
             const payload = (await readJson(response));

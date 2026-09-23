@@ -3,7 +3,7 @@
  *
  * The page calls `/api/...` on its OWN origin. In development that is handled by
  * tools/serve.mjs. In production it is handled here, on a route bound to
- * `planewatch.nodejavascript.com/api/*`.
+ * `airplane-watch.nodejavascript.com/api/*`.
  *
  * 🔴 WHY A PROXY, AND WHY IT CANNOT BE AVOIDED — measured 20 Sep 2026.
  * `api.adsb.lol` answers a plain GET with **no `Access-Control-Allow-Origin`
@@ -32,24 +32,144 @@ const UPSTREAM = 'https://api.adsb.lol';
 const CACHE_SECONDS = 25;
 
 /**
- * 🔴 ONE REQUEST TO THE FEED PER WINDOW, PER ISOLATE.
+ * 🔴 ONE REQUEST TO THE FEED PER WINDOW — AND WHY THE MAP BELOW WAS NOT ENOUGH.
  *
  * Measured 20 Sep 2026 against the live feed, with a named user agent: ten requests
  * three seconds apart, ten one second apart, and eight two seconds apart were ALL
- * refused with 429 from the third or fourth request onward. The `cache-control`
- * header below is what shares an answer between readers across the Cloudflare cache —
- * that is the real fix at the edge — and this map covers the case where the Worker is
- * invoked anyway. It is per isolate, so it is best-effort by nature, and the header
- * is not.
+ * refused with 429 from the third or fourth request onward.
+ *
+ * 🔴 SUPERSEDED 23 Sep 2026 — THIS COMMENT USED TO SAY THE HEADER WAS THE REAL FIX AND THE MAP WAS
+ * THE STOPGAP. *Prior wording, kept because it was acted on:* *"The `cache-control` header below is
+ * what shares an answer between readers across the Cloudflare cache — that is the real fix at the
+ * edge — and this map covers the case where the Worker is invoked anyway."* **Measured, and it does
+ * not do that: a request through this proxy answers with NO `cf-cache-status` header at all**, so an
+ * extension-less `/api/...` path is not being cached by the edge on the strength of a `cache-control`
+ * header. The map was therefore doing all of the work, and a map lives inside ONE isolate — so a few
+ * visitors landing on different isolates meant a few upstream calls, and the feed refused them.
+ *
+ * 🔴 AND THE MEASUREMENT THAT SETTLED IT — 23 Sep 2026, the same URL a minute apart:
+ *
+ *   · through this Worker (Cloudflare's shared egress)  → **429**, repeatedly, over several minutes
+ *   · from the dvs-sites droplet, which has its own IP  → **200**
+ *   · from George's machine                            → **200**
+ *
+ * **So the feed is not refusing this site for asking too often — it is refusing Cloudflare's egress
+ * address, which every Workers customer shares.** No cadence change inside the Worker can fix that
+ * on its own, and the honest engineering is: ask less, ask less often, and never hand a reader
+ * somebody else's 429 page. That is what the edge cache and the cooldown below do.
  */
 const FEED_CACHE_MS = 25_000;
 const FEED_STALE_MS = 15 * 60 * 1000;
 const FEED_CACHE_MAX = 24;
 const feedCache = new Map();
 
+/**
+ * 🔴 A REFUSAL BUYS QUIET, AND THIS IS THE HALF THE PROXY WAS MISSING.
+ *
+ * A rate limit is an INSTRUCTION, not an error to report: the polite answer is to stop asking for a
+ * while. The proxy had no such memory — every visitor's poll went upstream — so a dozen readers
+ * meant a dozen refusals an hour where one would have done, and each one of them went out from an
+ * address that was already being refused. The cooldown starts at a minute, doubles on each refusal
+ * (up to ten), honours `Retry-After` when the feed names one, and is CLEARED OUTRIGHT by a good
+ * answer — the allowance is back, so there is nothing to stay quiet about.
+ *
+ * It is per isolate, like the map above, so it is best-effort; the edge cache is what makes it
+ * usually unnecessary, and `stale-while-we-wait` is what makes it invisible when it is not.
+ */
+const COOLDOWN_START_MS = 60_000;
+const COOLDOWN_MAX_MS = 10 * 60 * 1000;
+let cooldownMs = COOLDOWN_START_MS;
+let cooldownUntil = 0;
+let refusedWith = 0;
+
 function rememberFeed(target, entry) {
   feedCache.set(target, entry);
   while (feedCache.size > FEED_CACHE_MAX) feedCache.delete(feedCache.keys().next().value);
+}
+
+/**
+ * 🔴 THE EDGE CACHE, GUARDED. The Cache API is available to a Worker on a route of a hostname in its
+ * own zone, and this Worker is on `airplane-watch.nodejavascript.com/api/*` — but a proxy that THROWS
+ * because a cache call was unexpected is worse than one that simply does not cache, so both calls
+ * below are allowed to fail to a no-op and the in-memory map still covers the isolate.
+ *
+ * It is per data centre, which the docs state plainly, so it does not share an answer between
+ * continents — nothing free does. It shares one between every reader in the same one, which is the
+ * case that was costing us: the cache key is the upstream URL, so two readers watching two different
+ * airports ask two different questions and neither is answered with the other's data.
+ */
+async function edgeMatch(key) {
+  try {
+    return (await caches.default.match(key)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function edgePut(key, response) {
+  try {
+    await caches.default.put(key, response);
+  } catch {
+    // Nothing to do and nothing to say: the map covers this isolate, and the cooldown covers the rest.
+  }
+}
+
+/** `Retry-After` is either seconds or an HTTP date; both are legal, and the feed may send neither. */
+function parseRetryAfter(value) {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, COOLDOWN_MAX_MS);
+  const at = Date.parse(value);
+  if (Number.isFinite(at)) return Math.min(Math.max(0, at - Date.now()), COOLDOWN_MAX_MS);
+  return null;
+}
+
+/** A reading the page can use, with how old it is. One shape, so every path dates what it serves. */
+function feedReading(entry, now, how) {
+  return new Response(entry.body, {
+    status: 200,
+    headers: {
+      'content-type': entry.type,
+      'cache-control': `public, max-age=${CACHE_SECONDS}`,
+      'x-proxied-from': 'adsb.lol',
+      'x-feed-cache': how,
+      'x-feed-age-ms': String(Math.max(0, now - entry.at)),
+    },
+  });
+}
+
+/**
+ * 🔴 WHAT A READER GETS WHEN THE FEED REFUSES — AND IT IS NEVER THE FEED'S OWN ERROR PAGE.
+ *
+ * George, 23 Sep 2026, looking at the live site: *"maybe i dont want to see this again"*. What he was
+ * looking at was **nginx's 429 page, passed straight through** — because this branch used to end by
+ * returning the upstream body and status verbatim, and that only happened when the isolate held no
+ * cached reading, which is exactly the state a first visitor lands in. So the reader got a stranger's
+ * error page and a paragraph about our polling, and nothing to look at.
+ *
+ * It is two answers now, and which one is honest depends on whether we have anything to show:
+ *   · we have a reading — serve it, as a 200, and put the refusal in `x-feed-status` with the age in
+ *     `x-feed-age-ms`. The page keeps its picture and dates it;
+ *   · we have nothing — answer in JSON, 503 (never 502, house part 8a), in this site's own words, so
+ *     the page can say it in one short line instead of relaying somebody else's HTML.
+ */
+function refusal(cached, now, status) {
+  if (cached && now - cached.at < FEED_STALE_MS) {
+    const reading = feedReading(cached, now, 'stale');
+    reading.headers.set('x-feed-status', String(status));
+    return reading;
+  }
+  return json(
+    503,
+    {
+      ok: false,
+      error:
+        'The feed is refusing requests from this site just now, so there is nothing to show yet. ' +
+        'It is a volunteer service and answers a limited number of requests; the page will try again shortly.',
+      feed_status: status,
+    },
+    { 'x-feed-status': String(status) },
+  );
 }
 
 /**
@@ -198,7 +318,16 @@ async function servePhoto(raw) {
  * user agent → 200. So a request with no user agent is refused, and the failure
  * looks like the feed being down rather than like the request being turned away.
  */
-const USER_AGENT = 'planewatch.nodejavascript.com';
+/**
+ * 🔴 WHO THE FEED SEES WHEN THIS SITE ASKS — and it was the old name until 23 Sep 2026.
+ *
+ * It read `'planewatch.nodejavascript.com'`, which was true until the site was renamed that morning.
+ * A volunteer service reads its logs to decide who to throttle, and adsb.lol's own terms ask a
+ * production user to *"contact me so I do not break your application by accident"* — so the name and
+ * the address it is reachable at belong in the string, and a stale one is worse than none.
+ */
+const USER_AGENT =
+  'airplane-watch.nodejavascript.com (+https://airplane-watch.nodejavascript.com/)';
 
 /**
  * A place, searched by NAME.
@@ -410,7 +539,7 @@ async function serveTile(path) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/^\/api/, '');
 
@@ -424,6 +553,13 @@ export default {
     if (path.startsWith('/photo')) {
       return servePhoto(url.searchParams.get('src'));
     }
+
+    // 🔴 THE EGRESS PROBE WAS HERE AND IS DELETED (23 Sep 2026, the same session that added it). It asked
+    // three feeds the same question at the same moment and returned statuses only, and it answered the
+    // question it was built for: **from a Cloudflare Worker, adsb.lol answers 429 and airplanes.live and
+    // adsb.fi answer 403 — every one of them refuses this egress.** The probe had no business staying: it
+    // was a public path on a live Worker that spent other people's allowance, and the finding it produced
+    // lives in the note at the top of this file where it is needed.
 
     if (path.startsWith('/tiles/')) {
       return serveTile(path);
@@ -449,26 +585,41 @@ export default {
 
     const target = UPSTREAM + upstreamPath(url);
     const now = Date.now();
+    const cacheKey = new Request(target, { method: 'GET' });
     const cached = feedCache.get(target);
 
-    if (cached && now - cached.at < FEED_CACHE_MS) {
-      return new Response(cached.body, {
+    // 1 · THE EDGE CACHE FIRST, WHICH IS WHAT ACTUALLY SHARES ONE CALL BETWEEN READERS. A visitor's
+    // poll is answered from this data centre's cache for `CACHE_SECONDS` whichever isolate runs it,
+    // and the age of the reading travels with it so the page can date what it shows.
+    const edge = await edgeMatch(cacheKey);
+    if (edge) {
+      const storedAt = Number(edge.headers.get('x-stored-at') || '0');
+      return new Response(edge.body, {
         status: 200,
         headers: {
-          'content-type': cached.type,
+          'content-type': edge.headers.get('content-type') || 'application/json; charset=utf-8',
           'cache-control': `public, max-age=${CACHE_SECONDS}`,
-          'cdn-cache-control': `max-age=${CACHE_SECONDS}`,
           'x-proxied-from': 'adsb.lol',
-          'x-feed-cache': 'fresh',
-          'x-feed-age-ms': String(now - cached.at),
+          'x-feed-cache': 'edge',
+          'x-feed-age-ms': String(storedAt > 0 ? Math.max(0, now - storedAt) : 0),
         },
       });
+    }
+
+    if (cached && now - cached.at < FEED_CACHE_MS) {
+      return feedReading(cached, now, 'fresh');
+    }
+
+    // 2 · A REFUSAL BUYS QUIET. While the cooldown runs this proxy does not call the feed at all, and
+    // the reader is served the last reading we have — or, with none, one short honest sentence.
+    if (now < cooldownUntil) {
+      return refusal(cached, now, refusedWith || 429);
     }
 
     let upstream;
     try {
       upstream = await fetch(target, {
-        headers: { accept: 'application/json', 'user-agent': 'planewatch.nodejavascript.com' },
+        headers: { accept: 'application/json', 'user-agent': USER_AGENT },
         signal: AbortSignal.timeout(12_000),
       });
     } catch (error) {
@@ -483,57 +634,52 @@ export default {
     const type = upstream.headers.get('content-type') || 'application/json; charset=utf-8';
 
     if (upstream.ok) {
+      // A GOOD ANSWER ENDS THE COOLDOWN OUTRIGHT — the allowance is back, so there is nothing left to
+      // stay quiet about, and the next refusal starts its back-off from the bottom again.
+      cooldownMs = COOLDOWN_START_MS;
+      cooldownUntil = 0;
+      refusedWith = 0;
       rememberFeed(target, { at: now, body: text, type });
+      if (ctx) {
+        // Stored with the moment it was taken, so a reader served from the cache is told how old it is
+        // rather than being shown it as live.
+        ctx.waitUntil(
+          edgePut(
+            cacheKey,
+            new Response(text, {
+              headers: {
+                'content-type': type,
+                'cache-control': `public, max-age=${CACHE_SECONDS}`,
+                'x-stored-at': String(now),
+              },
+            }),
+          ),
+        );
+      }
       // Pass 200 through with the reading, so the page can say when it was taken.
-      return new Response(text, {
-        status: 200,
-        headers: {
-          'content-type': type,
-          // A shared cache in front of a dozen readers polling every twenty seconds is
-          // the whole reason a volunteer-funded feed stays usable.
-          'cache-control': `public, max-age=${CACHE_SECONDS}`,
-          'cdn-cache-control': `max-age=${CACHE_SECONDS}`,
-          'x-proxied-from': 'adsb.lol',
-          'x-feed-cache': 'miss',
-          'x-feed-age-ms': '0',
-        },
-      });
+      return feedReading({ at: now, body: text, type }, now, 'miss');
     }
 
-    // 🔴 REFUSED — SO SERVE THE LAST THING WE HEARD, AND SAY HOW OLD IT IS. The
-    // upstream status travels in `x-feed-status` instead of as the status, so the
-    // page keeps its data, can still back off, and can date what it is showing.
-    if (cached && now - cached.at < FEED_STALE_MS) {
-      return new Response(cached.body, {
-        status: 200,
-        headers: {
-          'content-type': cached.type,
-          'cache-control': 'no-store',
-          'x-proxied-from': 'adsb.lol',
-          'x-feed-cache': 'stale',
-          'x-feed-age-ms': String(now - cached.at),
-          'x-feed-status': String(upstream.status),
-        },
-      });
+    // 🔴 REFUSED — SO GO QUIET, THEN SERVE THE LAST THING WE HEARD AND SAY HOW OLD IT IS. The upstream
+    // status travels in `x-feed-status` rather than as the status whenever there is a reading to serve,
+    // so the page keeps its data, can still back off, and can date what it is showing.
+    refusedWith = upstream.status;
+    if (upstream.status === 429 || upstream.status >= 500) {
+      const named = parseRetryAfter(upstream.headers.get('retry-after'));
+      cooldownMs = Math.min(COOLDOWN_MAX_MS, Math.max(COOLDOWN_START_MS, cooldownMs * 2));
+      cooldownUntil = now + (named ?? cooldownMs);
     }
-
-    // Pass the feed's own status through unchanged, so the page can say what
-    // actually happened rather than what this proxy guessed.
-    return new Response(text, {
-      status: upstream.status,
-      headers: {
-        'content-type': type,
-        'cache-control': 'no-store',
-        'x-proxied-from': 'adsb.lol',
-        'x-feed-status': String(upstream.status),
-      },
-    });
+    return refusal(cached, now, upstream.status);
   },
 };
 
-function json(status, body) {
+function json(status, body, extra = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      ...extra,
+    },
   });
 }
