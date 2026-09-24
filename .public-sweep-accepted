@@ -1,0 +1,5 @@
+{
+  "accept": ["contact"],
+  "reason": "The only contact-class item in this repository is a POSTAL CODE used as a test fixture: the airport page is about. It is a public place's code, read off a geocoder so that the fixture actually resolves - a made-up one fails the check for the wrong reason. It is not a person's address and not the owner's. Decided 24 September 2026.",
+  "decided": "2026-09-24"
+}
