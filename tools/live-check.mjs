@@ -109,7 +109,14 @@ check(
 /* --------------------------------------------------------- in a real Chrome --- */
 
 const browser = await chromium.launch({ channel: 'chrome' });
-const context = await browser.newContext({ viewport: { width: 1180, height: 900 } });
+// 🔴 THE OWNER'S NETWORK IS SERVED A STUB `/consent.js` (the `no-ga-for-me` rule on dvs-sites),
+// and this live check runs from inside that range — so the banner never appears and the gate
+// fails on a site that is correct. Measured 24 September 2026, third site in one day. The
+// header only un-suppresses a file every other visitor already gets.
+const context = await browser.newContext({
+  viewport: { width: 1180, height: 900 },
+  extraHTTPHeaders: { 'X-Nodejs-Audit': '1' },
+});
 const page = await context.newPage();
 
 const googleRequests = [];
